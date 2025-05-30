@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { gapi } from "gapi-script";
-//import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { validateEmail } from "../../utils/helper"; // Assumes you have this
 
 const SignUp = () => {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -10,10 +13,12 @@ const SignUp = () => {
     confirmPassword: "",
   });
 
+  const [error, setError] = useState("");
+
   useEffect(() => {
     function start() {
       gapi.client.init({
-        clientId: "YOUR_GOOGLE_CLIENT_ID",
+        clientId: "YOUR_GOOGLE_CLIENT_ID", // Replace with your real Google OAuth Client ID
         scope: "",
       });
     }
@@ -26,13 +31,42 @@ const SignUp = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Handle validation or dispatch signup action here
+    const { name, email, password, confirmPassword } = formData;
+
+    console.log("Form submitted:", { name, email, password });
+
+
+    // Validate email format
+    if (!validateEmail(email)) {
+      setError("Invalid email format.");
+      return;
+    }
+
+    // Restrict to @udrive.ae domain
+    if (!email.endsWith("@udrive.ae")) {
+      setError("Only @udrive.ae emails are allowed for registration.");
+      return;
+    }
+
+    // Password match check
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setError(""); // Clear errors
     console.log("Form submitted:", formData);
+
+    // TODO: Send data to backend or sign up API
+
+    // Redirect on success
+    navigate("/dashboard");
   };
 
   return (
     <div>
       <h2>Sign Up</h2>
+      {error && <p style={{ color: "red" }}>{error}</p>}
       <form onSubmit={handleSubmit}>
         <input
           type="text"
@@ -41,7 +75,7 @@ const SignUp = () => {
           value={formData.name}
           onChange={handleChange}
           required
-        /><br/>
+        /><br />
         <input
           type="email"
           name="email"
@@ -49,7 +83,7 @@ const SignUp = () => {
           value={formData.email}
           onChange={handleChange}
           required
-        /><br/>
+        /><br />
         <input
           type="password"
           name="password"
@@ -57,7 +91,7 @@ const SignUp = () => {
           value={formData.password}
           onChange={handleChange}
           required
-        /><br/>
+        /><br />
         <input
           type="password"
           name="confirmPassword"
@@ -65,7 +99,7 @@ const SignUp = () => {
           value={formData.confirmPassword}
           onChange={handleChange}
           required
-        /><br/>
+        /><br />
         <button type="submit">Sign Up</button>
       </form>
     </div>
@@ -73,4 +107,3 @@ const SignUp = () => {
 };
 
 export default SignUp;
-

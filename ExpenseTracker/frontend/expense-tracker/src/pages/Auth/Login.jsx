@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthLayout from "../../components/layouts/AuthLayout";
 import Input from "../../components/Inputs/Inputs";
+import logo from "../../assets/images/logo.png"; // ✅ Correct logo import
+import "./Login.css";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -28,37 +30,57 @@ const Login = () => {
 
   return (
     <AuthLayout>
-      <div className="lg:w-[70%] h-3/4 md:h-full flex flex-col justify-center items-center mx-auto">
-        <h3 className="text-xl font-semibold text-black">
-          Welcome Back To Udrive Expense
-        </h3>
-        <p className="text-sm text-gray-500">
-          Please enter your credentials to access your account. If you don't have an account, please sign up.
-        </p>
+      <div className="login-page-container">
+        <div className="spline-container">
+          {/* Replace with your actual Spline scene URL */}
+          <iframe
+            src="https://my.spline.design/udriveloginvisual-XfVzn95KcIBHjIdlrnLQh1Ek/"
+            frameBorder="0"
+            width="100%"
+            height="100%"
+            title="Udrive Spline Visual"
+          ></iframe>
+        </div>
 
-        <form onSubmit={handleLogin} className="w-full max-w-md space-y-4 mt-4">
-          <Input
-            value={email}
-            onChange={({ target }) => setEmail(target.value)}
-            label="Email Address"
-            placeholder="Enter your email"
-            type="email"
-          />
-          <Input
-            value={password}
-            onChange={({ target }) => setPassword(target.value)}
-            label="Password"
-            placeholder="Enter your password"
-            type="password"
-          />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
-            Login
-          </button>
-        </form>
+        <div className="login-form-container">
+          <img src={logo} alt="Udrive Logo" className="udrive-logo" /> {/* ✅ Correct usage */}
+          <h3 className="text-xl font-semibold text-black text-center">
+            Welcome Back to Udrive Expense
+          </h3>
+          <p className="text-sm text-gray-500 text-center mb-4">
+            Please enter your credentials to access your account.
+          </p>
+
+          <form onSubmit={handleLogin} className="login-form">
+            <Input
+              value={email}
+              onChange={({ target }) => setEmail(target.value)}
+              label="Email Address"
+              placeholder="Enter your email"
+              type="email"
+            />
+            <Input
+              value={password}
+              onChange={({ target }) => setPassword(target.value)}
+              label="Password"
+              placeholder="Enter your password"
+              type="password"
+            />
+            {error && <p className="login-error">{error}</p>}
+            <button type="submit" className="login-button">
+              Login
+            </button>
+
+            <p className="signup-redirect">
+              Don't have an account?{" "}
+              <span onClick={() => navigate("/auth/signup")}>Sign Up</span>
+            </p>
+          </form>
+        </div>
       </div>
     </AuthLayout>
   );
 };
 
 export default Login;
+
