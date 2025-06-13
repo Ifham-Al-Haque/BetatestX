@@ -64,6 +64,7 @@ const SignUp = () => {
   };
 
   return (
+    <AuthLayout>
     <div>
       <h2>Sign Up</h2>
       {error && <p style={{ color: "red" }}>{error}</p>}
@@ -103,6 +104,7 @@ const SignUp = () => {
         <button type="submit">Sign Up</button>
       </form>
     </div>
+    </AuthLayout>
   );
 };
 
