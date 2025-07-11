@@ -105,6 +105,37 @@ setAssets(enriched)
 function handleEdit(asset) {
   alert("Edit feature coming soon. (Asset: " + asset.name + ")");
 }
+<div className="flex items-center justify-between mb-4">
+  <input
+    type="text"
+    placeholder="Search by name or type"
+    className="border p-2 rounded w-64"
+    onChange={(e) => setSearch(e.target.value.toLowerCase())}
+  />
+  <select
+    className="border p-2 rounded"
+    onChange={(e) => setStatusFilter(e.target.value)}
+  >
+    <option value="">All Statuses</option>
+    <option value="In Stock">In Stock</option>
+    <option value="Assigned">Assigned</option>
+    <option value="Retired">Retired</option>
+  </select>
+</div>
+const [search, setSearch] = useState("");
+const [statusFilter, setStatusFilter] = useState("");
+
+const filteredAssets = assets.filter((a) => {
+  const matchesSearch =
+    a.name.toLowerCase().includes(search) ||
+    a.type.toLowerCase().includes(search);
+  const matchesStatus = statusFilter ? a.status === statusFilter : true;
+  return matchesSearch && matchesStatus;
+});
+
+{filteredAssets.map((asset) => (
+  // rest same as above
+))}
 
           </table>
         )}
