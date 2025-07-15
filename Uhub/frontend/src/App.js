@@ -11,8 +11,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import AdminOnlyPage from "./pages/AdminOnlyPage"; // ✅ Import added
 import ConfirmEmail from "./pages/ConfirmEmail";
-
-
+import EmployeeProfile from "./pages/EmployeeProfile";
+import EmployeeForm from "./pages/EmployeeForm";
 
 
 function App() {
@@ -30,6 +30,13 @@ function App() {
             <Employees />
           </ProtectedRoute>
         } />
+        <Route path="/employees/:id" element={
+        <ProtectedRoute>
+          <EmployeeProfile />
+          </ProtectedRoute>
+                          } />
+                          <Route path="/employees/new" element={<ProtectedRoute><EmployeeForm /></ProtectedRoute>} />
+                          <Route path="/employees/edit/:id" element={<ProtectedRoute><EmployeeForm /></ProtectedRoute>} />
         <Route path="/assets" element={
           <ProtectedRoute>
             <Assets />
