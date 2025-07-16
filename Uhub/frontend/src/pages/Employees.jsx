@@ -1,4 +1,3 @@
-// src/pages/Employees.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
@@ -19,7 +18,19 @@ export default function Employees() {
 
   async function fetchEmployees() {
     setLoading(true);
-    const { data, error } = await supabase.from("employees").select("*");
+    const { data, error } = await supabase
+      .from("employees")
+      .select(`
+        id,
+        name,
+        employee_id,
+        department,
+        designation,
+        reporting_manager:reporting_manager_id (
+          name,
+          employee_id
+        )
+      `);
     if (error) {
       console.error("Error fetching employees:", error.message);
     } else {
@@ -44,7 +55,8 @@ export default function Employees() {
     .filter((emp) =>
       emp.name?.toLowerCase().includes(search.toLowerCase()) ||
       emp.department?.toLowerCase().includes(search.toLowerCase()) ||
-      emp.designation?.toLowerCase().includes(search.toLowerCase())
+      emp.designation?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.employee_id?.toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
       const valA = a[sortKey]?.toLowerCase?.() || "";
@@ -74,7 +86,7 @@ export default function Employees() {
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <input
             type="text"
-            placeholder="Search by name or department..."
+            placeholder="Search by name, department, or ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="p-2 border rounded w-full max-w-md"
@@ -88,6 +100,7 @@ export default function Employees() {
               <option value="name">Name</option>
               <option value="department">Department</option>
               <option value="designation">Designation</option>
+              <option value="employee_id">Employee ID</option>
             </select>
             <button
               onClick={() =>
@@ -107,10 +120,11 @@ export default function Employees() {
             <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow">
               <thead className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-left">
                 <tr>
-                  <th className="p-3">ID</th>
+                  <th className="p-3">Employee ID</th>
                   <th className="p-3">Name</th>
                   <th className="p-3">Department</th>
                   <th className="p-3">Designation</th>
+                  <th className="p-3">Manager</th>
                   <th className="p-3 text-center">Actions</th>
                 </tr>
               </thead>
@@ -121,10 +135,15 @@ export default function Employees() {
                       key={emp.id}
                       className="border-t border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
-                      <td className="p-3">{emp.id}</td>
+                      <td className="p-3">{emp.employee_id}</td>
                       <td className="p-3">{emp.name}</td>
                       <td className="p-3">{emp.department}</td>
                       <td className="p-3">{emp.designation}</td>
+                      <td className="p-3">
+                        {emp.reporting_manager
+                          ? `${emp.reporting_manager.name} (${emp.reporting_manager.employee_id})`
+                          : "-"}
+                      </td>
                       <td className="p-3 flex justify-center items-center space-x-2">
                         <button
                           onClick={() => navigate(`/employees/${emp.id}`)}
@@ -153,7 +172,7 @@ export default function Employees() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="p-4 text-center text-gray-600 dark:text-gray-300"
                     >
                       No employees found.

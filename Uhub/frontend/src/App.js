@@ -9,10 +9,13 @@ import AccessRequests from "./pages/AccessRequests";
 import ExpenseTracker from "./pages/ExpenseTracker";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
-import AdminOnlyPage from "./pages/AdminOnlyPage"; // ✅ Import added
+import AdminOnlyPage from "./pages/AdminOnlyPage";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import EmployeeProfile from "./pages/EmployeeProfile";
 import EmployeeForm from "./pages/EmployeeForm";
+
+// ✅ ADD this import:
+import EditResponsibilitiesAndDuties from "./components/EditResponsibilitiesAndDuties";
 
 
 function App() {
@@ -20,43 +23,69 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
+
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
         } />
+
         <Route path="/employees" element={
           <ProtectedRoute>
             <Employees />
           </ProtectedRoute>
         } />
+
         <Route path="/employees/:id" element={
-        <ProtectedRoute>
-          <EmployeeProfile />
+          <ProtectedRoute>
+            <EmployeeProfile />
           </ProtectedRoute>
-                          } />
-                          <Route path="/employees/new" element={<ProtectedRoute><EmployeeForm /></ProtectedRoute>} />
-                          <Route path="/employees/edit/:id" element={<ProtectedRoute><EmployeeForm /></ProtectedRoute>} />
+        } />
+
+        <Route path="/employees/new" element={
+          <ProtectedRoute>
+            <EmployeeForm />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/employees/edit/:id" element={
+          <ProtectedRoute>
+            <EmployeeForm />
+          </ProtectedRoute>
+        } />
+
+        
+
+        
+        <Route
+  path="/employees/:id/edit-responsibilities-duties"
+  element={<ProtectedRoute><EditResponsibilitiesAndDuties /></ProtectedRoute>}
+/>
+
         <Route path="/assets" element={
           <ProtectedRoute>
             <Assets />
           </ProtectedRoute>
         } />
+
         <Route path="/tickets" element={
           <ProtectedRoute>
             <Tickets />
           </ProtectedRoute>
         } />
+
         <Route path="/access-requests" element={
           <ProtectedRoute>
             <AccessRequests />
           </ProtectedRoute>
         } />
+
         <Route path="/expenses" element={
           <ProtectedRoute>
             <ExpenseTracker />
           </ProtectedRoute>
         } />
+
         <Route path="/admin-only" element={
           <ProtectedRoute>
             <AdminRoute>
@@ -64,6 +93,7 @@ function App() {
             </AdminRoute>
           </ProtectedRoute>
         } />
+
         <Route path="/confirm-email" element={<ConfirmEmail />} />
       </Routes>
     </Router>

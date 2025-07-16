@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 
+
 export default function ExpenseTracker() {
   const [expenses, setExpenses] = useState([]);
   const [form, setForm] = useState({
@@ -140,6 +141,7 @@ export default function ExpenseTracker() {
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
           <option value="Trial">Trial</option>
+          <option value="Free">Free</option>
         </select>
         <input type="text" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="border p-2" disabled={loading} />
         <button type="submit" className="bg-blue-600 text-white py-2 px-4 col-span-1 md:col-span-2" disabled={loading}>Add Expense</button>

@@ -1,11 +1,11 @@
 // src/pages/EmployeeForm.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import Sidebar from "../components/Sidebar";
 
 export default function EmployeeForm() {
-  const { id } = useParams(); // for edit mode
+  const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
 
@@ -20,35 +20,74 @@ export default function EmployeeForm() {
     extra_responsibilities: "",
     access_list: "",
     assets: "",
+    auth_user_id: null,
+    reporting_manager_id: null,
   });
 
   const [loading, setLoading] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [managers, setManagers] = useState([]);
 
+  // Fetch auth users (requires service role token setup)
   useEffect(() => {
-    if (isEdit) {
-      fetchEmployee();
+    async function fetchUsers() {
+      const { data, error } = await supabase.auth.admin.listUsers();
+      if (error) console.error("Error fetching users:", error.message);
+      else setAvailableUsers(data?.users || []);
     }
+    fetchUsers();
+  }, []);
+
+  // Fetch managers
+  useEffect(() => {
+    async function fetchManagers() {
+      const { data, error } = await supabase
+        .from("employees")
+        .select("id, name, employee_id")
+        .neq("id", id);
+      if (!error) setManagers(data);
+    }
+    fetchManagers();
   }, [id]);
 
-  async function fetchEmployee() {
-    const { data, error } = await supabase.from("employees").select("*").eq("id", id).single();
+  // Fetch employee for edit
+  const fetchEmployee = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("id", id)
+      .single();
+
     if (!error && data) {
       setForm(data);
     }
-  }
+  }, [id]);
 
+  useEffect(() => {
+    if (isEdit) fetchEmployee();
+  }, [isEdit, fetchEmployee]);
+
+  // Submit form
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
 
-    if (isEdit) {
-      const { error } = await supabase.from("employees").update(form).eq("id", id);
-      if (error) alert("Update failed: " + error.message);
-      else navigate("/employees");
-    } else {
-      const { error } = await supabase.from("employees").insert([form]);
-      if (error) alert("Creation failed: " + error.message);
-      else navigate("/employees");
+    try {
+      if (isEdit) {
+        const { error } = await supabase
+          .from("employees")
+          .update(form)
+          .eq("id", id);
+        if (error) alert("Update failed: " + error.message);
+        else navigate("/employees");
+      } else {
+        const { error } = await supabase.from("employees").insert([form]);
+        if (error) alert("Creation failed: " + error.message);
+        else navigate("/employees");
+      }
+    } catch (err) {
+      console.error("Form error:", err.message);
+      alert("An unexpected error occurred.");
     }
 
     setLoading(false);
@@ -62,7 +101,10 @@ export default function EmployeeForm() {
           {isEdit ? "Edit" : "Add"} Employee
         </h2>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 gap-4 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
+        >
           <input
             type="text"
             placeholder="Full Name"
@@ -114,7 +156,9 @@ export default function EmployeeForm() {
             className="p-2 border rounded dark:bg-gray-700"
             rows={2}
             value={form.key_roles}
-            onChange={(e) => setForm({ ...form, key_roles: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, key_roles: e.target.value })
+            }
           />
 
           <textarea
@@ -122,7 +166,9 @@ export default function EmployeeForm() {
             className="p-2 border rounded dark:bg-gray-700"
             rows={2}
             value={form.extra_responsibilities}
-            onChange={(e) => setForm({ ...form, extra_responsibilities: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, extra_responsibilities: e.target.value })
+            }
           />
 
           <textarea
@@ -141,15 +187,64 @@ export default function EmployeeForm() {
             onChange={(e) => setForm({ ...form, assets: e.target.value })}
           />
 
+          {/* Reporting Manager Dropdown */}
+          <select
+            value={form.reporting_manager_id || ""}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                reporting_manager_id:
+                  e.target.value === "" ? null : e.target.value,
+              })
+            }
+            className="p-2 border rounded dark:bg-gray-700"
+          >
+            <option value="">Select Reporting Manager (optional)</option>
+            {managers.map((mgr) => (
+              <option key={mgr.id} value={mgr.id}>
+                {mgr.name} ({mgr.employee_id})
+              </option>
+            ))}
+          </select>
+
+          {/* Auth User Dropdown */}
+          <select
+            value={form.auth_user_id || ""}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                auth_user_id:
+                  e.target.value === "" ? null : e.target.value,
+              })
+            }
+            className="p-2 border rounded dark:bg-gray-700"
+          >
+            <option value="">Select Auth User (optional)</option>
+            {availableUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.email}
+              </option>
+            ))}
+          </select>
+
           <button
             type="submit"
             disabled={loading}
             className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition"
           >
-            {isEdit ? "Update" : "Create"} Employee
+            {loading
+              ? isEdit
+                ? "Updating..."
+                : "Creating..."
+              : isEdit
+              ? "Update"
+              : "Create"}{" "}
+            Employee
           </button>
         </form>
       </div>
     </div>
   );
 }
+
+
