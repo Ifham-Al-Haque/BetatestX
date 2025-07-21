@@ -1,18 +1,20 @@
-// src/pages/Dashboard.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import Sidebar from "../components/Sidebar";
 import UserDropdown from "../components/UserDropdown";
 import DarkModeToggle from "../components/DarkModeToggle";
-import { motion, AnimatePresence } from "framer-motion";
+import CalendarView from "../components/CalendarView";
 import { CSVLink } from "react-csv";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart,
   LineChart,
   PieChart,
+  ScatterChart,
   Pie,
   Bar,
   Line,
+  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,6 +22,11 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+
+import Filters from "../components/Filters";
+import ChartSelector from "../components/ChartSelector";
+import { YearlyBreakdown } from "../components/Breakdowns";
+import PaginatedTable from "../components/PaginatedTable";
 
 export default function Dashboard() {
   const [expenses, setExpenses] = useState([]);
@@ -35,6 +42,36 @@ export default function Dashboard() {
     fetchExpenses();
   }, []);
 
+
+  useEffect(() => {
+  const updateOverduePayments = async () => {
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data: overduePayments } = await supabase
+      .from("payments")
+      .select("id, due_date, status")
+      .lt("due_date", today)
+      .eq("status", "pending");
+
+    if (overduePayments.length > 0) {
+      const idsToUpdate = overduePayments.map((p) => p.id);
+
+      const { error } = await supabase
+        .from("payments")
+        .update({ status: "overdue" })
+        .in("id", idsToUpdate);
+
+      if (error) console.error("Failed to update overdue payments", error);
+    }
+  };
+
+  updateOverduePayments();
+}, []);
+
+
+
+
+
   async function fetchExpenses() {
     const { data, error } = await supabase
       .from("expenses")
@@ -44,48 +81,181 @@ export default function Dashboard() {
     if (!error && data) setExpenses(data);
   }
 
-  const departments = ["All", ...new Set(expenses.map((e) => e.department || "Unassigned"))];
-  const years = [
-    "All",
-    ...new Set(
-      expenses.map((e) =>
-        e.date_paid ? new Date(e.date_paid).getFullYear().toString() : "Unknown"
+  const calendarEvents = [
+  {
+    title: "AWS Renewal",
+    start: new Date("2025-07-25"),
+    end: new Date("2025-07-25"),
+    status: "upcoming",
+  },
+  {
+    title: "Office365 License Payment",
+    start: new Date("2025-07-22"),
+    end: new Date("2025-07-22"),
+    status: "pending",
+  },
+];
+<CalendarView events={calendarEvents} />
+
+function getNextMonthEstimate(expenses) {
+  const now = new Date();
+  const pastMonths = expenses.filter(e => {
+    const date = new Date(e.date);
+    return date.getMonth() !== now.getMonth() && date.getFullYear() === now.getFullYear();
+  });
+
+  const last3Months = pastMonths.slice(-3);
+  const total = last3Months.reduce((sum, e) => sum + e.amount, 0);
+  return Math.round(total / last3Months.length || 0);
+}
+// Calculate actual expenses for the current month
+
+
+// Calculate estimated cost for the next month
+const { estimatedCost, actualThisMonth, costDifference, isOverBudget } = useMemo(() => {
+  const now = new Date();
+
+  const actualThisMonth = expenses
+    .filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const estimatedCost = getNextMonthEstimate(expenses);
+
+  const costDifference = actualThisMonth - estimatedCost;
+  const isOverBudget = costDifference > 0;
+
+  return { estimatedCost, actualThisMonth, costDifference, isOverBudget };
+}, [expenses]);
+
+
+  const departments = useMemo(
+    () => ["All", ...new Set(expenses.map((e) => e.department || "Unassigned"))],
+    [expenses]
+  );
+
+  const years = useMemo(() => {
+    return [
+      "All",
+      ...new Set(
+        expenses.map((e) =>
+          e.date_paid ? new Date(e.date_paid).getFullYear().toString() : "Unknown"
+        )
+      ),
+    ];
+  }, [expenses]);
+
+  const isValidDate = (d) => d instanceof Date && !isNaN(d);
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((e) => {
+      const departmentMatch = departmentFilter === "All" || e.department === departmentFilter;
+      const yearMatch =
+        yearFilter === "All" ||
+        (e.date_paid && new Date(e.date_paid).getFullYear().toString() === yearFilter);
+      const date = new Date(e.date_paid);
+      const startMatch = !startDate || (e.date_paid && isValidDate(date) && date >= new Date(startDate));
+      const endMatch = !endDate || (e.date_paid && isValidDate(date) && date <= new Date(endDate));
+      return departmentMatch && yearMatch && startMatch && endMatch;
+    });
+  }, [expenses, departmentFilter, yearFilter, startDate, endDate]);
+
+  const totalExpense = useMemo(
+    () =>
+      filteredExpenses.reduce((acc, item) => acc + (Number(item.amount_aed) || 0), 0),
+    [filteredExpenses]
+  );
+
+  const { monthlyData, serviceData, departmentData, serviceByMonthMap, allMonths } = useMemo(() => {
+    const monthlyData = {};
+    const serviceData = {};
+    const departmentData = {};
+    const serviceByMonthMap = {};
+
+    filteredExpenses.forEach((item) => {
+      const validAmount = Number(item.amount_aed) || 0;
+      const month = item.date_paid
+        ? new Date(item.date_paid).toLocaleDateString("en-US", { year: "numeric", month: "short" })
+        : "Unknown";
+
+      monthlyData[month] = (monthlyData[month] || 0) + validAmount;
+      serviceData[item.service_name || "Unknown"] =
+        (serviceData[item.service_name || "Unknown"] || 0) + validAmount;
+      departmentData[item.department || "Unassigned"] =
+        (departmentData[item.department || "Unassigned"] || 0) + validAmount;
+
+      const service = item.service_name || "Unknown";
+      if (!serviceByMonthMap[service]) {
+        serviceByMonthMap[service] = {};
+      }
+      serviceByMonthMap[service][month] = (serviceByMonthMap[service][month] || 0) + validAmount;
+    });
+
+    const allMonths = Array.from(
+      new Set(
+        filteredExpenses.map((e) =>
+          e.date_paid
+            ? new Date(e.date_paid).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+              })
+            : "Unknown"
+        )
       )
-    ),
-  ];
+    );
 
-  const filteredExpenses = expenses.filter((e) => {
-    const departmentMatch = departmentFilter === "All" || e.department === departmentFilter;
-    const yearMatch =
-      yearFilter === "All" ||
-      (e.date_paid && new Date(e.date_paid).getFullYear().toString() === yearFilter);
-    const startMatch = !startDate || new Date(e.date_paid) >= new Date(startDate);
-    const endMatch = !endDate || new Date(e.date_paid) <= new Date(endDate);
-    return departmentMatch && yearMatch && startMatch && endMatch;
-  });
+    return { monthlyData, serviceData, departmentData, serviceByMonthMap, allMonths };
+  }, [filteredExpenses]);
 
-  const totalExpense = filteredExpenses.reduce((acc, item) => acc + (item.amount_aed || 0), 0);
+  const serviceByMonthChartData = useMemo(() => {
+    return allMonths.map((month) => {
+      const entry = { name: month };
+      for (const service in serviceByMonthMap) {
+        entry[service] = serviceByMonthMap[service][month] || 0;
+      }
+      return entry;
+    });
+  }, [allMonths, serviceByMonthMap]);
 
-  const monthlyData = {};
-  const serviceData = {};
-  const departmentData = {};
+  const monthlyChartData = useMemo(
+    () => Object.entries(monthlyData).map(([name, amount]) => ({ name, amount })),
+    [monthlyData]
+  );
 
-  filteredExpenses.forEach((item) => {
-    const month = item.date_paid
-      ? new Date(item.date_paid).toLocaleDateString("en-US", { year: "numeric", month: "short" })
-      : "Unknown";
+  const fullServiceChartData = useMemo(
+    () => Object.entries(serviceData).map(([name, amount]) => ({ name, amount })),
+    [serviceData]
+  );
 
-    monthlyData[month] = (monthlyData[month] || 0) + (item.amount_aed || 0);
-    serviceData[item.service_name || "Unknown"] =
-      (serviceData[item.service_name || "Unknown"] || 0) + (item.amount_aed || 0);
-    departmentData[item.department || "Unassigned"] =
-      (departmentData[item.department || "Unassigned"] || 0) + (item.amount_aed || 0);
-  });
+  const departmentChartData = useMemo(
+    () => Object.entries(departmentData).map(([name, amount]) => ({ name, amount })),
+    [departmentData]
+  );
 
-  const monthlyChartData = Object.entries(monthlyData).map(([name, amount]) => ({ name, amount }));
-  const fullServiceChartData = Object.entries(serviceData).map(([name, amount]) => ({ name, amount }));
-  const serviceChartData = [...fullServiceChartData].sort((a, b) => b.amount - a.amount).slice(0, 5);
-  const departmentChartData = Object.entries(departmentData).map(([name, amount]) => ({ name, amount }));
+  // Group expenses by year then department (for new department-year breakdown)
+  const departmentYearlyData = useMemo(() => {
+    const data = {};
+    filteredExpenses.forEach(({ date_paid, department, amount_aed }) => {
+      const year = date_paid ? new Date(date_paid).getFullYear().toString() : "Unknown";
+      const dept = department || "Unassigned";
+      const amount = Number(amount_aed) || 0;
+      if (!data[year]) data[year] = {};
+      if (!data[year][dept]) data[year][dept] = 0;
+      data[year][dept] += amount;
+    });
+    return data;
+  }, [filteredExpenses]);
+
+  const csvFilename = `expenses-${departmentFilter}-${yearFilter}.csv`;
+
+  const resetFilters = useCallback(() => {
+    setDepartmentFilter("All");
+    setYearFilter("All");
+    setStartDate("");
+    setEndDate("");
+  }, []);
 
   const renderChart = (data, color) => {
     if (data.length === 0) {
@@ -93,9 +263,20 @@ export default function Dashboard() {
     }
 
     switch (chartType) {
+      case "scatter":
+        return (
+          <ScatterChart>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" type="category" />
+            <YAxis dataKey="amount" type="number" />
+            <Tooltip />
+            <Legend />
+            <Scatter data={data} fill={color} />
+          </ScatterChart>
+        );
       case "bar":
         return (
-          <BarChart data={data} onClick={(e) => alert("Clicked on: " + e?.activeLabel)}>
+          <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />
@@ -106,7 +287,7 @@ export default function Dashboard() {
         );
       case "line":
         return (
-          <LineChart data={data} onClick={(e) => alert("Clicked on: " + e?.activeLabel)}>
+          <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />
@@ -127,7 +308,6 @@ export default function Dashboard() {
               outerRadius={100}
               fill={color}
               label
-              onClick={(e) => alert("Clicked on: " + e.name)}
             />
             <Tooltip />
             <Legend />
@@ -138,21 +318,18 @@ export default function Dashboard() {
     }
   };
 
-  const departmentBreakdown = Object.entries(departmentData).map(([dept, total]) => ({
-    department: dept,
-    total: total.toFixed(2),
-  }));
-
-  const yearlyBreakdown = Object.entries(
-    filteredExpenses.reduce((acc, item) => {
+  // Yearly breakdown for overall expense per year
+  const yearlyBreakdown = useMemo(() => {
+    const breakdown = filteredExpenses.reduce((acc, item) => {
       const year = item.date_paid ? new Date(item.date_paid).getFullYear() : "Unknown";
-      acc[year] = (acc[year] || 0) + (item.amount_aed || 0);
+      acc[year] = (acc[year] || 0) + (Number(item.amount_aed) || 0);
       return acc;
-    }, {})
-  ).map(([yr, total]) => ({
-    year: yr,
-    total: total.toFixed(2),
-  }));
+    }, {});
+    return Object.entries(breakdown).map(([yr, total]) => ({
+      year: yr,
+      total: total.toFixed(2),
+    }));
+  }, [filteredExpenses]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -162,98 +339,111 @@ export default function Dashboard() {
           <UserDropdown />
         </div>
       </div>
+      <div className="bg-blue-100 text-blue-900 p-4 rounded-xl shadow-md mt-6">
+  <h2 className="text-lg font-semibold">Estimated Next Month Cost</h2>
+  <p className="text-3xl mt-2 font-bold">AED {estimatedCost}</p>
+</div>
+<div className={`p-4 rounded-xl shadow-md mt-6 ${isOverBudget ? 'bg-red-100 text-red-900' : 'bg-green-100 text-green-900'}`}>
+  <h2 className="text-lg font-semibold">Budget Comparison</h2>
+  <p className="mt-2">Estimated: <strong>AED {estimatedCost}</strong></p>
+  <p>Actual: <strong>AED {actualThisMonth}</strong></p>
+  <p className="mt-2 font-bold">
+    {isOverBudget ? `Over Budget by AED ${costDifference}` : `Under Budget by AED ${Math.abs(costDifference)}`}
+  </p>
+</div>
 
       <div className="flex">
         <Sidebar />
         <div className="ml-64 p-6 w-full">
           <h1 className="text-3xl font-bold mb-4">Dashboard Overview</h1>
 
-          <div className="flex flex-wrap gap-4 items-end mb-6">
-            <div>
-              <label className="mr-2 font-semibold">Filter by Department:</label>
-              <select
-                className="p-2 rounded border dark:bg-gray-700 dark:text-white"
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-              >
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
+          <Filters
+            departments={departments}
+            years={years}
+            departmentFilter={departmentFilter}
+            setDepartmentFilter={setDepartmentFilter}
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            onResetFilters={resetFilters}
+          />
 
-            <div>
-              <label className="mr-2 font-semibold">Filter by Year:</label>
-              <select
-                className="p-2 rounded border dark:bg-gray-700 dark:text-white"
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
+          <CSVLink
+            data={filteredExpenses}
+            filename={csvFilename}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-6 inline-block"
+          >
+            Export to CSV
+          </CSVLink>
 
-            <div>
-              <label className="mr-2 font-semibold">Start Date:</label>
-              <input
-                type="date"
-                className="p-2 rounded border dark:bg-gray-700 dark:text-white"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="mr-2 font-semibold">End Date:</label>
-              <input
-                type="date"
-                className="p-2 rounded border dark:bg-gray-700 dark:text-white"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-
-            <CSVLink
-              data={filteredExpenses}
-              filename={`expenses-${departmentFilter}-${yearFilter}.csv`}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              Export to CSV
-            </CSVLink>
+          <div className="flex items-center mb-6">
+            <ChartSelector chartType={chartType} setChartType={setChartType} />
           </div>
+          {/* 🔔 Calendar View */}
+<div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border">
+  <h3 className="text-lg font-semibold mb-4">📅 Upcoming & Pending Payments</h3>
+  <CalendarView
+    events={[
+      {
+        title: "AWS Renewal",
+        start: new Date("2025-07-25"),
+        end: new Date("2025-07-25"),
+        status: "upcoming",
+      },
+      {
+        title: "Office365 License Payment",
+        start: new Date("2025-07-22"),
+        end: new Date("2025-07-22"),
+        status: "pending",
+      },
+    ]}
+  />
+</div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border">
-              <h3 className="text-lg font-semibold">Total Expenses</h3>
-              <p className="text-4xl text-blue-600 font-bold mt-3">AED {totalExpense.toFixed(2)}</p>
-            </div>
+{/* 🔮 Estimated Cost Card */}
+<div className="bg-blue-100 text-blue-900 p-4 rounded-xl shadow-md mt-6 max-w-xs">
+  <h2 className="text-lg font-semibold">📈 Estimated Cost (Next Month)</h2>
+  <p className="text-3xl mt-2 font-bold">AED {estimatedCost}</p>
+</div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border flex items-center justify-end">
-              <span className="mr-2">Chart Type:</span>
-              {["bar", "line", "pie"].map((type) => (
-                <button
-                  key={type}
-                  className={`px-4 py-2 rounded-md text-sm mr-2 border ${
-                    chartType === type
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white"
-                  }`}
-                  onClick={() => setChartType(type)}
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+{/* 📊 Budget Comparison */}
+<div
+  className={`p-4 rounded-xl shadow-md mt-6 max-w-md ${
+    isOverBudget ? 'bg-red-100 text-red-900' : 'bg-green-100 text-green-900'
+  }`}
+>
+  <h2 className="text-lg font-semibold">💰 Budget Comparison (This Month)</h2>
+  <p className="mt-2">Estimated: <strong>AED {estimatedCost}</strong></p>
+  <p>Actual: <strong>AED {actualThisMonth}</strong></p>
+  <p className="mt-2 font-bold">
+    {isOverBudget
+      ? `⚠️ Over Budget by AED ${costDifference}`
+      : `✅ Under Budget by AED ${Math.abs(costDifference)}`}
+  </p>
+</div>
+          {/* ✅ Total Expense - moved to top */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border max-w-xs">
+  <h3 className="text-md font-medium text-gray-600 dark:text-gray-300 mb-2">
+    Total Expense
+  </h3>
+  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+    AED {totalExpense.toFixed(2)}
+  </p>
+</div>
 
-          {[ 
-            ["Expenses By Month", monthlyChartData, "#2563EB"],
-            ["Expenses By Service", fullServiceChartData, "#0EA5E9"],
-            ["Expenses By Department", departmentChartData, "#F59E0B"]
+          {[
+            ["Monthly Expenses", monthlyChartData, "#2563EB"],
+            //["Expenses Service By Month", serviceByMonthChartData, "#0ed0e9ff"],
+            ["Departmental Expenses ", departmentChartData, "#0bedf5b0"],
+            [" Service Expenses ", fullServiceChartData, "#0EA5E9"],
           ].map(([title, data, color]) => (
-            <div key={title} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border">
+            <div
+              key={title}
+              className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border"
+            >
               <h3 className="text-lg font-semibold mb-4">{title}</h3>
               <ResponsiveContainer width="100%" height={350}>
                 {renderChart(data, color)}
@@ -262,87 +452,97 @@ export default function Dashboard() {
           ))}
 
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border">
-            <h3 className="text-lg font-semibold mb-4 text-red-500">Top 5 Expensive Services</h3>
-            <ResponsiveContainer width="100%" height={350}>
-              {renderChart(serviceChartData, "#EF4444")}
+            <h3 className="text-lg font-semibold mb-4 text-black-500">
+              Service Expenses Breakdown
+            </h3>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={serviceByMonthChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                {Object.keys(serviceByMonthMap).map((service, index) => (
+                  <Bar
+                    key={service}
+                    dataKey={service}
+                    fill={`hsl(${(index * 40) % 360}, 70%, 50%)`}
+                    stackId="a"
+                  />
+                ))}
+              </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="flex flex-wrap gap-4 mb-4">
-            <button
-              onClick={() => setShowDepartmentBreakdown(!showDepartmentBreakdown)}
-              className={`px-4 py-2 rounded-full font-medium transition ${
-                showDepartmentBreakdown
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-white"
-              }`}
-            >
-              {showDepartmentBreakdown ? "Hide" : "Show"} Department Breakdown
-            </button>
+          <h2 className="text-xl font-semibold mb-4">
+            Total Expense: AED {totalExpense.toFixed(2)}
+          </h2>
 
-            <button
-              onClick={() => setShowYearlyBreakdown(!showYearlyBreakdown)}
-              className={`px-4 py-2 rounded-full font-medium transition ${
-                showYearlyBreakdown
-                  ? "bg-green-600 text-white hover:bg-green-700"
-                  : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-white"
-              }`}
-            >
-              {showYearlyBreakdown ? "Hide" : "Show"} Yearly Breakdown
-            </button>
+          <div className="flex flex-wrap gap-4 mb-4">
+            <AnimatePresence>
+              <motion.div
+                key="department-yearly-breakdown"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.4 }}
+                className="flex-1"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold italic text-black-500">
+                     Yearly Departmental Expense
+                  </h3>
+                  <button
+                    onClick={() => setShowDepartmentBreakdown((v) => !v)}
+                    className="text-sm text-blue-600 hover:underline"
+                    aria-label="Toggle Department Breakdown"
+                  >
+                    {showDepartmentBreakdown ? "Hide" : "Show"}
+                  </button>
+                </div>
+
+                {showDepartmentBreakdown && (
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border max-h-80 overflow-y-auto">
+                    {Object.entries(departmentYearlyData).map(([year, departments]) => (
+                      <div key={year} className="mb-4">
+                        <h4 className="text-md font-semibold mb-2">Year: {year}</h4>
+                        <ul className="list-disc list-inside">
+                          {Object.entries(departments).map(([dept, total]) => (
+                            <li key={dept}>
+                              {dept}: AED {total.toFixed(2)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {showYearlyBreakdown && (
+                <motion.div
+                  key="yearly-breakdown"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="flex-1"
+                >
+                  <YearlyBreakdown
+                    show={showYearlyBreakdown}
+                    toggle={() => setShowYearlyBreakdown((v) => !v)}
+                    data={yearlyBreakdown}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          <AnimatePresence>
-            {showDepartmentBreakdown && (
-              <motion.div
-                key="department-breakdown"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.4 }}
-                className="overflow-hidden"
-              >
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 mb-6">
-                  <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-100">Department-wise Expense</h3>
-                  <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {departmentBreakdown.map((dept) => (
-                      <li key={dept.department} className="text-sm text-gray-700 dark:text-gray-300">
-                        <strong>{dept.department}:</strong> AED {dept.total}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {showYearlyBreakdown && (
-              <motion.div
-                key="yearly-breakdown"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.4 }}
-                className="overflow-hidden"
-              >
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-100">Year-wise Expense</h3>
-                  <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {yearlyBreakdown.map((yr) => (
-                      <li key={yr.year} className="text-sm text-gray-700 dark:text-gray-300">
-                        <strong>{yr.year}:</strong> AED {yr.total}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <PaginatedTable data={filteredExpenses} />
         </div>
       </div>
     </div>
   );
 }
-// Note: Ensure you have the necessary dependencies installed:
-// npm install @supabase/supabase-js framer-motion recharts react-csv

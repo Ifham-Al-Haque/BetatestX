@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { Card, CardContent } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
+//import { Button } from "../components/ui/button";
+//import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 
 export default function AdminDashboard() {
   const [activityLogs, setActivityLogs] = useState([]);
