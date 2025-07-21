@@ -13,6 +13,8 @@ import AdminOnlyPage from "./pages/AdminOnlyPage";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import EmployeeProfile from "./pages/EmployeeProfile";
 import EmployeeForm from "./pages/EmployeeForm";
+import AdminDashboard from './pages/AdminDashboard';
+import EmployeeList from './pages/EmployeeList';
 
 // ✅ ADD this import:
 import EditResponsibilitiesAndDuties from "./components/EditResponsibilitiesAndDuties";
@@ -61,6 +63,7 @@ function App() {
   path="/employees/:id/edit-responsibilities-duties"
   element={<ProtectedRoute><EditResponsibilitiesAndDuties /></ProtectedRoute>}
 />
+<Route path="/employees" element={<EmployeeList />} />
 
         <Route path="/assets" element={
           <ProtectedRoute>
@@ -93,6 +96,7 @@ function App() {
             </AdminRoute>
           </ProtectedRoute>
         } />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
         <Route path="/confirm-email" element={<ConfirmEmail />} />
       </Routes>

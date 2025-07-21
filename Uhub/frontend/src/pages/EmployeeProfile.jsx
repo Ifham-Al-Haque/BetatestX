@@ -17,10 +17,7 @@ export default function EmployeeProfile() {
       .from("employees")
       .select(`
         *,
-        reporting_manager:reporting_manager_id (
-          name,
-          employee_id
-        )
+        reporting_manager:reporting_manager_id ( name, employee_id )
       `)
       .eq("id", id)
       .single();
@@ -31,18 +28,34 @@ export default function EmployeeProfile() {
       return;
     }
 
+    const { data: accessList } = await supabase
+      .from("employee_access")
+      .select("*")
+      .eq("employee_id", id);
+
+    const { data: assetList } = await supabase
+      .from("employee_assets")
+      .select("*")
+      .eq("employee_id", id);
+
     let authUserData = null;
     if (empData.auth_user_id) {
-      const { data: userData, error: userError } = await supabase
+      const { data: userData } = await supabase
         .from("profiles")
         .select("email, role, is_verified")
         .eq("id", empData.auth_user_id)
         .single();
 
-      if (!userError) authUserData = userData;
+      authUserData = userData;
     }
 
-    setEmployee({ ...empData, auth_user: authUserData });
+    setEmployee({
+      ...empData,
+      auth_user: authUserData,
+      access_list: accessList || [],
+      asset_list: assetList || [],
+    });
+
     setLoading(false);
   }, [id]);
 
@@ -58,17 +71,17 @@ export default function EmployeeProfile() {
       <Sidebar />
       <div className="ml-64 p-8 w-full max-w-4xl">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          {/* Profile Header */}
+          {/* Header */}
           <div className="flex items-center mb-6">
-            {employee.photo_url ? (
+            {employee.profile_picture ? (
               <img
-                src={employee.photo_url}
-                alt={employee.name}
+                src={employee.profile_picture}
+                alt={employee.full_name}
                 className="w-24 h-24 rounded-full border-2 border-blue-500 object-cover mr-6"
               />
             ) : (
               <Avatar
-                name={employee.name}
+                name={employee.full_name}
                 size="96"
                 round
                 className="mr-6"
@@ -78,22 +91,20 @@ export default function EmployeeProfile() {
             )}
             <div>
               <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-                {employee.name}
+                {employee.full_name}
               </h2>
               <p className="text-gray-600 dark:text-gray-300">
-                {employee.designation} — {employee.department}
+                {employee.position} — {employee.department}
               </p>
-
               {employee.reporting_manager && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Reports to: {employee.reporting_manager.name} (
                   {employee.reporting_manager.employee_id})
                 </p>
               )}
-
               {employee.auth_user?.email && (
                 <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  <p>Linked Auth User: {employee.auth_user.email}</p>
+                  <p>Auth User: {employee.auth_user.email}</p>
                   <p>Role: {employee.auth_user.role || "N/A"}</p>
                   <p>
                     Status:{" "}
@@ -104,103 +115,68 @@ export default function EmployeeProfile() {
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
-              Summary
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              {employee.summary || "This employee has no summary added yet."}
-            </p>
-          </div>
-
           {/* Responsibilities */}
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
+          <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
-                Key Responsibilities
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                Responsibilities
               </h3>
-
-              {Array.isArray(employee.key_roles_detailed) &&
-              employee.key_roles_detailed.length > 0 ? (
-                <ul className="pl-5 space-y-3">
-                  {employee.key_roles_detailed.map((item, i) => (
-                    <li key={i}>
-                      <p className="text-md font-medium text-gray-800 dark:text-white">
-                        • {item.title}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 ml-4">
-                        {item.description}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <ul className="list-disc pl-5 text-gray-600 dark:text-gray-300">
-                  {(employee.key_roles || "")
-                    .split(",")
-                    .filter(Boolean)
-                    .map((role, i) => (
-                      <li key={i}>{role.trim()}</li>
-                    ))}
-                </ul>
-              )}
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
-                Extra Duties
-              </h3>
-              <ul className="list-disc pl-5 text-gray-600 dark:text-gray-300">
-                {(employee.extra_responsibilities || "")
-                  .split(",")
-                  .filter(Boolean)
-                  .map((item, i) => (
-                    <li key={i}>{item.trim()}</li>
-                  ))}
+              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1">
+                {(employee.responsibilities || []).map((res, i) => (
+                  <li key={i}>{res}</li>
+                ))}
               </ul>
             </div>
-          </div>
 
-          {/* Edit Responsibilities & Duties Button */}
-          <div className="mt-4">
-            <Link
-              to={`/employees/${employee.id}/edit-duties`}
-              className="inline-block bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-            >
-              Edit Responsibilities & Duties
-            </Link>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                Extra Duties
+              </h3>
+              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1">
+                {(employee.duties || []).map((duty, i) => (
+                  <li key={i}>{duty}</li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           {/* Access & Assets */}
-          <div className="grid md:grid-cols-2 gap-4 mt-6">
+          <div className="grid md:grid-cols-2 gap-6 mt-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
-                Access Provided
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                Access List
               </h3>
-              <ul className="list-disc pl-5 text-gray-600 dark:text-gray-300">
-                {(employee.access_list || "")
-                  .split(",")
-                  .filter(Boolean)
-                  .map((access, i) => (
-                    <li key={i}>{access.trim()}</li>
-                  ))}
+              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1">
+                {(employee.access_list || []).map((access, i) => (
+                  <li key={i}>
+                    {access.access_type} ({access.access_level})
+                  </li>
+                ))}
               </ul>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
-                Assets Assigned
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                Asset List
               </h3>
-              <ul className="list-disc pl-5 text-gray-600 dark:text-gray-300">
-                {(employee.assets || "")
-                  .split(",")
-                  .filter(Boolean)
-                  .map((asset, i) => (
-                    <li key={i}>{asset.trim()}</li>
-                  ))}
+              <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1">
+                {(employee.asset_list || []).map((asset, i) => (
+                  <li key={i}>
+                    {asset.asset_type} — {asset.asset_tag}
+                  </li>
+                ))}
               </ul>
             </div>
+          </div>
+
+          {/* Edit Button */}
+          <div className="mt-6">
+            <Link
+              to={`/employees/${employee.id}/edit`}
+              className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+            >
+              Edit Profile
+            </Link>
           </div>
         </div>
       </div>

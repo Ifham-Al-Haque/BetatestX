@@ -180,6 +180,7 @@ export default function ExpenseTracker() {
                     <option value="Inactive">Inactive</option>
                     <option value="Trial">Trial</option>
                     <option value="Free">Free</option>
+                    <option value="Final">Final</option>
                   </select></td>
                   <td className="border p-2"><input type="text" value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} className="border p-1 w-full" /></td>
                   <td className="border p-2"><input type="date" value={editForm.date_paid ? editForm.date_paid.slice(0, 10) : ""} onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })} className="border p-1 w-full" /></td>

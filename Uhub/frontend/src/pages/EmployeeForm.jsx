@@ -1,248 +1,184 @@
-// src/pages/EmployeeForm.jsx
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import Sidebar from "../components/Sidebar";
+import { useNavigate, useParams } from "react-router-dom";
+import Button from "../components/ui/button";
+import Input from "../components/ui/input";
+import Textarea from "../components/ui/textarea";
+import Label from "../components/ui/label";
+import  Avatar  from "react-avatar";
 
 export default function EmployeeForm() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const isEdit = Boolean(id);
-
-  const [form, setForm] = useState({
-    name: "",
-    employee_id: "",
+  const [formData, setFormData] = useState({
+    full_name: "",
+    email: "",
     department: "",
-    designation: "",
-    photo_url: "",
-    summary: "",
-    key_roles: "",
-    extra_responsibilities: "",
-    access_list: "",
-    assets: "",
-    auth_user_id: null,
-    reporting_manager_id: null,
+    position: "",
+    employee_id: "",
+    reporting_manager: "",
+    role: "",
+    scopes: "",
+    responsibilities: "",
+    profile_pic_url: "",
   });
 
-  const [loading, setLoading] = useState(false);
-  const [availableUsers, setAvailableUsers] = useState([]);
-  const [managers, setManagers] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-  // Fetch auth users (requires service role token setup)
+  // Fetch employee data for editing
   useEffect(() => {
-    async function fetchUsers() {
-      const { data, error } = await supabase.auth.admin.listUsers();
-      if (error) console.error("Error fetching users:", error.message);
-      else setAvailableUsers(data?.users || []);
-    }
-    fetchUsers();
-  }, []);
+    async function fetchEmployee() {
+      if (id) {
+        const { data, error } = await supabase
+          .from("employees")
+          .select("*")
+          .eq("id", id)
+          .single();
 
-  // Fetch managers
-  useEffect(() => {
-    async function fetchManagers() {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, name, employee_id")
-        .neq("id", id);
-      if (!error) setManagers(data);
+        if (error) {
+          setError("Failed to load employee data.");
+          return;
+        }
+
+        if (data) {
+          setFormData(data);
+        }
+      }
     }
-    fetchManagers();
+
+    fetchEmployee();
   }, [id]);
 
-  // Fetch employee for edit
-  const fetchEmployee = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("id", id)
-      .single();
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-    if (!error && data) {
-      setForm(data);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (isEdit) fetchEmployee();
-  }, [isEdit, fetchEmployee]);
-
-  // Submit form
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setError("");
+    setSuccess("");
 
     try {
-      if (isEdit) {
-        const { error } = await supabase
+      // Check for duplicates if not editing
+      if (!id) {
+        const { data: existing, error: checkError } = await supabase
           .from("employees")
-          .update(form)
-          .eq("id", id);
-        if (error) alert("Update failed: " + error.message);
-        else navigate("/employees");
-      } else {
-        const { error } = await supabase.from("employees").insert([form]);
-        if (error) alert("Creation failed: " + error.message);
-        else navigate("/employees");
-      }
-    } catch (err) {
-      console.error("Form error:", err.message);
-      alert("An unexpected error occurred.");
-    }
+          .select("id")
+          .or(`email.eq.${formData.email},employee_id.eq.${formData.employee_id}`);
 
-    setLoading(false);
-  }
+        if (checkError) throw checkError;
+
+        if (existing && existing.length > 0) {
+          setError("Employee with this email or employee ID already exists.");
+          return;
+        }
+      }
+
+      let response;
+      if (id) {
+        // Update
+        response = await supabase
+          .from("employees")
+          .update(formData)
+          .eq("id", id)
+          .select()
+          .single();
+      } else {
+        // Insert
+        response = await supabase
+          .from("employees")
+          .insert([formData])
+          .select()
+          .single();
+      }
+
+      if (response.error) throw response.error;
+
+      if (!response.data) {
+        setError("No data returned after employee creation.");
+        return;
+      }
+
+      setSuccess(`Employee ${id ? "updated" : "created"} successfully.`);
+      setTimeout(() => navigate("/employees"), 1500);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong. Please try again.");
+    }
+  };
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
-      <div className="ml-64 p-8 w-full max-w-3xl">
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-6">
-          {isEdit ? "Edit" : "Add"} Employee
-        </h2>
+    <div className="max-w-2xl mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-4">
+        {id ? "Edit Employee" : "New Employee"}
+      </h2>
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 gap-4 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
-        >
-          <input
-            type="text"
-            placeholder="Full Name"
-            className="p-2 border rounded dark:bg-gray-700"
-            value={form.name}
-            required
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+      {formData.profile_pic_url && (
+        <div className="mb-4">
+          <Avatar
+            name={formData.full_name}
+            src={formData.profile_pic_url}
+            size="100"
+            round
           />
-          <input
-            type="text"
-            placeholder="Employee ID"
-            className="p-2 border rounded dark:bg-gray-700"
-            value={form.employee_id}
-            required
-            onChange={(e) => setForm({ ...form, employee_id: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="Department"
-            className="p-2 border rounded dark:bg-gray-700"
-            value={form.department}
-            onChange={(e) => setForm({ ...form, department: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="Designation"
-            className="p-2 border rounded dark:bg-gray-700"
-            value={form.designation}
-            onChange={(e) => setForm({ ...form, designation: e.target.value })}
-          />
-          <input
-            type="url"
-            placeholder="Photo URL"
-            className="p-2 border rounded dark:bg-gray-700"
-            value={form.photo_url}
-            onChange={(e) => setForm({ ...form, photo_url: e.target.value })}
-          />
+        </div>
+      )}
 
-          <textarea
-            placeholder="Summary / Bio"
-            className="p-2 border rounded dark:bg-gray-700"
-            rows={3}
-            value={form.summary}
-            onChange={(e) => setForm({ ...form, summary: e.target.value })}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label>Full Name</Label>
+          <Input name="full_name" value={formData.full_name} onChange={handleChange} required />
+        </div>
+        <div>
+          <Label>Email</Label>
+          <Input type="email" name="email" value={formData.email} onChange={handleChange} required />
+        </div>
+        <div>
+          <Label>Department</Label>
+          <Input name="department" value={formData.department} onChange={handleChange} />
+        </div>
+        <div>
+          <Label>Position</Label>
+          <Input name="position" value={formData.position} onChange={handleChange} />
+        </div>
+        <div>
+          <Label>Employee ID</Label>
+          <Input name="employee_id" value={formData.employee_id} onChange={handleChange} required />
+        </div>
+        <div>
+          <Label>Reporting Manager</Label>
+          <Input name="reporting_manager" value={formData.reporting_manager} onChange={handleChange} />
+        </div>
+        <div>
+          <Label>Role</Label>
+          <Input name="role" value={formData.role} onChange={handleChange} />
+        </div>
+        <div>
+          <Label>Scopes</Label>
+          <Textarea name="scopes" value={formData.scopes} onChange={handleChange} />
+        </div>
+        <div>
+          <Label>Responsibilities</Label>
+          <Textarea name="responsibilities" value={formData.responsibilities} onChange={handleChange} />
+        </div>
+        <div>
+          <Label>Profile Picture URL</Label>
+          <Input
+            name="profile_pic_url"
+            value={formData.profile_pic_url}
+            onChange={handleChange}
+            placeholder="Paste image URL"
           />
+        </div>
 
-          <textarea
-            placeholder="Key Roles (comma-separated)"
-            className="p-2 border rounded dark:bg-gray-700"
-            rows={2}
-            value={form.key_roles}
-            onChange={(e) =>
-              setForm({ ...form, key_roles: e.target.value })
-            }
-          />
+        {error && <p className="text-red-600">{error}</p>}
+        {success && <p className="text-green-600">{success}</p>}
 
-          <textarea
-            placeholder="Extra Responsibilities (comma-separated)"
-            className="p-2 border rounded dark:bg-gray-700"
-            rows={2}
-            value={form.extra_responsibilities}
-            onChange={(e) =>
-              setForm({ ...form, extra_responsibilities: e.target.value })
-            }
-          />
-
-          <textarea
-            placeholder="Access Provided (comma-separated)"
-            className="p-2 border rounded dark:bg-gray-700"
-            rows={2}
-            value={form.access_list}
-            onChange={(e) => setForm({ ...form, access_list: e.target.value })}
-          />
-
-          <textarea
-            placeholder="Assets Assigned (comma-separated)"
-            className="p-2 border rounded dark:bg-gray-700"
-            rows={2}
-            value={form.assets}
-            onChange={(e) => setForm({ ...form, assets: e.target.value })}
-          />
-
-          {/* Reporting Manager Dropdown */}
-          <select
-            value={form.reporting_manager_id || ""}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                reporting_manager_id:
-                  e.target.value === "" ? null : e.target.value,
-              })
-            }
-            className="p-2 border rounded dark:bg-gray-700"
-          >
-            <option value="">Select Reporting Manager (optional)</option>
-            {managers.map((mgr) => (
-              <option key={mgr.id} value={mgr.id}>
-                {mgr.name} ({mgr.employee_id})
-              </option>
-            ))}
-          </select>
-
-          {/* Auth User Dropdown */}
-          <select
-            value={form.auth_user_id || ""}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                auth_user_id:
-                  e.target.value === "" ? null : e.target.value,
-              })
-            }
-            className="p-2 border rounded dark:bg-gray-700"
-          >
-            <option value="">Select Auth User (optional)</option>
-            {availableUsers.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.email}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition"
-          >
-            {loading
-              ? isEdit
-                ? "Updating..."
-                : "Creating..."
-              : isEdit
-              ? "Update"
-              : "Create"}{" "}
-            Employee
-          </button>
-        </form>
-      </div>
+        <Button type="submit" className="mt-4">
+          {id ? "Update" : "Create"}
+        </Button>
+      </form>
     </div>
   );
 }
