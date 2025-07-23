@@ -22,7 +22,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell,
+
 } from "recharts";
 import Filters from "../components/Filters";
 import ChartSelector from "../components/ChartSelector";
@@ -31,11 +31,10 @@ import PaginatedTable from "../components/PaginatedTable";
 import moment from "moment";
 import { format } from "date-fns";
 import { Dialog } from "@headlessui/react";
+import { LineChart as LineChartIcon } from "lucide-react";
 
-// Define COLORS for PieChart slices
-const COLORS = [
-  "#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A28BFE", "#FF6699", "#33CC99", "#FF9933"
-];
+
+
 
 // Inline SummaryCard component
 const SummaryCard = ({ icon, title, value, color, subtitle }) => (
@@ -595,41 +594,27 @@ const costSummary = useMemo(() => {
             </div>
 
             {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <div className="grid lg:cols-2 gap-8 mb-12 ">
               <AnimatedCard>
                 <SectionHeader icon={<BarChartIcon />} title="Monthly Expenses" />
-                <ResponsiveContainer width="100%" height={350}>
+                <ResponsiveContainer width="100%" height={400}>
                   {renderChart(monthlyChartData, "#2563EB")}
                 </ResponsiveContainer>
               </AnimatedCard>
-              <AnimatedCard>
-                <SectionHeader icon={<BarChartIcon />} title="Departmental Expenses" />
-                <ResponsiveContainer width="100%" height={350}>
-                  {renderChart(departmentChartData, "#0bedf5b0")}
-                </ResponsiveContainer>
-              </AnimatedCard>
               <AnimatedCard className="lg:col-span-2">
-                <SectionHeader icon={<PieChartIcon />} title="Service Expenses" />
-                <ResponsiveContainer width="100%" height={400}>
-                  <PieChart>
-                    <Pie
-                      data={fullServiceChartData}
-                      dataKey="amount"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      label
-                    >
-                      {fullServiceChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </AnimatedCard>
+                      <SectionHeader icon={<LineChartIcon />} title="Departmental Expenses" />
+                    <ResponsiveContainer width="100%" height={400}>
+                       <LineChart data={departmentChartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                             <XAxis dataKey="name" />
+                           <YAxis />
+                         <Tooltip />
+                        <Legend />
+                     <Line dataKey="amount" stroke="#0bedf5b0" strokeWidth={2} dot={{ r: 4 }} />
+                    </LineChart>
+                   </ResponsiveContainer>
+                 </AnimatedCard>
+             
               <AnimatedCard className="lg:col-span-2">
                 <SectionHeader icon={<BarChartIcon />} title="Service Expenses by Month (Stacked)" />
                 <ResponsiveContainer width="100%" height={400}>
