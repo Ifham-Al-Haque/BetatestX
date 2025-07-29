@@ -18,6 +18,9 @@ export default function EmployeeForm() {
     role: "",
     scopes: "",
     responsibilities: "",
+    duties: "",
+    access_list: "",
+    asset_list: "",
     profile_pic_url: "",
   });
 
@@ -160,7 +163,39 @@ export default function EmployeeForm() {
         </div>
         <div>
           <Label>Responsibilities</Label>
-          <Textarea name="responsibilities" value={formData.responsibilities} onChange={handleChange} />
+          <Textarea 
+            name="responsibilities" 
+            value={formData.responsibilities} 
+            onChange={handleChange}
+            placeholder="Enter job responsibilities (one per line or separated by commas)"
+          />
+        </div>
+        <div>
+          <Label>Extra Duties</Label>
+          <Textarea 
+            name="duties" 
+            value={formData.duties} 
+            onChange={handleChange}
+            placeholder="Enter extra duties (one per line or separated by commas)"
+          />
+        </div>
+        <div>
+          <Label>System Access</Label>
+          <Textarea 
+            name="access_list" 
+            value={formData.access_list} 
+            onChange={handleChange}
+            placeholder="Enter system access (e.g., Zimyo (Semi-Admin), FreshTeam (Admin))"
+          />
+        </div>
+        <div>
+          <Label>Asset Assignments</Label>
+          <Textarea 
+            name="asset_list" 
+            value={formData.asset_list} 
+            onChange={handleChange}
+            placeholder="Enter assigned assets (e.g., Laptop - LAP001, Phone - PHN001)"
+          />
         </div>
         <div>
           <Label>Profile Picture URL</Label>

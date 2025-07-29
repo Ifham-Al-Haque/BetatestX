@@ -22,12 +22,12 @@ export default function Employees() {
       .from("employees")
       .select(`
         id,
-        name,
+        full_name,
         employee_id,
         department,
-        designation,
+        position,
         reporting_manager:reporting_manager_id (
-          name,
+          full_name,
           employee_id
         )
       `);
@@ -53,9 +53,9 @@ export default function Employees() {
 
   const filteredEmployees = employees
     .filter((emp) =>
-      emp.name?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       emp.department?.toLowerCase().includes(search.toLowerCase()) ||
-      emp.designation?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.position?.toLowerCase().includes(search.toLowerCase()) ||
       emp.employee_id?.toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
@@ -97,9 +97,9 @@ export default function Employees() {
               onChange={(e) => setSortKey(e.target.value)}
               className="p-2 border rounded"
             >
-              <option value="name">Name</option>
+              <option value="full_name">Name</option>
               <option value="department">Department</option>
-              <option value="designation">Designation</option>
+              <option value="position">Position</option>
               <option value="employee_id">Employee ID</option>
             </select>
             <button
@@ -123,7 +123,7 @@ export default function Employees() {
                   <th className="p-3">Employee ID</th>
                   <th className="p-3">Name</th>
                   <th className="p-3">Department</th>
-                  <th className="p-3">Designation</th>
+                  <th className="p-3">Position</th>
                   <th className="p-3">Manager</th>
                   <th className="p-3 text-center">Actions</th>
                 </tr>
@@ -136,12 +136,12 @@ export default function Employees() {
                       className="border-t border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
                       <td className="p-3">{emp.employee_id}</td>
-                      <td className="p-3">{emp.name}</td>
+                      <td className="p-3">{emp.full_name}</td>
                       <td className="p-3">{emp.department}</td>
-                      <td className="p-3">{emp.designation}</td>
+                      <td className="p-3">{emp.position}</td>
                       <td className="p-3">
                         {emp.reporting_manager
-                          ? `${emp.reporting_manager.name} (${emp.reporting_manager.employee_id})`
+                          ? `${emp.reporting_manager.full_name} (${emp.reporting_manager.employee_id})`
                           : "-"}
                       </td>
                       <td className="p-3 flex justify-center items-center space-x-2">

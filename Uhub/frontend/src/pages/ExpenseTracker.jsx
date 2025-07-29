@@ -10,7 +10,7 @@ export default function ExpenseTracker() {
     amount_aed: "",
     currency: "AED",
     months: "",
-    service_status: "Active",
+    service_status: "active",
     department: "",
     date_paid: "",
   });
@@ -62,7 +62,7 @@ export default function ExpenseTracker() {
         amount_aed: "",
         currency: "AED",
         months: "",
-        service_status: "Active",
+        service_status: "active",
         department: "",
         date_paid: "",
       });
@@ -138,10 +138,10 @@ export default function ExpenseTracker() {
         <input type="text" placeholder="Months" value={form.months} onChange={(e) => setForm({ ...form, months: e.target.value })} className="border p-2" disabled={loading} />
         <input type="date" value={form.date_paid} onChange={(e) => setForm({ ...form, date_paid: e.target.value })} className="border p-2" disabled={loading} />
         <select value={form.service_status} onChange={(e) => setForm({ ...form, service_status: e.target.value })} className="border p-2" disabled={loading}>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-          <option value="Trial">Trial</option>
-          <option value="Free">Free</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="trial">Trial</option>
+          <option value="free">Free</option>
         </select>
         <input type="text" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="border p-2" disabled={loading} />
         <button type="submit" className="bg-blue-600 text-white py-2 px-4 col-span-1 md:col-span-2" disabled={loading}>Add Expense</button>
@@ -176,11 +176,11 @@ export default function ExpenseTracker() {
                   <td className="border p-2"><input type="text" value={editForm.currency} onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })} className="border p-1 w-full" /></td>
                   <td className="border p-2"><input type="text" value={editForm.months} onChange={(e) => setEditForm({ ...editForm, months: e.target.value })} className="border p-1 w-full" /></td>
                   <td className="border p-2"><select value={editForm.service_status} onChange={(e) => setEditForm({ ...editForm, service_status: e.target.value })} className="border p-1 w-full">
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Trial">Trial</option>
-                    <option value="Free">Free</option>
-                    <option value="Final">Final</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="trial">Trial</option>
+                    <option value="free">Free</option>
+                    <option value="final">Final</option>
                   </select></td>
                   <td className="border p-2"><input type="text" value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} className="border p-1 w-full" /></td>
                   <td className="border p-2"><input type="date" value={editForm.date_paid ? editForm.date_paid.slice(0, 10) : ""} onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })} className="border p-1 w-full" /></td>
