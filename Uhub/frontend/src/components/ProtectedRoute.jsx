@@ -1,30 +1,12 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../supabaseClient";
+import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
 
 export default function ProtectedRoute({ children }) {
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          navigate("/login");
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Error checking session:", error);
-        navigate("/login");
-      }
-    };
-
-    checkSession();
-  }, [navigate]);
-
+  // If still loading, show loading screen
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
@@ -40,5 +22,12 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
+  // If no user, redirect to login
+  if (!user) {
+    navigate("/login", { replace: true });
+    return null;
+  }
+
+  // User is authenticated, render children
   return children;
 }

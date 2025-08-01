@@ -1,13 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Download } from 'lucide-react';
 
-export default function ScrollableExpenseTable({ data }) {
+export default function ScrollableExpenseTable({ data = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('date_paid');
   const [sortDirection, setSortDirection] = useState('desc');
 
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
+    
     let filtered = data.filter(expense => {
       const searchLower = searchTerm.toLowerCase();
       return (

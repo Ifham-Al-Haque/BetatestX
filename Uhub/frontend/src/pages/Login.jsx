@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../components/Toast";
+import config from "../config";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -20,6 +22,10 @@ export default function Login() {
   const [userRole, setUserRole] = useState(null);
 
   const navigate = useNavigate();
+  const { success, error, warning } = useToast();
+
+  // Get admin email from config
+  const adminEmail = config.app.adminEmail;
 
   // Check if user is already logged in - removed since App.js handles this
 
@@ -35,15 +41,11 @@ export default function Login() {
       if (employeeData) {
         setUserRole(employeeData.role);
         
-        // Redirect based on role
-        if (employeeData.role === "admin") {
-          navigate("/"); // Dashboard for admin
-        } else {
-          navigate("/"); // Dashboard for regular users
-        }
+        // Redirect to dashboard for all users
+        navigate("/dashboard", { replace: true });
       } else {
         // User not in employees table, check if it's the admin user
-        if (user.email === "ifham@udrive.ae") {
+        if (user.email === adminEmail) {
           // Create admin user in employees table if not exists
           await supabase.from("employees").upsert({
             id: user.id,
@@ -55,7 +57,7 @@ export default function Login() {
             position: "System Administrator"
           });
           setUserRole("admin");
-          navigate("/");
+          navigate("/dashboard", { replace: true });
         } else {
           // Regular user, create basic profile
           await supabase.from("employees").upsert({
@@ -68,11 +70,14 @@ export default function Login() {
             position: "Employee"
           });
           setUserRole("employee");
-          navigate("/");
+          navigate("/dashboard", { replace: true });
         }
       }
     } catch (error) {
       console.error("Error checking user role:", error);
+      error("Role Check Error", "Failed to determine user role. Please contact support.");
+      // Still redirect to dashboard even if role check fails
+      navigate("/dashboard", { replace: true });
     }
   };
 
@@ -102,6 +107,7 @@ export default function Login() {
 
         if (data.user) {
           setInfoMsg("Login successful! Redirecting...");
+          success("Login Successful", "Welcome back!");
           
           // Check user role and redirect
           await checkUserRoleAndRedirect(data.user);
@@ -109,6 +115,7 @@ export default function Login() {
       }
     } catch (err) {
       setErrorMsg(err.message || "Authentication failed.");
+      error("Authentication Error", err.message || "Authentication failed.");
       setLoading(false);
     }
   }
@@ -120,25 +127,33 @@ export default function Login() {
 
     if (!forgotEmail) {
       setErrorMsg("Please enter an email to reset your password.");
+      error("Validation Error", "Please enter an email to reset your password.");
       setLoading(false);
       return;
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
 
-    if (error) {
-      setErrorMsg("Password reset failed: " + error.message);
-    } else {
-      setInfoMsg("Password reset link sent. Check your email.");
-      setShowForgotPassword(false);
-      setForgotEmail("");
+      if (error) {
+        setErrorMsg("Password reset failed: " + error.message);
+        error("Password Reset Failed", error.message);
+      } else {
+        setInfoMsg("Password reset link sent. Check your email.");
+        success("Password Reset", "Password reset link sent. Check your email.");
+        setShowForgotPassword(false);
+        setForgotEmail("");
+      }
+    } catch (err) {
+      setErrorMsg("An unexpected error occurred.");
+      error("Unexpected Error", "An unexpected error occurred during password reset.");
     }
     setLoading(false);
   }
 
-  const isAdminEmail = email === "ifham@udrive.ae";
+  const isAdminEmail = email === adminEmail;
 
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
@@ -154,7 +169,7 @@ export default function Login() {
             <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <img src="/Uhub.png" alt="Uhub Logo" className="w-12 h-12" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Welcome to Uhub</h1>
+            <h1 className="text-2xl font-bold mb-2">Welcome to UHub</h1>
             <p className="text-blue-100">Sign in to your account</p>
           </div>
 
@@ -273,7 +288,7 @@ export default function Login() {
               <div className="space-y-2 text-xs text-gray-600">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                  <span><strong>Admin:</strong> Full system access (ifham@udrive.ae)</span>
+                  <span><strong>Admin:</strong> Full system access ({adminEmail})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>

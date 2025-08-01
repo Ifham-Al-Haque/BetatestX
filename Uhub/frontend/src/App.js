@@ -1,85 +1,191 @@
 // src/App.js
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Employees from "./pages/Employees";
-import EmployeeForm from "./pages/EmployeeForm";
-import EmployeeList from "./pages/EmployeeList";
-import EmployeeProfile from "./pages/EmployeeProfile";
-import Assets from "./pages/Assets";
-import Tickets from "./pages/Tickets";
-import ExpenseTracker from "./pages/ExpenseTracker";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminOnlyPage from "./pages/AdminOnlyPage";
-import AccessRequests from "./pages/AccessRequests";
-import ConfirmEmail from "./pages/ConfirmEmail";
-import ResetPassword from "./pages/ResetPassword";
-import Attendance from "./pages/Attendance";
-import UserProfile from "./pages/UserProfile";
-import AccessManagement from "./pages/AccessManagement";
-import UserManagement from "./pages/UserManagement";
-import ProtectedRoute from "./components/ProtectedRoute";
-import AdminRoute from "./components/AdminRoute";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
+import ErrorBoundary from "./components/ErrorBoundary";
+import LoadingSpinner from "./components/LoadingSpinner";
 
-// Component to handle initial routing based on authentication
-function AppRoutes() {
-  const { user, loading } = useAuth();
+// Lazy load components for better performance
+const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Employees = lazy(() => import("./pages/Employees"));
+const EmployeeForm = lazy(() => import("./pages/EmployeeForm"));
+const EmployeeProfile = lazy(() => import("./pages/EmployeeProfile"));
+const Assets = lazy(() => import("./pages/Assets"));
+const ExpenseTracker = lazy(() => import("./pages/ExpenseTracker"));
+const Tickets = lazy(() => import("./pages/Tickets"));
+const UserProfile = lazy(() => import("./pages/UserProfile"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
+const AccessRequests = lazy(() => import("./pages/AccessRequests"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const InvitationSignup = lazy(() => import("./pages/InvitationSignup"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
+
+// React Query configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
+      retry: (failureCount, error) => {
+        if (error?.status >= 400 && error?.status < 500) { return false; }
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      refetchOnWindowFocus: false,
+      networkMode: 'online',
+      refetchOnReconnect: true,
+      refetchOnMount: true,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
+
+// Protected Route Component
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { user, loading, role } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading application..." />
       </div>
     );
   }
 
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && role !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
+// Admin Route Component
+const AdminRoute = ({ children }) => {
+  return <ProtectedRoute adminOnly={true}>{children}</ProtectedRoute>;
+};
+
+// App Routes Component
+const AppRoutes = () => {
+  const { user } = useAuth();
+
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-      <Route path="/confirm-email" element={<ConfirmEmail />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      
-      {/* Protected Routes - All users */}
-      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
-      <Route path="/employees/new" element={<ProtectedRoute><EmployeeForm /></ProtectedRoute>} />
-      <Route path="/employees/edit/:id" element={<ProtectedRoute><EmployeeForm /></ProtectedRoute>} />
-      <Route path="/employees/:id" element={<ProtectedRoute><EmployeeProfile /></ProtectedRoute>} />
-      <Route path="/employee-list" element={<ProtectedRoute><EmployeeList /></ProtectedRoute>} />
-      <Route path="/assets" element={<ProtectedRoute><Assets /></ProtectedRoute>} />
-      <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
-      <Route path="/expense-tracker" element={<ProtectedRoute><ExpenseTracker /></ProtectedRoute>} />
-      <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-      
-      {/* Admin Only Routes */}
-      <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-      <Route path="/admin-only" element={<AdminRoute><AdminOnlyPage /></AdminRoute>} />
-      <Route path="/access-requests" element={<AdminRoute><AccessRequests /></AdminRoute>} />
-      <Route path="/access-management" element={<AdminRoute><AccessManagement /></AdminRoute>} />
-      <Route path="/user-management" element={<AdminRoute><UserManagement /></AdminRoute>} />
-      
-      {/* Catch all route - redirect to dashboard if authenticated, login if not */}
-      <Route path="*" element={user ? <Navigate to="/" /> : <Navigate to="/login" />} />
-    </Routes>
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading..." />
+      </div>
+    }>
+      <Routes>
+        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/confirm-email" element={<ConfirmEmail />} />
+        <Route path="/invitation-signup" element={<InvitationSignup />} />
+        
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/employees" element={
+          <ProtectedRoute>
+            <Employees />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/employee/new" element={
+          <ProtectedRoute>
+            <EmployeeForm />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/employee/:id" element={
+          <ProtectedRoute>
+            <EmployeeProfile />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/employee/:id/edit" element={
+          <ProtectedRoute>
+            <EmployeeForm />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/assets" element={
+          <ProtectedRoute>
+            <Assets />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/expenses" element={
+          <ProtectedRoute>
+            <ExpenseTracker />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/tickets" element={
+          <ProtectedRoute>
+            <Tickets />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <UserProfile />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/users" element={
+          <AdminRoute>
+            <UserManagement />
+          </AdminRoute>
+        } />
+        
+        <Route path="/admin/access-requests" element={
+          <AdminRoute>
+            <AccessRequests />
+          </AdminRoute>
+        } />
+        
+        <Route path="/admin/dashboard" element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } />
+        
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Suspense>
   );
-}
+};
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="App">
-          <AppRoutes />
-        </div>
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <AuthProvider>
+            <Router>
+              <div className="App">
+                <AppRoutes />
+              </div>
+            </Router>
+          </AuthProvider>
+        </ToastProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
