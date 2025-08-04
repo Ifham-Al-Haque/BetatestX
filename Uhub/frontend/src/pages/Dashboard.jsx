@@ -10,13 +10,17 @@ import {
   PieChart,
   Activity,
   Plus,
-  MoreVertical
+  MoreVertical,
+  LineChart
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useExpenseStats } from '../hooks/useExpenseStats';
 import { usePaymentEvents } from '../hooks/usePaymentEvents';
 import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
+import GlobalFilter from '../components/GlobalFilter';
 import UpcomingPaymentEvents from '../components/UpcomingPaymentEvents';
+import PaymentCalendar from '../components/PaymentCalendar';
 import ScrollableExpenseTable from '../components/ScrollableExpenseTable';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -80,10 +84,62 @@ const AnimatedCard = ({ children, className = '', delay = 0 }) => (
   </motion.div>
 );
 
+// Departmental Expenses Line Chart Component
+const DepartmentalExpensesLineChart = ({ data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <LineChart className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+          <p>No departmental expense data available</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Create line chart data - simplified for now
+  const chartData = data.map((dept, index) => ({
+    department: dept.department,
+    amount: dept.amount,
+    color: COLORS[index % COLORS.length]
+  }));
+
+  return (
+    <div className="h-64">
+      <div className="space-y-3">
+        {chartData.map((item, index) => (
+          <div key={item.department} className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div 
+                className="w-4 h-4 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="text-sm font-medium text-gray-700">{item.department}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div 
+                className="h-2 rounded-full"
+                style={{ 
+                  backgroundColor: item.color,
+                  width: `${Math.min((item.amount / Math.max(...chartData.map(d => d.amount))) * 200, 200)}px`
+                }}
+              />
+              <span className="text-sm font-semibold text-gray-900 min-w-[80px] text-right">
+                {item.amount.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function Dashboard() {
   const { user, userProfile } = useAuth();
   const { data: expenseStats, isLoading: statsLoading, error: statsError } = useExpenseStats();
   const { data: paymentEvents, isLoading: eventsLoading, error: eventsError } = usePaymentEvents();
+  const [filters, setFilters] = useState({});
 
   const safeExpenseStats = expenseStats || [];
   const safePaymentEvents = paymentEvents || [];
@@ -161,139 +217,141 @@ export default function Dashboard() {
       .sort((a, b) => b.amount - a.amount);
   }, [safeExpenseStats]);
 
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    // Apply filters to data here if needed
+  };
+
+  const handleDateClick = (date, events) => {
+    console.log('Date clicked:', date, 'Events:', events);
+    // You can add a modal or navigation here
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {userProfile?.full_name || user?.email?.split('@')[0] || 'User'}! 👋
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Here's what's happening with your organization today.
-          </p>
-        </motion.div>
+      <div className="flex-1 ml-80">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Welcome Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-8"
+          >
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome back, {userProfile?.full_name || user?.email?.split('@')[0] || 'User'}! 👋
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Here's what's happening with your organization today.
+            </p>
+          </motion.div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <SummaryCard
-            title="Total Expenses"
-            value={summaryStats.totalExpenses}
-            change={summaryStats.monthlyGrowth}
-            icon={CreditCard}
-            color="blue"
-          />
-          <SummaryCard
-            title="Total Employees"
-            value={summaryStats.totalEmployees}
-            icon={Users}
-            color="green"
-          />
-          <SummaryCard
-            title="Total Assets"
-            value={summaryStats.totalAssets}
-            icon={Package}
-            color="yellow"
-          />
-          <SummaryCard
-            title="Active Projects"
-            value="12"
-            icon={Activity}
-            color="purple"
-          />
-        </div>
+          {/* Global Filter */}
+          <GlobalFilter onFilterChange={handleFilterChange} filters={filters} />
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Monthly Expense Chart */}
-          <AnimatedCard delay={0.1}>
-            <SectionHeader title="Monthly Expense Trend" icon={TrendingUp} />
-            <Suspense fallback={<LoadingSpinner text="Loading chart..." />}>
-              <InteractiveExpenseChart data={monthlyData} />
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <SummaryCard
+              title="Total Expenses"
+              value={summaryStats.totalExpenses}
+              change={summaryStats.monthlyGrowth}
+              icon={CreditCard}
+              color="blue"
+            />
+            <SummaryCard
+              title="Total Employees"
+              value={summaryStats.totalEmployees}
+              icon={Users}
+              color="green"
+            />
+            <SummaryCard
+              title="Total Assets"
+              value={summaryStats.totalAssets}
+              icon={Package}
+              color="yellow"
+            />
+            <SummaryCard
+              title="Active Projects"
+              value="12"
+              icon={Activity}
+              color="purple"
+            />
+          </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Monthly Expense Chart */}
+            <AnimatedCard delay={0.1}>
+              <SectionHeader title="Monthly Expense Trend" icon={TrendingUp} />
+              <Suspense fallback={<LoadingSpinner text="Loading chart..." />}>
+                <InteractiveExpenseChart data={monthlyData} />
+              </Suspense>
+            </AnimatedCard>
+
+            {/* Departmental Expenses Line Chart */}
+            <AnimatedCard delay={0.2}>
+              <SectionHeader title="Departmental Expenses" icon={LineChart} />
+              <DepartmentalExpensesLineChart data={departmentData} />
+            </AnimatedCard>
+          </div>
+
+          {/* Today's Spending Chart */}
+          <AnimatedCard className="mb-8" delay={0.3}>
+            <SectionHeader title="Today's Spending Breakdown" icon={Activity} />
+            <Suspense fallback={<LoadingSpinner text="Loading spending chart..." />}>
+              <TodaySpendingChart data={safeExpenseStats} />
             </Suspense>
           </AnimatedCard>
 
-          {/* Departmental Expenses */}
-          <AnimatedCard delay={0.2}>
-            <SectionHeader title="Departmental Expenses" icon={PieChart} />
-            <div className="h-64 flex items-center justify-center">
-              {departmentData.length > 0 ? (
-                <div className="space-y-3 w-full">
-                  {departmentData.slice(0, 5).map((dept, index) => (
-                    <div key={dept.department} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span className="text-sm font-medium text-gray-700">{dept.department}</span>
-                      </div>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {dept.amount.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
-                      </span>
-                    </div>
-                  ))}
+          {/* Payment Calendar and Upcoming Events */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Payment Calendar */}
+            <AnimatedCard delay={0.4}>
+              <PaymentCalendar 
+                events={safePaymentEvents} 
+                onDateClick={handleDateClick}
+              />
+            </AnimatedCard>
+
+            {/* Upcoming Payment Events */}
+            <AnimatedCard delay={0.5}>
+              <SectionHeader 
+                title="Upcoming Payment Events" 
+                icon={Calendar}
+                action={
+                  <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                    <Plus className="w-4 h-4" />
+                    <span>Add Event</span>
+                  </button>
+                }
+              />
+              {eventsError ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600 mb-2">Failed to load payment events</p>
+                  <p className="text-sm text-gray-500">{eventsError.message}</p>
                 </div>
               ) : (
-                <div className="text-center text-gray-500">
-                  <BarChart3 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>No expense data available</p>
-                </div>
+                <UpcomingPaymentEvents />
               )}
-            </div>
+            </AnimatedCard>
+          </div>
+
+          {/* Detailed Expense Data */}
+          <AnimatedCard className="mb-8" delay={0.6}>
+            <SectionHeader title="Detailed Expense Data" icon={BarChart3} />
+            {statsError ? (
+              <div className="text-center py-8">
+                <p className="text-red-600 mb-2">Failed to load expense data</p>
+                <p className="text-sm text-gray-500">{statsError.message}</p>
+              </div>
+            ) : (
+              <ScrollableExpenseTable data={safeExpenseStats} />
+            )}
           </AnimatedCard>
-        </div>
-
-        {/* Today's Spending Chart */}
-        <AnimatedCard className="mb-8" delay={0.3}>
-          <SectionHeader title="Today's Spending Breakdown" icon={Activity} />
-          <Suspense fallback={<LoadingSpinner text="Loading spending chart..." />}>
-            <TodaySpendingChart data={safeExpenseStats} />
-          </Suspense>
-        </AnimatedCard>
-
-        {/* Upcoming Payment Events */}
-        <AnimatedCard className="mb-8" delay={0.4}>
-          <SectionHeader 
-            title="Upcoming Payment Events" 
-            icon={Calendar}
-            action={
-              <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                <Plus className="w-4 h-4" />
-                <span>Add Event</span>
-              </button>
-            }
-          />
-          {eventsError ? (
-            <div className="text-center py-8">
-              <p className="text-red-600 mb-2">Failed to load payment events</p>
-              <p className="text-sm text-gray-500">{eventsError.message}</p>
-            </div>
-          ) : (
-            <UpcomingPaymentEvents />
-          )}
-        </AnimatedCard>
-
-        {/* Detailed Expense Data */}
-        <AnimatedCard className="mb-8" delay={0.5}>
-          <SectionHeader title="Detailed Expense Data" icon={BarChart3} />
-          {statsError ? (
-            <div className="text-center py-8">
-              <p className="text-red-600 mb-2">Failed to load expense data</p>
-              <p className="text-sm text-gray-500">{statsError.message}</p>
-            </div>
-          ) : (
-            <ScrollableExpenseTable data={safeExpenseStats} />
-          )}
-        </AnimatedCard>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,404 +1,255 @@
 // src/components/Sidebar.jsx
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { motion, AnimatePresence } from "framer-motion";
-import "./Sidebar.css";
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Ticket,
-  Receipt,
-  Shield,
-  User,
-  Settings,
-  LogOut,
-  Menu,
-  X,
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Home, 
+  Users, 
+  Package, 
+  CreditCard, 
+  FileText,
   Calendar,
-  BarChart3
-} from "lucide-react";
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  BarChart3,
+  PieChart
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-export default function Sidebar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const { user, role, signOut } = useAuth();
+const Sidebar = () => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
-
-  // Check if we're on desktop
-  const isDesktop = window.innerWidth >= 1024;
-  
-  // On desktop, sidebar should always be open
-  const sidebarIsOpen = isDesktop ? true : isOpen;
+  const { user, userProfile, signOut } = useAuth();
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Employees", href: "/employees", icon: Users },
-    { name: "Assets", href: "/assets", icon: Building2 },
-    { name: "Tickets", href: "/tickets", icon: Ticket },
-    { name: "Expenses", href: "/expense-tracker", icon: Receipt },
+    { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'Employees', href: '/employees', icon: Users },
+    { name: 'Assets', href: '/assets', icon: Package },
+    { name: 'Expenses', href: '/expenses', icon: CreditCard },
+    { name: 'Tickets', href: '/tickets', icon: FileText },
+    { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: "Attendance", href: "/attendance", icon: Calendar },
     { name: "Analytics", href: "/admin", icon: BarChart3 },
   ];
 
   const adminNavigation = [
-    { name: "Access Requests", href: "/access-requests", icon: Shield },
-    { name: "Access Management", href: "/access-management", icon: Settings },
+    { name: 'User Management', href: '/admin/users', icon: Users },
+    { name: 'Access Requests', href: '/admin/access-requests', icon: FileText },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { name: "User Management", href: "/user-management", icon: Users },
   ];
 
-  const userNavigation = [
-    { name: "Profile", href: "/profile", icon: User },
-  ];
-
-  const isActive = (path) => {
-    if (path === "/") {
-      return location.pathname === "/";
-    }
-    return location.pathname.startsWith(path);
-  };
+  const isActive = (path) => location.pathname === path;
 
   const handleSignOut = async () => {
-    try {
-      await signOut();
-      // The AuthContext will handle the redirect to login
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
-  // Animation variants
-  const sidebarVariants = {
-    closed: {
-      x: "-100%",
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30
-      }
-    },
-    open: {
-      x: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 30
-      }
-    }
-  };
-
-  const menuButtonVariants = {
-    initial: { scale: 1 },
-    hover: { scale: 1.1 },
-    tap: { scale: 0.95 }
-  };
-
-  const navItemVariants = {
-    initial: { x: -20, opacity: 0 },
-    animate: { x: 0, opacity: 1 },
-    hover: { 
-      x: 5,
-      transition: { type: "spring", stiffness: 400, damping: 10 }
-    }
-  };
-
-  const logoVariants = {
-    initial: { scale: 0.8, opacity: 0 },
-    animate: { 
-      scale: 1, 
-      opacity: 1,
-      transition: { delay: 0.1, type: "spring", stiffness: 200 }
-    }
-  };
-
-  const userInfoVariants = {
-    initial: { y: 20, opacity: 0 },
-    animate: { 
-      y: 0, 
-      opacity: 1,
-      transition: { delay: 0.2, type: "spring", stiffness: 200 }
-    }
-  };
-
-  const overlayVariants = {
-    initial: { opacity: 0 },
-    animate: { opacity: 1 },
-    exit: { opacity: 0 }
+    await signOut();
   };
 
   return (
-    <>
-      {/* Mobile menu button */}
-      <motion.div 
-        className="lg:hidden fixed top-4 left-4 z-50"
-        variants={menuButtonVariants}
-        initial="initial"
-        whileHover="hover"
-        whileTap="tap"
-      >
-        <motion.button
-          onClick={() => setIsOpen(!isOpen)}
-          className="p-2 rounded-md bg-white shadow-lg hover:shadow-xl transition-shadow duration-200"
-          whileHover={{ 
-            backgroundColor: "#f3f4f6",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.15)"
-          }}
-          whileTap={{ scale: 0.95 }}
-        >
+    <motion.div
+      initial={{ width: 280 }}
+      animate={{ width: isCollapsed ? 80 : 280 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="bg-white shadow-lg border-r border-gray-200 h-screen fixed left-0 top-0 z-40"
+    >
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <AnimatePresence mode="wait">
-            {isOpen ? (
+            {!isCollapsed ? (
               <motion.div
-                key="close"
-                initial={{ rotate: -90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: 90, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                key="expanded"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center space-x-3"
               >
-                <X className="w-6 h-6" />
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">U</span>
+                </div>
+                <span className="text-xl font-bold text-gray-900">Udrivehub</span>
               </motion.div>
             ) : (
               <motion.div
-                key="menu"
-                initial={{ rotate: 90, opacity: 0 }}
-                animate={{ rotate: 0, opacity: 1 }}
-                exit={{ rotate: -90, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                key="collapsed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center mx-auto"
               >
-                <Menu className="w-6 h-6" />
+                <span className="text-white font-bold text-sm">U</span>
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.button>
-      </motion.div>
-
-      {/* Sidebar */}
-      <div className={`sidebar ${isOpen ? 'open' : ''}`}>
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
-            <img
-              src="/Uhub.png"
-              alt="Uhub Logo"
-              className="h-8 w-auto"
-            />
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            <div className="space-y-1">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                const isItemActive = isActive(item.href);
-                
-                return (
-                  <div key={item.name}>
-                    <Link
-                      to={item.href}
-                      onClick={() => setIsOpen(false)}
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                        isItemActive
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
-                          : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100"
-                      }`}
-                    >
-                      {/* Icon */}
-                      <Icon className={`w-5 h-5 mr-3 ${isItemActive ? 'text-white' : 'text-gray-600'}`} />
-                      
-                      {/* Text */}
-                      <span>{item.name}</span>
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Admin Navigation */}
-            {role === "admin" && (
-              <motion.div 
-                className="pt-4 border-t border-gray-200"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-              >
-                <motion.h3 
-                  className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  Admin
-                </motion.h3>
-                <motion.div 
-                  className="mt-2 space-y-1"
-                  initial="initial"
-                  animate="animate"
-                  transition={{ staggerChildren: 0.1, delayChildren: 0.4 }}
-                >
-                  {adminNavigation.map((item, index) => {
-                    const Icon = item.icon;
-                    const isItemActive = isActive(item.href);
-                    
-                    return (
-                      <motion.div
-                        key={item.name}
-                        variants={navItemVariants}
-                        whileHover="hover"
-                        custom={index}
-                      >
-                        <Link
-                          to={item.href}
-                          onClick={() => setIsOpen(false)}
-                          className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden group ${
-                            isItemActive
-                              ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg"
-                              : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100"
-                          }`}
-                        >
-                          {isItemActive && (
-                            <motion.div
-                              className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r"
-                              layoutId="adminActiveIndicator"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ duration: 0.3 }}
-                            />
-                          )}
-                          
-                          <motion.div
-                            className="mr-3"
-                            whileHover={{ rotate: 5 }}
-                            transition={{ type: "spring", stiffness: 400 }}
-                          >
-                            <Icon className={`w-5 h-5 ${isItemActive ? 'text-white' : 'text-gray-600 group-hover:text-purple-600'}`} />
-                          </motion.div>
-                          
-                          <span className="relative z-10">{item.name}</span>
-                          
-                          {!isItemActive && (
-                            <motion.div
-                              className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-purple-600/10 rounded-lg"
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              whileHover={{ opacity: 1, scale: 1 }}
-                              transition={{ duration: 0.2 }}
-                            />
-                          )}
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
-                </motion.div>
-              </motion.div>
+          
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            ) : (
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
             )}
+          </button>
+        </div>
 
-            {/* User Navigation */}
-            <motion.div 
-              className="pt-4 border-t border-gray-200"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-            >
-              <motion.h3 
-                className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider"
+        {/* User Profile */}
+        <div className="p-4 border-b border-gray-200">
+          <AnimatePresence mode="wait">
+            {!isCollapsed ? (
+              <motion.div
+                key="expanded-profile"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center space-x-3"
               >
-                Account
-              </motion.h3>
-              <motion.div 
-                className="mt-2 space-y-1"
-                initial="initial"
-                animate="animate"
-                transition={{ staggerChildren: 0.1, delayChildren: 0.6 }}
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {userProfile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {userProfile?.full_name || 'User'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {userProfile?.position || 'Administrator'}
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="collapsed-profile"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex justify-center"
               >
-                {userNavigation.map((item, index) => {
-                  const Icon = item.icon;
-                  const isItemActive = isActive(item.href);
-                  
-                  return (
-                    <motion.div
-                      key={item.name}
-                      variants={navItemVariants}
-                      whileHover="hover"
-                      custom={index}
-                    >
-                      <Link
-                        to={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden group ${
-                          isItemActive
-                            ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg"
-                            : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100"
-                        }`}
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {userProfile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <div className="space-y-1">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                    isActive(item.href)
+                      ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-blue-600'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${
+                    isActive(item.href) ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600'
+                  }`} />
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="truncate"
                       >
-                        {isItemActive && (
-                          <motion.div
-                            className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r"
-                            layoutId="userActiveIndicator"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.3 }}
-                          />
-                        )}
-                        
-                        <motion.div
-                          className="mr-3"
-                          whileHover={{ rotate: 5 }}
-                          transition={{ type: "spring", stiffness: 400 }}
-                        >
-                          <Icon className={`w-5 h-5 ${isItemActive ? 'text-white' : 'text-gray-600 group-hover:text-green-600'}`} />
-                        </motion.div>
-                        
-                        <span className="relative z-10">{item.name}</span>
-                        
-                        {!isItemActive && (
-                          <motion.div
-                            className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-green-600/10 rounded-lg"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            whileHover={{ opacity: 1, scale: 1 }}
+                        {item.name}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Admin Navigation */}
+          {userProfile?.role === 'admin' && (
+            <div className="pt-4 border-t border-gray-200">
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  >
+                    Admin
+                  </motion.p>
+                )}
+              </AnimatePresence>
+              <div className="space-y-1 mt-2">
+                {adminNavigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                        isActive(item.href)
+                          ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-purple-600'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 flex-shrink-0 ${
+                        isActive(item.href) ? 'text-purple-600' : 'text-gray-400 group-hover:text-purple-600'
+                      }`} />
+                      <AnimatePresence>
+                        {!isCollapsed && (
+                          <motion.span
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 'auto' }}
+                            exit={{ opacity: 0, width: 0 }}
                             transition={{ duration: 0.2 }}
-                          />
+                            className="truncate"
+                          >
+                            {item.name}
+                          </motion.span>
                         )}
-                      </Link>
-                    </motion.div>
+                      </AnimatePresence>
+                    </Link>
                   );
                 })}
-              </motion.div>
-            </motion.div>
-          </nav>
-
-          {/* User Info & Sign Out */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
-                <User className="w-4 h-4 text-white" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700">
-                  {user?.email}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {role || "User"}
-                </p>
               </div>
             </div>
-            
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 transition-all duration-200"
-            >
-              <LogOut className="w-5 h-5 mr-3 text-gray-600" />
-              <span>Sign Out</span>
-            </button>
-          </div>
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={handleSignOut}
+            className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors duration-200 w-full"
+          >
+            <Settings className="w-5 h-5" />
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  Sign Out
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
         </div>
       </div>
-
-      {/* Overlay for mobile */}
-      <div 
-        className={`sidebar-overlay ${isOpen ? 'open' : ''}`}
-        onClick={() => setIsOpen(false)}
-      />
-    </>
+    </motion.div>
   );
-}
+};
+
+export default Sidebar;
