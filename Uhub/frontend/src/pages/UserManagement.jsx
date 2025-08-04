@@ -13,7 +13,7 @@ import {
   useDeleteUser, 
   useToggleUserStatus 
 } from '../hooks/useApi';
-import { useToast } from '../components/Toast';
+import { useToast } from '../context/ToastContext';
 import Sidebar from '../components/Sidebar';
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';

@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "../hooks/useApi";
-import { useToast } from "../components/Toast";
+import { useToast } from "../context/ToastContext";
 import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
 import { Plus, Edit, Trash, Save, X } from "lucide-react";

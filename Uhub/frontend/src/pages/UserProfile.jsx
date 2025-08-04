@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUserProfileData, useUpdateUserProfileData } from '../hooks/useApi';
-import { useToast } from '../components/Toast';
+import { useToast } from '../context/ToastContext';
 import Sidebar from '../components/Sidebar';
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';

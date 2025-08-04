@@ -7,7 +7,7 @@ import {
   CheckCircle, AlertTriangle, Clock, DollarSign 
 } from "lucide-react";
 import { useAssets, useDeleteAsset } from "../hooks/useApi";
-import { useToast } from "../components/Toast";
+import { useToast } from "../context/ToastContext";
 
 export default function Assets() {
   const [search, setSearch] = useState("");

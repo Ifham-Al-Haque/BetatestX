@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "../components/Toast";
+import { useToast } from "../context/ToastContext";
 import config from "../config";
 
 export default function Login() {

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "../components/Toast";
+import { useToast } from "../context/ToastContext";
 import { useEmployees, useDeleteEmployee } from "../hooks/useApi";
 import { ChevronRight, Trash2, Pencil, Plus, Search, Filter } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
