@@ -1,16 +1,9 @@
 import React, { useState, useMemo, Suspense } from 'react';
+import * as LucideIcons from 'lucide-react';
 import {
-  TrendingUp,
-  DollarSign,
-  Users,
-  Activity,
-  LineChart,
-  Calendar,
-  Clock,
-  ArrowUpRight,
-  ArrowDownRight,
-  MoreHorizontal
-} from 'lucide-react';
+  LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer,
+  BarChart, Bar, LabelList
+} from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useExpenseStats } from '../hooks/useExpenseStats';
 import { usePaymentEvents } from '../hooks/usePaymentEvents';
@@ -30,40 +23,46 @@ import TodaySpendingChart from '../components/TodaySpendingChart';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 // Summary Card Component
-const SummaryCard = ({ title, value, change, icon: Icon, color = 'blue' }) => (
-  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-300">
-    <div className="flex items-center justify-between h-full">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-        <p className="text-2xl font-bold text-gray-900 mb-2">{value}</p>
-        {change !== undefined && (
-          <div className="flex items-center">
-            <span className={`text-sm font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {change >= 0 ? '+' : ''}{change}%
-            </span>
-            <span className="text-sm text-gray-500 ml-1">vs last month</span>
-          </div>
-        )}
-      </div>
-      <div className={`p-3 rounded-lg bg-${color}-50 flex-shrink-0 ml-4`}>
-        <Icon className={`w-6 h-6 text-${color}-600`} />
+const SummaryCard = ({ title, value, change, iconName, color = 'blue' }) => {
+  const Icon = LucideIcons[iconName];
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-300">
+      <div className="flex items-center justify-between h-full">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+          <p className="text-2xl font-bold text-gray-900 mb-2">{value}</p>
+          {change !== undefined && (
+            <div className="flex items-center">
+              <span className={`text-sm font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {change >= 0 ? '+' : ''}{change}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">vs last month</span>
+            </div>
+          )}
+        </div>
+        <div className={`p-3 rounded-lg bg-${color}-50 flex-shrink-0 ml-4`}>
+          {Icon && <Icon className={`w-6 h-6 text-${color}-600`} />}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Section Header Component
-const SectionHeader = ({ title, icon: Icon, action }) => (
-  <div className="flex items-center justify-between mb-6">
-    <div className="flex items-center space-x-3">
-      <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
-        <Icon className="w-5 h-5 text-blue-600" />
+const SectionHeader = ({ title, iconName, action }) => {
+  const Icon = LucideIcons[iconName];
+  return (
+    <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center space-x-3">
+        <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
+          {Icon && <Icon className="w-5 h-5 text-blue-600" />}
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
       </div>
-      <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+      {action && <div className="flex-shrink-0">{action}</div>}
     </div>
-    {action && <div className="flex-shrink-0">{action}</div>}
-  </div>
-);
+  );
+};
 
 // Animated Card Component
 const AnimatedCard = ({ children, className = '', delay = 0 }) => (
@@ -72,58 +71,53 @@ const AnimatedCard = ({ children, className = '', delay = 0 }) => (
   </div>
 );
 
-// Departmental Expenses Line Chart Component
+// Departmental Expenses Chart Component using Recharts
 const DepartmentalExpensesLineChart = ({ data }) => {
-  const [filterType, setFilterType] = useState('monthly'); // 'monthly', 'yearly'
+  const [filterType, setFilterType] = useState('monthly');
+
+  const parseDate = (val) => {
+    if (!val) return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  };
 
   if (!data || data.length === 0) {
+    const LineChartIcon = LucideIcons.LineChart;
     return (
       <div className="h-80 flex items-center justify-center text-gray-500">
         <div className="text-center">
-          <LineChart className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+          {LineChartIcon && <LineChartIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />}
           <p>No departmental expense data available</p>
         </div>
       </div>
     );
   }
 
-  // Process data based on filter type
   const processData = () => {
     const deptData = {};
-    
+
     data.forEach(expense => {
-      if (expense.department && expense.amount_aed) {
-        const dept = expense.department;
-        
-        if (!deptData[dept]) {
-          deptData[dept] = {
-            monthly: {},
-            yearly: {}
-          };
-        }
-        
-        // Try to get date from different possible fields
-        let date = null;
-        if (expense.date_paid) {
-          date = new Date(expense.date_paid);
-        } else if (expense.date) {
-          date = new Date(expense.date);
-        } else if (expense.created_at) {
-          date = new Date(expense.created_at);
-        } else if (expense.updated_at) {
-          date = new Date(expense.updated_at);
-        }
-        
-        // If we have a valid date, process monthly and yearly data
-        if (date && !isNaN(date.getTime())) {
-          // Monthly
-          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          deptData[dept].monthly[monthKey] = (deptData[dept].monthly[monthKey] || 0) + expense.amount_aed;
-          
-          // Yearly
-          const yearKey = date.getFullYear().toString();
-          deptData[dept].yearly[yearKey] = (deptData[dept].yearly[yearKey] || 0) + expense.amount_aed;
-        }
+      const dept = expense.department?.trim();
+      if (!dept || !expense.amount_aed) return;
+
+      if (!deptData[dept]) {
+        deptData[dept] = { monthly: {}, yearly: {} };
+      }
+
+      const date =
+        parseDate(expense.date_paid) ||
+        parseDate(expense.date) ||
+        parseDate(expense.created_at) ||
+        parseDate(expense.updated_at);
+
+      if (date) {
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        deptData[dept].monthly[monthKey] =
+          (deptData[dept].monthly[monthKey] || 0) + expense.amount_aed;
+
+        const yearKey = date.getFullYear().toString();
+        deptData[dept].yearly[yearKey] =
+          (deptData[dept].yearly[yearKey] || 0) + expense.amount_aed;
       }
     });
 
@@ -131,345 +125,181 @@ const DepartmentalExpensesLineChart = ({ data }) => {
   };
 
   const deptData = processData();
-  
-  // Get chart data based on filter
+  const departments = Object.keys(deptData);
+
   const getChartData = () => {
-    const departments = Object.keys(deptData);
-    
     if (filterType === 'monthly') {
       const allMonths = new Set();
       departments.forEach(dept => {
         Object.keys(deptData[dept].monthly).forEach(month => allMonths.add(month));
       });
-      
       const sortedMonths = Array.from(allMonths).sort();
-      
-      // If no monthly data, generate sample data for the last 6 months
+
+      // Generate sample data if no real data exists
       if (sortedMonths.length === 0) {
         const sampleMonths = [];
         const currentDate = new Date();
         for (let i = 5; i >= 0; i--) {
           const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          sampleMonths.push(monthKey);
+          sampleMonths.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
         }
-        
         return sampleMonths.map(month => {
-          const monthData = departments.map((dept, index) => ({
-            department: dept,
-            amount: Math.random() * 10000 + 1000, // Random variation
-            color: COLORS[index % COLORS.length]
-          }));
-          return {
-            month,
-            data: monthData
-          };
+          const row = { period: month };
+          departments.forEach(dept => {
+            row[dept] = Math.random() * 10000 + 1000;
+          });
+          return row;
         });
       }
-      
+
       return sortedMonths.map(month => {
-        const monthData = departments.map((dept, index) => ({
-          department: dept,
-          amount: deptData[dept].monthly[month] || 0,
-          color: COLORS[index % COLORS.length]
-        }));
-        return {
-          month,
-          data: monthData
-        };
+        const row = { period: month };
+        departments.forEach(dept => {
+          row[dept] = deptData[dept].monthly[month] || 0;
+        });
+        return row;
       });
     }
-    
+
     if (filterType === 'yearly') {
       const allYears = new Set();
       departments.forEach(dept => {
         Object.keys(deptData[dept].yearly).forEach(year => allYears.add(year));
       });
-      
       const sortedYears = Array.from(allYears).sort();
-      
-      // If no yearly data, generate sample data for the last 3 years
+
+      // Generate sample data if no real data exists
       if (sortedYears.length === 0) {
         const sampleYears = [];
         const currentYear = new Date().getFullYear();
         for (let i = 2; i >= 0; i--) {
           sampleYears.push((currentYear - i).toString());
         }
-        
         return sampleYears.map(year => {
-          const yearData = departments.map((dept, index) => ({
-            department: dept,
-            amount: Math.random() * 50000 + 10000, // Random variation
-            color: COLORS[index % COLORS.length]
-          }));
-          return {
-            year,
-            data: yearData
-          };
+          const row = { period: year };
+          let total = 0;
+          departments.forEach(dept => {
+            const value = Math.random() * 50000 + 10000;
+            row[dept] = value;
+            total += value;
+          });
+          row.total = total;
+          return row;
         });
       }
-      
+
       return sortedYears.map(year => {
-        const yearData = departments.map((dept, index) => ({
-          department: dept,
-          amount: deptData[dept].yearly[year] || 0,
-          color: COLORS[index % COLORS.length]
-        }));
-        return {
-          year,
-          data: yearData
-        };
+        const row = { period: year };
+        let total = 0;
+        departments.forEach(dept => {
+          const value = deptData[dept].yearly[year] || 0;
+          row[dept] = value;
+          total += value;
+        });
+        row.total = total;
+        return row;
       });
     }
-    
     return [];
   };
 
   const chartData = getChartData();
-  const hasData = chartData.length > 0 && Object.keys(deptData).length > 0;
 
   return (
-    <div className="h-96">
-      {/* Filter Controls */}
-      <div className="mb-6">
-        <div className="flex space-x-3">
+    <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-8 border border-gray-100 shadow-sm">
+      {/* Filter Buttons */}
+      <div className="flex space-x-3 mb-6">
+        {['monthly', 'yearly'].map(type => (
           <button
-            onClick={() => setFilterType('monthly')}
+            key={type}
+            onClick={() => setFilterType(type)}
             className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-              filterType === 'monthly'
+              filterType === type
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'
             }`}
           >
-            Monthly
+            {type.charAt(0).toUpperCase() + type.slice(1)}
           </button>
-          <button
-            onClick={() => setFilterType('yearly')}
-            className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-              filterType === 'yearly'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'
-            }`}
-          >
-            Yearly
-          </button>
-        </div>
+        ))}
       </div>
 
-      {/* Chart Content */}
-      <div className="space-y-4">
-        {filterType === 'monthly' ? (
-          // Monthly view - line chart
-          <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-6 border border-gray-100 shadow-sm">
-            <div className="h-72">
-              {/* Debug Info */}
-              <div className="mb-4 text-xs text-gray-500 text-center">
-                Debug: {chartData.length} months, {Object.keys(deptData).length} departments
+             {/* Chart */}
+       <div className="h-[500px]">
+         <ResponsiveContainer width="100%" height="100%">
+           {filterType === 'monthly' ? (
+             <RechartsLineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
+               <CartesianGrid strokeDasharray="3 3" />
+               <XAxis dataKey="period" angle={-45} textAnchor="end" height={70} />
+               <YAxis tickFormatter={(v) => `AED ${v.toLocaleString()}`} />
+               <Tooltip formatter={(v) => `AED ${v.toLocaleString()}`} />
+               <Legend />
+               {departments.map((dept, index) => (
+                 <Line
+                   key={dept}
+                   type="monotone"
+                   dataKey={dept}
+                   stroke={COLORS[index % COLORS.length]}
+                   strokeWidth={2}
+                   dot={{ r: 4 }}
+                   activeDot={{ r: 6 }}
+                 />
+               ))}
+             </RechartsLineChart>
+           ) : (
+             <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
+               <CartesianGrid strokeDasharray="3 3" />
+               <XAxis dataKey="period" />
+               <YAxis tickFormatter={(v) => `AED ${v.toLocaleString()}`} />
+               <Tooltip formatter={(v) => `AED ${v.toLocaleString()}`} />
+               <Legend />
+               {departments.map((dept, index) => (
+                 <Bar
+                   key={dept}
+                   dataKey={dept}
+                   stackId="a"
+                   fill={COLORS[index % COLORS.length]}
+                 />
+               ))}
+               <Bar dataKey="total" fill="transparent">
+                 <LabelList
+                   dataKey="total"
+                   position="top"
+                   formatter={(v) => `AED ${v.toLocaleString()}`}
+                 />
+               </Bar>
+             </BarChart>
+           )}
+         </ResponsiveContainer>
+       </div>
+
+      {/* Summary table for yearly view */}
+      {filterType === 'yearly' && (
+        <div className="mt-6 space-y-4">
+          {chartData.map((period, index) => (
+            <div key={index} className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex justify-between font-semibold text-gray-700 mb-2">
+                <span>{period.period} Total:</span>
+                <span>{period.total.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}</span>
               </div>
-              
-              {/* Line Chart */}
-              {chartData.length > 0 ? (
-                <div className="h-full">
-                  {/* Chart Container */}
-                  <div className="relative h-52 border-l border-b border-gray-300">
-                    {/* Y-axis labels */}
-                    <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between text-xs text-gray-500">
-                      <span>100%</span>
-                      <span>75%</span>
-                      <span>50%</span>
-                      <span>25%</span>
-                      <span>0%</span>
-                    </div>
-                    
-                    {/* Chart area */}
-                    <div className="ml-12 h-full relative">
-                      {/* Grid lines */}
-                      <div className="absolute inset-0 flex flex-col justify-between">
-                        {[0, 1, 2, 3, 4].map(i => (
-                          <div key={i} className="border-t border-gray-200"></div>
-                        ))}
-                      </div>
-                      
-                      {/* Line Chart */}
-                      <div className="absolute inset-0 p-6">
-                        <svg className="w-full h-full" viewBox={'0 0 100 100'} preserveAspectRatio="none">
-                          {/* Generate lines for each department */}
-                          {Object.keys(deptData).map((dept, deptIndex) => {
-                            const points = chartData.map((period, periodIndex) => {
-                              const periodDeptData = period.data.find(d => d.department === dept);
-                              const amount = periodDeptData ? periodDeptData.amount : 0;
-                              const maxAmount = Math.max(...chartData.flatMap(p => p.data.map(d => d.amount)));
-                              const y = maxAmount > 0 ? 100 - (amount / maxAmount) * 100 : 50;
-                              const x = (periodIndex / (chartData.length - 1)) * 100;
-                              return `${x},${y}`;
-                            }).join(' ');
-                            
-                            return (
-                              <g key={dept}>
-                                <polyline
-                                  fill="none"
-                                  stroke={COLORS[deptIndex % COLORS.length]}
-                                  strokeWidth="2"
-                                  points={points}
-                                />
-                                {/* Data points */}
-                                {chartData.map((period, periodIndex) => {
-                                  const periodDeptData = period.data.find(d => d.department === dept);
-                                  const amount = periodDeptData ? periodDeptData.amount : 0;
-                                  const maxAmount = Math.max(...chartData.flatMap(p => p.data.map(d => d.amount)));
-                                  const y = maxAmount > 0 ? 100 - (amount / maxAmount) * 100 : 50;
-                                  const x = (periodIndex / (chartData.length - 1)) * 100;
-                                  
-                                  return (
-                                    <circle
-                                      key={`${dept}-${periodIndex}`}
-                                      cx={x}
-                                      cy={y}
-                                      r="3"
-                                      fill={COLORS[deptIndex % COLORS.length]}
-                                      stroke="white"
-                                      strokeWidth="1"
-                                    />
-                                  );
-                                })}
-                              </g>
-                            );
-                          })}
-                        </svg>
-                      </div>
-                    </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {departments.map((dept, i) => (
+                  <div key={dept} className="flex items-center space-x-2">
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                    />
+                    <span className="text-sm text-gray-600">{dept}:</span>
+                    <span className="text-sm font-medium">
+                      {period[dept]?.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
+                    </span>
                   </div>
-                  
-                  {/* X-axis labels */}
-                  <div className="mt-4 flex justify-between text-xs text-gray-500">
-                    {chartData.map((period, index) => (
-                      <span key={index} className="transform -rotate-45 origin-left whitespace-nowrap">
-                        {period.month}
-                      </span>
-                    ))}
-                  </div>
-                  
-                  {/* Legend */}
-                  <div className="mt-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {Object.keys(deptData).map((dept, index) => (
-                        <div key={dept} className="flex items-center space-x-2">
-                          <div 
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                          />
-                          <span className="text-xs text-gray-600 truncate">{dept.toUpperCase()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <LineChart className="w-16 h-16 mx-auto mb-4 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      Monthly Expenses
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      No monthly data available
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          // Yearly view - bar chart in green
-          <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-6 border border-gray-100 shadow-sm">
-            <div className="h-72">
-              {/* Debug Info */}
-              <div className="mb-4 text-xs text-gray-500 text-center">
-                Debug: {chartData.length} years, {Object.keys(deptData).length} departments
+                ))}
               </div>
-              
-              {/* Bar Chart */}
-              {chartData.length > 0 ? (
-                <div className="h-full">
-                  {/* Chart Container */}
-                  <div className="relative h-52 border-l border-b border-gray-300">
-                    {/* Y-axis labels */}
-                    <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between text-xs text-gray-500">
-                      <span>100%</span>
-                      <span>75%</span>
-                      <span>50%</span>
-                      <span>25%</span>
-                      <span>0%</span>
-                    </div>
-                    
-                    {/* Chart area */}
-                    <div className="ml-12 h-full relative">
-                      {/* Grid lines */}
-                      <div className="absolute inset-0 flex flex-col justify-between">
-                        {[0, 1, 2, 3, 4].map(i => (
-                          <div key={i} className="border-t border-gray-200"></div>
-                        ))}
-                      </div>
-                      
-                      {/* Bar Chart */}
-                      <div className="absolute inset-0 p-6">
-                        <div className="h-full flex items-end justify-between space-x-2">
-                          {chartData.map((period, periodIndex) => {
-                            const totalAmount = period.data.reduce((sum, dept) => sum + dept.amount, 0);
-                            const maxAmount = Math.max(...chartData.map(p => p.data.reduce((sum, dept) => sum + dept.amount, 0)));
-                            const height = maxAmount > 0 ? (totalAmount / maxAmount) * 100 : 0;
-                            
-                            return (
-                              <div key={periodIndex} className="flex-1 flex flex-col items-center">
-                                <div 
-                                  className="w-full bg-green-500 rounded-t transition-all duration-500"
-                                  style={{ height: height + '%' }}
-                                ></div>
-                                <div className="mt-2 text-xs text-gray-500 text-center">
-                                  {period.year}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Data summary */}
-                  <div className="mt-4 space-y-2">
-                    {chartData.map((period, index) => {
-                      const totalAmount = period.data.reduce((sum, dept) => sum + dept.amount, 0);
-                      return (
-                        <div key={index} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">
-                            {period.year}:
-                          </span>
-                          <span className="font-semibold text-gray-800">
-                            {totalAmount.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <LineChart className="w-16 h-16 mx-auto mb-4 text-green-600" />
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      Yearly Expenses
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      No yearly data available
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -477,10 +307,11 @@ const DepartmentalExpensesLineChart = ({ data }) => {
 // Average Spending Chart Component
 const AverageSpendingChart = ({ data }) => {
   if (!data || data.length === 0) {
+    const DollarSignIcon = LucideIcons.DollarSign;
     return (
       <div className="h-80 flex items-center justify-center text-gray-500">
         <div className="text-center">
-          <DollarSign className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+          {DollarSignIcon && <DollarSignIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />}
           <p>No average spending data available</p>
         </div>
       </div>
@@ -571,10 +402,11 @@ const AverageSpendingChart = ({ data }) => {
 // Top Expense Categories Component
 const TopExpenseCategories = ({ data }) => {
   if (!data || data.length === 0) {
+    const DollarSignIcon = LucideIcons.DollarSign;
     return (
       <div className="h-80 flex items-center justify-center text-gray-500">
         <div className="text-center">
-          <DollarSign className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+          {DollarSignIcon && <DollarSignIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />}
           <p>No expense data available</p>
         </div>
       </div>
@@ -785,19 +617,19 @@ export default function Dashboard() {
               title="Total Expenses"
               value={summaryStats.totalExpenses}
               change={summaryStats.monthlyGrowth}
-              icon={DollarSign}
+              iconName="DollarSign"
               color="blue"
             />
             <SummaryCard
               title="Departments"
               value={summaryStats.totalDepartments}
-              icon={Users}
+              iconName="Users"
               color="green"
             />
             <SummaryCard
               title="Average per Expense"
               value={summaryStats.averagePerExpense}
-              icon={DollarSign}
+              iconName="DollarSign"
               color="purple"
             />
           </div>
@@ -806,7 +638,7 @@ export default function Dashboard() {
           <div className="space-y-8 mb-8">
             {/* Monthly Expense Chart */}
             <AnimatedCard delay={0.1}>
-              <SectionHeader title="Monthly Expense Trend" icon={TrendingUp} />
+              <SectionHeader title="Monthly Expense Trend" iconName="TrendingUp" />
               <div className="mt-4">
                 <InteractiveExpenseChart data={monthlyData} />
               </div>
@@ -814,7 +646,7 @@ export default function Dashboard() {
 
             {/* Departmental Expenses Line Chart */}
             <AnimatedCard delay={0.2}>
-              <SectionHeader title="Departmental Expenses" icon={LineChart} />
+              <SectionHeader title="Departmental Expenses" iconName="LineChart" />
               <div className="mt-4">
                 <DepartmentalExpensesLineChart data={safeExpenseStats} />
               </div>
@@ -824,7 +656,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Average Spending Chart */}
               <AnimatedCard delay={0.3}>
-                <SectionHeader title="Average Spending by Service" icon={DollarSign} />
+                <SectionHeader title="Average Spending by Service" iconName="DollarSign" />
                 <div className="mt-4">
                   <AverageSpendingChart data={safeExpenseStats} />
                 </div>
@@ -832,7 +664,7 @@ export default function Dashboard() {
 
               {/* Top Expense Categories */}
               <AnimatedCard delay={0.4}>
-                <SectionHeader title="Top Expense Categories" icon={DollarSign} />
+                <SectionHeader title="Top Expense Categories" iconName="DollarSign" />
                 <div className="mt-4">
                   <TopExpenseCategories data={safeExpenseStats} />
                 </div>
@@ -841,7 +673,7 @@ export default function Dashboard() {
 
             {/* Today's Spending Chart */}
             <AnimatedCard delay={0.5}>
-              <SectionHeader title="Today's Spending Breakdown" icon={Activity} />
+              <SectionHeader title="Today's Spending Breakdown" iconName="Activity" />
               <div className="mt-4">
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
@@ -896,10 +728,13 @@ export default function Dashboard() {
             <AnimatedCard delay={0.7}>
               <SectionHeader 
                 title="Upcoming Payment Events" 
-                icon={Calendar}
+                iconName="Calendar"
                 action={
                   <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                    <DollarSign className="w-4 h-4" />
+                    {(() => {
+                      const DollarSignIcon = LucideIcons.DollarSign;
+                      return DollarSignIcon && <DollarSignIcon className="w-4 h-4" />;
+                    })()}
                     <span>Add Event</span>
                   </button>
                 }
@@ -917,7 +752,7 @@ export default function Dashboard() {
 
           {/* Detailed Expense Data */}
           <AnimatedCard className="mb-8" delay={0.8}>
-            <SectionHeader title="Detailed Expense Data" icon={LineChart} />
+                          <SectionHeader title="Detailed Expense Data" iconName="LineChart" />
             {statsError ? (
               <div className="text-center py-8">
                 <p className="text-red-600 mb-2">Failed to load expense data</p>
