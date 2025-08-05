@@ -98,22 +98,20 @@ export const AuthProvider = ({ children }) => {
         console.log("User signed out successfully");
       }
     } catch (error) {
-      console.error("Unexpected error during sign out:", error);
-      console.warn("Sign Out Error: An unexpected error occurred during sign out.");
+      console.error("Error in signOut:", error);
     }
   }, []);
 
-  const sendInvitation = useCallback(async (email, role = "employee") => {
+  const sendInvitation = useCallback(async (email, role = 'employee') => {
     try {
       const { data, error } = await supabase
         .from("access_requests")
-        .insert([
-          {
-            email,
-            role,
-            status: "pending",
-          },
-        ])
+        .insert({
+          email,
+          role,
+          status: "pending",
+          requested_at: new Date().toISOString()
+        })
         .select();
 
       if (error) {
@@ -128,7 +126,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const acceptInvitation = useCallback(async (invitationId, userData) => {
+  const acceptInvitation = useCallback(async (invitationId) => {
     try {
       const { data, error } = await supabase
         .from("access_requests")
@@ -151,8 +149,15 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Get current session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log("🔍 Checking authentication status...");
+        
+        // Get current session with timeout
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session check timeout')), 5000)
+        );
+        
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
         
         if (error) {
           console.error("Error getting session:", error);
@@ -162,23 +167,28 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (session?.user) {
+          console.log("✅ User authenticated:", session.user.email);
           setUser(session.user);
+          setRole('employee'); // Set default role immediately
           
-          // Fetch profile immediately but don't block auth
-          try {
-            const profile = await getUserProfile(session.user.id);
-            setUserProfile(profile);
-            setRole(profile?.role || 'employee');
-          } catch (profileError) {
-            console.warn("Profile fetch failed:", profileError);
-            setRole('employee'); // Default role
-          }
+          // Fetch profile in background (non-blocking)
+          getUserProfile(session.user.id)
+            .then(profile => {
+              console.log("📋 Profile loaded:", profile);
+              setUserProfile(profile);
+              setRole(profile?.role || 'employee');
+            })
+            .catch(error => {
+              console.warn("⚠️ Profile fetch failed:", error);
+              // Keep default role
+            });
         } else {
-          // No active session
+          console.log("❌ No active session found");
         }
       } catch (error) {
         console.error("Error in checkAuth:", error);
       } finally {
+        console.log("🏁 Auth check completed");
         setLoading(false);
         setAuthChecked(true);
       }
@@ -189,19 +199,21 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("🔄 Auth state change:", event);
         
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
+          setRole('employee'); // Set default role immediately
           
-          // Fetch profile with timeout
-          try {
-            const profile = await getUserProfile(session.user.id);
-            setUserProfile(profile);
-            setRole(profile?.role || 'employee');
-          } catch (error) {
-            console.warn("Profile fetch failed:", error);
-            setRole('employee'); // Default role
-          }
+          // Fetch profile in background
+          getUserProfile(session.user.id)
+            .then(profile => {
+              setUserProfile(profile);
+              setRole(profile?.role || 'employee');
+            })
+            .catch(error => {
+              console.warn("Profile fetch failed:", error);
+            });
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setUserProfile(null);

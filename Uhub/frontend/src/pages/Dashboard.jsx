@@ -227,6 +227,22 @@ export default function Dashboard() {
     // You can add a modal or navigation here
   };
 
+  // Show loading state only if both queries are loading and we have no cached data
+  const isLoading = (statsLoading || eventsLoading) && !safeExpenseStats.length && !safePaymentEvents.length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar />
+        <div className="flex-1 ml-80">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <LoadingSpinner size="xl" text="Loading dashboard data..." />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />

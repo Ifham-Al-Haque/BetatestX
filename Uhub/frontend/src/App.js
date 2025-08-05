@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
+import LoadingDiagnostic from "./components/LoadingDiagnostic";
 
 // Lazy load components for better performance
 const Login = lazy(() => import("./pages/Login"));
@@ -179,6 +180,7 @@ function App() {
             <Router>
               <div className="App">
                 <AppRoutes />
+                <LoadingDiagnostic />
               </div>
             </Router>
           </AuthProvider>

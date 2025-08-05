@@ -1,75 +1,120 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-export default function LoadingDiagnostic() {
+const LoadingDiagnostic = () => {
   const [diagnostics, setDiagnostics] = useState({
-    supabaseConnection: 'checking...',
-    authStatus: 'checking...',
-    databaseTables: 'checking...',
-    environmentVariables: 'checking...'
+    supabaseConnection: 'checking',
+    authStatus: 'checking',
+    tablesAccess: 'checking'
   });
 
   useEffect(() => {
     const runDiagnostics = async () => {
-      const results = {};
-
-      // Check Supabase connection
+      console.log('🔍 Running loading diagnostics...');
+      
+      // Test Supabase connection
       try {
-        const { data, error } = await supabase.from('employees').select('count').limit(1);
-        results.supabaseConnection = error ? `❌ Error: ${error.message}` : '✅ Connected';
-      } catch (err) {
-        results.supabaseConnection = `❌ Connection failed: ${err.message}`;
+        const startTime = Date.now();
+        const { data, error } = await supabase.auth.getSession();
+        const endTime = Date.now();
+        
+        if (error) {
+          setDiagnostics(prev => ({ ...prev, supabaseConnection: 'error' }));
+          console.error('❌ Supabase connection failed:', error);
+        } else {
+          setDiagnostics(prev => ({ ...prev, supabaseConnection: 'success' }));
+          console.log(`✅ Supabase connection: ${endTime - startTime}ms`);
+        }
+      } catch (error) {
+        setDiagnostics(prev => ({ ...prev, supabaseConnection: 'error' }));
+        console.error('❌ Supabase connection error:', error);
+      }
+
+      // Test table access
+      try {
+        const startTime = Date.now();
+        const { data, error } = await supabase
+          .from('expenses')
+          .select('id')
+          .limit(1);
+        const endTime = Date.now();
+        
+        if (error) {
+          setDiagnostics(prev => ({ ...prev, tablesAccess: 'error' }));
+          console.error('❌ Table access failed:', error);
+        } else {
+          setDiagnostics(prev => ({ ...prev, tablesAccess: 'success' }));
+          console.log(`✅ Table access: ${endTime - startTime}ms`);
+        }
+      } catch (error) {
+        setDiagnostics(prev => ({ ...prev, tablesAccess: 'error' }));
+        console.error('❌ Table access error:', error);
       }
 
       // Check auth status
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        results.authStatus = error ? `❌ Auth error: ${error.message}` : 
-          session ? `✅ Authenticated (${session.user.email})` : '⚠️ No session';
-      } catch (err) {
-        results.authStatus = `❌ Auth check failed: ${err.message}`;
+        const { data: { session } } = await supabase.auth.getSession();
+        setDiagnostics(prev => ({ 
+          ...prev, 
+          authStatus: session ? 'authenticated' : 'not-authenticated' 
+        }));
+        console.log('✅ Auth status checked');
+      } catch (error) {
+        setDiagnostics(prev => ({ ...prev, authStatus: 'error' }));
+        console.error('❌ Auth status check failed:', error);
       }
-
-      // Check environment variables
-      const envVars = {
-        url: process.env.REACT_APP_SUPABASE_URL ? '✅ Set' : '❌ Missing',
-        key: process.env.REACT_APP_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'
-      };
-      results.environmentVariables = `URL: ${envVars.url}, Key: ${envVars.key}`;
-
-      // Check database tables
-      try {
-        const tables = ['employees', 'expenses', 'assets', 'payment_events'];
-        const tableChecks = await Promise.all(
-          tables.map(async (table) => {
-            try {
-              const { error } = await supabase.from(table).select('id').limit(1);
-              return { table, status: error ? '❌' : '✅' };
-            } catch (err) {
-              return { table, status: '❌' };
-            }
-          })
-        );
-        results.databaseTables = tableChecks.map(t => `${t.table}: ${t.status}`).join(', ');
-      } catch (err) {
-        results.databaseTables = `❌ Table check failed: ${err.message}`;
-      }
-
-      setDiagnostics(results);
     };
 
     runDiagnostics();
   }, []);
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'success':
+      case 'authenticated':
+        return 'text-green-600';
+      case 'error':
+        return 'text-red-600';
+      case 'checking':
+        return 'text-yellow-600';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'success':
+      case 'authenticated':
+        return '✅';
+      case 'error':
+        return '❌';
+      case 'checking':
+        return '⏳';
+      default:
+        return '❓';
+    }
+  };
+
   return (
-    <div className="fixed top-4 right-4 bg-white border border-gray-300 rounded-lg p-4 shadow-lg z-50 max-w-md">
-      <h3 className="font-semibold text-gray-800 mb-3">Loading Diagnostic</h3>
-      <div className="space-y-2 text-sm">
-        <div><strong>Supabase:</strong> {diagnostics.supabaseConnection}</div>
-        <div><strong>Auth:</strong> {diagnostics.authStatus}</div>
-        <div><strong>Env Vars:</strong> {diagnostics.environmentVariables}</div>
-        <div><strong>Tables:</strong> {diagnostics.databaseTables}</div>
+    <div className="fixed bottom-4 right-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 max-w-xs">
+      <h3 className="text-sm font-semibold text-gray-900 mb-2">Loading Diagnostics</h3>
+      <div className="space-y-1 text-xs">
+        <div className={`flex items-center space-x-2 ${getStatusColor(diagnostics.supabaseConnection)}`}>
+          <span>{getStatusIcon(diagnostics.supabaseConnection)}</span>
+          <span>Supabase Connection</span>
+        </div>
+        <div className={`flex items-center space-x-2 ${getStatusColor(diagnostics.authStatus)}`}>
+          <span>{getStatusIcon(diagnostics.authStatus)}</span>
+          <span>Authentication</span>
+        </div>
+        <div className={`flex items-center space-x-2 ${getStatusColor(diagnostics.tablesAccess)}`}>
+          <span>{getStatusIcon(diagnostics.tablesAccess)}</span>
+          <span>Database Access</span>
+        </div>
       </div>
     </div>
   );
-} 
+};
+
+export default LoadingDiagnostic; 
