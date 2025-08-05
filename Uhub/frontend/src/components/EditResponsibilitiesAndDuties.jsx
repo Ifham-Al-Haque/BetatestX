@@ -65,7 +65,7 @@ export default function EditResponsibilitiesAndDuties() {
 
     if (!error) {
       alert("Responsibilities and duties updated successfully.");
-      navigate(`/employees/${id}`);
+              navigate(`/employee/${id}`);
     } else {
       alert("Error updating.");
       console.error(error.message);

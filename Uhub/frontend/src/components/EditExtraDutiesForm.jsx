@@ -55,7 +55,7 @@ export default function EditExtraDutiesForm() {
 
     if (!error) {
       alert("Extra duties updated successfully.");
-      navigate(`/employees/${id}`);
+              navigate(`/employee/${id}`);
     } else {
       alert("Error updating extra duties.");
       console.error(error.message);

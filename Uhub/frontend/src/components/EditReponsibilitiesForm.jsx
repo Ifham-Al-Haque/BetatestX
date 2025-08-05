@@ -55,7 +55,7 @@ export default function EditResponsibilitiesForm() {
 
     if (!error) {
       alert("Responsibilities updated successfully.");
-      navigate(`/employees/${id}`);
+              navigate(`/employee/${id}`);
     } else {
       alert("Error updating responsibilities.");
       console.error(error.message);

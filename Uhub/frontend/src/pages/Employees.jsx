@@ -85,7 +85,7 @@ export default function Employees() {
             Employee Records
           </h2>
           <button
-            onClick={() => navigate("/employees/new")}
+            onClick={() => navigate("/employee/new")}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -233,13 +233,13 @@ export default function Employees() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => navigate(`/employees/${employee.id}`)}
+                              onClick={() => navigate(`/employee/${employee.id}`)}
                               className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                             >
                               <ChevronRight className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => navigate(`/employees/edit/${employee.id}`)}
+                              onClick={() => navigate(`/employee/${employee.id}/edit`)}
                               className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                             >
                               <Pencil className="w-4 h-4" />
