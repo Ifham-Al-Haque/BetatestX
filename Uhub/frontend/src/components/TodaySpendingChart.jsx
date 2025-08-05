@@ -3,7 +3,6 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend
 } from 'recharts';
 import { supabase } from '../supabaseClient';
-import { motion } from 'framer-motion';
 
 const COLORS = [
   "#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A28BFE", 
@@ -102,34 +101,28 @@ export default function TodaySpendingChart() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <motion.div 
+        <div 
           className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200"
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.2 }}
         >
           <div className="text-sm text-blue-600 font-medium">Total Expenses</div>
           <div className="text-xl font-bold text-blue-800">{todayExpenses.length}</div>
-        </motion.div>
+        </div>
         
-        <motion.div 
+        <div 
           className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200"
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.2 }}
         >
           <div className="text-sm text-green-600 font-medium">Departments</div>
           <div className="text-xl font-bold text-green-800">{chartData.length}</div>
-        </motion.div>
+        </div>
         
-        <motion.div 
+        <div 
           className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200"
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.2 }}
         >
           <div className="text-sm text-purple-600 font-medium">Average per Expense</div>
           <div className="text-xl font-bold text-purple-800">
             {todayExpenses.length > 0 ? formatCurrency(totalToday / todayExpenses.length) : 'AED 0.00'}
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Chart and Details */}
@@ -183,12 +176,9 @@ export default function TodaySpendingChart() {
             {todayExpenses.length > 0 ? (
               <div className="space-y-3">
                 {todayExpenses.map((expense, index) => (
-                  <motion.div
+                  <div
                     key={expense.id || index}
                     className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
                   >
                     <div className="flex-1">
                       <div className="font-medium text-gray-800">{expense.service_name || 'Unknown Service'}</div>
@@ -206,7 +196,7 @@ export default function TodaySpendingChart() {
                         })}
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             ) : (
