@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
+import { SidebarProvider } from "./context/SidebarContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import LoadingDiagnostic from "./components/LoadingDiagnostic";
@@ -22,6 +23,7 @@ const UserProfile = lazy(() => import("./pages/UserProfile"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const AccessRequests = lazy(() => import("./pages/AccessRequests"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const Analytics = lazy(() => import("./pages/Analytics"));
 const InvitationSignup = lazy(() => import("./pages/InvitationSignup"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
@@ -134,6 +136,12 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
         
+        <Route path="/analytics" element={
+          <ProtectedRoute>
+            <Analytics />
+          </ProtectedRoute>
+        } />
+        
         <Route path="/tickets" element={
           <ProtectedRoute>
             <Tickets />
@@ -177,12 +185,14 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>
-            <Router>
-              <div className="App">
-                <AppRoutes />
-                <LoadingDiagnostic />
-              </div>
-            </Router>
+            <SidebarProvider>
+              <Router>
+                <div className="App">
+                  <AppRoutes />
+                  <LoadingDiagnostic />
+                </div>
+              </Router>
+            </SidebarProvider>
           </AuthProvider>
         </ToastProvider>
         <ReactQueryDevtools initialIsOpen={false} />

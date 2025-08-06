@@ -566,7 +566,6 @@ export default function Dashboard() {
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
-    // Apply filters to data here if needed
   };
 
   const handleDateClick = (date, events) => {

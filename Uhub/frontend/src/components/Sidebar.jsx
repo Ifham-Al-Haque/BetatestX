@@ -1,5 +1,5 @@
 // src/components/Sidebar.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -16,9 +16,10 @@ import {
   PieChart
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSidebar } from '../context/SidebarContext';
 
 const Sidebar = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed, toggleSidebar } = useSidebar();
   const location = useLocation();
   const { user, userProfile, signOut } = useAuth();
 
@@ -30,7 +31,7 @@ const Sidebar = () => {
     { name: 'Tickets', href: '/tickets', icon: FileText },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: "Attendance", href: "/attendance", icon: Calendar },
-    { name: "Analytics", href: "/admin", icon: BarChart3 },
+    { name: "Analytics", href: "/analytics", icon: BarChart3 },
   ];
 
   const adminNavigation = [
@@ -84,7 +85,7 @@ const Sidebar = () => {
           </AnimatePresence>
           
           <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={toggleSidebar}
             className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
           >
             {isCollapsed ? (

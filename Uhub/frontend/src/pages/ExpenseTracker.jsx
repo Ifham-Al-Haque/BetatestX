@@ -1,6 +1,7 @@
 // src/pages/ExpenseTracker.jsx
 import { useState, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useSidebar } from "../context/SidebarContext";
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
 import Sidebar from "../components/Sidebar";
@@ -9,6 +10,7 @@ import { Plus, Edit, Trash, Save, X } from "lucide-react";
 
 export default function ExpenseTracker() {
   const { user } = useAuth();
+  const { sidebarWidth } = useSidebar();
   const { success, error: showError } = useToast();
   
   const [form, setForm] = useState({
@@ -25,7 +27,8 @@ export default function ExpenseTracker() {
   const [editForm, setEditForm] = useState({});
 
   // Use React Query hooks
-  const { data: expenses = [], isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
+  const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
+  const expenses = expensesResponse?.data || [];
   const createExpenseMutation = useCreateExpense();
   const updateExpenseMutation = useUpdateExpense();
   const deleteExpenseMutation = useDeleteExpense();
@@ -112,12 +115,14 @@ export default function ExpenseTracker() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
         <Sidebar />
-        <div className="ml-64 p-6 w-full">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <h3 className="text-red-800 font-medium">Error Loading Expenses</h3>
-            <p className="text-red-600 mt-1">{error.message}</p>
+        <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h3 className="text-red-800 font-medium">Error Loading Expenses</h3>
+              <p className="text-red-600 mt-1">{error.message}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -125,234 +130,236 @@ export default function ExpenseTracker() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
       <Sidebar />
-      <div className="ml-64 p-6 w-full">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-            Expense Tracker
-          </h2>
-        </div>
-
-        {/* Add Expense Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6"
-        >
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-            Add New Expense
-          </h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <input
-              type="text"
-              placeholder="Service Name"
-              value={form.service_name}
-              onChange={(e) => setForm({ ...form, service_name: e.target.value })}
-              required
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-            <input
-              type="number"
-              placeholder="Amount (AED)"
-              value={form.amount_aed}
-              onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
-              required
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-            <select
-              value={form.currency}
-              onChange={(e) => setForm({ ...form, currency: e.target.value })}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            >
-              <option value="AED">AED</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Months"
-              value={form.months}
-              onChange={(e) => setForm({ ...form, months: e.target.value })}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-            <select
-              value={form.service_status}
-              onChange={(e) => setForm({ ...form, service_status: e.target.value })}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="pending">Pending</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Department"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-            <input
-              type="date"
-              value={form.date_paid}
-              onChange={(e) => setForm({ ...form, date_paid: e.target.value })}
-              required
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-            <button
-              type="submit"
-              disabled={createExpenseMutation.isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              {createExpenseMutation.isLoading ? "Adding..." : "Add Expense"}
-            </button>
-          </form>
-        </motion.div>
-
-        {/* Expenses List */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Your Expenses
-            </h3>
+      <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+              Expense Tracker
+            </h2>
           </div>
-          
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
+
+          {/* Add Expense Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6"
+          >
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+              Add New Expense
+            </h3>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <input
+                type="text"
+                placeholder="Service Name"
+                value={form.service_name}
+                onChange={(e) => setForm({ ...form, service_name: e.target.value })}
+                required
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+              <input
+                type="number"
+                placeholder="Amount (AED)"
+                value={form.amount_aed}
+                onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
+                required
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+              <select
+                value={form.currency}
+                onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              >
+                <option value="AED">AED</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Months"
+                value={form.months}
+                onChange={(e) => setForm({ ...form, months: e.target.value })}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+              <select
+                value={form.service_status}
+                onChange={(e) => setForm({ ...form, service_status: e.target.value })}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="pending">Pending</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Department"
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+              <input
+                type="date"
+                value={form.date_paid}
+                onChange={(e) => setForm({ ...form, date_paid: e.target.value })}
+                required
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+              <button
+                type="submit"
+                disabled={createExpenseMutation.isLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                {createExpenseMutation.isLoading ? "Adding..." : "Add Expense"}
+              </button>
+            </form>
+          </motion.div>
+
+          {/* Expenses List */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Your Expenses
+              </h3>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Service
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {expenses.map((expense) => (
-                    <motion.tr
-                      key={expense.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {editingId === expense.id ? (
-                          <input
-                            type="text"
-                            value={editForm.service_name}
-                            onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded"
-                          />
-                        ) : (
-                          expense.service_name
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {editingId === expense.id ? (
-                          <input
-                            type="number"
-                            value={editForm.amount_aed}
-                            onChange={(e) => setEditForm({ ...editForm, amount_aed: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded"
-                          />
-                        ) : (
-                          `AED ${parseFloat(expense.amount_aed).toFixed(2)}`
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {editingId === expense.id ? (
-                          <input
-                            type="date"
-                            value={editForm.date_paid}
-                            onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded"
-                          />
-                        ) : (
-                          new Date(expense.date_paid).toLocaleDateString()
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {expense.department || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          expense.service_status === 'active' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : expense.service_status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {expense.service_status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {editingId === expense.id ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={saveEdit}
-                              disabled={updateExpenseMutation.isLoading}
-                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                            >
-                              <Save className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={cancelEdit}
-                              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => startEdit(expense)}
-                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(expense.id)}
-                              disabled={deleteExpenseMutation.isLoading}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            >
-                              <Trash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {expenses.length === 0 && (
-                <div className="p-8 text-center">
-                  <p className="text-gray-500 dark:text-gray-400">No expenses found. Add your first expense above.</p>
-                </div>
-              )}
-            </div>
-          )}
+            
+            {isLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Service
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Department
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {expenses.map((expense) => (
+                      <motion.tr
+                        key={expense.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {editingId === expense.id ? (
+                            <input
+                              type="text"
+                              value={editForm.service_name}
+                              onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 rounded"
+                            />
+                          ) : (
+                            expense.service_name
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {editingId === expense.id ? (
+                            <input
+                              type="number"
+                              value={editForm.amount_aed}
+                              onChange={(e) => setEditForm({ ...editForm, amount_aed: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 rounded"
+                            />
+                          ) : (
+                            `AED ${parseFloat(expense.amount_aed).toFixed(2)}`
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {editingId === expense.id ? (
+                            <input
+                              type="date"
+                              value={editForm.date_paid}
+                              onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 rounded"
+                            />
+                          ) : (
+                            new Date(expense.date_paid).toLocaleDateString()
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {expense.department || "N/A"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            expense.service_status === 'active' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : expense.service_status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {expense.service_status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          {editingId === expense.id ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={saveEdit}
+                                disabled={updateExpenseMutation.isLoading}
+                                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                              >
+                                <Save className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => startEdit(expense)}
+                                className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(expense.id)}
+                                disabled={deleteExpenseMutation.isLoading}
+                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {expenses.length === 0 && (
+                  <div className="p-8 text-center">
+                    <p className="text-gray-500 dark:text-gray-400">No expenses found. Add your first expense above.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
