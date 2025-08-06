@@ -25,7 +25,7 @@ export default function EmployeeProfile() {
       .from("employees")
       .select(`
         *,
-        reporting_manager:reporting_manager_id ( full_name, employee_id )
+        reporting_manager:reporting_manager_id ( full_name, name, employee_id )
       `)
       .eq("id", id)
       .single();
@@ -36,15 +36,11 @@ export default function EmployeeProfile() {
       return;
     }
 
+    // Fetch additional access data from employee_access table if needed
     const { data: accessList } = await supabase
       .from("employee_access")
       .select("*")
       .eq("employee_id", id);
-
-    const { data: assetList } = await supabase
-      .from("assets")
-      .select("*")
-      .eq("assigned_to", id);
 
     let authUserData = null;
     if (empData.auth_user_id) {
@@ -60,8 +56,8 @@ export default function EmployeeProfile() {
     setEmployee({
       ...empData,
       auth_user: authUserData,
-      access_list: accessList || [],
-      asset_list: assetList || [],
+      // Use the JSONB fields from the employees table directly
+      // The asset_list and access_list are already in empData as JSONB arrays
     });
 
     setLoading(false);
@@ -122,6 +118,18 @@ export default function EmployeeProfile() {
     }
   };
 
+  // Helper function to safely handle JSONB arrays
+  const getArrayData = (data) => {
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (typeof data === 'string') {
+      // If it's a string, try to split by newlines or commas
+      return data.split(/[\n,]/).filter(item => item.trim() !== '');
+    }
+    return [];
+  };
+
   return (
     <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
       <div className="flex">
@@ -158,16 +166,16 @@ export default function EmployeeProfile() {
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white">
               <div className="flex items-center gap-6">
                 <div className="relative">
-                  {employee.profile_picture ? (
+                  {(employee.profile_picture || employee.photo_url) ? (
                     <img
-                      src={employee.profile_picture}
-                      alt={employee.full_name}
+                      src={employee.profile_picture || employee.photo_url}
+                      alt={employee.full_name || employee.name}
                       className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover"
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg bg-white/20 flex items-center justify-center">
                       <Avatar
-                        name={employee.full_name}
+                        name={employee.full_name || employee.name}
                         size="96"
                         round
                         color="#ffffff"
@@ -181,9 +189,9 @@ export default function EmployeeProfile() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-3xl font-bold mb-2">{employee.full_name}</h2>
+                  <h2 className="text-3xl font-bold mb-2">{employee.full_name || employee.name}</h2>
                   <p className="text-xl text-blue-100 mb-1">
-                    {employee.position} — {employee.department}
+                    {employee.position || employee.designation} — {employee.department}
                   </p>
                   <div className="flex items-center gap-4 text-blue-100">
                     <span className="flex items-center gap-1">
@@ -198,7 +206,7 @@ export default function EmployeeProfile() {
                   </div>
                 </div>
                 <Link
-                  to={`/employees/edit/${employee.id}`}
+                  to={`/employee/${employee.id}/edit`}
                   className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2 border border-white/30"
                 >
                   <Edit className="w-4 h-4" />
@@ -254,15 +262,56 @@ export default function EmployeeProfile() {
                 </div>
               </div>
 
+              {/* Summary */}
+              {employee.summary && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="mb-8 p-6 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <User className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">Summary</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{employee.summary}</p>
+                </motion.div>
+              )}
+
               {/* Main Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column */}
                 <div className="space-y-6">
+                  {/* Key Roles */}
+                  {getArrayData(employee.key_roles).length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                      className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-100"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-indigo-100 rounded-lg">
+                          <Star className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-800">Key Roles</h3>
+                      </div>
+                      <ul className="space-y-2">
+                        {getArrayData(employee.key_roles).map((role, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
+                            <span className="text-gray-700">{role}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  )}
+
                   {/* Responsibilities */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: 0.1 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
                     className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100"
                   >
                     <div className="flex items-center gap-3 mb-4">
@@ -272,42 +321,66 @@ export default function EmployeeProfile() {
                       <h3 className="text-xl font-semibold text-gray-800">Responsibilities</h3>
                     </div>
                     <ul className="space-y-2">
-                      {(employee.responsibilities || []).map((res, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-gray-700">{res}</span>
-                        </li>
-                      ))}
-                      {(!employee.responsibilities || employee.responsibilities.length === 0) && (
+                      {getArrayData(employee.responsibilities).length > 0 ? (
+                        getArrayData(employee.responsibilities).map((res, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                            <span className="text-gray-700">{res}</span>
+                          </li>
+                        ))
+                      ) : (
                         <li className="text-gray-500 italic">No responsibilities assigned</li>
                       )}
                     </ul>
                   </motion.div>
 
-                  {/* Access List */}
+                  {/* Scopes */}
+                  {getArrayData(employee.scopes).length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: 0.3 }}
+                      className="bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-xl border border-teal-100"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-teal-100 rounded-lg">
+                          <Briefcase className="w-5 h-5 text-teal-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-800">Job Scopes</h3>
+                      </div>
+                      <ul className="space-y-2">
+                        {getArrayData(employee.scopes).map((scope, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <div className="w-2 h-2 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                            <span className="text-gray-700">{scope}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  )}
+
+                  {/* System Access */}
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
                     className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100"
                   >
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-green-100 rounded-lg">
                         <Shield className="w-5 h-5 text-green-600" />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-800">Access List</h3>
+                      <h3 className="text-xl font-semibold text-gray-800">System Access</h3>
                     </div>
                     <div className="space-y-2">
-                      {(employee.access_list || []).map((access, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                          <span className="font-medium text-gray-800">{access.access_type}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getAccessLevelColor(access.access_level)}`}>
-                            {access.access_level}
-                          </span>
-                        </div>
-                      ))}
-                      {(!employee.access_list || employee.access_list.length === 0) && (
-                        <div className="text-gray-500 italic">No access permissions assigned</div>
+                      {getArrayData(employee.access_list).length > 0 ? (
+                        getArrayData(employee.access_list).map((access, i) => (
+                          <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg border">
+                            <span className="font-medium text-gray-800">{access}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-gray-500 italic">No system access assigned</div>
                       )}
                     </div>
                   </motion.div>
@@ -329,50 +402,94 @@ export default function EmployeeProfile() {
                       <h3 className="text-xl font-semibold text-gray-800">Extra Duties</h3>
                     </div>
                     <ul className="space-y-2">
-                      {(employee.duties || []).map((duty, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-gray-700">{duty}</span>
-                        </li>
-                      ))}
-                      {(!employee.duties || employee.duties.length === 0) && (
+                      {getArrayData(employee.duties).length > 0 ? (
+                        getArrayData(employee.duties).map((duty, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
+                            <span className="text-gray-700">{duty}</span>
+                          </li>
+                        ))
+                      ) : (
                         <li className="text-gray-500 italic">No extra duties assigned</li>
                       )}
                     </ul>
                   </motion.div>
 
+                  {/* Extra Responsibilities */}
+                  {getArrayData(employee.extra_responsibilities).length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                      className="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border border-pink-100"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-pink-100 rounded-lg">
+                          <Briefcase className="w-5 h-5 text-pink-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-800">Extra Responsibilities</h3>
+                      </div>
+                      <ul className="space-y-2">
+                        {getArrayData(employee.extra_responsibilities).map((resp, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <div className="w-2 h-2 bg-pink-500 rounded-full mt-2 flex-shrink-0"></div>
+                            <span className="text-gray-700">{resp}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  )}
+
                   {/* Asset List */}
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
                     className="bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-xl border border-orange-100"
                   >
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-orange-100 rounded-lg">
                         <Monitor className="w-5 h-5 text-orange-600" />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-800">Asset List</h3>
+                      <h3 className="text-xl font-semibold text-gray-800">Asset Assignments</h3>
                     </div>
                     <div className="space-y-2">
-                      {(employee.asset_list || []).map((asset, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg border">
-                          <div>
-                            <span className="font-medium text-gray-800">{asset.name}</span>
-                            <p className="text-sm text-gray-500">{asset.type}</p>
+                      {getArrayData(employee.asset_list).length > 0 ? (
+                        getArrayData(employee.asset_list).map((asset, i) => (
+                          <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg border">
+                            <span className="font-medium text-gray-800">{asset}</span>
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                            asset.status === 'Assigned' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'
-                          }`}>
-                            {asset.status}
-                          </span>
-                        </div>
-                      ))}
-                      {(!employee.asset_list || employee.asset_list.length === 0) && (
+                        ))
+                      ) : (
                         <div className="text-gray-500 italic">No assets assigned</div>
                       )}
                     </div>
                   </motion.div>
+
+                  {/* Key Roles Detailed */}
+                  {getArrayData(employee.key_roles_detailed).length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.5, delay: 0.4 }}
+                      className="bg-gradient-to-br from-amber-50 to-yellow-50 p-6 rounded-xl border border-amber-100"
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                          <Star className="w-5 h-5 text-amber-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-800">Detailed Key Roles</h3>
+                      </div>
+                      <ul className="space-y-2">
+                        {getArrayData(employee.key_roles_detailed).map((role, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <div className="w-2 h-2 bg-amber-500 rounded-full mt-2 flex-shrink-0"></div>
+                            <span className="text-gray-700">{role}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.div>
+                  )}
                 </div>
               </div>
 
@@ -389,7 +506,7 @@ export default function EmployeeProfile() {
                     <h3 className="text-lg font-semibold text-gray-800">Reporting Manager</h3>
                   </div>
                   <p className="text-gray-700">
-                    {employee.reporting_manager.full_name} ({employee.reporting_manager.employee_id})
+                    {employee.reporting_manager.full_name || employee.reporting_manager.name} ({employee.reporting_manager.employee_id})
                   </p>
                 </motion.div>
               )}

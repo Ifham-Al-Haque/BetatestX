@@ -24,6 +24,7 @@ const UserManagement = lazy(() => import("./pages/UserManagement"));
 const AccessRequests = lazy(() => import("./pages/AccessRequests"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const AssetProfile = lazy(() => import("./pages/AssetProfile"));
 const InvitationSignup = lazy(() => import("./pages/InvitationSignup"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
@@ -124,12 +125,8 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
         
-        <Route path="/assets" element={
-          <ProtectedRoute>
-            <Assets />
-          </ProtectedRoute>
-        } />
-        
+        <Route path="/assets" element={<ProtectedRoute><Assets /></ProtectedRoute>} />
+        <Route path="/assets/:id" element={<ProtectedRoute><AssetProfile /></ProtectedRoute>} />
         <Route path="/expenses" element={
           <ProtectedRoute>
             <ExpenseTracker />
@@ -142,11 +139,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
         
-        <Route path="/tickets" element={
-          <ProtectedRoute>
-            <Tickets />
-          </ProtectedRoute>
-        } />
+        <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
         
         <Route path="/profile" element={
           <ProtectedRoute>

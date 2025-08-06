@@ -106,13 +106,17 @@ export const apiService = {
           status, 
           created_at, 
           assigned_to,
-          serial_number,
-          purchase_date,
-          warranty_expiry,
+          asset_code,
+          lpo_number,
           purchase_price,
-          location,
-          notes,
-          employees (full_name, employee_id)
+          purchase_date,
+          supplier,
+          asset_picture_url,
+          assigned_employee:assigned_to (
+            id,
+            full_name,
+            employee_id
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -120,7 +124,7 @@ export const apiService = {
       if (filters.status) query = query.eq('status', filters.status);
       if (filters.type) query = query.eq('type', filters.type);
       if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,type.ilike.%${filters.search}%,serial_number.ilike.%${filters.search}%`);
+        query = query.or(`name.ilike.%${filters.search}%,type.ilike.%${filters.search}%,asset_code.ilike.%${filters.search}%,lpo_number.ilike.%${filters.search}%`);
       }
 
       const from = (page - 1) * limit;
@@ -137,8 +141,23 @@ export const apiService = {
       const { data, error } = await supabase
         .from('assets')
         .select(`
-          *,
-          employees (full_name, employee_id)
+          id,
+          name,
+          type,
+          status,
+          created_at,
+          assigned_to,
+          asset_code,
+          lpo_number,
+          purchase_price,
+          purchase_date,
+          supplier,
+          asset_picture_url,
+          assigned_employee:assigned_to (
+            id,
+            full_name,
+            employee_id
+          )
         `)
         .eq('id', id)
         .single();
