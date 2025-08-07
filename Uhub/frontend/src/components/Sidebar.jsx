@@ -13,7 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   BarChart3,
-  PieChart
+  PieChart,
+  Phone,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -28,6 +30,8 @@ const Sidebar = () => {
     { name: 'Employees', href: '/employees', icon: Users },
     { name: 'Assets', href: '/assets', icon: Package },
     { name: 'Expenses', href: '/expenses', icon: CreditCard },
+    { name: 'SIM Cards', href: '/simcards', icon: Phone },
+    { name: 'Vouchers', href: '/vouchers', icon: Receipt },
     { name: 'Tickets', href: '/tickets', icon: FileText },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: "Attendance", href: "/attendance", icon: Calendar },

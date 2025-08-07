@@ -25,6 +25,8 @@ const AccessRequests = lazy(() => import("./pages/AccessRequests"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const AssetProfile = lazy(() => import("./pages/AssetProfile"));
+const Simcard = lazy(() => import("./pages/Simcard"));
+const Voucher = lazy(() => import("./pages/Voucher"));
 const InvitationSignup = lazy(() => import("./pages/InvitationSignup"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
@@ -136,6 +138,18 @@ const AppRoutes = () => {
         <Route path="/analytics" element={
           <ProtectedRoute>
             <Analytics />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/simcards" element={
+          <ProtectedRoute>
+            <Simcard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/vouchers" element={
+          <ProtectedRoute>
+            <Voucher />
           </ProtectedRoute>
         } />
         
