@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useExpenseStats } from '../hooks/useExpenseStats';
 import { usePaymentEvents } from '../hooks/usePaymentEvents';
+import { useQueryClient } from '@tanstack/react-query';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import GlobalFilter from '../components/GlobalFilter';
@@ -481,9 +482,16 @@ export default function Dashboard() {
   const { data: expenseStats, isLoading: statsLoading, error: statsError } = useExpenseStats();
   const { data: paymentEvents, isLoading: eventsLoading, error: eventsError } = usePaymentEvents();
   const [filters, setFilters] = useState({});
+  const queryClient = useQueryClient();
 
   const safeExpenseStats = expenseStats || [];
   const safePaymentEvents = paymentEvents || [];
+
+  // Handle events update from calendar
+  const handleEventsUpdate = (updatedEvents) => {
+    // Update the query cache with the new events
+    queryClient.setQueryData(['paymentEvents'], updatedEvents);
+  };
 
   // Calculate summary statistics
   const summaryStats = useMemo(() => {
@@ -720,6 +728,7 @@ export default function Dashboard() {
               <PaymentCalendar 
                 events={safePaymentEvents} 
                 onDateClick={handleDateClick}
+                onEventsUpdate={handleEventsUpdate}
               />
             </AnimatedCard>
 

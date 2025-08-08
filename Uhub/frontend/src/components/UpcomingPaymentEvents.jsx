@@ -6,9 +6,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function UpcomingPaymentEvents() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -91,7 +93,10 @@ export default function UpcomingPaymentEvents() {
 
       if (error) throw error;
       
-      setEvents(events.filter(event => event.id !== eventId));
+      const updatedEvents = events.filter(event => event.id !== eventId);
+      setEvents(updatedEvents);
+      // Update query cache
+      queryClient.setQueryData(['paymentEvents'], updatedEvents);
     } catch (error) {
       console.error('Error deleting payment event:', error);
       alert('Failed to delete payment event');
@@ -127,11 +132,14 @@ export default function UpcomingPaymentEvents() {
 
         if (error) throw error;
         
-        setEvents(events.map(event => 
+        const updatedEvents = events.map(event => 
           event.id === editingEvent.id 
             ? { ...event, ...eventData }
             : event
-        ));
+        );
+        setEvents(updatedEvents);
+        // Update query cache
+        queryClient.setQueryData(['paymentEvents'], updatedEvents);
         setShowEditModal(false);
         setEditingEvent(null);
       } else {
@@ -144,7 +152,10 @@ export default function UpcomingPaymentEvents() {
 
         if (error) throw error;
         
-        setEvents([...events, data]);
+        const newEvents = [...events, data];
+        setEvents(newEvents);
+        // Update query cache
+        queryClient.setQueryData(['paymentEvents'], newEvents);
         setShowAddModal(false);
       }
       
@@ -155,6 +166,11 @@ export default function UpcomingPaymentEvents() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Handle events update from calendar
+  const handleEventsUpdate = (updatedEvents) => {
+    setEvents(updatedEvents);
   };
 
   const getStatusColor = (status) => {

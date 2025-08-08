@@ -1,11 +1,56 @@
 // PaymentCalendar.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, ChevronLeft, ChevronRight, Clock, DollarSign } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
+import { supabase } from '../supabaseClient';
 
-const PaymentCalendar = ({ events = [], onDateClick }) => {
+const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Check and update overdue events automatically
+  useEffect(() => {
+    const checkAndUpdateOverdueEvents = async () => {
+      const today = new Date();
+      const overdueEvents = events.filter(event => {
+        if (event.status === 'paid' || event.status === 'cancelled') return false;
+        const dueDate = new Date(event.due_date);
+        return isBefore(dueDate, today);
+      });
+
+      if (overdueEvents.length > 0) {
+        try {
+          // Update all overdue events to 'overdue' status
+          const eventIds = overdueEvents.map(event => event.id);
+          const { error } = await supabase
+            .from('payment_events')
+            .update({ status: 'overdue' })
+            .in('id', eventIds);
+
+          if (error) {
+            console.error('Error updating overdue events:', error);
+          } else {
+            // Update local events state
+            const updatedEvents = events.map(event => {
+              if (eventIds.includes(event.id)) {
+                return { ...event, status: 'overdue' };
+              }
+              return event;
+            });
+            
+            // Notify parent component about the update
+            if (onEventsUpdate) {
+              onEventsUpdate(updatedEvents);
+            }
+          }
+        } catch (error) {
+          console.error('Error updating overdue events:', error);
+        }
+      }
+    };
+
+    checkAndUpdateOverdueEvents();
+  }, [events, onEventsUpdate]);
 
   // Generate calendar days
   const calendarDays = useMemo(() => {
@@ -31,6 +76,22 @@ const PaymentCalendar = ({ events = [], onDateClick }) => {
       case 'cancelled': return 'bg-gray-500';
       default: return 'bg-blue-500';
     }
+  };
+
+  // Get calendar day background color based on events
+  const getDayBackgroundColor = (date) => {
+    const dayEvents = getEventsForDate(date);
+    if (dayEvents.length === 0) return 'bg-white';
+    
+    const hasOverdue = dayEvents.some(event => event.status === 'overdue');
+    const hasPaid = dayEvents.some(event => event.status === 'paid');
+    const hasPending = dayEvents.some(event => event.status === 'pending');
+    
+    if (hasOverdue) return 'bg-red-50 border-red-200';
+    if (hasPaid) return 'bg-green-50 border-green-200';
+    if (hasPending) return 'bg-yellow-50 border-yellow-200';
+    
+    return 'bg-blue-50 border-blue-200';
   };
 
   // Navigation
@@ -113,10 +174,9 @@ const PaymentCalendar = ({ events = [], onDateClick }) => {
               whileTap={{ scale: 0.95 }}
               onClick={() => onDateClick && onDateClick(day, dayEvents)}
               className={`
-                relative p-3 min-h-[80px] border border-gray-200 rounded-lg cursor-pointer transition-all duration-200
-                ${isCurrentMonth ? 'bg-white' : 'bg-gray-50'}
+                relative p-3 min-h-[80px] border rounded-lg cursor-pointer transition-all duration-200
+                ${isCurrentMonth ? getDayBackgroundColor(day) : 'bg-gray-50 border-gray-200'}
                 ${isToday ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}
-                ${dayEvents.length > 0 ? 'bg-blue-50 border-blue-200' : ''}
                 hover:bg-blue-50 hover:border-blue-300
               `}
             >

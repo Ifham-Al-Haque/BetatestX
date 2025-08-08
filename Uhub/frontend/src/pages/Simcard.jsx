@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Edit, Trash, Search, Filter, Phone, User, Building,
   Wifi, Signal, Calendar, Package, CreditCard, Download,
-  X, Save, Users, MapPin, Clock, AlertCircle
+  X, Save, Users, MapPin, Clock, AlertCircle, Loader2
 } from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 import Sidebar from "../components/Sidebar";
+import { useSimCards, useCreateSimCard, useUpdateSimCard, useDeleteSimCard, useSimCardStats } from "../hooks/useSimCards";
+import { useAuth } from "../context/AuthContext";
 
 // SIM Card Form Component
 const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
@@ -438,6 +440,7 @@ const SimCard = ({ simCard, onEdit, onDelete }) => {
 
 export default function Simcard() {
   const { sidebarWidth } = useSidebar();
+  const { user } = useAuth();
   
   // State management
   const [showForm, setShowForm] = useState(false);
@@ -447,69 +450,18 @@ export default function Simcard() {
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [packageTypeFilter, setPackageTypeFilter] = useState("");
   
-  // Sample data - replace with actual API calls
-  const [simCards, setSimCards] = useState([
-    {
-      id: 1,
-      sim_number: "+971501234567",
-      package_name: "Corporate Unlimited",
-      package_type: "Corporate",
-      package_benefits: "Unlimited data, voice, and SMS for corporate use",
-      monthly_cost: "299",
-      data_limit: "Unlimited",
-      voice_minutes: "Unlimited",
-      sms_limit: "Unlimited",
-      current_user: "Ahmed Al Mansouri",
-      previous_user: "Sarah Johnson",
-      department: "IT",
-      status: "Active",
-      activation_date: "2024-01-15",
-      expiry_date: "2025-01-15",
-      notes: "Primary corporate line for IT department"
-    },
-    {
-      id: 2,
-      sim_number: "+971502345678",
-      package_name: "Basic Plan",
-      package_type: "Default",
-      package_benefits: "5GB data, 500 minutes, 100 SMS",
-      monthly_cost: "99",
-      data_limit: "5GB",
-      voice_minutes: "500 minutes",
-      sms_limit: "100 SMS",
-      current_user: "Fatima Hassan",
-      previous_user: "",
-      department: "Sales",
-      status: "Active",
-      activation_date: "2024-03-01",
-      expiry_date: "2025-03-01",
-      notes: "Sales team member line"
-    },
-    {
-      id: 3,
-      sim_number: "+971503456789",
-      package_name: "Premium Business",
-      package_type: "Premium",
-      package_benefits: "20GB data, unlimited voice, 500 SMS",
-      monthly_cost: "199",
-      data_limit: "20GB",
-      voice_minutes: "Unlimited",
-      sms_limit: "500 SMS",
-      current_user: "",
-      previous_user: "Mohammed Ali",
-      department: "Marketing",
-      status: "Inactive",
-      activation_date: "2023-06-01",
-      expiry_date: "2024-06-01",
-      notes: "Currently unassigned, available for new user"
-    }
-  ]);
+  // React Query hooks for data management
+  const { data: simCards = [], isLoading, error } = useSimCards();
+  const { data: stats } = useSimCardStats();
+  const createSimCard = useCreateSimCard();
+  const updateSimCard = useUpdateSimCard();
+  const deleteSimCard = useDeleteSimCard();
 
   // Filtered data
   const filteredSimCards = simCards.filter(simCard => {
     const matchesSearch = simCard.sim_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          simCard.package_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         simCard.current_user.toLowerCase().includes(searchTerm.toLowerCase());
+                         (simCard.current_user && simCard.current_user.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = !statusFilter || simCard.status === statusFilter;
     const matchesDepartment = !departmentFilter || simCard.department === departmentFilter;
     const matchesPackageType = !packageTypeFilter || simCard.package_type === packageTypeFilter;
@@ -531,28 +483,42 @@ export default function Simcard() {
   const handleDeleteSimCard = (simCardId) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this SIM card?");
     if (confirmDelete) {
-      setSimCards(simCards.filter(simCard => simCard.id !== simCardId));
+      deleteSimCard.mutate(simCardId);
     }
   };
 
   const handleSubmitSimCard = (formData) => {
+    const simCardData = {
+      ...formData,
+      user_id: user?.id,
+      monthly_cost: parseFloat(formData.monthly_cost) || 0
+    };
+
+    console.log('📝 Submitting SIM card data:', simCardData);
+
     if (editingSimCard) {
       // Update existing SIM card
-      setSimCards(simCards.map(simCard => 
-        simCard.id === editingSimCard.id 
-          ? { ...simCard, ...formData }
-          : simCard
-      ));
+      updateSimCard.mutate({ id: editingSimCard.id, ...simCardData }, {
+        onSuccess: () => {
+          setShowForm(false);
+          setEditingSimCard(null);
+        },
+        onError: (error) => {
+          alert(`Failed to update SIM card: ${error.message}`);
+        }
+      });
     } else {
       // Add new SIM card
-      const newSimCard = {
-        id: Date.now(),
-        ...formData
-      };
-      setSimCards([...simCards, newSimCard]);
+      createSimCard.mutate(simCardData, {
+        onSuccess: () => {
+          setShowForm(false);
+          setEditingSimCard(null);
+        },
+        onError: (error) => {
+          alert(`Failed to create SIM card: ${error.message}`);
+        }
+      });
     }
-    setShowForm(false);
-    setEditingSimCard(null);
   };
 
   const handleCloseForm = () => {
@@ -653,100 +619,127 @@ export default function Simcard() {
             </div>
           </div>
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6">
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Loading SIM cards...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6">
+              <div className="text-center py-8">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+                <p className="text-lg text-red-600 font-medium">Failed to load SIM cards</p>
+                <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+              </div>
+            </div>
+          )}
+
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  <Phone className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total SIM Cards</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">{simCards.length}</p>
+          {!isLoading && !error && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                    <Phone className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total SIM Cards</p>
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                      {stats?.total_sim_cards || simCards.length}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                  <Signal className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active SIM Cards</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {simCards.filter(s => s.status === 'Active').length}
-                  </p>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                    <Signal className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active SIM Cards</p>
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                      {stats?.active_sim_cards || simCards.filter(s => s.status === 'Active').length}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-                  <Users className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Assigned SIM Cards</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {simCards.filter(s => s.current_user).length}
-                  </p>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                    <Users className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Assigned SIM Cards</p>
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                      {stats?.assigned_sim_cards || simCards.filter(s => s.current_user).length}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                  <CreditCard className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Monthly Cost</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    AED {simCards.reduce((total, sim) => total + (parseFloat(sim.monthly_cost) || 0), 0).toLocaleString()}
-                  </p>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                    <CreditCard className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Monthly Cost</p>
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                      AED {(stats?.total_monthly_cost || simCards.reduce((total, sim) => total + (parseFloat(sim.monthly_cost) || 0), 0)).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* SIM Cards Grid */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                SIM Cards ({filteredSimCards.length})
-              </h2>
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <Filter className="w-4 h-4" />
-                Showing {filteredSimCards.length} of {simCards.length} SIM cards
+          {!isLoading && !error && (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  SIM Cards ({filteredSimCards.length})
+                </h2>
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <Filter className="w-4 h-4" />
+                  Showing {filteredSimCards.length} of {simCards.length} SIM cards
+                </div>
               </div>
-            </div>
 
-            {filteredSimCards.length === 0 ? (
-              <div className="text-center py-12">
-                <Phone className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg text-gray-500 font-medium">No SIM cards found</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  {searchTerm || statusFilter || departmentFilter || packageTypeFilter 
-                    ? "Try adjusting your filters" 
-                    : "Add your first SIM card to get started"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <AnimatePresence>
-                  {filteredSimCards.map((simCard) => (
-                    <SimCard
-                      key={simCard.id}
-                      simCard={simCard}
-                      onEdit={handleEditSimCard}
-                      onDelete={handleDeleteSimCard}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
+              {filteredSimCards.length === 0 ? (
+                <div className="text-center py-12">
+                  <Phone className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg text-gray-500 font-medium">No SIM cards found</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    {searchTerm || statusFilter || departmentFilter || packageTypeFilter 
+                      ? "Try adjusting your filters" 
+                      : "Add your first SIM card to get started"}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <AnimatePresence>
+                    {filteredSimCards.map((simCard) => (
+                      <SimCard
+                        key={simCard.id}
+                        simCard={simCard}
+                        onEdit={handleEditSimCard}
+                        onDelete={handleDeleteSimCard}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* SIM Card Form Modal */}
           <AnimatePresence>
@@ -755,7 +748,7 @@ export default function Simcard() {
                 simCard={editingSimCard}
                 onClose={handleCloseForm}
                 onSubmit={handleSubmitSimCard}
-                isLoading={false}
+                isLoading={createSimCard.isPending || updateSimCard.isPending}
               />
             )}
           </AnimatePresence>
