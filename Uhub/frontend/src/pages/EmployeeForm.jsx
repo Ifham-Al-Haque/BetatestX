@@ -9,7 +9,7 @@ import {
   Shield, Monitor, Briefcase, Edit, ArrowLeft,
   CheckCircle, AlertCircle, Clock, Star, Save, X
 } from "lucide-react";
-import Avatar from "react-avatar";
+import { clearImageCache, forceRefreshEmployeeImages } from "../utils/imageUtils";
 
 export default function EmployeeForm() {
   const { sidebarWidth } = useSidebar();
@@ -165,8 +165,9 @@ export default function EmployeeForm() {
         reporting_manager_id: formData.reporting_manager_id || null,
         // Use name field if full_name is empty
         name: formData.name || formData.full_name,
-        // Use photo_url if profile_picture is empty
-        photo_url: formData.photo_url || formData.profile_picture
+        // Handle profile picture fields properly
+        profile_picture: formData.profile_picture || null,
+        photo_url: formData.photo_url || null
       };
 
       // Remove empty fields that might cause UUID errors
@@ -175,6 +176,20 @@ export default function EmployeeForm() {
           delete submitData[key];
         }
       });
+
+      // Store old values for cache clearing
+      let oldProfilePicture = null;
+      let oldPhotoUrl = null;
+      
+      // Explicitly handle profile picture fields - set to null if empty
+      if (formData.profile_picture === "") {
+        oldProfilePicture = formData.profile_picture;
+        submitData.profile_picture = null;
+      }
+      if (formData.photo_url === "") {
+        oldPhotoUrl = formData.photo_url;
+        submitData.photo_url = null;
+      }
 
       let response;
       if (id) {
@@ -203,7 +218,19 @@ export default function EmployeeForm() {
       }
 
       setSuccess(`Employee ${id ? "updated" : "created"} successfully.`);
-      setTimeout(() => navigate("/employees"), 1500);
+      
+      // Force refresh the employee data to clear any cached images
+      if (id) {
+        // Clear any cached profile pictures
+        if (oldProfilePicture || oldPhotoUrl) {
+          // Force refresh all images for this employee
+          forceRefreshEmployeeImages(id, oldProfilePicture || oldPhotoUrl);
+        } else {
+          setTimeout(() => navigate("/employees"), 1500);
+        }
+      } else {
+        setTimeout(() => navigate("/employees"), 1500);
+      }
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");
@@ -262,13 +289,39 @@ export default function EmployeeForm() {
               {/* Profile Picture Section */}
               {(formData.profile_picture || formData.photo_url) && (
                 <div className="mb-6 text-center">
-                  <Avatar
-                    name={formData.full_name || formData.name}
-                    src={formData.profile_picture || formData.photo_url}
-                    size="100"
-                    round
-                    className="mx-auto"
-                  />
+                  {(formData.profile_picture || formData.photo_url) ? (
+                    <img
+                      key={`preview-${formData.profile_picture || formData.photo_url}`}
+                      src={formData.profile_picture || formData.photo_url}
+                      alt={formData.full_name || formData.name}
+                      className="w-24 h-24 rounded-full object-cover mx-auto"
+                      data-employee-id={id || 'new'}
+                      onError={(e) => {
+                        console.log(`Failed to load preview image: ${formData.profile_picture || formData.photo_url}`);
+                        // Fallback to Avatar with initials
+                        e.target.style.display = 'none';
+                        const container = e.target.parentElement;
+                        if (container) {
+                          container.innerHTML = `
+                            <div class="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+                              <span class="text-2xl font-medium text-blue-600">
+                                ${(formData.full_name || formData.name || 'U')?.charAt(0)?.toUpperCase() || "?"}
+                              </span>
+                            </div>
+                          `;
+                        }
+                      }}
+                      onLoad={() => {
+                        console.log(`Successfully loaded preview image: ${formData.profile_picture || formData.photo_url}`);
+                      }}
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+                      <span className="text-2xl font-medium text-blue-600">
+                        {(formData.full_name || formData.name || 'U')?.charAt(0)?.toUpperCase() || "?"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 

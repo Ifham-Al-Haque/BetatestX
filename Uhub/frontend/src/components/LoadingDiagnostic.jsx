@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronUp, ChevronDown, X, Info } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 const LoadingDiagnostic = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   const [diagnostics, setDiagnostics] = useState({
     supabaseConnection: 'checking',
     authStatus: 'checking',
@@ -96,23 +99,96 @@ const LoadingDiagnostic = () => {
     }
   };
 
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'success':
+        return 'Connected';
+      case 'authenticated':
+        return 'Authenticated';
+      case 'error':
+        return 'Failed';
+      case 'checking':
+        return 'Checking...';
+      case 'not-authenticated':
+        return 'Not Authenticated';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  // Don't render if hidden
+  if (!isVisible) return null;
+
   return (
-    <div className="fixed bottom-4 right-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 max-w-xs">
-      <h3 className="text-sm font-semibold text-gray-900 mb-2">Loading Diagnostics</h3>
-      <div className="space-y-1 text-xs">
-        <div className={`flex items-center space-x-2 ${getStatusColor(diagnostics.supabaseConnection)}`}>
-          <span>{getStatusIcon(diagnostics.supabaseConnection)}</span>
-          <span>Supabase Connection</span>
+    <div className="fixed bottom-4 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-w-xs transition-all duration-300 ease-in-out">
+      {/* Header with toggle and close buttons */}
+      <div className="flex items-center justify-between p-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-blue-500" />
+          <h3 className="text-sm font-semibold text-gray-900">System Status</h3>
         </div>
-        <div className={`flex items-center space-x-2 ${getStatusColor(diagnostics.authStatus)}`}>
-          <span>{getStatusIcon(diagnostics.authStatus)}</span>
-          <span>Authentication</span>
-        </div>
-        <div className={`flex items-center space-x-2 ${getStatusColor(diagnostics.tablesAccess)}`}>
-          <span>{getStatusIcon(diagnostics.tablesAccess)}</span>
-          <span>Database Access</span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            title={isExpanded ? "Collapse" : "Expand"}
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-gray-500" />
+            ) : (
+              <ChevronUp className="w-4 h-4 text-gray-500" />
+            )}
+          </button>
+          <button
+            onClick={() => setIsVisible(false)}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            title="Close"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
         </div>
       </div>
+
+      {/* Collapsible content */}
+      {isExpanded && (
+        <div className="p-3 space-y-2">
+          <div className="space-y-2 text-xs">
+            <div className={`flex items-center justify-between ${getStatusColor(diagnostics.supabaseConnection)}`}>
+              <div className="flex items-center space-x-2">
+                <span>{getStatusIcon(diagnostics.supabaseConnection)}</span>
+                <span>Supabase Connection</span>
+              </div>
+              <span className="text-xs font-medium">{getStatusText(diagnostics.supabaseConnection)}</span>
+            </div>
+            <div className={`flex items-center justify-between ${getStatusColor(diagnostics.authStatus)}`}>
+              <div className="flex items-center space-x-2">
+                <span>{getStatusIcon(diagnostics.authStatus)}</span>
+                <span>Authentication</span>
+              </div>
+              <span className="text-xs font-medium">{getStatusText(diagnostics.authStatus)}</span>
+            </div>
+            <div className={`flex items-center justify-between ${getStatusColor(diagnostics.tablesAccess)}`}>
+              <div className="flex items-center space-x-2">
+                <span>{getStatusIcon(diagnostics.tablesAccess)}</span>
+                <span>Database Access</span>
+              </div>
+              <span className="text-xs font-medium">{getStatusText(diagnostics.tablesAccess)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collapsed view - just show overall status */}
+      {!isExpanded && (
+        <div className="p-3">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-600 font-medium">System Online</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

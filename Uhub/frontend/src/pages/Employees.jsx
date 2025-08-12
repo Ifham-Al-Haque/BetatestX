@@ -5,6 +5,7 @@ import { useEmployees, useDeleteEmployee } from "../hooks/useApi";
 import { ChevronRight, Trash2, Pencil, Plus, Search, Filter } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+
 export default function Employees() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("full_name");
@@ -21,6 +22,8 @@ export default function Employees() {
 
   const employees = employeesData?.data || [];
   const totalCount = employeesData?.count || 0;
+
+
 
   const handleDelete = useCallback(async (id) => {
     const confirm = window.confirm("Are you sure you want to delete this employee?");
@@ -196,11 +199,39 @@ export default function Employees() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                                <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
-                                  {employee.full_name?.charAt(0)?.toUpperCase() || "?"}
-                                </span>
-                              </div>
+                              {employee.profile_picture ? (
+                                <img
+                                  key={`${employee.id}-${employee.profile_picture}`}
+                                  src={employee.profile_picture}
+                                  alt={employee.full_name}
+                                  className="h-10 w-10 rounded-full object-cover"
+                                  data-employee-id={employee.id}
+                                  onError={(e) => {
+                                    console.log(`Failed to load image for ${employee.full_name}: ${employee.profile_picture}`);
+                                    // Fallback to Avatar with initials
+                                    e.target.style.display = 'none';
+                                    const container = e.target.parentElement;
+                                    if (container) {
+                                      container.innerHTML = `
+                                        <div class="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                                          <span class="text-sm font-medium text-blue-600 dark:text-blue-300">
+                                            ${employee.full_name?.charAt(0)?.toUpperCase() || "?"}
+                                          </span>
+                                        </div>
+                                      `;
+                                    }
+                                  }}
+                                  onLoad={() => {
+                                    console.log(`Successfully loaded image for ${employee.full_name}: ${employee.profile_picture}`);
+                                  }}
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
+                                    {employee.full_name?.charAt(0)?.toUpperCase() || "?"}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -209,6 +240,7 @@ export default function Employees() {
                               <div className="text-sm text-gray-500 dark:text-gray-400">
                                 {employee.email || "No email"}
                               </div>
+
                             </div>
                           </div>
                         </td>

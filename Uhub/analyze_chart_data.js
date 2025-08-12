@@ -143,3 +143,6 @@ async function analyzeChartData() {
 }
 
 analyzeChartData();
+
+
+

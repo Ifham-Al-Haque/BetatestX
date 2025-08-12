@@ -15,6 +15,7 @@ export const apiService = {
           position,
           email,
           status,
+          profile_picture,
           created_at,
           reporting_manager:reporting_manager_id (
             full_name,
@@ -72,6 +73,12 @@ export const apiService = {
     },
 
     update: async (id, employeeData) => {
+      // Clear any existing profile picture if it's being set to null
+      if (employeeData.profile_picture === null || employeeData.photo_url === null) {
+        // Force a cache invalidation for this employee
+        employeeData.updated_at = new Date().toISOString();
+      }
+
       const { data, error } = await supabase
         .from('employees')
         .update(employeeData)

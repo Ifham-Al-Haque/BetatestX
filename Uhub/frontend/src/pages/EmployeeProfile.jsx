@@ -11,7 +11,7 @@ import { supabase } from "../supabaseClient";
 import Sidebar from "../components/Sidebar";
 import UserDropdown from "../components/UserDropdown";
 import DarkModeToggle from "../components/DarkModeToggle";
-import Avatar from "react-avatar";
+
 
 export default function EmployeeProfile() {
   const { id } = useParams();
@@ -168,20 +168,31 @@ export default function EmployeeProfile() {
                 <div className="relative">
                   {(employee.profile_picture || employee.photo_url) ? (
                     <img
+                      key={`${employee.id}-${employee.profile_picture || employee.photo_url || 'no-pic'}`}
                       src={employee.profile_picture || employee.photo_url}
                       alt={employee.full_name || employee.name}
                       className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover"
+                      data-employee-id={employee.id}
+                      onError={(e) => {
+                        // If image fails to load, hide the img and show Avatar instead
+                        e.target.style.display = 'none';
+                        const avatarContainer = e.target.parentElement;
+                        if (avatarContainer) {
+                          avatarContainer.innerHTML = `
+                            <div class="w-24 h-24 rounded-full border-4 border-white shadow-lg bg-white/20 flex items-center justify-center">
+                              <div class="text-white text-2xl font-bold">
+                                ${(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                            </div>
+                          `;
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full border-4 border-white shadow-lg bg-white/20 flex items-center justify-center">
-                      <Avatar
-                        name={employee.full_name || employee.name}
-                        size="96"
-                        round
-                        color="#ffffff"
-                        textSizeRatio={2}
-                        fgColor="#4F46E5"
-                      />
+                      <span className="text-white text-2xl font-bold">
+                        {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
+                      </span>
                     </div>
                   )}
                   <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
