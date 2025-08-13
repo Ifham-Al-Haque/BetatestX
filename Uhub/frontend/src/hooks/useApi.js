@@ -426,4 +426,69 @@ export const useDeletePaymentEvent = () => {
       throw new Error(handleApiError(error));
     },
   });
-}; 
+};
+
+// Driver hooks
+export const useDrivers = (page = 1, limit = 50, search = '') => {
+  return useQuery({
+    queryKey: ['drivers', page, limit, search],
+    queryFn: () => apiService.drivers.getAll(page, limit, search),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    keepPreviousData: true,
+  });
+};
+
+export const useDriver = (id) => {
+  return useQuery({
+    queryKey: ['driver', id],
+    queryFn: () => apiService.drivers.getById(id),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useCreateDriver = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: apiService.drivers.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['drivers']);
+    },
+    onError: (error) => {
+      console.error('Create driver error:', error);
+      throw new Error(handleApiError(error));
+    },
+  });
+};
+
+export const useUpdateDriver = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }) => apiService.drivers.update(id, data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['drivers']);
+      queryClient.invalidateQueries(['driver', data.id]);
+    },
+    onError: (error) => {
+      console.error('Update driver error:', error);
+      throw new Error(handleApiError(error));
+    },
+  });
+};
+
+export const useDeleteDriver = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: apiService.drivers.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['drivers']);
+    },
+    onError: (error) => {
+      console.error('Delete driver error:', error);
+      throw new Error(handleApiError(error));
+    },
+  });
+};

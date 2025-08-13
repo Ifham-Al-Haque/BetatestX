@@ -499,6 +499,92 @@ export const apiService = {
       if (error) throw error;
       return true;
     }
+  },
+
+  // Driver APIs
+  drivers: {
+    getAll: async (page = 1, limit = 50, search = '') => {
+      let query = supabase
+        .from('drivers')
+        .select(`
+          id,
+          full_name,
+          employee_id,
+          designation,
+          nationality,
+          company_mobile,
+          personal_mobile,
+          emirates_id_no,
+          driving_license_no,
+          udrive_customer_account_id,
+          service_car_plate,
+          team_type,
+          team_name,
+          team_members,
+          shift_type,
+          profile_picture,
+          status,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
+
+      if (search) {
+        query = query.or(`full_name.ilike.%${search}%,designation.ilike.%${search}%,employee_id.ilike.%${search}%,team_type.ilike.%${search}%`);
+      }
+
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
+      const { data, error, count } = await query.range(from, to);
+      
+      if (error) throw error;
+      
+      return { data, count };
+    },
+
+    getById: async (id) => {
+      const { data, error } = await supabase
+        .from('drivers')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    create: async (driverData) => {
+      const { data, error } = await supabase
+        .from('drivers')
+        .insert(driverData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    update: async (id, driverData) => {
+      const { data, error } = await supabase
+        .from('drivers')
+        .update(driverData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    delete: async (id) => {
+      const { error } = await supabase
+        .from('drivers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    }
   }
 };
 

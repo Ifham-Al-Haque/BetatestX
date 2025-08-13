@@ -28,6 +28,7 @@ const Sidebar = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Employees', href: '/employees', icon: Users },
+    { name: 'Drivers', href: '/drivers', icon: Users },
     { name: 'Assets', href: '/assets', icon: Package },
     { name: 'Expenses', href: '/expenses', icon: CreditCard },
     { name: 'SIM Cards', href: '/simcards', icon: Phone },

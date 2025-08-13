@@ -16,6 +16,9 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Employees = lazy(() => import("./pages/Employees"));
 const EmployeeForm = lazy(() => import("./pages/EmployeeForm"));
 const EmployeeProfile = lazy(() => import("./pages/EmployeeProfile"));
+const Drivers = lazy(() => import("./pages/Driver"));
+const DriverForm = lazy(() => import("./pages/DriverForm"));
+const DriverProfile = lazy(() => import("./pages/DriverProfile"));
 const Assets = lazy(() => import("./pages/Assets"));
 const ExpenseTracker = lazy(() => import("./pages/ExpenseTracker"));
 const Tickets = lazy(() => import("./pages/Tickets"));
@@ -127,6 +130,30 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } />
         
+        <Route path="/drivers" element={
+          <ProtectedRoute>
+            <Drivers />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/driver/new" element={
+          <ProtectedRoute>
+            <DriverForm />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/driver/:id" element={
+          <ProtectedRoute>
+            <DriverProfile />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/driver/:id/edit" element={
+          <ProtectedRoute>
+            <DriverForm />
+          </ProtectedRoute>
+        } />
+        
         <Route path="/assets" element={<ProtectedRoute><Assets /></ProtectedRoute>} />
         <Route path="/assets/:id" element={<ProtectedRoute><AssetProfile /></ProtectedRoute>} />
         <Route path="/expenses" element={
@@ -190,8 +217,8 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <ToastProvider>
             <SidebarProvider>
               <Router>
                 <div className="App">
@@ -200,8 +227,8 @@ function App() {
                 </div>
               </Router>
             </SidebarProvider>
-          </AuthProvider>
-        </ToastProvider>
+          </ToastProvider>
+        </AuthProvider>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ErrorBoundary>
