@@ -25,6 +25,14 @@ const Sidebar = () => {
   const location = useLocation();
   const { user, userProfile, signOut } = useAuth();
 
+  // Debug logging
+  console.log("🔍 Sidebar Debug:", {
+    user: user?.email,
+    userProfile: userProfile,
+    role: userProfile?.role,
+    isAdmin: userProfile?.role === 'admin'
+  });
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Employees', href: '/employees', icon: Users },
@@ -43,7 +51,6 @@ const Sidebar = () => {
     { name: 'User Management', href: '/admin/users', icon: Users },
     { name: 'Access Requests', href: '/admin/access-requests', icon: FileText },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { name: "User Management", href: "/user-management", icon: Users },
   ];
 
   const isActive = (path) => location.pathname === path;

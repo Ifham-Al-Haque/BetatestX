@@ -336,18 +336,38 @@ export const apiService = {
   userManagement: {
     getAll: async () => {
       const { data, error } = await supabase
-        .from('employees')
+        .from('users')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      
+      // Transform data to match expected format
+      return data.map(user => ({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        full_name: user.email, // Use email as display name for now
+        department: 'N/A', // Will be populated when linked to employee
+        position: 'N/A', // Will be populated when linked to employee
+        phone: 'N/A', // Will be populated when linked to employee
+        location: 'N/A', // Will be populated when linked to employee
+        created_at: user.created_at,
+        auth_user_id: user.auth_user_id,
+        employee_id: user.employee_id
+      }));
     },
 
     create: async (userData) => {
+      // Create user account only (not employee record)
       const { data, error } = await supabase
-        .from('employees')
-        .insert(userData)
+        .from('users')
+        .insert({
+          email: userData.email,
+          role: userData.role,
+          status: userData.status
+        })
         .select()
         .single();
 
@@ -356,9 +376,13 @@ export const apiService = {
     },
 
     update: async (id, userData) => {
+      // Update user account only
       const { data, error } = await supabase
-        .from('employees')
-        .update(userData)
+        .from('users')
+        .update({
+          role: userData.role,
+          status: userData.status
+        })
         .eq('id', id)
         .select()
         .single();
@@ -368,8 +392,9 @@ export const apiService = {
     },
 
     delete: async (id) => {
+      // Delete user account only (NOT employee record)
       const { error } = await supabase
-        .from('employees')
+        .from('users')
         .delete()
         .eq('id', id);
 
@@ -378,8 +403,9 @@ export const apiService = {
     },
 
     toggleStatus: async (id, status) => {
+      // Toggle user account status only
       const { data, error } = await supabase
-        .from('employees')
+        .from('users')
         .update({ status })
         .eq('id', id)
         .select()

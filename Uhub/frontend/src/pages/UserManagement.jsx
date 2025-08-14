@@ -17,6 +17,7 @@ import { useToast } from '../context/ToastContext';
 import Sidebar from '../components/Sidebar';
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';
+import InvitationManager from '../components/InvitationManager';
 
 export default function UserManagement() {
   const { user } = useAuth();
@@ -30,12 +31,7 @@ export default function UserManagement() {
 
   const [userFormData, setUserFormData] = useState({
     email: '',
-    full_name: '',
     role: 'employee',
-    department: '',
-    position: '',
-    phone: '',
-    location: '',
     status: 'active'
   });
 
@@ -49,12 +45,9 @@ export default function UserManagement() {
   const roles = [
     { value: 'admin', label: 'Admin', color: 'bg-red-100 text-red-800 border-red-200' },
     { value: 'manager', label: 'Manager', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { value: 'driver_management', label: 'Driver Management', color: 'bg-green-100 text-green-800 border-green-200' },
     { value: 'employee', label: 'Employee', color: 'bg-green-100 text-green-800 border-green-200' },
-    { value: 'viewer', label: 'Viewer', color: 'bg-gray-100 text-gray-800 border-gray-200' }
-  ];
-
-  const departments = [
-    'IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Customer Service', 'Management'
+    { value: 'view', label: 'View Only', color: 'bg-gray-100 text-gray-800 border-gray-200' }
   ];
 
   const handleCreateUser = useCallback(async (e) => {
@@ -66,15 +59,10 @@ export default function UserManagement() {
       setShowUserForm(false);
       setUserFormData({
         email: '',
-        full_name: '',
         role: 'employee',
-        department: '',
-        position: '',
-        phone: '',
-        location: '',
         status: 'active'
       });
-      success("Success", "User created successfully!");
+      success("Success", "User account created successfully! They will need to accept an invitation to set up their password.");
     } catch (err) {
       showError("Error", err.message);
     }
@@ -87,12 +75,7 @@ export default function UserManagement() {
       await updateUserMutation.mutateAsync({
         id: editingUser.id,
         data: {
-          full_name: userFormData.full_name,
           role: userFormData.role,
-          department: userFormData.department,
-          position: userFormData.position,
-          phone: userFormData.phone,
-          location: userFormData.location,
           status: userFormData.status
         }
       });
@@ -101,12 +84,7 @@ export default function UserManagement() {
       setEditingUser(null);
       setUserFormData({
         email: '',
-        full_name: '',
         role: 'employee',
-        department: '',
-        position: '',
-        phone: '',
-        location: '',
         status: 'active'
       });
       success("Success", "User updated successfully!");
@@ -141,12 +119,7 @@ export default function UserManagement() {
     setEditingUser(user);
     setUserFormData({
       email: user.email,
-      full_name: user.full_name,
       role: user.role,
-      department: user.department,
-      position: user.position,
-      phone: user.phone,
-      location: user.location,
       status: user.status
     });
     setShowUserForm(true);
@@ -157,12 +130,7 @@ export default function UserManagement() {
     setEditingUser(null);
     setUserFormData({
       email: '',
-      full_name: '',
       role: 'employee',
-      department: '',
-      position: '',
-      phone: '',
-      location: '',
       status: 'active'
     });
   }, []);
@@ -245,6 +213,11 @@ export default function UserManagement() {
               subtitle="Deactivated users"
               color="bg-yellow-500"
             />
+          </div>
+
+          {/* User Invitations Section */}
+          <div className="mb-8">
+            <InvitationManager />
           </div>
 
           {/* Controls */}
@@ -437,16 +410,6 @@ export default function UserManagement() {
                   <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                        <input
-                          type="text"
-                          value={userFormData.full_name}
-                          onChange={(e) => setUserFormData({ ...userFormData, full_name: e.target.value })}
-                          required
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                         <input
                           type="email"
@@ -470,46 +433,6 @@ export default function UserManagement() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                        <select
-                          value={userFormData.department}
-                          onChange={(e) => setUserFormData({ ...userFormData, department: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">Select Department</option>
-                          {departments.map(dept => (
-                            <option key={dept} value={dept}>{dept}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Position</label>
-                        <input
-                          type="text"
-                          value={userFormData.position}
-                          onChange={(e) => setUserFormData({ ...userFormData, position: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                        <input
-                          type="tel"
-                          value={userFormData.phone}
-                          onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                        <input
-                          type="text"
-                          value={userFormData.location}
-                          onChange={(e) => setUserFormData({ ...userFormData, location: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                         <select
                           value={userFormData.status}
@@ -520,6 +443,10 @@ export default function UserManagement() {
                           <option value="inactive">Inactive</option>
                         </select>
                       </div>
+                    </div>
+                    
+                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                      <p><strong>Note:</strong> This creates a user account only. Employee details (name, department, position, etc.) are managed separately in the Employee Records section.</p>
                     </div>
                     
                     <div className="flex gap-2 pt-4">

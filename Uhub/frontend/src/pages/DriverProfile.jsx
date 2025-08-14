@@ -5,7 +5,7 @@ import {
   User, Mail, Phone, MapPin, Calendar, Building, 
   Shield, Monitor, Briefcase, Edit, ArrowLeft,
   CheckCircle, AlertCircle, Clock, Star, Car,
-  FileText, Download, Eye, CreditCard
+  FileText, Download, Eye, EyeOff, CreditCard
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import Sidebar from "../components/Sidebar";
@@ -17,6 +17,16 @@ export default function DriverProfile() {
   const [driver, setDriver] = useState(null);
   const [documents, setDocuments] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showUdrivePassword, setShowUdrivePassword] = useState(false);
+  const [showZimyoPassword, setShowZimyoPassword] = useState(false);
+
+  const toggleUdrivePassword = useCallback(() => {
+    setShowUdrivePassword(prev => !prev);
+  }, []);
+
+  const toggleZimyoPassword = useCallback(() => {
+    setShowZimyoPassword(prev => !prev);
+  }, []);
 
   const fetchDriver = useCallback(async () => {
     setLoading(true);
@@ -314,12 +324,97 @@ export default function DriverProfile() {
                   </div>
                 </motion.div>
 
+                {/* Access Credentials */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                  className="bg-white rounded-xl shadow-sm p-6"
+                >
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-amber-600" />
+                    Access Credentials
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Udrive Credentials */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                        <Car className="w-4 h-4 text-blue-600" />
+                        Udrive Company Credentials
+                      </h4>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Company Email</label>
+                        <p className="text-gray-900 font-mono">{driver.udrive_email || 'N/A'}</p>
+                      </div>
+                      
+                      <div className="relative">
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Company Password</label>
+                        <div className="relative">
+                          <p className="text-gray-900 font-mono pr-10">
+                            {driver.udrive_password ? 
+                              (showUdrivePassword ? driver.udrive_password : '••••••••') 
+                              : 'N/A'
+                            }
+                          </p>
+                          {driver.udrive_password && (
+                            <button
+                              type="button"
+                              onClick={toggleUdrivePassword}
+                              className="absolute top-0 right-0 p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                              title={showUdrivePassword ? "Hide password" : "Show password"}
+                            >
+                              {showUdrivePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Zimyo Credentials */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                        <Monitor className="w-4 h-4 text-green-600" />
+                        Zimyo Platform Credentials
+                      </h4>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Zimyo Email</label>
+                        <p className="text-gray-900 font-mono">{driver.zimyo_email || 'N/A'}</p>
+                      </div>
+                      
+                      <div className="relative">
+                        <label className="block text-sm font-medium text-gray-500 mb-1">Zimyo Password</label>
+                        <div className="relative">
+                          <p className="text-gray-900 font-mono pr-10">
+                            {driver.zimyo_password ? 
+                              (showZimyoPassword ? driver.zimyo_password : '••••••••') 
+                              : 'N/A'
+                            }
+                          </p>
+                          {driver.zimyo_password && (
+                            <button
+                              type="button"
+                              onClick={toggleZimyoPassword}
+                              className="absolute top-0 right-0 p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                              title={showZimyoPassword ? "Hide password" : "Show password"}
+                            >
+                              {showZimyoPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+
                 {/* Document Uploads */}
                 {documents && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
+                    transition={{ delay: 0.35 }}
                     className="bg-white rounded-xl shadow-sm p-6"
                   >
                     <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -479,7 +574,7 @@ export default function DriverProfile() {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
+                  transition={{ delay: 0.45 }}
                   className="bg-white rounded-xl shadow-sm p-6"
                 >
                   <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">

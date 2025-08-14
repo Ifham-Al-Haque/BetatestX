@@ -30,6 +30,10 @@ export default function DriverForm() {
     profile_picture: "",
     status: "active",
     employee_id: "",
+    udrive_email: "",
+    udrive_password: "",
+    zimyo_email: "",
+    zimyo_password: "",
   });
 
   const [documents, setDocuments] = useState({
@@ -620,11 +624,98 @@ export default function DriverForm() {
                 </div>
               </motion.div>
 
+              {/* Access Credentials */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+              >
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-amber-600" />
+                  Access Credentials
+                </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Udrive Credentials */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                      <Car className="w-5 h-5 text-blue-600" />
+                      Udrive Company Credentials
+                    </h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Company Email
+                      </label>
+                      <input
+                        type="email"
+                        name="udrive_email"
+                        value={formData.udrive_email}
+                        onChange={handleInputChange}
+                        placeholder="driver@udrive.com"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Company Password
+                      </label>
+                      <input
+                        type="password"
+                        name="udrive_password"
+                        value={formData.udrive_password}
+                        onChange={handleInputChange}
+                        placeholder="Enter Udrive password"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Zimyo Credentials */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                      <Monitor className="w-5 h-5 text-green-600" />
+                      Zimyo Platform Credentials
+                    </h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Zimyo Email
+                      </label>
+                      <input
+                        type="email"
+                        name="zimyo_email"
+                        value={formData.zimyo_email}
+                        onChange={handleInputChange}
+                        placeholder="driver@zimyo.com"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Zimyo Password
+                      </label>
+                      <input
+                        type="password"
+                        name="zimyo_password"
+                        value={formData.zimyo_password}
+                        onChange={handleInputChange}
+                        placeholder="Enter Zimyo password"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
               {/* Profile Picture */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.45 }}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
               >
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -667,7 +758,7 @@ export default function DriverForm() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
+                transition={{ delay: 0.55 }}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
               >
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -810,7 +901,7 @@ export default function DriverForm() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
+                transition={{ delay: 0.65 }}
                 className="flex justify-end gap-4"
               >
                 <button

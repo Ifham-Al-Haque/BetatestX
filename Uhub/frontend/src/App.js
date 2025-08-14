@@ -26,6 +26,7 @@ const UserProfile = lazy(() => import("./pages/UserProfile"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const AccessRequests = lazy(() => import("./pages/AccessRequests"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const InvitationAccept = lazy(() => import("./pages/InvitationAccept"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const AssetProfile = lazy(() => import("./pages/AssetProfile"));
 const Simcard = lazy(() => import("./pages/Simcard"));
@@ -58,7 +59,7 @@ const queryClient = new QueryClient({
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role, userProfile } = useAuth();
 
   if (loading) {
     return (
@@ -72,7 +73,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly && role !== 'admin') {
+  // Check both role and userProfile.role for admin access
+  const isAdmin = role === 'admin' || userProfile?.role === 'admin';
+  
+  if (adminOnly && !isAdmin) {
+    console.log('Admin access denied. Role:', role, 'Profile role:', userProfile?.role);
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -194,6 +199,12 @@ const AppRoutes = () => {
           </AdminRoute>
         } />
         
+        <Route path="/user-management" element={
+          <AdminRoute>
+            <UserManagement />
+          </AdminRoute>
+        } />
+        
         <Route path="/admin/access-requests" element={
           <AdminRoute>
             <AccessRequests />
@@ -205,6 +216,8 @@ const AppRoutes = () => {
             <AdminDashboard />
           </AdminRoute>
         } />
+        
+        <Route path="/invite/:token" element={<InvitationAccept />} />
         
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
