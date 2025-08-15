@@ -15,7 +15,8 @@ import {
   BarChart3,
   PieChart,
   Phone,
-  Receipt
+  Receipt,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -45,6 +46,8 @@ const Sidebar = () => {
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: "Attendance", href: "/attendance", icon: Calendar },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "CSPA", href: "/cspa", icon: MessageSquare },
+    { name: "Call Center Demo", href: "/call-center-demo", icon: Phone },
   ];
 
   const adminNavigation = [

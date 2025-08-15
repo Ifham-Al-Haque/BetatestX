@@ -1,427 +1,448 @@
+// frontend/src/components/InvitationManager.jsx
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Mail, UserPlus, Clock, CheckCircle, XCircle, 
-  RefreshCw, Trash2, Copy, Eye, EyeOff,
-  AlertCircle, CheckCircle2, X
-} from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { motion } from 'framer-motion';
+import { Mail, UserPlus, Copy, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { useUserInvitation } from '../hooks/useUserInvitation';
 import { useToast } from '../context/ToastContext';
+import { supabase } from '../supabaseClient';
 
 const InvitationManager = () => {
-  console.log('InvitationManager component is rendering!'); // Debug log
-  const [invitations, setInvitations] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [lastInvitation, setLastInvitation] = useState(null);
+  const [invitations, setInvitations] = useState([]);
+  const [loadingInvitations, setLoadingInvitations] = useState(false);
+  const [selectedInvitations, setSelectedInvitations] = useState(new Set());
   const [inviteForm, setInviteForm] = useState({
     email: '',
     role: 'employee',
-    department: '',
-    position: ''
+    department: ''
   });
+
+  const { inviteUser, loading } = useUserInvitation();
   const { success, error: showError } = useToast();
 
-  const roles = [
-    { value: 'admin', label: 'Administrator', description: 'Full system access' },
-    { value: 'manager', label: 'Manager', description: 'Department management' },
-    { value: 'driver_management', label: 'Driver Management', description: 'Driver-related access only' },
-    { value: 'employee', label: 'Employee', description: 'Standard user access' },
-    { value: 'view', label: 'Viewer', description: 'Read-only access' }
-  ];
-
-  const departments = [
-    'IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 
-    'Customer Service', 'Management', 'Driver Operations'
-  ];
-
-  // Fetch pending invitations
+  // Fetch existing invitations
   const fetchInvitations = async () => {
-    setLoading(true);
+    setLoadingInvitations(true);
     try {
       const { data, error } = await supabase
         .rpc('get_pending_invitations');
-
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Failed to fetch invitations:', error);
+        showError('Error', 'Failed to load invitations');
+        return;
+      }
+      
       setInvitations(data || []);
     } catch (err) {
-      showError('Error', 'Failed to fetch invitations');
-      console.error('Fetch invitations error:', err);
+      console.error('Failed to fetch invitations:', err);
+      showError('Error', 'Failed to load invitations');
     } finally {
-      setLoading(false);
+      setLoadingInvitations(false);
     }
   };
 
-  // Send invitation
-  const sendInvitation = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .rpc('send_invitation', {
-          invite_email: inviteForm.email,
-          invite_role: inviteForm.role,
-          inviter_id: (await supabase.auth.getUser()).data.user.id
-        });
-
-      if (error) throw error;
-
-      if (data.success) {
-        success('Success', 'Invitation sent successfully!');
-        setShowInviteForm(false);
-        setInviteForm({ email: '', role: 'employee', department: '', position: '' });
-        fetchInvitations();
-      } else {
-        showError('Error', data.error || 'Failed to send invitation');
-      }
-    } catch (err) {
-      showError('Error', err.message || 'Failed to send invitation');
-      console.error('Send invitation error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Cancel invitation
-  const cancelInvitation = async (invitationId) => {
-    if (!window.confirm('Are you sure you want to cancel this invitation?')) return;
-
-    try {
-      const { data, error } = await supabase
-        .rpc('cancel_invitation', {
-          invitation_id: invitationId,
-          canceller_id: (await supabase.auth.getUser()).data.user.id
-        });
-
-      if (error) throw error;
-
-      if (data.success) {
-        success('Success', 'Invitation cancelled successfully!');
-        fetchInvitations();
-      } else {
-        showError('Error', data.error || 'Failed to cancel invitation');
-      }
-    } catch (err) {
-      showError('Error', err.message || 'Failed to cancel invitation');
-      console.error('Cancel invitation error:', err);
-    }
-  };
-
-  // Resend invitation
-  const resendInvitation = async (invitationId) => {
-    try {
-      const { data, error } = await supabase
-        .rpc('resend_invitation', {
-          invitation_id: invitationId,
-          resender_id: (await supabase.auth.getUser()).data.user.id
-        });
-
-      if (error) throw error;
-
-      if (data.success) {
-        success('Success', 'Invitation resent successfully!');
-        fetchInvitations();
-      } else {
-        showError('Error', data.error || 'Failed to resend invitation');
-      }
-    } catch (err) {
-      showError('Error', err.message || 'Failed to resend invitation');
-      console.error('Resend invitation error:', err);
-    }
-  };
-
-  // Copy invitation link
-  const copyInvitationLink = (token) => {
-    const invitationUrl = `${window.location.origin}/invite/${token}`;
-    navigator.clipboard.writeText(invitationUrl);
-    success('Success', 'Invitation link copied to clipboard!');
-  };
-
+  // Load invitations on component mount
   useEffect(() => {
     fetchInvitations();
   }, []);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'accepted': return 'text-green-600 bg-green-100';
-      case 'expired': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const result = await inviteUser(inviteForm);
+    
+    if (result.success) {
+      setLastInvitation(result.data);
+      setShowInviteForm(false);
+      setInviteForm({ email: '', role: 'employee', department: '' });
+      
+      // Refresh invitations list
+      fetchInvitations();
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending': return <Clock className="w-4 h-4" />;
-      case 'accepted': return <CheckCircle className="w-4 h-4" />;
-      case 'expired': return <XCircle className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+  const copyInvitationLink = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      success('Success', 'Invitation link copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      showError('Error', 'Failed to copy to clipboard');
+    }
+  };
+
+  // Delete invitation function
+  const deleteInvitation = async (invitationId) => {
+    try {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showError('Error', 'User not authenticated');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .rpc('delete_invitation', {
+          invitation_id: invitationId,
+          deleter_id: user.id
+        });
+
+      if (error) {
+        console.error('Failed to delete invitation:', error);
+        showError('Error', error.message || 'Failed to delete invitation');
+        return;
+      }
+
+      if (data.success) {
+        success('Success', 'Invitation deleted successfully');
+        // Refresh the invitations list
+        fetchInvitations();
+        // Remove from selected invitations
+        setSelectedInvitations(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(invitationId);
+          return newSet;
+        });
+      } else {
+        showError('Error', data.error || 'Failed to delete invitation');
+      }
+    } catch (err) {
+      console.error('Failed to delete invitation:', err);
+      showError('Error', 'Failed to delete invitation');
+    }
+  };
+
+  // Bulk delete invitations
+  const deleteSelectedInvitations = async () => {
+    if (selectedInvitations.size === 0) {
+      showError('Error', 'No invitations selected');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedInvitations.size} invitation(s)?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showError('Error', 'User not authenticated');
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const invitationId of selectedInvitations) {
+        const { data, error } = await supabase
+          .rpc('delete_invitation', {
+            invitation_id: invitationId,
+            deleter_id: user.id
+          });
+
+        if (data?.success) {
+          successCount++;
+        } else {
+          errorCount++;
+          console.error(`Failed to delete invitation ${invitationId}:`, error || data?.error);
+        }
+      }
+
+      if (successCount > 0) {
+        success('Success', `Successfully deleted ${successCount} invitation(s)`);
+        if (errorCount > 0) {
+          showError('Partial Error', `${errorCount} invitation(s) failed to delete`);
+        }
+        // Refresh and clear selection
+        fetchInvitations();
+        setSelectedInvitations(new Set());
+      } else {
+        showError('Error', 'Failed to delete any invitations');
+      }
+    } catch (err) {
+      console.error('Failed to bulk delete invitations:', err);
+      showError('Error', 'Failed to delete invitations');
+    }
+  };
+
+  // Toggle invitation selection
+  const toggleInvitationSelection = (invitationId) => {
+    setSelectedInvitations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(invitationId)) {
+        newSet.delete(invitationId);
+      } else {
+        newSet.add(invitationId);
+      }
+      return newSet;
+    });
+  };
+
+  // Select all invitations
+  const selectAllInvitations = () => {
+    if (selectedInvitations.size === invitations.length) {
+      setSelectedInvitations(new Set());
+    } else {
+      setSelectedInvitations(new Set(invitations.map(inv => inv.id)));
+    }
+  };
+
+  // Cleanup expired invitations
+  const cleanupExpiredInvitations = async () => {
+    try {
+      const { data, error } = await supabase
+        .rpc('cleanup_expired_invitations');
+
+      if (error) {
+        console.error('Failed to cleanup expired invitations:', error);
+        showError('Error', error.message || 'Failed to cleanup expired invitations');
+        return;
+      }
+
+      if (data.success) {
+        success('Success', `Cleanup completed! Deleted ${data.deleted_count} expired invitations`);
+        // Refresh the invitations list
+        fetchInvitations();
+      } else {
+        showError('Error', data.error || 'Failed to cleanup expired invitations');
+      }
+    } catch (err) {
+      console.error('Failed to cleanup expired invitations:', err);
+      showError('Error', 'Failed to cleanup expired invitations');
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      {/* Debug Test */}
-      <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-4">
-        <p className="text-red-800 font-bold">🔍 INVITATION MANAGER IS RENDERING!</p>
-        <p className="text-red-600 text-sm">If you can see this, the component is working!</p>
-      </div>
-      
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">User Invitations</h2>
+          <p className="text-gray-600">Send invitations to new users</p>
+        </div>
+        
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Mail className="w-6 h-6 text-blue-600" />
+          <button
+            onClick={fetchInvitations}
+            disabled={loadingInvitations}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition-colors flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingInvitations ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          
+          <button
+            onClick={cleanupExpiredInvitations}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2"
+            title="Remove expired invitations"
+          >
+            <Trash2 className="w-4 h-4" />
+            Cleanup Expired
+          </button>
+          
+          <button
+            onClick={() => setShowInviteForm(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            Send Invitation
+          </button>
+        </div>
+      </div>
+
+      {/* Invitation Form */}
+      {showInviteForm && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-6 rounded-lg border"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email *</label>
+              <input
+                type="email"
+                required
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="user@example.com"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Role *</label>
+              <select
+                value={inviteForm.role}
+                onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="employee">Employee</option>
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="view">View Only</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Department</label>
+              <input
+                type="text"
+                value={inviteForm.department}
+                onChange={(e) => setInviteForm({ ...inviteForm, department: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="e.g., IT, HR, Sales"
+              />
+            </div>
+            
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg"
+              >
+                {loading ? 'Sending...' : 'Send Invitation'}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setShowInviteForm(false)}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      )}
+
+      {/* Last Invitation Success */}
+      {lastInvitation && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-green-50 border border-green-200 rounded-lg p-4"
+        >
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div className="flex-1">
+              <h3 className="font-medium text-green-900">Invitation Sent Successfully!</h3>
+              <p className="text-sm text-green-700">
+                Email: {lastInvitation.email} | Role: {lastInvitation.role}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={lastInvitation.invitationUrl}
+                  className="flex-1 text-sm bg-white border border-green-300 rounded px-2 py-1"
+                />
+                <button
+                  onClick={() => copyInvitationLink(lastInvitation.invitationUrl)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" />
+                  Copy
+                </button>
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">User Invitations</h2>
-            <p className="text-gray-600">Send invitations to new users and manage pending invites</p>
+        </motion.div>
+      )}
+
+      {/* Invitations List */}
+      <div className="bg-white rounded-lg border">
+        <div className="px-6 py-4 border-b">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">Pending Invitations</h3>
+            
+            {invitations.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedInvitations.size === invitations.length}
+                    onChange={selectAllInvitations}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm text-gray-600">
+                    Select All ({selectedInvitations.size}/{invitations.length})
+                  </span>
+                </div>
+                
+                {selectedInvitations.size > 0 && (
+                  <button
+                    onClick={deleteSelectedInvitations}
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete Selected ({selectedInvitations.size})
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
         
-        <button
-          onClick={() => setShowInviteForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-        >
-          <UserPlus className="w-4 h-4" />
-          Send Invitation
-        </button>
-      </div>
-
-      {/* Invitation Form Modal */}
-      <AnimatePresence>
-        {showInviteForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Send User Invitation</h3>
-                <button
-                  onClick={() => setShowInviteForm(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <form onSubmit={sendInvitation} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    value={inviteForm.email}
-                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="user@company.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role *
-                  </label>
-                  <select
-                    value={inviteForm.role}
-                    onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {roles.map(role => (
-                      <option key={role.value} value={role.value}>
-                        {role.label} - {role.description}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department
-                  </label>
-                  <select
-                    value={inviteForm.department}
-                    onChange={(e) => setInviteForm({ ...inviteForm, department: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Position
-                  </label>
-                  <input
-                    type="text"
-                    value={inviteForm.position}
-                    onChange={(e) => setInviteForm({ ...inviteForm, position: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Software Developer"
-                  />
-                </div>
-                
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Sending...' : 'Send Invitation'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowInviteForm(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Invitations List */}
-      <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Pending Invitations ({invitations.length})
-          </h3>
-        </div>
-
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading invitations...</p>
-          </div>
+        {loadingInvitations ? (
+          <div className="p-6 text-center text-gray-500">Loading invitations...</div>
         ) : invitations.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Mail className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-            <p>No pending invitations</p>
-            <p className="text-sm">Send your first invitation to get started</p>
-          </div>
+          <div className="p-6 text-center text-gray-500">No pending invitations</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Expires
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {invitations.map((invitation) => (
-                  <motion.tr
-                    key={invitation.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="hover:bg-gray-50"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{invitation.email}</div>
-                        <div className="text-sm text-gray-500">
-                          Invited by {invitation.invited_by_name || invitation.invited_by_email}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {invitation.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invitation.status)}`}>
-                        {getStatusIcon(invitation.status)}
-                        <span className="ml-1">{invitation.status}</span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(invitation.expires_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => copyInvitationLink(invitation.token)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Copy invitation link"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => resendInvitation(invitation.id)}
-                          className="text-green-600 hover:text-green-900"
-                          title="Resend invitation"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => cancelInvitation(invitation.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Cancel invitation"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-gray-200">
+            {invitations.map((invitation) => (
+              <div key={invitation.id} className="px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedInvitations.has(invitation.id)}
+                      onChange={() => toggleInvitationSelection(invitation.id)}
+                      className="rounded border-gray-300"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900">{invitation.email}</p>
+                      <p className="text-sm text-gray-500">
+                        Role: {invitation.role} | Department: {invitation.department || 'Unassigned'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Expires: {new Date(invitation.expires_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyInvitationLink(`${window.location.origin}/invite/${invitation.token}`)}
+                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy Link
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete the invitation for ${invitation.email}?`)) {
+                          deleteInvitation(invitation.id);
+                        }
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
+                      title="Delete invitation"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
-
-      {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div className="text-sm text-blue-800">
-            <h4 className="font-medium mb-1">How it works:</h4>
-            <ul className="space-y-1">
-              <li>• Send invitation with role assignment</li>
-              <li>• User receives email with invitation link</li>
-              <li>• User clicks link and sets up their own password</li>
-              <li>• Account is automatically created with assigned role</li>
-              <li>• Invitations expire after 7 days</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </motion.div>
+    </div>
   );
 };
 

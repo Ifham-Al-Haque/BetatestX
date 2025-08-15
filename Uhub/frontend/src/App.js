@@ -34,6 +34,9 @@ const Voucher = lazy(() => import("./pages/Voucher"));
 const InvitationSignup = lazy(() => import("./pages/InvitationSignup"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
+const CSPA = lazy(() => import("./pages/CSPA"));
+const CallCenterDemo = lazy(() => import("./pages/CallCenterDemo"));
+const TestInvitations = lazy(() => import("./pages/TestInvitations"));
 
 // React Query configuration
 const queryClient = new QueryClient({
@@ -187,6 +190,18 @@ const AppRoutes = () => {
         
         <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
         
+        <Route path="/cspa" element={
+          <ProtectedRoute>
+            <CSPA />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/call-center-demo" element={
+          <ProtectedRoute>
+            <CallCenterDemo />
+          </ProtectedRoute>
+        } />
+        
         <Route path="/profile" element={
           <ProtectedRoute>
             <UserProfile />
@@ -218,6 +233,8 @@ const AppRoutes = () => {
         } />
         
         <Route path="/invite/:token" element={<InvitationAccept />} />
+        
+        <Route path="/test-invitations" element={<TestInvitations />} />
         
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

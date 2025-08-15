@@ -31,22 +31,47 @@ const InvitationAccept = () => {
   useEffect(() => {
     const fetchInvitation = async () => {
       try {
-        const { data, error } = await supabase
+        console.log('🔍 Fetching invitation with token:', token);
+        
+        // First try direct table access
+        let { data, error } = await supabase
           .from('invitations')
           .select('*')
           .eq('token', token)
           .eq('status', 'pending')
           .single();
 
-        if (error) throw error;
+        console.log('📊 Direct table access result:', { data, error });
+
+        // If direct access fails due to RLS, try using the function
+        if (error && error.code === '406') {
+          console.log('⚠️ Direct access failed with 406, trying function access...');
+          const { data: funcData, error: funcError } = await supabase
+            .rpc('get_invitation_by_token', { invitation_token: token });
+
+          console.log('📊 Function access result:', { funcData, funcError });
+
+          if (funcError) throw funcError;
+          
+          // Function returns an array, so we need to get the first item
+          data = funcData && funcData.length > 0 ? funcData[0] : null;
+          error = null;
+        } else if (error) {
+          console.log('❌ Direct access error:', error);
+          throw error;
+        }
 
         if (!data) {
+          console.log('❌ No invitation data found');
           showError('Error', 'Invalid or expired invitation');
           navigate('/login');
           return;
         }
 
+        console.log('✅ Invitation data loaded:', data);
+
         if (new Date(data.expires_at) < new Date()) {
+          console.log('❌ Invitation has expired');
           showError('Error', 'Invitation has expired');
           navigate('/login');
           return;
@@ -54,8 +79,9 @@ const InvitationAccept = () => {
 
         setInvitation(data);
         setFormData(prev => ({ ...prev, email: data.email }));
+        console.log('✅ Invitation state updated successfully');
       } catch (err) {
-        console.error('Fetch invitation error:', err);
+        console.error('💥 Fetch invitation error:', err);
         showError('Error', 'Failed to load invitation');
         navigate('/login');
       } finally {
@@ -64,7 +90,10 @@ const InvitationAccept = () => {
     };
 
     if (token) {
+      console.log('🚀 Starting invitation fetch for token:', token);
       fetchInvitation();
+    } else {
+      console.log('❌ No token provided');
     }
   }, [token, navigate, showError]);
 
@@ -100,13 +129,13 @@ const InvitationAccept = () => {
     try {
       // First, create the user account using the invitation
       const { data: acceptData, error: acceptError } = await supabase
-        .rpc('accept_invitation', {
-          invitation_token: token,
-          user_password: formData.password,
-          full_name: formData.full_name,
-          phone: formData.phone || null,
-          location: formData.location || null
-        });
+        .rpc('accept_invitation', [
+          token,
+          formData.password,
+          formData.full_name,
+          formData.phone || null,
+          formData.location || null
+        ]);
 
       if (acceptError) throw acceptError;
 
@@ -148,6 +177,14 @@ const InvitationAccept = () => {
       </div>
     );
   }
+
+  // Debug information
+  console.log('🔍 InvitationAccept Component Debug:', {
+    token,
+    invitation,
+    loading,
+    formData
+  });
 
   if (!invitation) {
     return (
