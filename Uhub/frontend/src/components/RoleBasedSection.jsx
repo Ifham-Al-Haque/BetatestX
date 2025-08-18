@@ -58,4 +58,16 @@ export function EmployeeAndAbove({ children, fallback = null, className = "" }) 
       {children}
     </RoleBasedSection>
   );
+}
+
+export function CustomerServiceManagerAndAbove({ children, fallback = null, className = "" }) {
+  return (
+    <RoleBasedSection 
+      allowedRoles={['admin', 'customer_service_manager']} 
+      fallback={fallback}
+      className={className}
+    >
+      {children}
+    </RoleBasedSection>
+  );
 } 

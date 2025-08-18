@@ -342,37 +342,131 @@ export const apiService = {
 
       if (error) throw error;
       
-      // Transform data to match expected format
+      // Ensure ALL users have the same structure with default values
       return data.map(user => ({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        full_name: user.email, // Use email as display name for now
-        department: 'N/A', // Will be populated when linked to employee
-        position: 'N/A', // Will be populated when linked to employee
-        phone: 'N/A', // Will be populated when linked to employee
-        location: 'N/A', // Will be populated when linked to employee
-        created_at: user.created_at,
-        auth_user_id: user.auth_user_id,
-        employee_id: user.employee_id
+        // Required fields with fallbacks
+        id: user.id || null,
+        email: user.email || '',
+        role: user.role || 'employee',
+        status: user.status || 'active',
+        
+        // Optional fields with consistent defaults
+        full_name: user.full_name || user.email || 'N/A',
+        department: user.department || 'N/A',
+        position: user.position || 'N/A',
+        phone: user.phone || 'N/A',
+        location: user.location || 'N/A',
+        
+        // Timestamps
+        created_at: user.created_at || new Date().toISOString(),
+        updated_at: user.updated_at || new Date().toISOString(),
+        
+        // Auth-related fields
+        auth_user_id: user.auth_user_id || null,
+        employee_id: user.employee_id || null,
+        
+        // Additional fields that might be expected
+        is_active: user.status === 'active',
+        last_login: user.last_login || null,
+        permissions: user.permissions || []
       }));
     },
 
-    create: async (userData) => {
-      // Create user account only (not employee record)
-      const { data, error } = await supabase
-        .from('users')
-        .insert({
-          email: userData.email,
-          role: userData.role,
-          status: userData.status
-        })
-        .select()
-        .single();
+          create: async (userData) => {
+        console.log('🚀 Starting user creation process...');
+        console.log('📝 User data received:', userData);
+        
+        try {
+          let authUserId = null;
+          let authError = null;
 
-      if (error) throw error;
-      return data;
+                // If password is provided, create the auth user first
+        if (userData.password) {
+          try {
+            console.log('🔐 Creating auth user for:', userData.email);
+            
+            const { data: authData, error: signUpError } = await supabase.auth.signUp({
+              email: userData.email,
+              password: userData.password,
+              options: {
+                data: {
+                  role: userData.role,
+                  full_name: userData.email.split('@')[0]
+                }
+              }
+            });
+
+            console.log('🔐 Auth signup result:', { authData, signUpError });
+
+            if (signUpError) {
+              console.error('❌ Auth signup failed:', signUpError);
+              console.error('❌ Error details:', {
+                message: signUpError.message,
+                status: signUpError.status,
+                name: signUpError.name,
+                details: signUpError.details,
+                hint: signUpError.hint
+              });
+              authError = signUpError;
+            } else         if (authData.user) {
+          console.log('✅ Auth user created successfully:', authData.user.id);
+          console.log('📧 User email confirmed:', authData.user.email_confirmed_at);
+          console.log('📧 Session:', authData.session);
+          authUserId = authData.user.id;
+        } else {
+          console.warn('⚠️ No auth user data returned');
+          console.warn('⚠️ Full auth response:', authData);
+        }
+          } catch (authException) {
+            console.error('💥 Exception during auth signup:', authException);
+            authError = authException;
+          }
+        }
+
+        // Create user account in the database
+        console.log('💾 Creating database user for:', userData.email);
+        console.log('💾 Auth user ID:', authUserId);
+        
+        const { data, error } = await supabase
+          .from('users')
+          .insert({
+            email: userData.email,
+            role: userData.role,
+            status: userData.status,
+            auth_user_id: authUserId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        console.log('💾 Database user creation result:', { data, error });
+
+        if (error) throw error;
+        
+        // Transform the response to match the expected format
+        return {
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          status: data.status,
+          full_name: data.email,
+          department: 'N/A',
+          position: 'N/A',
+          phone: 'N/A',
+          location: 'N/A',
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+          auth_user_id: data.auth_user_id,
+          employee_id: null,
+          is_active: data.status === 'active',
+          last_login: null,
+          permissions: []
+        };
+      } catch (error) {
+        console.error('Error creating user:', error);
+        throw error;
+      }
     },
 
     update: async (id, userData) => {
@@ -388,7 +482,26 @@ export const apiService = {
         .single();
 
       if (error) throw error;
-      return data;
+      
+      // Transform the response to match the expected format
+      return {
+        id: data.id,
+        email: data.email,
+        role: data.role,
+        status: data.status,
+        full_name: data.full_name || data.email,
+        department: data.department || 'N/A',
+        position: data.position || 'N/A',
+        phone: data.phone || 'N/A',
+        location: data.location || 'N/A',
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        auth_user_id: data.auth_user_id || null,
+        employee_id: data.employee_id || null,
+        is_active: data.status === 'active',
+        last_login: data.last_login || null,
+        permissions: data.permissions || []
+      };
     },
 
     delete: async (id) => {
@@ -412,7 +525,26 @@ export const apiService = {
         .single();
 
       if (error) throw error;
-      return data;
+      
+      // Transform the response to match the expected format
+      return {
+        id: data.id,
+        email: data.email,
+        role: data.role,
+        status: data.status,
+        full_name: data.full_name || data.email,
+        department: data.department || 'N/A',
+        position: data.position || 'N/A',
+        phone: data.phone || 'N/A',
+        location: data.location || 'N/A',
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        auth_user_id: data.auth_user_id || null,
+        employee_id: data.employee_id || null,
+        is_active: data.status === 'active',
+        last_login: data.last_login || null,
+        permissions: data.permissions || []
+      };
     }
   },
 

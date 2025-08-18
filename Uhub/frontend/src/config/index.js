@@ -67,15 +67,20 @@ const config = {
       displayName: 'Administrator',
       permissions: ['all'],
     },
-    employee: {
-      name: 'employee',
-      displayName: 'Employee',
-      permissions: ['view_dashboard', 'view_own_profile', 'edit_own_profile'],
+    customer_service_manager: {
+      name: 'customer_service_manager',
+      displayName: 'Customer Service Manager',
+      permissions: ['view_dashboard', 'view_cspa', 'manage_customer_service', 'view_reports', 'data_import'],
     },
     manager: {
       name: 'manager',
       displayName: 'Manager',
       permissions: ['view_dashboard', 'manage_employees', 'view_reports'],
+    },
+    employee: {
+      name: 'employee',
+      displayName: 'Employee',
+      permissions: ['view_dashboard', 'view_own_profile', 'edit_own_profile'],
     },
   },
 

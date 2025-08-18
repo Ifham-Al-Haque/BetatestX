@@ -37,6 +37,7 @@ const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
 const CSPA = lazy(() => import("./pages/CSPA"));
 const CallCenterDemo = lazy(() => import("./pages/CallCenterDemo"));
 const TestInvitations = lazy(() => import("./pages/TestInvitations"));
+const RoleTest = lazy(() => import("./components/RoleTest"));
 
 // React Query configuration
 const queryClient = new QueryClient({
@@ -235,6 +236,8 @@ const AppRoutes = () => {
         <Route path="/invite/:token" element={<InvitationAccept />} />
         
         <Route path="/test-invitations" element={<TestInvitations />} />
+        
+        <Route path="/role-test" element={<ProtectedRoute><RoleTest /></ProtectedRoute>} />
         
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

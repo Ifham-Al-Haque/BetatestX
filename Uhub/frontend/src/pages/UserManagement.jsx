@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Plus, Edit, Trash, Eye, EyeOff, Shield, 
   UserCheck, UserX, Mail, Phone, MapPin, Briefcase,
-  Search, Filter, MoreVertical, Save, X
+  Search, Filter, MoreVertical, Save, X, Lock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -28,9 +28,21 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [showPassword, setShowPassword] = useState(false);
+  
+  // Password strength indicator
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 'none', color: 'text-gray-400', text: '' };
+    if (password.length < 6) return { strength: 'weak', color: 'text-red-500', text: 'Weak' };
+    if (password.length < 8) return { strength: 'medium', color: 'text-yellow-500', text: 'Medium' };
+    if (password.length >= 8) return { strength: 'strong', color: 'text-green-500', text: 'Strong' };
+    return { strength: 'none', color: 'text-gray-400', text: '' };
+  };
 
   const [userFormData, setUserFormData] = useState({
     email: '',
+    password: '',
+    confirmPassword: '',
     role: 'employee',
     status: 'active'
   });
@@ -53,16 +65,35 @@ export default function UserManagement() {
   const handleCreateUser = useCallback(async (e) => {
     e.preventDefault();
 
+    console.log('🎯 handleCreateUser called with:', userFormData);
+
+    // Validate password
+    if (userFormData.password && userFormData.password.length < 6) {
+      showError("Error", "Password must be at least 6 characters long");
+      return;
+    }
+
+    // Validate password confirmation
+    if (userFormData.password && userFormData.password !== userFormData.confirmPassword) {
+      showError("Error", "Passwords do not match");
+      return;
+    }
+
+    console.log('✅ Validation passed, calling createUserMutation...');
+
     try {
       await createUserMutation.mutateAsync(userFormData);
       
       setShowUserForm(false);
       setUserFormData({
         email: '',
+        password: '',
+        confirmPassword: '',
         role: 'employee',
         status: 'active'
       });
-      success("Success", "User account created successfully! They will need to accept an invitation to set up their password.");
+      setShowPassword(false);
+      success("Success", "User account created successfully with login credentials!");
     } catch (err) {
       showError("Error", err.message);
     }
@@ -84,6 +115,8 @@ export default function UserManagement() {
       setEditingUser(null);
       setUserFormData({
         email: '',
+        password: '',
+        confirmPassword: '',
         role: 'employee',
         status: 'active'
       });
@@ -130,9 +163,12 @@ export default function UserManagement() {
     setEditingUser(null);
     setUserFormData({
       email: '',
+      password: '',
+      confirmPassword: '',
       role: 'employee',
       status: 'active'
     });
+    setShowPassword(false);
   }, []);
 
   // Filter users based on search and filters
@@ -421,6 +457,75 @@ export default function UserManagement() {
                         />
                       </div>
                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <div className="relative">
+                                                     <input
+                             type={showPassword ? 'text' : 'password'}
+                             value={userFormData.password}
+                             onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                             required={!editingUser}
+                             disabled={!!editingUser}
+                             className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                             placeholder="Enter password (required for login)"
+                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                            disabled={!!editingUser}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-5 w-5 text-gray-400" />
+                            ) : (
+                              <Eye className="h-5 w-5 text-gray-400" />
+                            )}
+                          </button>
+                        </div>
+                        {userFormData.password && (
+                          <div className="mt-1">
+                            <span className={`text-xs ${getPasswordStrength(userFormData.password).color}`}>
+                              {getPasswordStrength(userFormData.password).text}
+                            </span>
+                            <span className="text-xs text-gray-500 ml-2">
+                              {userFormData.password.length < 6 ? 'Minimum 6 characters' : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                        <div className="relative">
+                                                     <input
+                             type={showPassword ? 'text' : 'password'}
+                             value={userFormData.confirmPassword}
+                             onChange={(e) => setUserFormData({ ...userFormData, confirmPassword: e.target.value })}
+                             required={!editingUser}
+                             disabled={!!editingUser}
+                             className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                             placeholder="Confirm password (required)"
+                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                            disabled={!!editingUser}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-5 w-5 text-gray-400" />
+                            ) : (
+                              <Eye className="h-5 w-5 text-gray-400" />
+                            )}
+                          </button>
+                        </div>
+                        {userFormData.password && userFormData.confirmPassword && (
+                          <div className="mt-1">
+                            <span className={`text-xs ${userFormData.password === userFormData.confirmPassword ? 'text-green-500' : 'text-red-500'}`}>
+                              {userFormData.password === userFormData.confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                         <select
                           value={userFormData.role}
@@ -445,9 +550,14 @@ export default function UserManagement() {
                       </div>
                     </div>
                     
-                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                      <p><strong>Note:</strong> This creates a user account only. Employee details (name, department, position, etc.) are managed separately in the Employee Records section.</p>
-                    </div>
+                                         <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                       <p><strong>Note:</strong> This creates a user account with login credentials. Employee details (name, department, position, etc.) are managed separately in the Employee Records section.</p>
+                       {!editingUser && (
+                         <p className="mt-2 text-xs text-gray-500">
+                           <strong>Password:</strong> Required for login access. Users can log in immediately with the provided password.
+                         </p>
+                       )}
+                     </div>
                     
                     <div className="flex gap-2 pt-4">
                       <button

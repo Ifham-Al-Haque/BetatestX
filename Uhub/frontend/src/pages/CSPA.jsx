@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart3, TrendingUp, Upload, FileText } from 'lucide-react';
+import { CustomerServiceManagerAndAbove } from '../components/RoleBasedSection';
 
 // Simple placeholder components to avoid any import issues
 const SimpleCSVImporter = () => (
@@ -85,48 +86,67 @@ const CSPA = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Customer Service Performance Analysis
-          </h1>
-          <p className="text-gray-600">
-            Monitor and analyze customer service metrics, ticket performance, and customer satisfaction
-          </p>
-        </div>
-
-        {/* Tabs */}
-        <div className="mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-            <div className="flex space-x-1">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+    <CustomerServiceManagerAndAbove
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BarChart3 className="w-8 h-8 text-red-600" />
             </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-4">
+              You don't have permission to access the Customer Service Performance Analysis system.
+            </p>
+            <p className="text-sm text-gray-500">
+              Please contact your administrator if you believe this is an error.
+            </p>
           </div>
         </div>
+      }
+    >
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Customer Service Performance Analysis
+            </h1>
+            <p className="text-gray-600">
+              Monitor and analyze customer service metrics, ticket performance, and customer satisfaction
+            </p>
+          </div>
 
-        {/* Tab Content */}
-        {renderTabContent()}
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+              <div className="flex space-x-1">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          {renderTabContent()}
+        </div>
       </div>
-    </div>
+    </CustomerServiceManagerAndAbove>
   );
 };
 

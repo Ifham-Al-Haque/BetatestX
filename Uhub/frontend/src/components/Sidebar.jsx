@@ -16,7 +16,8 @@ import {
   PieChart,
   Phone,
   Receipt,
-  MessageSquare
+  MessageSquare,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -54,6 +55,7 @@ const Sidebar = () => {
     { name: 'User Management', href: '/admin/users', icon: Users },
     { name: 'Access Requests', href: '/admin/access-requests', icon: FileText },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { name: 'Role Test', href: '/role-test', icon: Shield },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -158,6 +160,9 @@ const Sidebar = () => {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <div className="space-y-1">
             {navigation.map((item) => {
+              // Hide CSPA from regular navigation - it will be shown in Customer Service section
+              if (item.name === 'CSPA') return null;
+              
               const Icon = item.icon;
               return (
                 <Link
@@ -189,6 +194,72 @@ const Sidebar = () => {
               );
             })}
           </div>
+
+          {/* Customer Service Navigation */}
+          {(userProfile?.role === 'admin' || userProfile?.role === 'customer_service_manager') && (
+            <div className="pt-4 border-t border-gray-200">
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="px-3 py-2 text-xs font-semibold text-purple-500 uppercase tracking-wider"
+                  >
+                    Customer Service
+                  </motion.p>
+                )}
+              </AnimatePresence>
+              <div className="space-y-1 mt-2">
+                <Link
+                  to="/cspa"
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                    isActive('/cspa')
+                      ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-purple-600'
+                  }`}
+                >
+                  <MessageSquare className="w-5 h-5 flex-shrink-0" />
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="truncate"
+                      >
+                        CSPA
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Link>
+                <Link
+                  to="/call-center-demo"
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                    isActive('/call-center-demo')
+                      ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-purple-600'
+                  }`}
+                >
+                  <Phone className="w-5 h-5 flex-shrink-0" />
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="truncate"
+                      >
+                        Call Center Demo
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Admin Navigation */}
           {userProfile?.role === 'admin' && (

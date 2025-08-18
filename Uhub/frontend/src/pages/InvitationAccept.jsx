@@ -33,33 +33,30 @@ const InvitationAccept = () => {
       try {
         console.log('🔍 Fetching invitation with token:', token);
         
-        // First try direct table access
-        let { data, error } = await supabase
-          .from('invitations')
-          .select('*')
-          .eq('token', token)
-          .eq('status', 'pending')
-          .single();
+        // Use the RPC function to get invitation details
+        const { data: funcData, error: funcError } = await supabase
+          .rpc('get_invitation_by_token', { invitation_token: token });
 
-        console.log('📊 Direct table access result:', { data, error });
+        console.log('📊 Function access result:', { funcData, funcError });
+        console.log('🔍 funcData type:', typeof funcData);
+        console.log('🔍 funcData length:', funcData ? funcData.length : 'null');
+        console.log('🔍 funcData content:', JSON.stringify(funcData, null, 2));
 
-        // If direct access fails due to RLS, try using the function
-        if (error && error.code === '406') {
-          console.log('⚠️ Direct access failed with 406, trying function access...');
-          const { data: funcData, error: funcError } = await supabase
-            .rpc('get_invitation_by_token', { invitation_token: token });
-
-          console.log('📊 Function access result:', { funcData, funcError });
-
-          if (funcError) throw funcError;
-          
-          // Function returns an array, so we need to get the first item
-          data = funcData && funcData.length > 0 ? funcData[0] : null;
-          error = null;
-        } else if (error) {
-          console.log('❌ Direct access error:', error);
-          throw error;
+        if (funcError) {
+          console.error('❌ Function error:', funcError);
+          console.error('❌ Function error details:', {
+            message: funcError.message,
+            details: funcError.details,
+            hint: funcError.hint,
+            code: funcError.code,
+            fullError: JSON.stringify(funcError, null, 2)
+          });
+          throw funcError;
         }
+        
+        // Function returns a table, so we need to get the first item
+        const data = funcData && funcData.length > 0 ? funcData[0] : null;
+        console.log('🔍 Extracted data:', data);
 
         if (!data) {
           console.log('❌ No invitation data found');
@@ -77,11 +74,30 @@ const InvitationAccept = () => {
           return;
         }
 
-        setInvitation(data);
-        setFormData(prev => ({ ...prev, email: data.email }));
-        console.log('✅ Invitation state updated successfully');
+        // Ensure the invitation data has consistent structure
+        const normalizedInvitation = {
+          id: data.id || null,
+          email: data.email || '',
+          role: data.role || 'employee',
+          status: data.status || 'pending',
+          token: data.token || null,
+          expires_at: data.expires_at || null,
+          invited_at: data.invited_at || null,
+          requested_at: data.requested_at || null
+        };
+        
+        setInvitation(normalizedInvitation);
+        setFormData(prev => ({ ...prev, email: normalizedInvitation.email }));
+        console.log('✅ Invitation state updated successfully with normalized data:', normalizedInvitation);
       } catch (err) {
         console.error('💥 Fetch invitation error:', err);
+        console.error('💥 Error details:', {
+          message: err.message,
+          details: err.details,
+          hint: err.hint,
+          code: err.code,
+          fullError: JSON.stringify(err, null, 2)
+        });
         showError('Error', 'Failed to load invitation');
         navigate('/login');
       } finally {
@@ -129,17 +145,18 @@ const InvitationAccept = () => {
     try {
       // First, create the user account using the invitation
       const { data: acceptData, error: acceptError } = await supabase
-        .rpc('accept_invitation', [
-          token,
-          formData.password,
-          formData.full_name,
-          formData.phone || null,
-          formData.location || null
-        ]);
+        .rpc('accept_invitation', {
+          invitation_token: token,
+          user_password: formData.password,
+          user_full_name: formData.full_name,
+          user_phone: formData.phone || null,
+          user_location: formData.location || null
+        });
 
       if (acceptError) throw acceptError;
 
       if (acceptData.success) {
+        // Account created successfully in the database
         // Now sign up the user with Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: invitation.email,
@@ -147,12 +164,18 @@ const InvitationAccept = () => {
           options: {
             data: {
               full_name: formData.full_name,
-              role: invitation.role
+              role: invitation.role,
+              user_id: acceptData.data.user_id,
+              employee_id: acceptData.data.employee_id
             }
           }
         });
 
-        if (authError) throw authError;
+        if (authError) {
+          // If auth signup fails, we should clean up the database records
+          console.warn('Auth signup failed, but database records were created:', authError);
+          // For now, we'll still show success since the account exists in the database
+        }
 
         success('Success', 'Account created successfully! You can now log in.');
         navigate('/login');

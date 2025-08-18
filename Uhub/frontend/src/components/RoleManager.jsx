@@ -19,6 +19,13 @@ const RoleManager = ({ user, onRoleUpdate }) => {
       permissions: ['All operations', 'User management', 'System settings']
     },
     { 
+      value: 'customer_service_manager', 
+      label: 'Customer Service Manager', 
+      description: 'Customer service management and CSPA access',
+      color: 'bg-purple-100 text-purple-800 border-purple-200',
+      permissions: ['CSPA access', 'Customer service management', 'Data import', 'Reports']
+    },
+    { 
       value: 'manager', 
       label: 'Manager', 
       description: 'Department management',
