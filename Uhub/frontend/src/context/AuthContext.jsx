@@ -25,107 +25,65 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log("Fetching profile for user ID:", userId);
       
-      // First, try to get user profile from the new users table
-      const { data, error } = await supabase
-        .rpc('get_user_profile', { user_uuid: userId });
-      
-      if (error) {
-        console.error("Supabase error fetching user profile:", error);
-        
-        // If the function doesn't exist yet, try fallback method
-        if (error.code === '42883') { // Function doesn't exist
-          console.log("get_user_profile function not found, using fallback...");
-          
-          // Try to get basic user info from users table
-          const { data: userData, error: userError } = await supabase
-            .from("users")
-            .select("*")
-            .eq("auth_user_id", userId)
-            .maybeSingle();
-          
-          if (userError) {
-            console.error("Fallback user query failed:", userError);
-            return null;
-          }
-          
-          if (userData) {
-            console.log("Fallback user data retrieved:", userData);
-            setProfileCache(prev => new Map(prev.set(userId, userData)));
-            return userData;
-          }
-        }
-        
-        throw error;
-      }
-      
-      // The function returns a table, so we get the first row
-      const profileData = data && data.length > 0 ? data[0] : null;
-      
-      if (profileData) {
-        console.log("Profile data retrieved from get_user_profile:", profileData);
-        setProfileCache(prev => new Map(prev.set(userId, profileData)));
-        return profileData;
-      }
-      
-      // If no profile found, try to link the auth user to an existing user account
-      console.log("No profile found, attempting to link auth user...");
-      
       // Get current user's email from Supabase Auth
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
-      if (authUser && authUser.email) {
-        console.log("Attempting to link auth user with email:", authUser.email);
-        
-        // Try to link the auth user to an existing user account
-        const { data: linkResult, error: linkError } = await supabase
-          .rpc('link_auth_user', { 
-            user_email: authUser.email, 
-            auth_uuid: userId 
-          });
-        
-        if (linkError) {
-          console.error("Error linking auth user:", linkError);
-        } else if (linkResult && linkResult.success) {
-          console.log("Successfully linked auth user:", linkResult);
-          
-          // Now try to get the profile again
-          const { data: retryData, error: retryError } = await supabase
-            .rpc('get_user_profile', { user_uuid: userId });
-          
-          if (!retryError && retryData && retryData.length > 0) {
-            const linkedProfile = retryData[0];
-            console.log("Profile retrieved after linking:", linkedProfile);
-            setProfileCache(prev => new Map(prev.set(userId, linkedProfile)));
-            return linkedProfile;
-          }
-        }
+      if (!authUser || !authUser.email) {
+        console.error("No auth user or email found");
+        return null;
       }
       
-      // Final fallback: try to get basic user info from users table
-      try {
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("auth_user_id", userId)
-          .maybeSingle();
-        
-        if (userError) {
-          console.error("Final fallback user query failed:", userError);
-          return null;
-        }
-        
-        if (userData) {
-          console.log("Final fallback user data retrieved:", userData);
-          setProfileCache(prev => new Map(prev.set(userId, userData)));
-          return userData;
-        }
-      } catch (fallbackError) {
-        console.error("Final fallback method failed:", fallbackError);
+      console.log("Auth user email:", authUser.email);
+      
+      // Try to get user profile from the users table directly
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", authUser.email)
+        .maybeSingle();
+      
+      if (userError) {
+        console.error("Error fetching user from users table:", userError);
+        return null;
+      }
+      
+      if (userData) {
+        console.log("User data retrieved from users table:", userData);
+        setProfileCache(prev => new Map(prev.set(userId, userData)));
+        return userData;
+      }
+      
+      // If no user found in users table, try to create one
+      console.log("No user found in users table, attempting to create...");
+      
+      const { data: newUser, error: createError } = await supabase
+        .from("users")
+        .insert({
+          email: authUser.email,
+          auth_user_id: userId,
+          role: 'employee', // Default role
+          status: 'active',
+          full_name: authUser.email.split('@')[0],
+          department: 'Unassigned',
+          position: 'Employee'
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error("Error creating user:", createError);
+        return null;
+      }
+      
+      if (newUser) {
+        console.log("New user created:", newUser);
+        setProfileCache(prev => new Map(prev.set(userId, newUser)));
+        return newUser;
       }
       
       return null;
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      console.error("Error in getUserProfile:", error);
       return null;
     }
   };
@@ -306,14 +264,22 @@ export const AuthProvider = ({ children }) => {
     acceptInvitation,
     getUserProfile,
     // Add a function to force refresh the profile
-    refreshProfile: () => {
+    refreshProfile: async () => {
       if (user?.id) {
-        getUserProfile(user.id).then(profile => {
+        const profile = await getUserProfile(user.id);
+        if (profile) {
           setUserProfile(profile);
-          setRole(profile?.role || 'employee');
-        });
+          setRole(profile.role || 'employee');
+          console.log("Profile refreshed:", profile);
+          console.log("Role set to:", profile.role);
+        }
       }
     },
+    // Add a function to manually set role (for debugging)
+    setUserRole: (newRole) => {
+      setRole(newRole);
+      console.log("Role manually set to:", newRole);
+    }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

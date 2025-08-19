@@ -19,6 +19,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 // Import components directly instead of lazy loading
 import InteractiveExpenseChart from '../components/InteractiveExpenseChart';
 import TodaySpendingChart from '../components/TodaySpendingChart';
+import RoleDebug from '../components/RoleDebug';
 
 // Color scheme for charts
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
@@ -770,6 +771,9 @@ export default function Dashboard() {
               <ScrollableExpenseTable data={safeExpenseStats} />
             )}
           </AnimatedCard>
+
+          {/* Role Debug Component - Temporary */}
+          <RoleDebug />
         </main>
       </div>
     </div>

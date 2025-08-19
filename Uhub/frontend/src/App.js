@@ -38,6 +38,15 @@ const CSPA = lazy(() => import("./pages/CSPA"));
 const CallCenterDemo = lazy(() => import("./pages/CallCenterDemo"));
 const TestInvitations = lazy(() => import("./pages/TestInvitations"));
 const RoleTest = lazy(() => import("./components/RoleTest"));
+const ITRequests = lazy(() => import("./pages/ITRequests"));
+const ITTickets = lazy(() => import("./pages/ITTickets"));
+const ITAssets = lazy(() => import("./pages/ITAssets"));
+const TaskManagement = lazy(() => import("./pages/TaskManagement"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Complaints = lazy(() => import("./pages/Complaints"));
+const Surveys = lazy(() => import("./pages/Surveys"));
+const Payroll = lazy(() => import("./pages/Payroll"));
+const EPR = lazy(() => import("./pages/EPR"));
 
 // React Query configuration
 const queryClient = new QueryClient({
@@ -190,6 +199,21 @@ const AppRoutes = () => {
         } />
         
         <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
+        
+        {/* IT Services Routes */}
+        <Route path="/it-requests" element={<ProtectedRoute><ITRequests /></ProtectedRoute>} />
+        <Route path="/it-tickets" element={<ProtectedRoute><ITTickets /></ProtectedRoute>} />
+        <Route path="/it-assets" element={<ProtectedRoute><ITAssets /></ProtectedRoute>} />
+        
+        {/* Task Management Routes */}
+        <Route path="/task-management" element={<ProtectedRoute><TaskManagement /></ProtectedRoute>} />
+        <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+        
+        {/* HR Management Routes */}
+        <Route path="/complaints" element={<ProtectedRoute><Complaints /></ProtectedRoute>} />
+        <Route path="/surveys" element={<ProtectedRoute><Surveys /></ProtectedRoute>} />
+        <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+        <Route path="/epr" element={<ProtectedRoute><EPR /></ProtectedRoute>} />
         
         <Route path="/cspa" element={
           <ProtectedRoute>
