@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, ChevronLeft, ChevronRight, Clock, DollarSign } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
+// import dateFns from 'date-fns';
 import { supabase } from '../supabaseClient';
 
 const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
@@ -15,7 +15,7 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
       const overdueEvents = events.filter(event => {
         if (event.status === 'paid' || event.status === 'cancelled') return false;
         const dueDate = new Date(event.due_date);
-        return isBefore(dueDate, today);
+        return dueDate < today;
       });
 
       if (overdueEvents.length > 0) {
@@ -54,16 +54,22 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
 
   // Generate calendar days
   const calendarDays = useMemo(() => {
-    const start = startOfMonth(currentDate);
-    const end = endOfMonth(currentDate);
-    return eachDayOfInterval({ start, end });
+    const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const days = [];
+    const current = new Date(start);
+    while (current <= end) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    return days;
   }, [currentDate]);
 
   // Get events for a specific date
   const getEventsForDate = (date) => {
     return events.filter(event => {
       const eventDate = new Date(event.due_date);
-      return isSameDay(eventDate, date);
+      return eventDate.toDateString() === date.toDateString();
     });
   };
 
@@ -96,11 +102,11 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
 
   // Navigation
   const goToPreviousMonth = () => {
-    setCurrentDate(subMonths(currentDate, 1));
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
 
   const goToNextMonth = () => {
-    setCurrentDate(addMonths(currentDate, 1));
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
   const goToToday = () => {
@@ -145,7 +151,7 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
       {/* Month/Year Display */}
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold text-gray-900">
-          {format(currentDate, 'MMMM yyyy')}
+          {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </h3>
       </div>
 
@@ -164,8 +170,8 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
         {/* Calendar Days */}
         {calendarDays.map((day, index) => {
           const dayEvents = getEventsForDate(day);
-          const isToday = isSameDay(day, new Date());
-          const isCurrentMonth = isSameMonth(day, currentDate);
+          const isToday = day.toDateString() === new Date().toDateString();
+          const isCurrentMonth = day.getMonth() === currentDate.getMonth() && day.getFullYear() === currentDate.getFullYear();
 
           return (
             <motion.div
@@ -186,7 +192,7 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
                 ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
                 ${isToday ? 'text-blue-600 font-bold' : ''}
               `}>
-                {format(day, 'd')}
+                {day.getDate()}
               </div>
 
               {/* Event Indicators */}

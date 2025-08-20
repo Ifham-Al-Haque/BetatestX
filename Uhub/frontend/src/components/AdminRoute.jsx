@@ -1,9 +1,37 @@
 import { useAuth } from "../context/AuthContext";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 
 export default function AdminRoute({ children }) {
-  const { role, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
+  const navigate = useNavigate();
+  const hasNavigated = useRef(false);
+
+  // Handle all navigation logic in useEffect hooks
+  useEffect(() => {
+    if (loading || hasNavigated.current) return;
+
+    // If no user, redirect to login
+    if (!user) {
+      hasNavigated.current = true;
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 0);
+      return;
+    }
+
+    const userRole = userProfile?.role || user?.role;
+    
+    // If not admin, redirect to role-appropriate page
+    if (userRole !== "admin") {
+      hasNavigated.current = true;
+      setTimeout(() => {
+        redirectToRolePage(userRole);
+      }, 0);
+      return;
+    }
+  }, [loading, user, userProfile, navigate]);
 
   if (loading) {
     return (
@@ -20,9 +48,36 @@ export default function AdminRoute({ children }) {
     );
   }
 
-  if (role !== "admin") {
-    return <Navigate to="/" />;
+  // If no user or not admin, don't render children
+  if (!user || (userProfile?.role || user?.role) !== "admin") {
+    return null;
   }
 
   return children;
+
+  // Helper function to redirect to role-appropriate page
+  function redirectToRolePage(role) {
+    switch (role) {
+      case 'manager':
+        navigate('/dashboard', { replace: true });
+        break;
+      case 'driver_management':
+        navigate('/drivers', { replace: true });
+        break;
+      case 'hr_manager':
+        navigate('/attendance', { replace: true });
+        break;
+      case 'cs_manager':
+        navigate('/cspa', { replace: true });
+        break;
+      case 'employee':
+        navigate('/tasks', { replace: true });
+        break;
+      case 'viewer':
+        navigate('/dashboard', { replace: true });
+        break;
+      default:
+        navigate('/dashboard', { replace: true });
+    }
+  }
 }

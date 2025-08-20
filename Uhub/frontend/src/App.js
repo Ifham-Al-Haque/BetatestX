@@ -1,52 +1,15 @@
 // src/App.js
-import React, { Suspense, lazy } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { ToastProvider } from "./context/ToastContext";
-import { SidebarProvider } from "./context/SidebarContext";
-import ErrorBoundary from "./components/ErrorBoundary";
-import LoadingSpinner from "./components/LoadingSpinner";
-import LoadingDiagnostic from "./components/LoadingDiagnostic";
-
-// Lazy load components for better performance
-const Login = lazy(() => import("./pages/Login"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Employees = lazy(() => import("./pages/Employees"));
-const EmployeeForm = lazy(() => import("./pages/EmployeeForm"));
-const EmployeeProfile = lazy(() => import("./pages/EmployeeProfile"));
-const Drivers = lazy(() => import("./pages/Driver"));
-const DriverForm = lazy(() => import("./pages/DriverForm"));
-const DriverProfile = lazy(() => import("./pages/DriverProfile"));
-const Assets = lazy(() => import("./pages/Assets"));
-const ExpenseTracker = lazy(() => import("./pages/ExpenseTracker"));
-const Tickets = lazy(() => import("./pages/Tickets"));
-const UserProfile = lazy(() => import("./pages/UserProfile"));
-const UserManagement = lazy(() => import("./pages/UserManagement"));
-const AccessRequests = lazy(() => import("./pages/AccessRequests"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const InvitationAccept = lazy(() => import("./pages/InvitationAccept"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const AssetProfile = lazy(() => import("./pages/AssetProfile"));
-const Simcard = lazy(() => import("./pages/Simcard"));
-const Voucher = lazy(() => import("./pages/Voucher"));
-const InvitationSignup = lazy(() => import("./pages/InvitationSignup"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
-const CSPA = lazy(() => import("./pages/CSPA"));
-const CallCenterDemo = lazy(() => import("./pages/CallCenterDemo"));
-const TestInvitations = lazy(() => import("./pages/TestInvitations"));
-const RoleTest = lazy(() => import("./components/RoleTest"));
-const ITRequests = lazy(() => import("./pages/ITRequests"));
-const ITTickets = lazy(() => import("./pages/ITTickets"));
-const ITAssets = lazy(() => import("./pages/ITAssets"));
-const TaskManagement = lazy(() => import("./pages/TaskManagement"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Complaints = lazy(() => import("./pages/Complaints"));
-const Surveys = lazy(() => import("./pages/Surveys"));
-const Payroll = lazy(() => import("./pages/Payroll"));
-const EPR = lazy(() => import("./pages/EPR"));
+import React, { Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { AuthProvider } from './context/AuthContext';
+import { SidebarProvider } from './context/SidebarContext';
+import { ToastProvider } from './context/ToastContext';
+import { ThemeProvider } from './context/ThemeContext';
+import LoadingSpinner from './components/LoadingSpinner';
+import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 
 // React Query configuration
 const queryClient = new QueryClient({
@@ -70,225 +33,337 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected Route Component
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user, loading, role, userProfile } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading application..." />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Check both role and userProfile.role for admin access
-  const isAdmin = role === 'admin' || userProfile?.role === 'admin';
-  
-  if (adminOnly && !isAdmin) {
-    console.log('Admin access denied. Role:', role, 'Profile role:', userProfile?.role);
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return children;
-};
-
-// Admin Route Component
-const AdminRoute = ({ children }) => {
-  return <ProtectedRoute adminOnly={true}>{children}</ProtectedRoute>;
-};
-
-// App Routes Component
-const AppRoutes = () => {
-  const { user } = useAuth();
-
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading..." />
-      </div>
-    }>
-      <Routes>
-        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/confirm-email" element={<ConfirmEmail />} />
-        <Route path="/invitation-signup" element={<InvitationSignup />} />
-        
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/employees" element={
-          <ProtectedRoute>
-            <Employees />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/employee/new" element={
-          <ProtectedRoute>
-            <EmployeeForm />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/employee/:id" element={
-          <ProtectedRoute>
-            <EmployeeProfile />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/employee/:id/edit" element={
-          <ProtectedRoute>
-            <EmployeeForm />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/drivers" element={
-          <ProtectedRoute>
-            <Drivers />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/driver/new" element={
-          <ProtectedRoute>
-            <DriverForm />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/driver/:id" element={
-          <ProtectedRoute>
-            <DriverProfile />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/driver/:id/edit" element={
-          <ProtectedRoute>
-            <DriverForm />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/assets" element={<ProtectedRoute><Assets /></ProtectedRoute>} />
-        <Route path="/assets/:id" element={<ProtectedRoute><AssetProfile /></ProtectedRoute>} />
-        <Route path="/expenses" element={
-          <ProtectedRoute>
-            <ExpenseTracker />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/analytics" element={
-          <ProtectedRoute>
-            <Analytics />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/simcards" element={
-          <ProtectedRoute>
-            <Simcard />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/vouchers" element={
-          <ProtectedRoute>
-            <Voucher />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
-        
-        {/* IT Services Routes */}
-        <Route path="/it-requests" element={<ProtectedRoute><ITRequests /></ProtectedRoute>} />
-        <Route path="/it-tickets" element={<ProtectedRoute><ITTickets /></ProtectedRoute>} />
-        <Route path="/it-assets" element={<ProtectedRoute><ITAssets /></ProtectedRoute>} />
-        
-        {/* Task Management Routes */}
-        <Route path="/task-management" element={<ProtectedRoute><TaskManagement /></ProtectedRoute>} />
-        <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-        
-        {/* HR Management Routes */}
-        <Route path="/complaints" element={<ProtectedRoute><Complaints /></ProtectedRoute>} />
-        <Route path="/surveys" element={<ProtectedRoute><Surveys /></ProtectedRoute>} />
-        <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
-        <Route path="/epr" element={<ProtectedRoute><EPR /></ProtectedRoute>} />
-        
-        <Route path="/cspa" element={
-          <ProtectedRoute>
-            <CSPA />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/call-center-demo" element={
-          <ProtectedRoute>
-            <CallCenterDemo />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/profile" element={
-          <ProtectedRoute>
-            <UserProfile />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/admin/users" element={
-          <AdminRoute>
-            <UserManagement />
-          </AdminRoute>
-        } />
-        
-        <Route path="/user-management" element={
-          <AdminRoute>
-            <UserManagement />
-          </AdminRoute>
-        } />
-        
-        <Route path="/admin/access-requests" element={
-          <AdminRoute>
-            <AccessRequests />
-          </AdminRoute>
-        } />
-        
-        <Route path="/admin/dashboard" element={
-          <AdminRoute>
-            <AdminDashboard />
-          </AdminRoute>
-        } />
-        
-        <Route path="/invite/:token" element={<InvitationAccept />} />
-        
-        <Route path="/test-invitations" element={<TestInvitations />} />
-        
-        <Route path="/role-test" element={<ProtectedRoute><RoleTest /></ProtectedRoute>} />
-        
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Suspense>
-  );
-};
+// Lazy load components for better performance
+const Welcome = React.lazy(() => import('./pages/Welcome'));
+const Login = React.lazy(() => import('./pages/Login'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const UserManagement = React.lazy(() => import('./pages/UserManagement'));
+const Employees = React.lazy(() => import('./pages/Employees'));
+const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
+const EmployeeForm = React.lazy(() => import('./pages/EmployeeForm'));
+const Drivers = React.lazy(() => import('./pages/Driver'));
+const DriverProfile = React.lazy(() => import('./pages/DriverProfile'));
+const DriverForm = React.lazy(() => import('./pages/DriverForm'));
+const Assets = React.lazy(() => import('./pages/Assets'));
+const ITAssets = React.lazy(() => import('./pages/ITAssets'));
+const ITRequests = React.lazy(() => import('./pages/ITRequests'));
+const ITTickets = React.lazy(() => import('./pages/ITTickets'));
+const CSPA = React.lazy(() => import('./pages/CSPA'));
+const Tickets = React.lazy(() => import('./pages/Tickets'));
+const Complaints = React.lazy(() => import('./pages/Complaints'));
+const Surveys = React.lazy(() => import('./pages/Surveys'));
+const Attendance = React.lazy(() => import('./pages/Attendance'));
+const AttendanceUpload = React.lazy(() => import('./pages/AttendanceUpload'));
+const Payroll = React.lazy(() => import('./pages/Payroll'));
+const EPR = React.lazy(() => import('./pages/EPR'));
+const TaskManagement = React.lazy(() => import('./pages/TaskManagement'));
+const Tasks = React.lazy(() => import('./pages/Tasks'));
+const Analytics = React.lazy(() => import('./pages/Analytics'));
+const ExpenseTracker = React.lazy(() => import('./pages/ExpenseTracker'));
+const PaymentCalendar = React.lazy(() => import('./pages/PaymentCalendar'));
+const UpcomingPaymentEvents = React.lazy(() => import('./pages/UpcomingPaymentEvents'));
+const Vouchers = React.lazy(() => import('./pages/Voucher'));
+const Simcards = React.lazy(() => import('./pages/Simcard'));
+const Breakdowns = React.lazy(() => import('./pages/Breakdowns'));
+const FleetManagement = React.lazy(() => import('./pages/FleetManagement'));
+const DriverOperations = React.lazy(() => import('./pages/DriverOperations'));
+const CalendarView = React.lazy(() => import('./pages/CalendarView'));
+const InvitationManager = React.lazy(() => import('./pages/InvitationManager'));
+const TestInvitations = React.lazy(() => import('./pages/TestInvitations'));
+const UserProfile = React.lazy(() => import('./pages/UserProfile'));
+const AccessManagement = React.lazy(() => import('./pages/AccessManagement'));
+const AccessRequests = React.lazy(() => import('./pages/AccessRequests'));
+const RBACTest = React.lazy(() => import('./pages/RBACTest'));
+const CallCenterDemo = React.lazy(() => import('./pages/CallCenterDemo'));
+const CSVDataImporter = React.lazy(() => import('./components/CSVDataImporter'));
+const InvitationAccept = React.lazy(() => import('./pages/InvitationAccept'));
+const InvitationSignup = React.lazy(() => import('./pages/InvitationSignup'));
+const ConfirmEmail = React.lazy(() => import('./pages/ConfirmEmail'));
+const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
 
 function App() {
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <Router>
         <AuthProvider>
-          <ToastProvider>
-            <SidebarProvider>
-              <Router>
-                <div className="App">
-                  <AppRoutes />
-                  <LoadingDiagnostic />
-                </div>
-              </Router>
-            </SidebarProvider>
-          </ToastProvider>
+          <SidebarProvider>
+            <ToastProvider>
+              <ThemeProvider>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<Welcome />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/confirm-email" element={<ConfirmEmail />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/invitation-accept" element={<InvitationAccept />} />
+                    <Route path="/invitation-signup" element={<InvitationSignup />} />
+
+                    {/* Protected Routes - Role-based landing pages */}
+                    <Route path="/dashboard" element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Admin Routes */}
+                    <Route path="/admin/*" element={
+                      <AdminRoute>
+                        <Routes>
+                          <Route path="dashboard" element={<AdminDashboard />} />
+                          <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+                        </Routes>
+                      </AdminRoute>
+                    } />
+
+                    {/* Role-specific landing pages */}
+                    <Route path="/cspa" element={
+                      <ProtectedRoute requiredFeature="cspa">
+                        <CSPA />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/drivers" element={
+                      <ProtectedRoute requiredFeature="drivers">
+                        <Drivers />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/attendance" element={
+                      <ProtectedRoute requiredFeature="attendance">
+                        <Attendance />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/tasks" element={
+                      <ProtectedRoute requiredFeature="my_tasks">
+                        <Tasks />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Other protected routes */}
+                    <Route path="/user-management" element={
+                      <ProtectedRoute requiredFeature="user_management">
+                        <UserManagement />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/employees" element={
+                      <ProtectedRoute requiredFeature="employees">
+                        <Employees />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/employee/:id" element={
+                      <ProtectedRoute requiredFeature="employees">
+                        <EmployeeProfile />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/employee-form" element={
+                      <ProtectedRoute requiredFeature="employees">
+                        <EmployeeForm />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/driver-profile" element={
+                      <ProtectedRoute requiredFeature="drivers">
+                        <DriverProfile />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/driver-form" element={
+                      <ProtectedRoute requiredFeature="drivers">
+                        <DriverForm />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/assets" element={
+                      <ProtectedRoute requiredFeature="assets">
+                        <Assets />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/it-assets" element={
+                      <ProtectedRoute requiredFeature="it_assets">
+                        <ITAssets />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/it-requests" element={
+                      <ProtectedRoute requiredFeature="requests">
+                        <ITRequests />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/it-tickets" element={
+                      <ProtectedRoute requiredFeature="it_tickets">
+                        <ITTickets />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/tickets" element={
+                      <ProtectedRoute requiredFeature="cs_tickets">
+                        <Tickets />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/complaints" element={
+                      <ProtectedRoute requiredFeature="complaints">
+                        <Complaints />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/surveys" element={
+                      <ProtectedRoute requiredFeature="surveys">
+                        <Surveys />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/attendance-upload" element={
+                      <ProtectedRoute requiredFeature="attendance_upload">
+                        <AttendanceUpload />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/payroll" element={
+                      <ProtectedRoute requiredFeature="payroll">
+                        <Payroll />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/epr" element={
+                      <ProtectedRoute requiredFeature="epr">
+                        <EPR />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/task-management" element={
+                      <ProtectedRoute requiredFeature="task_management">
+                        <TaskManagement />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/analytics" element={
+                      <ProtectedRoute requiredFeature="analytics">
+                        <Analytics />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/expenses" element={
+                      <ProtectedRoute requiredFeature="expense_tracker">
+                        <ExpenseTracker />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/payment-calendar" element={
+                      <ProtectedRoute requiredFeature="payment_calendar">
+                        <PaymentCalendar />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/upcoming-payments" element={
+                      <ProtectedRoute requiredFeature="upcoming_payments">
+                        <UpcomingPaymentEvents />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/vouchers" element={
+                      <ProtectedRoute requiredFeature="vouchers">
+                        <Vouchers />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/simcards" element={
+                      <ProtectedRoute requiredFeature="simcards">
+                        <Simcards />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/breakdowns" element={
+                      <ProtectedRoute requiredFeature="breakdowns">
+                        <Breakdowns />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/fleet" element={
+                      <ProtectedRoute requiredFeature="fleet_management">
+                        <FleetManagement />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/driver-operations" element={
+                      <ProtectedRoute requiredFeature="fleet_records">
+                        <DriverOperations />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/calendar-view" element={
+                      <ProtectedRoute requiredFeature="calendar_view">
+                        <CalendarView />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/invitation-manager" element={
+                      <ProtectedRoute requiredFeature="invitation_manager">
+                        <InvitationManager />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/test-invitations" element={
+                      <ProtectedRoute requiredFeature="test_invitations">
+                        <TestInvitations />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/profile" element={
+                      <ProtectedRoute requiredFeature="user_profile">
+                        <UserProfile />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/access-management" element={
+                      <ProtectedRoute requiredFeature="access_management">
+                        <AccessManagement />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/access-requests" element={
+                      <ProtectedRoute requiredFeature="access_requests">
+                        <AccessRequests />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/rbac-test" element={
+                      <ProtectedRoute requiredFeature="rbac_test">
+                        <RBACTest />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/call-center-demo" element={
+                      <ProtectedRoute requiredFeature="call_center_demo">
+                        <CallCenterDemo />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/csv-importer" element={
+                      <ProtectedRoute requiredFeature="csv_importer">
+                        <CSVDataImporter />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Catch all route - redirect to welcome */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Suspense>
+                <ReactQueryDevtools initialIsOpen={false} />
+              </ThemeProvider>
+            </ToastProvider>
+          </SidebarProvider>
         </AuthProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
-    </ErrorBoundary>
+      </Router>
+    </QueryClientProvider>
   );
 }
 

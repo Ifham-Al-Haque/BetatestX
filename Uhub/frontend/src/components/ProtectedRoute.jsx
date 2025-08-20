@@ -1,10 +1,55 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useRoleAccess } from "./RoleBasedRoute";
 import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children, requiredFeature = null, requiredRole = null, minRoleLevel = null }) {
   const { user, loading } = useAuth();
+  const { userRole, roleInfo, hasFeatureAccess, hasRoleLevel } = useRoleAccess();
   const navigate = useNavigate();
+  const hasNavigated = useRef(false);
+
+  // Handle all navigation logic in useEffect hooks
+  useEffect(() => {
+    if (loading || hasNavigated.current) return;
+
+    // If no user, redirect to login
+    if (!user) {
+      hasNavigated.current = true;
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 0);
+      return;
+    }
+
+    // Check feature-based access
+    if (requiredFeature && !hasFeatureAccess(requiredFeature)) {
+      hasNavigated.current = true;
+      setTimeout(() => {
+        redirectToRolePage(userRole);
+      }, 0);
+      return;
+    }
+
+    // Check role-based access
+    if (requiredRole && userRole !== requiredRole) {
+      hasNavigated.current = true;
+      setTimeout(() => {
+        redirectToRolePage(userRole);
+      }, 0);
+      return;
+    }
+
+    // Check minimum role level
+    if (minRoleLevel && !hasRoleLevel(minRoleLevel)) {
+      hasNavigated.current = true;
+      setTimeout(() => {
+        redirectToRolePage(userRole);
+      }, 0);
+      return;
+    }
+  }, [loading, user, userRole, requiredFeature, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate]);
 
   // If still loading, show loading screen
   if (loading) {
@@ -22,12 +67,43 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  // If no user, redirect to login
-  if (!user) {
-    navigate("/login", { replace: true });
+  // If no user or access denied, don't render children
+  if (!user || 
+      (requiredFeature && !hasFeatureAccess(requiredFeature)) ||
+      (requiredRole && userRole !== requiredRole) ||
+      (minRoleLevel && !hasRoleLevel(minRoleLevel))) {
     return null;
   }
 
-  // User is authenticated, render children
+  // User has access, render children
   return children;
+
+  // Helper function to redirect to role-appropriate page
+  function redirectToRolePage(role) {
+    switch (role) {
+      case 'admin':
+        navigate('/admin/dashboard', { replace: true });
+        break;
+      case 'manager':
+        navigate('/dashboard', { replace: true });
+        break;
+      case 'driver_management':
+        navigate('/drivers', { replace: true });
+        break;
+      case 'hr_manager':
+        navigate('/attendance', { replace: true });
+        break;
+      case 'cs_manager':
+        navigate('/cspa', { replace: true });
+        break;
+      case 'employee':
+        navigate('/tasks', { replace: true });
+        break;
+      case 'viewer':
+        navigate('/dashboard', { replace: true });
+        break;
+      default:
+        navigate('/dashboard', { replace: true });
+    }
+  }
 }

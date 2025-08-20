@@ -55,11 +55,13 @@ export default function UserManagement() {
   const toggleStatusMutation = useToggleUserStatus();
 
   const roles = [
-    { value: 'admin', label: 'Admin', color: 'bg-red-100 text-red-800 border-red-200' },
+    { value: 'admin', label: 'Administrator', color: 'bg-red-100 text-red-800 border-red-200' },
     { value: 'manager', label: 'Manager', color: 'bg-blue-100 text-blue-800 border-blue-200' },
     { value: 'driver_management', label: 'Driver Management', color: 'bg-green-100 text-green-800 border-green-200' },
-    { value: 'employee', label: 'Employee', color: 'bg-green-100 text-green-800 border-green-200' },
-    { value: 'view', label: 'View Only', color: 'bg-gray-100 text-gray-800 border-gray-200' }
+    { value: 'hr_manager', label: 'HR Manager', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+    { value: 'cs_manager', label: 'CS Manager', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+    { value: 'employee', label: 'Employee', color: 'bg-gray-100 text-gray-800 border-gray-200' },
+    { value: 'viewer', label: 'Viewer', color: 'bg-orange-100 text-orange-800 border-orange-200' }
   ];
 
   const handleCreateUser = useCallback(async (e) => {
@@ -285,8 +287,10 @@ export default function UserManagement() {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Roles</option>
-                  <option value="admin">Admin</option>
+                  <option value="admin">Administrator</option>
                   <option value="manager">Manager</option>
+                  <option value="driver_management">Driver Management</option>
+                  <option value="hr_manager">HR Manager</option>
                   <option value="employee">Employee</option>
                   <option value="viewer">Viewer</option>
                 </select>

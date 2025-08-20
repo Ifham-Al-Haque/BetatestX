@@ -41,8 +41,8 @@ export default function Login() {
       if (employeeData) {
         setUserRole(employeeData.role);
         
-        // Redirect to dashboard for all users
-        navigate("/dashboard", { replace: true });
+        // Redirect based on user role
+        redirectToRolePage(employeeData.role);
       } else {
         // User not in employees table, check if it's the admin user
         if (user.email === adminEmail) {
@@ -57,7 +57,7 @@ export default function Login() {
             position: "System Administrator"
           });
           setUserRole("admin");
-          navigate("/dashboard", { replace: true });
+          redirectToRolePage("admin");
         } else {
           // Regular user, create basic profile
           await supabase.from("employees").upsert({
@@ -70,14 +70,42 @@ export default function Login() {
             position: "Employee"
           });
           setUserRole("employee");
-          navigate("/dashboard", { replace: true });
+          redirectToRolePage("employee");
         }
       }
     } catch (error) {
       console.error("Error checking user role:", error);
       error("Role Check Error", "Failed to determine user role. Please contact support.");
-      // Still redirect to dashboard even if role check fails
-      navigate("/dashboard", { replace: true });
+      // Redirect to welcome page if role check fails
+      navigate("/", { replace: true });
+    }
+  };
+
+  const redirectToRolePage = (role) => {
+    switch (role) {
+      case 'admin':
+        navigate('/admin/dashboard', { replace: true });
+        break;
+      case 'manager':
+        navigate('/dashboard', { replace: true });
+        break;
+      case 'driver_management':
+        navigate('/drivers', { replace: true });
+        break;
+      case 'hr_manager':
+        navigate('/attendance', { replace: true });
+        break;
+      case 'cs_manager':
+        navigate('/cspa', { replace: true });
+        break;
+      case 'employee':
+        navigate('/tasks', { replace: true });
+        break;
+      case 'viewer':
+        navigate('/dashboard', { replace: true });
+        break;
+      default:
+        navigate('/dashboard', { replace: true });
     }
   };
 

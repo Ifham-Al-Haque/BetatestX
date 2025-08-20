@@ -51,7 +51,7 @@ export function ManagerAndAbove({ children, fallback = null, className = "" }) {
 export function EmployeeAndAbove({ children, fallback = null, className = "" }) {
   return (
     <RoleBasedSection 
-      allowedRoles={['admin', 'manager', 'employee']} 
+      allowedRoles={['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee']} 
       fallback={fallback}
       className={className}
     >
@@ -60,10 +60,34 @@ export function EmployeeAndAbove({ children, fallback = null, className = "" }) 
   );
 }
 
-export function CustomerServiceManagerAndAbove({ children, fallback = null, className = "" }) {
+export function HRManagerAndAbove({ children, fallback = null, className = "" }) {
   return (
     <RoleBasedSection 
-      allowedRoles={['admin', 'customer_service_manager']} 
+      allowedRoles={['admin', 'hr_manager']} 
+      fallback={fallback}
+      className={className}
+    >
+      {children}
+    </RoleBasedSection>
+  );
+}
+
+export function CSManagerAndAbove({ children, fallback = null, className = "" }) {
+  return (
+    <RoleBasedSection 
+      allowedRoles={['admin', 'hr_manager', 'cs_manager']} 
+      fallback={fallback}
+      className={className}
+    >
+      {children}
+    </RoleBasedSection>
+  );
+}
+
+export function DriverManagementAndAbove({ children, fallback = null, className = "" }) {
+  return (
+    <RoleBasedSection 
+      allowedRoles={['admin', 'manager', 'driver_management']} 
       fallback={fallback}
       className={className}
     >

@@ -13,6 +13,7 @@ import Sidebar from '../components/Sidebar';
 import GlobalFilter from '../components/GlobalFilter';
 import UpcomingPaymentEvents from '../components/UpcomingPaymentEvents';
 import PaymentCalendar from '../components/PaymentCalendar';
+
 import ScrollableExpenseTable from '../components/ScrollableExpenseTable';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -641,6 +642,8 @@ export default function Dashboard() {
               color="purple"
             />
           </div>
+
+
 
           {/* Charts Section - Now Vertical Layout */}
           <div className="space-y-8 mb-8">

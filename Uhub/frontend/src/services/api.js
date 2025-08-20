@@ -306,29 +306,111 @@ export const apiService = {
 
     // For UserProfile page that uses 'users' table
     getUserProfile: async (userId) => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      try {
+        // Get current user's email from Supabase Auth
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (!authUser || !authUser.email) {
+          throw new Error("No auth user or email found");
+        }
+        
+        // Try to get user profile from the users table by email
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', authUser.email)
+          .maybeSingle();
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        
+        if (data) {
+          return data;
+        }
+        
+        // If no user found, create a default user profile
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({
+            email: authUser.email,
+            auth_user_id: userId,
+            role: 'employee', // Default role
+            status: 'active',
+            full_name: authUser.email.split('@')[0],
+            department: 'Unassigned',
+            position: 'Employee'
+          })
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        return newUser;
+        
+      } catch (error) {
+        console.error("Error in getUserProfile:", error);
+        throw error;
+      }
     },
 
     updateUserProfile: async (userId, profileData) => {
-      const { data, error } = await supabase
-        .from('users')
-        .upsert({
-          id: userId,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      try {
+        // Get current user's email from Supabase Auth
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (!authUser || !authUser.email) {
+          throw new Error("No auth user or email found");
+        }
+        
+        // Check if user exists
+        const { data: existingUser, error: checkError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', authUser.email)
+          .maybeSingle();
+        
+        if (checkError) throw checkError;
+        
+        let result;
+        
+        if (existingUser) {
+          // Update existing user
+          const { data, error } = await supabase
+            .from('users')
+            .update({
+              ...profileData,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingUser.id)
+            .select()
+            .single();
+          
+          if (error) throw error;
+          result = data;
+        } else {
+          // Create new user if doesn't exist
+          const { data, error } = await supabase
+            .from('users')
+            .insert({
+              email: authUser.email,
+              auth_user_id: userId,
+              ...profileData,
+              role: profileData.role || 'employee',
+              status: 'active',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          result = data;
+        }
+        
+        return result;
+        
+      } catch (error) {
+        console.error("Error in updateUserProfile:", error);
+        throw error;
+      }
     }
   },
 

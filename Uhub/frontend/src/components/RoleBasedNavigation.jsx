@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Home, Users, Shield, Settings, BarChart3, 
   Car, Headphones, FileText, Calendar, 
@@ -15,13 +15,22 @@ const NAVIGATION_ITEMS = {
     path: '/dashboard',
     label: 'Dashboard',
     icon: Home,
-    roles: ['admin', 'customer_service', 'driver_management', 'employee'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'employee', 'viewer'],
     description: 'Main dashboard and overview'
+  },
+
+  // Home - All roles
+  home: {
+    path: '/',
+    label: 'Home',
+    icon: Home,
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer'],
+    description: 'Welcome page and system overview'
   },
 
   // Admin only features
   admin_dashboard: {
-    path: '/admin',
+    path: '/admin/dashboard',
     label: 'Admin Dashboard',
     icon: Shield,
     roles: ['admin'],
@@ -41,32 +50,24 @@ const NAVIGATION_ITEMS = {
     path: '/cspa',
     label: 'CSPA',
     icon: Headphones,
-    roles: ['admin', 'customer_service'],
+    roles: ['admin', 'hr_manager', 'cs_manager'],
     description: 'Customer Service Performance Analytics'
-  },
-
-  customer_support: {
-    path: '/customer-support',
-    label: 'Customer Support',
-    icon: Headphones,
-    roles: ['admin', 'customer_service'],
-    description: 'Customer support and ticket management'
   },
 
   cs_tickets: {
     path: '/tickets',
     label: 'CS Tickets',
     icon: FileText,
-    roles: ['admin', 'customer_service'],
+    roles: ['admin', 'hr_manager', 'cs_manager'],
     description: 'Customer service ticket management system'
   },
 
   // IT Services features
   it_requests: {
     path: '/it-requests',
-    label: 'IT Requests',
+    label: 'Requests',
     icon: FileText,
-    roles: ['admin', 'customer_service', 'driver_management', 'employee'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
     description: 'Submit and manage IT service requests'
   },
 
@@ -74,7 +75,7 @@ const NAVIGATION_ITEMS = {
     path: '/it-tickets',
     label: 'IT Tickets',
     icon: FileText,
-    roles: ['admin', 'customer_service', 'driver_management', 'employee'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'employee'],
     description: 'IT ticket management and task tracking'
   },
 
@@ -82,7 +83,7 @@ const NAVIGATION_ITEMS = {
     path: '/it-assets',
     label: 'IT Assets',
     icon: Building,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management'],
     description: 'IT asset management and tracking'
   },
 
@@ -116,7 +117,7 @@ const NAVIGATION_ITEMS = {
     path: '/employees',
     label: 'Employees',
     icon: Users,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager'],
     description: 'Employee management and records'
   },
 
@@ -124,7 +125,7 @@ const NAVIGATION_ITEMS = {
     path: '/employee-profile',
     label: 'Employee Profile',
     icon: UserCheck,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager'],
     description: 'Employee profile management'
   },
 
@@ -132,13 +133,13 @@ const NAVIGATION_ITEMS = {
     path: '/employee-form',
     label: 'Employee Form',
     icon: FileText,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager'],
     description: 'Add or edit employee information'
   },
 
   // Sim Card Management
   sim_cards: {
-    path: '/simcard',
+    path: '/simcards',
     label: 'Sim Cards',
     icon: Database,
     roles: ['admin', 'driver_management'],
@@ -150,7 +151,7 @@ const NAVIGATION_ITEMS = {
     path: '/analytics',
     label: 'Analytics',
     icon: BarChart3,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management'],
     description: 'Data analytics and insights'
   },
 
@@ -159,16 +160,16 @@ const NAVIGATION_ITEMS = {
     path: '/assets',
     label: 'Assets',
     icon: Building,
-    roles: ['admin', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management'],
     description: 'Asset management and tracking'
   },
 
   // Expense and Payment Management
   expense_tracker: {
-    path: '/expense-tracker',
+    path: '/expenses',
     label: 'Expense Tracker',
     icon: BarChart3,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management'],
     description: 'Track and manage expenses'
   },
 
@@ -176,7 +177,7 @@ const NAVIGATION_ITEMS = {
     path: '/payment-calendar',
     label: 'Payment Calendar',
     icon: Calendar,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management'],
     description: 'Payment scheduling and tracking'
   },
 
@@ -184,16 +185,16 @@ const NAVIGATION_ITEMS = {
     path: '/upcoming-payments',
     label: 'Upcoming Payments',
     icon: Calendar,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management'],
     description: 'View upcoming payment events'
   },
 
   // Voucher Management
   vouchers: {
-    path: '/voucher',
+    path: '/vouchers',
     label: 'Vouchers',
     icon: FileText,
-    roles: ['admin', 'customer_service'],
+    roles: ['admin', 'manager'],
     description: 'Voucher management system'
   },
 
@@ -202,7 +203,7 @@ const NAVIGATION_ITEMS = {
     path: '/attendance',
     label: 'Attendance',
     icon: Calendar,
-    roles: ['admin', 'hr', 'employee'],
+    roles: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
     description: 'Attendance tracking and management'
   },
 
@@ -210,7 +211,7 @@ const NAVIGATION_ITEMS = {
     path: '/attendance-upload',
     label: 'Attendance Upload',
     icon: Calendar,
-    roles: ['admin', 'hr'],
+    roles: ['admin', 'manager', 'hr_manager'],
     description: 'Upload attendance data'
   },
 
@@ -218,7 +219,7 @@ const NAVIGATION_ITEMS = {
     path: '/complaints',
     label: 'Complaints',
     icon: AlertTriangle,
-    roles: ['admin', 'hr', 'employee'],
+    roles: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
     description: 'Employee complaints and grievances management'
   },
 
@@ -226,7 +227,7 @@ const NAVIGATION_ITEMS = {
     path: '/surveys',
     label: 'Surveys',
     icon: FileText,
-    roles: ['admin', 'hr', 'employee'],
+    roles: ['admin', 'manager', 'hr_manager', 'employee'],
     description: 'Employee surveys and feedback collection'
   },
 
@@ -234,7 +235,7 @@ const NAVIGATION_ITEMS = {
     path: '/payroll',
     label: 'Payroll',
     icon: BarChart3,
-    roles: ['admin', 'hr'],
+    roles: ['admin', 'hr_manager'],
     description: 'Payroll management and processing'
   },
 
@@ -242,7 +243,7 @@ const NAVIGATION_ITEMS = {
     path: '/epr',
     label: 'EPR',
     icon: UserCheck,
-    roles: ['admin', 'hr', 'employee'],
+    roles: ['admin', 'hr_manager', 'employee'],
     description: 'Employee Performance Review system'
   },
 
@@ -251,7 +252,7 @@ const NAVIGATION_ITEMS = {
     path: '/task-management',
     label: 'Task Management',
     icon: ClipboardList,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management', 'cs_manager'],
     description: 'Create and assign tasks to team members'
   },
 
@@ -259,7 +260,7 @@ const NAVIGATION_ITEMS = {
     path: '/tasks',
     label: 'My Tasks',
     icon: CheckSquare,
-    roles: ['admin', 'customer_service', 'driver_management', 'employee'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
     description: 'View and manage assigned tasks'
   },
 
@@ -268,7 +269,7 @@ const NAVIGATION_ITEMS = {
     path: '/profile',
     label: 'User Profile',
     icon: UserCheck,
-    roles: ['admin', 'customer_service', 'driver_management', 'employee'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer'],
     description: 'User profile and settings'
   },
 
@@ -276,7 +277,7 @@ const NAVIGATION_ITEMS = {
     path: '/reports',
     label: 'Reports',
     icon: BarChart3,
-    roles: ['admin', 'customer_service', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager'],
     description: 'Analytics and reporting'
   },
 
@@ -285,7 +286,7 @@ const NAVIGATION_ITEMS = {
     path: '/invitation-manager',
     label: 'Invitation Manager',
     icon: Users,
-    roles: ['admin', 'customer_service'],
+    roles: ['admin'],
     description: 'Manage user invitations'
   },
 
@@ -311,7 +312,7 @@ const NAVIGATION_ITEMS = {
     path: '/calendar-view',
     label: 'Calendar View',
     icon: Calendar,
-    roles: ['admin', 'customer_service', 'driver_management', 'employee'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
     description: 'Calendar view of events and schedules'
   }
 };
@@ -320,7 +321,8 @@ const NAVIGATION_ITEMS = {
 const NAVIGATION_GROUPS = {
   main: {
     title: 'Main',
-    items: ['dashboard', 'employees', 'calendar_view']
+    items: ['home', 'dashboard', 'employees', 'calendar_view'],
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer']
   },
   admin: {
     title: 'Administration',
@@ -330,48 +332,49 @@ const NAVIGATION_GROUPS = {
   user_profile: {
     title: 'User Profile',
     items: ['profile'],
-    roles: ['admin', 'customer_service', 'driver_management', 'employee']
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer']
   },
-  customer_service: {
+  hr_management: {
     title: 'Customer Service',
-    items: ['cspa', 'customer_support', 'cs_tickets'],
-    roles: ['admin', 'customer_service']
+    items: ['cspa', 'cs_tickets'],
+    roles: ['admin', 'hr_manager', 'cs_manager']
   },
 
   it_services: {
     title: 'IT Services',
     items: ['it_requests', 'it_tickets', 'it_assets'],
-    roles: ['admin', 'customer_service', 'driver_management', 'employee']
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'employee']
   },
   driver_management: {
-    title: 'Operation Management',
+    title: 'Driver Management',
     items: ['driver_records', 'fleet_records', 'fleet_management', 'breakdowns'],
-    roles: ['admin', 'driver_management']
+    roles: ['admin', 'manager', 'driver_management']
   },
   asset_management: {
     title: 'Asset Management',
     items: ['assets', 'sim_cards'],
-    roles: ['admin', 'driver_management']
+    roles: ['admin', 'manager', 'driver_management']
   },
   financial: {
     title: 'Financial',
     items: ['expense_tracker', 'payment_calendar', 'upcoming_payments', 'vouchers', 'analytics'],
-    roles: ['admin', 'customer_service', 'driver_management']
+    roles: ['admin', 'manager', 'driver_management']
   },
   hr_panel: {
     title: 'HR Panel',
     items: ['attendance', 'attendance_upload', 'complaints', 'surveys', 'payroll', 'epr'],
-    roles: ['admin', 'hr', 'employee']
+    roles: ['admin', 'manager', 'hr_manager', 'employee']
   },
   todo_list: {
     title: 'To Do List',
     items: ['task_management', 'assigned_tasks', 'reports'],
-    roles: ['admin', 'customer_service', 'driver_management', 'employee']
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee']
   }
 };
 
 export const RoleBasedNavigation = () => {
   const { userRole, roleInfo } = useRoleAccess();
+  const navigate = useNavigate();
 
   // Add safety check - show loading state if role is not loaded yet
   if (!userRole) {
@@ -415,6 +418,27 @@ export const RoleBasedNavigation = () => {
 
                 const Icon = item.icon;
                 
+                // Special handling for User Management to fix navigation issue
+                if (itemKey === 'user_management') {
+                  return (
+                    <button
+                      key={itemKey}
+                      onClick={() => {
+                        console.log('Navigating to User Management:', item.path);
+                        navigate(item.path, { replace: false });
+                      }}
+                      className={`
+                        w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
+                        text-gray-700 hover:bg-gray-50 hover:text-gray-900
+                      `}
+                      title={item.description}
+                    >
+                      <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                }
+
                 return (
                   <NavLink
                     key={itemKey}
@@ -423,7 +447,7 @@ export const RoleBasedNavigation = () => {
                       flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
                       ${isActive 
                         ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-700' 
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }
                     `}
                     title={item.description}
@@ -451,6 +475,7 @@ export const RoleBasedActions = () => {
     switch (userRole) {
       case 'admin':
         return [
+          { label: 'Home', path: '/', icon: Home },
           { label: 'Add User', path: '/user-management', icon: Users },
           { label: 'Manage Employees', path: '/employees', icon: Users },
           { label: 'Manage Assets', path: '/assets', icon: Building },
@@ -459,40 +484,72 @@ export const RoleBasedActions = () => {
           { label: 'HR Management', path: '/attendance', icon: Calendar }
         ];
       
-      case 'customer_service':
+      case 'hr_manager':
         return [
+          { label: 'Home', path: '/', icon: Home },
           { label: 'New CS Ticket', path: '/tickets', icon: FileText },
           { label: 'CSPA Dashboard', path: '/cspa', icon: Headphones },
-          { label: 'Customer Support', path: '/customer-support', icon: Headphones },
-          { label: 'Manage Vouchers', path: '/voucher', icon: FileText },
+          { label: 'Manage Vouchers', path: '/vouchers', icon: FileText },
           { label: 'Task Management', path: '/task-management', icon: ClipboardList }
+        ];
+      
+      case 'cs_manager':
+        return [
+          { label: 'Home', path: '/', icon: Home },
+          { label: 'New CS Ticket', path: '/tickets', icon: FileText },
+          { label: 'CSPA Dashboard', path: '/cspa', icon: Headphones },
+          { label: 'Task Management', path: '/task-management', icon: ClipboardList },
+          { label: 'My Tasks', path: '/tasks', icon: CheckSquare },
+          { label: 'Reports', path: '/reports', icon: BarChart3 },
+          { label: 'Calendar View', path: '/calendar-view', icon: Calendar }
+        ];
+      
+      case 'manager':
+        return [
+          { label: 'Home', path: '/', icon: Home },
+          { label: 'Manage Employees', path: '/employees', icon: Users },
+          { label: 'Manage Assets', path: '/assets', icon: Building },
+          { label: 'View Analytics', path: '/analytics', icon: BarChart3 },
+          { label: 'Task Management', path: '/task-management', icon: ClipboardList },
+          { label: 'Fleet Overview', path: '/fleet', icon: Database }
         ];
       
       case 'driver_management':
         return [
+          { label: 'Home', path: '/', icon: Home },
           { label: 'Add Driver', path: '/drivers', icon: Car },
           { label: 'Fleet Overview', path: '/fleet', icon: Database },
           { label: 'Fleet Records', path: '/driver-operations', icon: Car },
           { label: 'Manage Assets', path: '/assets', icon: Building },
-          { label: 'Sim Cards', path: '/simcard', icon: Database },
+          { label: 'Sim Cards', path: '/simcards', icon: Database },
           { label: 'Task Management', path: '/task-management', icon: ClipboardList }
         ];
       
       case 'employee':
         return [
+          { label: 'Home', path: '/', icon: Home },
           { label: 'My Tasks', path: '/tasks', icon: CheckSquare },
           { label: 'Attendance', path: '/attendance', icon: Calendar },
           { label: 'User Profile', path: '/profile', icon: UserCheck },
           { label: 'Calendar View', path: '/calendar-view', icon: Calendar }
         ];
       
-      case 'hr':
+      case 'hr_manager':
         return [
           { label: 'Attendance', path: '/attendance', icon: Calendar },
           { label: 'Complaints', path: '/complaints', icon: AlertTriangle },
           { label: 'Surveys', path: '/surveys', icon: FileText },
           { label: 'Payroll', path: '/payroll', icon: BarChart3 },
           { label: 'EPR', path: '/epr', icon: UserCheck }
+        ];
+      
+      case 'viewer':
+        return [
+          { label: 'Home', path: '/', icon: Home },
+          { label: 'Dashboard', path: '/dashboard', icon: Home },
+          { label: 'View Drivers', path: '/drivers', icon: Car },
+          { label: 'View Employees', path: '/employees', icon: Users },
+          { label: 'User Profile', path: '/profile', icon: UserCheck }
         ];
       
       default:

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart3, TrendingUp, Upload, FileText } from 'lucide-react';
-import { CustomerServiceManagerAndAbove } from '../components/RoleBasedSection';
+import { HRManagerAndAbove } from '../components/RoleBasedSection';
+import Sidebar from '../components/Sidebar';
 
 // Simple placeholder components to avoid any import issues
 const SimpleCSVImporter = () => (
@@ -86,7 +87,7 @@ const CSPA = () => {
   };
 
   return (
-    <CustomerServiceManagerAndAbove
+            <HRManagerAndAbove
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
@@ -104,49 +105,52 @@ const CSPA = () => {
         </div>
       }
     >
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Customer Service Performance Analysis
-            </h1>
-            <p className="text-gray-600">
-              Monitor and analyze customer service metrics, ticket performance, and customer satisfaction
-            </p>
-          </div>
+      <div className="flex min-h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Customer Service Performance Analysis
+              </h1>
+              <p className="text-gray-600">
+                Monitor and analyze customer service metrics, ticket performance, and customer satisfaction
+              </p>
+            </div>
 
-          {/* Tabs */}
-          <div className="mb-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-              <div className="flex space-x-1">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                        isActive
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
+            {/* Tabs */}
+            <div className="mb-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+                <div className="flex space-x-1">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                          isActive
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Tab Content */}
-          {renderTabContent()}
+            {/* Tab Content */}
+            {renderTabContent()}
+          </div>
         </div>
       </div>
-    </CustomerServiceManagerAndAbove>
+            </HRManagerAndAbove>
   );
 };
 

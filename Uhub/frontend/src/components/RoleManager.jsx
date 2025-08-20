@@ -13,38 +13,52 @@ const RoleManager = ({ user, onRoleUpdate }) => {
   const roles = [
     { 
       value: 'admin', 
-      label: 'Admin', 
-      description: 'Full system access',
+      label: 'Administrator', 
+      description: 'Full system administrator with complete access to all sections',
       color: 'bg-red-100 text-red-800 border-red-200',
-      permissions: ['All operations', 'User management', 'System settings']
-    },
-    { 
-      value: 'customer_service_manager', 
-      label: 'Customer Service Manager', 
-      description: 'Customer service management and CSPA access',
-      color: 'bg-purple-100 text-purple-800 border-purple-200',
-      permissions: ['CSPA access', 'Customer service management', 'Data import', 'Reports']
+      permissions: ['All operations', 'User management', 'System settings', 'Role management']
     },
     { 
       value: 'manager', 
       label: 'Manager', 
-      description: 'Department management',
+      description: 'Semi-admin with elevated permissions but no user management',
       color: 'bg-blue-100 text-blue-800 border-blue-200',
-      permissions: ['Create/Edit drivers', 'View all data', 'Team management']
+      permissions: ['Assets management', 'Driver operations', 'Ticket management', 'Expense control', 'Analytics access']
+    },
+    { 
+      value: 'driver_management', 
+      label: 'Driver Management', 
+      description: 'Driver-specific role with access only to driver-related pages',
+      color: 'bg-green-100 text-green-800 border-green-200',
+      permissions: ['Driver records', 'Driver documents', 'Dashboard view', 'Basic operations']
+    },
+    { 
+      value: 'hr_manager', 
+      label: 'HR Manager', 
+      description: 'Human Resources management with employee oversight',
+      color: 'bg-purple-100 text-purple-800 border-purple-200',
+      permissions: ['Employee management', 'Attendance oversight', 'HR reports', 'HR operations']
+    },
+    { 
+      value: 'cs_manager', 
+      label: 'CS Manager', 
+      description: 'Customer Service management with CSPA and ticket oversight',
+      color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      permissions: ['CSPA access', 'CS ticket management', 'Customer service operations', 'Reports access']
     },
     { 
       value: 'employee', 
       label: 'Employee', 
-      description: 'Standard user access',
-      color: 'bg-green-100 text-green-800 border-green-200',
-      permissions: ['View drivers', 'Basic operations', 'Personal data']
+      description: 'Standard user with read-only access to main panel and personal data',
+      color: 'bg-gray-100 text-gray-800 border-gray-200',
+      permissions: ['Dashboard view', 'Personal data', 'Complaints access', 'Attendance view', 'My tasks', 'Reports access']
     },
     { 
       value: 'viewer', 
       label: 'Viewer', 
-      description: 'Read-only access',
-      color: 'bg-gray-100 text-gray-800 border-gray-200',
-      permissions: ['View only', 'No modifications', 'Limited access']
+      description: 'Read-only user with minimal permissions',
+      color: 'bg-orange-100 text-orange-800 border-orange-200',
+      permissions: ['View drivers', 'View employees', 'Dashboard access', 'Read-only operations']
     }
   ];
 

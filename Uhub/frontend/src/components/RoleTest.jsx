@@ -4,7 +4,8 @@ import {
   AdminOnly, 
   ManagerAndAbove, 
   EmployeeAndAbove, 
-  CustomerServiceManagerAndAbove 
+  HRManagerAndAbove,
+  DriverManagementAndAbove
 } from './RoleBasedSection';
 
 const RoleTest = () => {
@@ -70,16 +71,16 @@ const RoleTest = () => {
           </div>
         </AdminOnly>
 
-        {/* Customer Service Manager Section */}
-        <CustomerServiceManagerAndAbove
+        {/* HR Manager Section */}
+        <HRManagerAndAbove
           fallback={
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">📞</span>
+                  <span className="text-2xl">👥</span>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Customer Service Section</h3>
-                <p className="text-gray-600">This section requires Customer Service Manager role or above.</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">HR Manager Section</h3>
+                <p className="text-gray-600">This section requires HR Manager role or above.</p>
               </div>
             </div>
           }
@@ -89,20 +90,20 @@ const RoleTest = () => {
               <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">✅</span>
               </div>
-              <h3 className="text-xl font-semibold text-purple-900 mb-2">Customer Service Access Granted!</h3>
-              <p className="text-purple-700">You have access to customer service features.</p>
+              <h3 className="text-xl font-semibold text-purple-900 mb-2">HR Manager Access Granted!</h3>
+              <p className="text-purple-700">You have access to HR management features.</p>
               <div className="mt-4 p-4 bg-purple-50 rounded-lg">
-                <h4 className="font-medium text-purple-900 mb-2">Customer Service Capabilities:</h4>
+                <h4 className="font-medium text-purple-900 mb-2">HR Manager Capabilities:</h4>
                 <ul className="text-sm text-purple-700 space-y-1">
-                  <li>• Access to CSPA (Customer Service Performance Analysis)</li>
-                  <li>• Call Center Analytics Demo</li>
-                  <li>• Customer service data import and management</li>
-                  <li>• Performance reports and analytics</li>
+                  <li>• Employee management and oversight</li>
+                  <li>• Attendance monitoring and reports</li>
+                  <li>• HR operations and policies</li>
+                  <li>• Performance and compliance reports</li>
                 </ul>
               </div>
             </div>
           </div>
-        </CustomerServiceManagerAndAbove>
+        </HRManagerAndAbove>
 
         {/* Manager Section */}
         <ManagerAndAbove
@@ -137,6 +138,40 @@ const RoleTest = () => {
             </div>
           </div>
         </ManagerAndAbove>
+
+        {/* Driver Management Section */}
+        <DriverManagementAndAbove
+          fallback={
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">🚗</span>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Driver Management Section</h3>
+                <p className="text-gray-600">This section requires Driver Management role or above.</p>
+              </div>
+            </div>
+          }
+        >
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">✅</span>
+              </div>
+              <h3 className="text-xl font-semibold text-green-900 mb-2">Driver Management Access Granted!</h3>
+              <p className="text-green-700">You have driver management access to the system.</p>
+              <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2">Driver Management Capabilities:</h4>
+                <ul className="text-sm text-green-700 space-y-1">
+                  <li>• Driver records management</li>
+                  <li>• Driver documents handling</li>
+                  <li>• Dashboard access</li>
+                  <li>• Basic operations</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </DriverManagementAndAbove>
 
         {/* Employee Section */}
         <EmployeeAndAbove
@@ -175,24 +210,32 @@ const RoleTest = () => {
         {/* Role Information */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Available Roles</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 bg-red-50 rounded-lg">
-              <h4 className="font-medium text-red-900 mb-2">Admin</h4>
-              <p className="text-sm text-red-700">Full system access and control</p>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <h4 className="font-medium text-purple-900 mb-2">Customer Service Manager</h4>
-              <p className="text-sm text-purple-700">Customer service and CSPA access</p>
-            </div>
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Manager</h4>
-              <p className="text-sm text-blue-700">Department and team management</p>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-medium text-green-900 mb-2">Employee</h4>
-              <p className="text-sm text-green-700">Basic user access</p>
-            </div>
-          </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+             <div className="p-4 bg-red-50 rounded-lg">
+               <h4 className="font-medium text-red-900 mb-2">Administrator</h4>
+               <p className="text-sm text-red-700">Full system access and control</p>
+             </div>
+             <div className="p-4 bg-blue-50 rounded-lg">
+               <h4 className="font-medium text-blue-900 mb-2">Manager</h4>
+               <p className="text-sm text-blue-700">Semi-admin with elevated permissions</p>
+             </div>
+             <div className="p-4 bg-green-50 rounded-lg">
+               <h4 className="font-medium text-green-900 mb-2">Driver Management</h4>
+               <p className="text-sm text-green-700">Driver-specific operations</p>
+             </div>
+             <div className="p-4 bg-purple-50 rounded-lg">
+               <h4 className="font-medium text-purple-900 mb-2">HR Manager</h4>
+               <p className="text-sm text-purple-700">Human Resources management</p>
+             </div>
+             <div className="p-4 bg-gray-50 rounded-lg">
+               <h4 className="font-medium text-gray-900 mb-2">Employee</h4>
+               <p className="text-sm text-gray-700">Standard user with read-only access</p>
+             </div>
+             <div className="p-4 bg-orange-50 rounded-lg">
+               <h4 className="font-medium text-orange-900 mb-2">Viewer</h4>
+               <p className="text-sm text-orange-700">Read-only minimal access</p>
+             </div>
+           </div>
         </div>
       </div>
     </div>

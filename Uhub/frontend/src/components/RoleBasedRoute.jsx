@@ -6,40 +6,67 @@ import { Shield, AlertTriangle, Lock } from 'lucide-react';
 // Role hierarchy and permissions
 export const ROLE_PERMISSIONS = {
   admin: {
-    level: 4,
+    level: 1,
     name: 'Administrator',
-    description: 'Full access to all system features',
+    description: 'Full system administrator with complete access to all sections',
     color: 'text-red-600',
     bgColor: 'bg-red-50',
     icon: Shield,
     access: ['all']
   },
-  customer_service: {
-    level: 3,
-    name: 'Customer Service',
-    description: 'Access to CSPA and customer service features',
+  manager: {
+    level: 2,
+    name: 'Manager',
+    description: 'Semi-admin with elevated permissions but no user management',
     color: 'text-blue-600',
     bgColor: 'bg-blue-50',
     icon: Shield,
-    access: ['cspa', 'customer_service', 'basic_features', 'user_management']
+    access: ['assets', 'drivers', 'tickets', 'calendar', 'expenses', 'simcards', 'vouchers', 'analytics', 'dashboard', 'employees', 'attendance']
   },
   driver_management: {
-    level: 2,
-    name: 'Operation Management',
-    description: 'Access to driver records and operations',
+    level: 3,
+    name: 'Driver Management',
+    description: 'Driver-specific role with access only to driver-related pages',
     color: 'text-green-600',
     bgColor: 'bg-green-50',
     icon: Shield,
-    access: ['driver_records', 'driver_operations', 'basic_features']
+    access: ['drivers', 'dashboard', 'driver_records', 'driver_documents']
+  },
+  hr_manager: {
+    level: 4,
+    name: 'HR Manager',
+    description: 'Human Resources management with employee oversight',
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50',
+    icon: Shield,
+    access: ['employees', 'attendance', 'reports', 'hr_operations', 'basic_features']
+  },
+  cs_manager: {
+    level: 5,
+    name: 'CS Manager',
+    description: 'Customer Service management with CSPA and ticket oversight',
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-50',
+    icon: Shield,
+    access: ['cspa', 'cs_tickets', 'requests', 'attendance_view', 'complaints', 'task_management', 'my_tasks', 'reports', 'calendar_view', 'user_profile']
   },
   employee: {
-    level: 1,
+    level: 6,
     name: 'Employee',
-    description: 'Basic access to assigned features',
+    description: 'Standard user with read-only access to main panel and personal data',
     color: 'text-gray-600',
     bgColor: 'bg-gray-50',
     icon: Shield,
-    access: ['basic_features', 'assigned_tasks']
+    access: ['dashboard', 'personal_data', 'complaints', 'attendance', 'my_tasks', 'reports', 'user_profile']
+  },
+  viewer: {
+    level: 7,
+    name: 'Viewer',
+    description: 'Read-only user with minimal permissions',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
+    icon: Shield,
+    access: ['drivers', 'employees', 'dashboard']
   }
 };
 
@@ -47,27 +74,51 @@ export const ROLE_PERMISSIONS = {
 export const FEATURE_ACCESS = {
   // Admin features
   admin_dashboard: ['admin'],
-  user_management: ['admin', 'customer_service'],
+  user_management: ['admin'],
   system_settings: ['admin'],
+  role_management: ['admin'],
   
-  // Customer Service features
-  cspa: ['admin', 'customer_service'],
-  customer_support: ['admin', 'customer_service'],
-  ticket_management: ['admin', 'customer_service'],
+  // Manager features
+  assets: ['admin', 'manager'],
+  drivers: ['admin', 'manager', 'driver_management', 'employee', 'viewer'],
+  tickets: ['admin', 'manager'],
+  calendar: ['admin', 'manager'],
+  expenses: ['admin', 'manager'],
+  simcards: ['admin', 'manager'],
+  vouchers: ['admin', 'manager'],
+  analytics: ['admin', 'manager'],
+  dashboard: ['admin', 'manager', 'driver_management', 'employee', 'viewer'],
+  employees: ['admin', 'manager', 'hr_manager', 'employee', 'viewer'],
+  attendance: ['admin', 'manager', 'hr_manager', 'employee'],
+  
+  // HR Manager features
+  hr_operations: ['admin', 'hr_manager'],
+  
+  // CS Manager features
+  cspa: ['admin', 'hr_manager', 'cs_manager'],
+  cs_tickets: ['admin', 'hr_manager', 'cs_manager'],
+  requests: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
+  attendance_view: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
+  complaints: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
+  task_management: ['admin', 'manager', 'driver_management', 'cs_manager'],
+  my_tasks: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
+  reports: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager'],
+  calendar_view: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
+  user_profile: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer'],
   
   // Driver Management features
-  driver_records: ['admin', 'driver_management'],
-  driver_operations: ['admin', 'driver_management'],
-  fleet_management: ['admin', 'driver_management'],
-  
-  // Basic features
-  dashboard: ['admin', 'customer_service', 'driver_management', 'employee'],
-  profile: ['admin', 'customer_service', 'driver_management', 'employee'],
-  reports: ['admin', 'customer_service', 'driver_management'],
+  driver_records: ['admin', 'manager', 'driver_management'],
+  driver_documents: ['admin', 'manager', 'driver_management'],
   
   // Employee features
-  assigned_tasks: ['admin', 'customer_service', 'driver_management', 'employee'],
-  attendance: ['admin', 'customer_service', 'driver_management', 'employee']
+  personal_data: ['admin', 'manager', 'hr_manager', 'employee'],
+  complaints: ['admin', 'manager', 'employee'],
+  my_tasks: ['admin', 'manager', 'employee'],
+  reports: ['admin', 'manager', 'hr_manager', 'employee'],
+  user_profile: ['admin', 'manager', 'hr_manager', 'employee'],
+  
+  // Basic features
+  profile: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer']
 };
 
 // Check if user has access to a specific feature
@@ -228,7 +279,8 @@ export const useRoleAccess = () => {
       hasFeatureAccess: () => false,
       hasRoleLevel: () => false,
       isAdmin: false,
-      isCustomerService: false,
+      isHRManager: false,
+      isCSManager: false,
       isDriverManagement: false,
       isEmployee: false
     };
@@ -240,7 +292,8 @@ export const useRoleAccess = () => {
     hasFeatureAccess: (feature) => hasFeatureAccess(userRole, feature),
     hasRoleLevel: (level) => hasRoleLevel(userRole, level),
     isAdmin: userRole === 'admin',
-    isCustomerService: userRole === 'customer_service',
+    isHRManager: userRole === 'hr_manager',
+    isCSManager: userRole === 'cs_manager',
     isDriverManagement: userRole === 'driver_management',
     isEmployee: userRole === 'employee'
   };

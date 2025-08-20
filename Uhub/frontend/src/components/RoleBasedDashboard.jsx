@@ -3,7 +3,8 @@ import { useRoleAccess, ROLE_PERMISSIONS } from './RoleBasedRoute';
 import { 
   Users, Shield, Headphones, Car, BarChart3, 
   FileText, Calendar, UserCheck, Database, 
-  TrendingUp, Activity, Settings
+  TrendingUp, Activity, Settings, Building,
+  Eye, Home, ClipboardList
 } from 'lucide-react';
 
 // Dashboard cards for different roles
@@ -39,7 +40,7 @@ const DASHBOARD_CARDS = {
     }
   ],
   
-  customer_service: [
+  hr_manager: [
     {
       title: 'Open Tickets',
       value: '12',
@@ -67,6 +68,37 @@ const DASHBOARD_CARDS = {
       icon: UserCheck,
       color: 'bg-purple-500',
       description: 'Issues resolved today'
+    }
+  ],
+  
+  manager: [
+    {
+      title: 'Active Employees',
+      value: '156',
+      icon: Users,
+      color: 'bg-blue-500',
+      description: 'Total active employees'
+    },
+    {
+      title: 'Asset Count',
+      value: '89',
+      icon: Building,
+      color: 'bg-green-500',
+      description: 'Total managed assets'
+    },
+    {
+      title: 'Operations',
+      value: '23',
+      icon: Activity,
+      color: 'bg-purple-500',
+      description: 'Active operations'
+    },
+    {
+      title: 'Performance',
+      value: '94%',
+      icon: TrendingUp,
+      color: 'bg-orange-500',
+      description: 'System performance'
     }
   ],
   
@@ -130,6 +162,37 @@ const DASHBOARD_CARDS = {
       color: 'bg-orange-500',
       description: 'Unread notifications'
     }
+  ],
+  
+  viewer: [
+    {
+      title: 'Dashboard Access',
+      value: 'Read Only',
+      icon: Eye,
+      color: 'bg-blue-500',
+      description: 'View-only access'
+    },
+    {
+      title: 'Driver Count',
+      value: '45',
+      icon: Users,
+      color: 'bg-green-500',
+      description: 'Total drivers'
+    },
+    {
+      title: 'Employee Count',
+      value: '156',
+      icon: Users,
+      color: 'bg-purple-500',
+      description: 'Total employees'
+    },
+    {
+      title: 'System Status',
+      value: 'Active',
+      icon: Activity,
+      color: 'bg-orange-500',
+      description: 'System operational'
+    }
   ]
 };
 
@@ -142,11 +205,18 @@ const QUICK_ACTIONS = {
     { label: 'User Management', action: '/user-management', icon: Shield, color: 'bg-purple-100 text-purple-700' }
   ],
   
-  customer_service: [
+  hr_manager: [
     { label: 'New Ticket', action: '/tickets', icon: FileText, color: 'bg-red-100 text-red-700' },
     { label: 'CSPA Dashboard', action: '/cspa', icon: Headphones, color: 'bg-blue-100 text-blue-700' },
     { label: 'Customer Support', action: '/customer-support', icon: UserCheck, color: 'bg-green-100 text-green-700' },
     { label: 'View Reports', action: '/reports', icon: BarChart3, color: 'bg-purple-100 text-purple-700' }
+  ],
+  
+  manager: [
+    { label: 'Manage Employees', action: '/employees', icon: Users, color: 'bg-blue-100 text-blue-700' },
+    { label: 'Manage Assets', action: '/assets', icon: Building, color: 'bg-green-100 text-green-700' },
+    { label: 'View Analytics', action: '/analytics', icon: BarChart3, color: 'bg-purple-100 text-purple-700' },
+    { label: 'Task Management', action: '/task-management', icon: ClipboardList, color: 'bg-orange-100 text-orange-700' }
   ],
   
   driver_management: [
@@ -161,6 +231,13 @@ const QUICK_ACTIONS = {
     { label: 'Attendance', action: '/attendance', icon: Calendar, color: 'bg-green-100 text-green-700' },
     { label: 'Profile', action: '/profile', icon: UserCheck, color: 'bg-purple-100 text-purple-700' },
     { label: 'Reports', action: '/reports', icon: BarChart3, color: 'bg-orange-100 text-orange-700' }
+  ],
+  
+  viewer: [
+    { label: 'Dashboard', action: '/dashboard', icon: Home, color: 'bg-blue-100 text-blue-700' },
+    { label: 'View Drivers', action: '/drivers', icon: Car, color: 'bg-green-100 text-green-700' },
+    { label: 'View Employees', action: '/employees', icon: Users, color: 'bg-purple-100 text-purple-700' },
+    { label: 'User Profile', action: '/profile', icon: UserCheck, color: 'bg-orange-100 text-orange-700' }
   ]
 };
 

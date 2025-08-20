@@ -156,7 +156,18 @@ export default function UserProfile() {
         <div className="ml-64 p-6 w-full">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h3 className="text-red-800 font-medium">Error Loading Profile</h3>
-            <p className="text-red-600 mt-1">{error.message}</p>
+            <p className="text-red-600 mt-1">
+              {error.message === "JSON object requested, multiple (or no) rows returned" 
+                ? "Unable to load your profile. This usually means your profile hasn't been created yet. Please try refreshing the page or contact support."
+                : error.message
+              }
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Refresh Page
+            </button>
           </div>
         </div>
       </div>
@@ -170,6 +181,29 @@ export default function UserProfile() {
         <div className="ml-64 p-6 w-full">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle case where profile is null but no error (profile might be creating)
+  if (!userProfile && !error && !isLoading) {
+    return (
+      <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+        <Sidebar />
+        <div className="ml-64 p-6 w-full">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 className="text-yellow-800 font-medium">Profile Not Found</h3>
+            <p className="text-yellow-600 mt-1">
+              Your profile is being created. Please wait a moment and refresh the page.
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+            >
+              Refresh Page
+            </button>
           </div>
         </div>
       </div>
