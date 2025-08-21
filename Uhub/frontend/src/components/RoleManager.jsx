@@ -44,7 +44,7 @@ const RoleManager = ({ user, onRoleUpdate }) => {
       label: 'CS Manager', 
       description: 'Customer Service management with CSPA and ticket oversight',
       color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      permissions: ['CSPA access', 'CS ticket management', 'Customer service operations', 'Reports access']
+      permissions: ['CSPA access', 'CS ticket management', 'IT requests', 'Attendance view', 'Complaints access', 'Task management', 'Reports access', 'Calendar view', 'Employee records view']
     },
     { 
       value: 'employee', 

@@ -48,7 +48,7 @@ export const ROLE_PERMISSIONS = {
     color: 'text-indigo-600',
     bgColor: 'bg-indigo-50',
     icon: Shield,
-    access: ['cspa', 'cs_tickets', 'requests', 'attendance_view', 'complaints', 'task_management', 'my_tasks', 'reports', 'calendar_view', 'user_profile']
+    access: ['cspa', 'cs_tickets', 'requests', 'attendance', 'complaints', 'task_management', 'my_tasks', 'reports', 'calendar_view', 'user_profile', 'employees_view']
   },
   employee: {
     level: 6,
@@ -89,7 +89,8 @@ export const FEATURE_ACCESS = {
   analytics: ['admin', 'manager'],
   dashboard: ['admin', 'manager', 'driver_management', 'employee', 'viewer'],
   employees: ['admin', 'manager', 'hr_manager', 'employee', 'viewer'],
-  attendance: ['admin', 'manager', 'hr_manager', 'employee'],
+  employees_view: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee', 'viewer'],
+  attendance: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
   
   // HR Manager features
   hr_operations: ['admin', 'hr_manager'],
@@ -118,7 +119,28 @@ export const FEATURE_ACCESS = {
   user_profile: ['admin', 'manager', 'hr_manager', 'employee'],
   
   // Basic features
-  profile: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer']
+  profile: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer'],
+  
+  // Additional features used in routes
+  it_assets: ['admin', 'manager', 'driver_management'],
+  it_tickets: ['admin', 'manager', 'driver_management', 'hr_manager', 'employee'],
+  attendance_upload: ['admin', 'manager', 'hr_manager'],
+  payroll: ['admin', 'hr_manager'],
+  epr: ['admin', 'hr_manager', 'employee'],
+  expense_tracker: ['admin', 'manager', 'driver_management'],
+  payment_calendar: ['admin', 'manager', 'driver_management'],
+  upcoming_payments: ['admin', 'manager', 'driver_management'],
+  breakdowns: ['admin', 'driver_management'],
+  fleet_management: ['admin', 'driver_management'],
+  fleet_records: ['admin', 'driver_management'],
+  surveys: ['admin', 'manager', 'hr_manager', 'employee'],
+  invitation_manager: ['admin'],
+  test_invitations: ['admin'],
+  access_management: ['admin'],
+  access_requests: ['admin'],
+  rbac_test: ['admin'],
+  call_center_demo: ['admin'],
+  csv_importer: ['admin']
 };
 
 // Check if user has access to a specific feature

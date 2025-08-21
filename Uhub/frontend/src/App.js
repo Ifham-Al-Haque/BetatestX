@@ -10,6 +10,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import LoadingSpinner from './components/LoadingSpinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import Layout from './components/Layout';
 
 // React Query configuration
 const queryClient = new QueryClient({
@@ -103,253 +104,335 @@ function App() {
                     {/* Protected Routes - Role-based landing pages */}
                     <Route path="/dashboard" element={
                       <ProtectedRoute>
-                        <Dashboard />
+                        <Layout>
+                          <Dashboard />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     {/* Admin Routes */}
                     <Route path="/admin/*" element={
                       <AdminRoute>
-                        <Routes>
-                          <Route path="dashboard" element={<AdminDashboard />} />
-                          <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-                        </Routes>
+                        <Layout>
+                          <Routes>
+                            <Route path="dashboard" element={<AdminDashboard />} />
+                            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+                          </Routes>
+                        </Layout>
                       </AdminRoute>
                     } />
 
                     {/* Role-specific landing pages */}
                     <Route path="/cspa" element={
                       <ProtectedRoute requiredFeature="cspa">
-                        <CSPA />
+                        <Layout>
+                          <CSPA />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/drivers" element={
                       <ProtectedRoute requiredFeature="drivers">
-                        <Drivers />
+                        <Layout>
+                          <Drivers />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/attendance" element={
                       <ProtectedRoute requiredFeature="attendance">
-                        <Attendance />
+                        <Layout>
+                          <Attendance />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/tasks" element={
                       <ProtectedRoute requiredFeature="my_tasks">
-                        <Tasks />
+                        <Layout>
+                          <Tasks />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     {/* Other protected routes */}
                     <Route path="/user-management" element={
                       <ProtectedRoute requiredFeature="user_management">
-                        <UserManagement />
+                        <Layout>
+                          <UserManagement />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/employees" element={
                       <ProtectedRoute requiredFeature="employees">
-                        <Employees />
+                        <Layout>
+                          <Employees />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/employee/:id" element={
                       <ProtectedRoute requiredFeature="employees">
-                        <EmployeeProfile />
+                        <Layout>
+                          <EmployeeProfile />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/employee-form" element={
                       <ProtectedRoute requiredFeature="employees">
-                        <EmployeeForm />
+                        <Layout>
+                          <EmployeeForm />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/driver-profile" element={
                       <ProtectedRoute requiredFeature="drivers">
-                        <DriverProfile />
+                        <Layout>
+                          <DriverProfile />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/driver-form" element={
                       <ProtectedRoute requiredFeature="drivers">
-                        <DriverForm />
+                        <Layout>
+                          <DriverForm />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/assets" element={
                       <ProtectedRoute requiredFeature="assets">
-                        <Assets />
+                        <Layout>
+                          <Assets />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/it-assets" element={
                       <ProtectedRoute requiredFeature="it_assets">
-                        <ITAssets />
+                        <Layout>
+                          <ITAssets />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/it-requests" element={
                       <ProtectedRoute requiredFeature="requests">
-                        <ITRequests />
+                        <Layout>
+                          <ITRequests />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/it-tickets" element={
                       <ProtectedRoute requiredFeature="it_tickets">
-                        <ITTickets />
+                        <Layout>
+                          <ITTickets />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/tickets" element={
                       <ProtectedRoute requiredFeature="cs_tickets">
-                        <Tickets />
+                        <Layout>
+                          <Tickets />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/complaints" element={
                       <ProtectedRoute requiredFeature="complaints">
-                        <Complaints />
+                        <Layout>
+                          <Complaints />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/surveys" element={
                       <ProtectedRoute requiredFeature="surveys">
-                        <Surveys />
+                        <Layout>
+                          <Surveys />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/attendance-upload" element={
                       <ProtectedRoute requiredFeature="attendance_upload">
-                        <AttendanceUpload />
+                        <Layout>
+                          <AttendanceUpload />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/payroll" element={
                       <ProtectedRoute requiredFeature="payroll">
-                        <Payroll />
+                        <Layout>
+                          <Payroll />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/epr" element={
                       <ProtectedRoute requiredFeature="epr">
-                        <EPR />
+                        <Layout>
+                          <EPR />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/task-management" element={
                       <ProtectedRoute requiredFeature="task_management">
-                        <TaskManagement />
+                        <Layout>
+                          <TaskManagement />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/analytics" element={
                       <ProtectedRoute requiredFeature="analytics">
-                        <Analytics />
+                        <Layout>
+                          <Analytics />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/expenses" element={
                       <ProtectedRoute requiredFeature="expense_tracker">
-                        <ExpenseTracker />
+                        <Layout>
+                          <ExpenseTracker />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/payment-calendar" element={
                       <ProtectedRoute requiredFeature="payment_calendar">
-                        <PaymentCalendar />
+                        <Layout>
+                          <PaymentCalendar />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/upcoming-payments" element={
                       <ProtectedRoute requiredFeature="upcoming_payments">
-                        <UpcomingPaymentEvents />
+                        <Layout>
+                          <UpcomingPaymentEvents />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/vouchers" element={
                       <ProtectedRoute requiredFeature="vouchers">
-                        <Vouchers />
+                        <Layout>
+                          <Vouchers />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/simcards" element={
                       <ProtectedRoute requiredFeature="simcards">
-                        <Simcards />
+                        <Layout>
+                          <Simcards />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/breakdowns" element={
                       <ProtectedRoute requiredFeature="breakdowns">
-                        <Breakdowns />
+                        <Layout>
+                          <Breakdowns />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/fleet" element={
                       <ProtectedRoute requiredFeature="fleet_management">
-                        <FleetManagement />
+                        <Layout>
+                          <FleetManagement />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/driver-operations" element={
                       <ProtectedRoute requiredFeature="fleet_records">
-                        <DriverOperations />
+                        <Layout>
+                          <DriverOperations />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/calendar-view" element={
                       <ProtectedRoute requiredFeature="calendar_view">
-                        <CalendarView />
+                        <Layout>
+                          <CalendarView />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/invitation-manager" element={
                       <ProtectedRoute requiredFeature="invitation_manager">
-                        <InvitationManager />
+                        <Layout>
+                          <InvitationManager />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/test-invitations" element={
                       <ProtectedRoute requiredFeature="test_invitations">
-                        <TestInvitations />
+                        <Layout>
+                          <TestInvitations />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/profile" element={
                       <ProtectedRoute requiredFeature="user_profile">
-                        <UserProfile />
+                        <Layout>
+                          <UserProfile />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/access-management" element={
                       <ProtectedRoute requiredFeature="access_management">
-                        <AccessManagement />
+                        <Layout>
+                          <AccessManagement />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/access-requests" element={
                       <ProtectedRoute requiredFeature="access_requests">
-                        <AccessRequests />
+                        <Layout>
+                          <AccessRequests />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/rbac-test" element={
                       <ProtectedRoute requiredFeature="rbac_test">
-                        <RBACTest />
+                        <Layout>
+                          <RBACTest />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/call-center-demo" element={
                       <ProtectedRoute requiredFeature="call_center_demo">
-                        <CallCenterDemo />
+                        <Layout>
+                          <CallCenterDemo />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 
                     <Route path="/csv-importer" element={
                       <ProtectedRoute requiredFeature="csv_importer">
-                        <CSVDataImporter />
+                        <Layout>
+                          <CSVDataImporter />
+                        </Layout>
                       </ProtectedRoute>
                     } />
 

@@ -2,13 +2,19 @@ import React from "react";
 import Sidebar from "./Sidebar";
 import UserDropdown from "./UserDropdown";
 import DarkModeToggle from "./DarkModeToggle";
+import { useSidebar } from "../context/SidebarContext";
 import "./Sidebar.css";
 
 const Layout = ({ children }) => {
+  const { sidebarWidth } = useSidebar();
+
   return (
     <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #ffffffff 0%, #fdfeffff 100%)" }}>
       <Sidebar />
-      <main className="main-content p-10">
+      <main 
+        className="main-content p-10 transition-all duration-300 ease-in-out"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Header with user controls */}
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center gap-4">

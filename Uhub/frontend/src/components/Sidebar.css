@@ -56,10 +56,14 @@
 .main-content {
   margin-left: 0;
   transition: margin-left 0.3s ease-in-out;
+  min-height: 100vh;
+  width: calc(100vw - 0px); /* Will be overridden by inline styles */
 }
 
-@media (min-width: 1024px) {
+/* Mobile responsive adjustments */
+@media (max-width: 1023px) {
   .main-content {
-    margin-left: 16rem;
+    margin-left: 0 !important;
+    width: 100vw;
   }
 } 
