@@ -191,7 +191,13 @@ export const AuthProvider = ({ children }) => {
               console.log("📋 Profile loaded:", profile);
               setUserProfile(profile);
               // Use the role from the user account, not from employee record
-              setRole(profile?.role || 'employee');
+              const detectedRole = profile?.role || 'employee';
+              console.log("🔍 Role detection:", { 
+                profileRole: profile?.role, 
+                detectedRole, 
+                profile: profile 
+              });
+              setRole(detectedRole);
             })
             .catch(error => {
               if (!isMounted) return;
@@ -232,7 +238,13 @@ export const AuthProvider = ({ children }) => {
               if (!isMounted) return;
               setUserProfile(profile);
               // Use the role from the user account, not from employee record
-              setRole(profile?.role || 'employee');
+              const detectedRole = profile?.role || 'employee';
+              console.log("🔄 Auth state change - Role detection:", { 
+                profileRole: profile?.role, 
+                detectedRole, 
+                profile: profile 
+              });
+              setRole(detectedRole);
             })
             .catch(error => {
               if (!isMounted) return;

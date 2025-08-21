@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Plus, Search, Filter, FileText, Clock, User, 
-  AlertCircle, CheckCircle, XCircle, MoreHorizontal,
-  Edit, Trash2, Eye, Calendar, Tag, Building,
-  Wrench, Settings, AlertTriangle
+  Search, Filter, FileText, Clock, User, 
+  AlertTriangle, CheckCircle, XCircle, MoreHorizontal,
+  Edit, Trash2, Eye, Calendar, Tag, Building, 
+  MessageSquare, Shield, TrendingUp, Activity, Zap,
+  BarChart3, Users, CreditCard, AlertCircle, Loader2,
+  Inbox, Reply, Archive, Flag, Wrench, Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { itServicesApi } from '../services/itServicesApi';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
-import { AnimatePresence } from 'framer-motion';
+import { itServicesApi } from '../services/itServicesApi';
 
-const ITRequests = () => {
+const RequestInbox = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
   
@@ -24,23 +25,32 @@ const ITRequests = () => {
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingRequest, setEditingRequest] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showResponseForm, setShowResponseForm] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
-    category_id: '',
-    priority_id: '',
-    search: ''
+    priority: '',
+    category: '',
+    assignee: '',
+    search: '',
+    date_from: '',
+    date_to: ''
   });
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category_id: '',
-    priority_id: '',
-    request_type: 'it_service',
-    estimated_completion_date: ''
+  const [responseData, setResponseData] = useState({
+    response: '',
+    status: '',
+    assigned_to: ''
   });
+
+  const statuses = [
+    { value: 'open', label: 'Open', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { value: 'in_progress', label: 'In Progress', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    { value: 'pending_user', label: 'Pending User', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+    { value: 'resolved', label: 'Resolved', color: 'bg-green-100 text-green-800 border-green-200' },
+    { value: 'closed', label: 'Closed', color: 'bg-gray-100 text-gray-800 border-gray-200' },
+    { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800 border-red-200' }
+  ];
 
   useEffect(() => {
     fetchData();
@@ -49,86 +59,76 @@ const ITRequests = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      
+      // Fetch all requests for tech roles and admins
       const [categoriesData, prioritiesData, requestsData] = await Promise.all([
         itServicesApi.categories.getAll(),
         itServicesApi.priorities.getAll(),
-        itServicesApi.requests.getAll(filters, user?.id, userProfile?.role)
+        itServicesApi.requests.getAllForTech()
       ]);
 
       setCategories(categoriesData);
       setPriorities(prioritiesData);
-      setRequests(requestsData.data || []);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      showError('Error', 'Failed to fetch data. Please try again.');
+      setRequests(requestsData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      showError('Failed to fetch data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  const handleStatusUpdate = async (requestId, newStatus) => {
     try {
-      const requestData = {
-        ...formData,
-        requester_id: user.id,
-        estimated_completion_date: formData.estimated_completion_date || null
-      };
-
-      if (editingRequest) {
-        await itServicesApi.requests.update(editingRequest.id, requestData);
-        success('Success', 'Request updated successfully!');
-      } else {
-        await itServicesApi.requests.create(requestData);
-        success('Success', 'Request submitted successfully!');
-      }
-
-      setShowForm(false);
-      setEditingRequest(null);
-      resetForm();
-      fetchData();
-    } catch (err) {
-      console.error('Error submitting request:', err);
-      showError('Error', 'Failed to submit request. Please try again.');
+      await itServicesApi.requests.updateStatus(requestId, newStatus);
+      success('Status Updated', 'Request status updated successfully');
+      fetchData(); // Refresh the list
+    } catch (error) {
+      showError('Failed to update request status');
     }
   };
 
-  const handleEdit = (request) => {
-    setEditingRequest(request);
-    setFormData({
-      title: request.title,
-      description: request.description,
-      category_id: request.category_id,
-      priority_id: request.priority_id,
-      request_type: request.request_type,
-      estimated_completion_date: request.estimated_completion_date || ''
-    });
-    setShowForm(true);
-  };
-
-  const handleDelete = async (requestId) => {
-    if (window.confirm('Are you sure you want to delete this request?')) {
-      try {
-        await itServicesApi.requests.delete(requestId);
-        success('Success', 'Request deleted successfully!');
-        fetchData();
-      } catch (err) {
-        console.error('Error deleting request:', err);
-        showError('Error', 'Failed to delete request. Please try again.');
-      }
+  const handleAssignRequest = async (requestId, assignedTo) => {
+    try {
+      await itServicesApi.requests.assignRequest(requestId, assignedTo);
+      success('Request Assigned', 'Request assigned successfully');
+      fetchData(); // Refresh the list
+    } catch (error) {
+      showError('Failed to assign request');
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      category_id: '',
-      priority_id: '',
-      request_type: 'it_service',
-      estimated_completion_date: ''
-    });
+  const handleResponseSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (selectedRequest) {
+        // Update request with response and status
+        await itServicesApi.requests.updateStatus(
+          selectedRequest.id, 
+          responseData.status, 
+          responseData.response,
+          responseData.assigned_to
+        );
+        
+        success('Response Submitted', 'Request response submitted successfully');
+        setShowResponseForm(false);
+        setSelectedRequest(null);
+        setResponseData({ response: '', status: '', assigned_to: '' });
+        fetchData(); // Refresh the list
+      }
+    } catch (error) {
+      showError('Failed to submit response');
+    }
+  };
+
+  const handleCloseRequest = async (requestId) => {
+    try {
+      await itServicesApi.requests.closeRequest(requestId, user.id, 'Request closed by tech support');
+      success('Request Closed', 'Request closed successfully');
+      fetchData(); // Refresh the list
+    } catch (error) {
+      showError('Failed to close request');
+    }
   };
 
   const getPriorityColor = (priority) => {
@@ -143,15 +143,8 @@ const ITRequests = () => {
   };
 
   const getStatusColor = (status) => {
-    const statusColors = {
-      'open': 'bg-blue-100 text-blue-800 border-blue-200',
-      'in_progress': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'pending_user': 'bg-orange-100 text-orange-800 border-orange-200',
-      'resolved': 'bg-green-100 text-green-800 border-green-200',
-      'closed': 'bg-gray-100 text-gray-800 border-gray-200',
-      'cancelled': 'bg-red-100 text-red-800 border-red-200'
-    };
-    return statusColors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
+    const statusObj = statuses.find(s => s.value === status);
+    return statusObj ? statusObj.color : 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
   const formatDate = (dateString) => {
@@ -166,6 +159,7 @@ const ITRequests = () => {
 
   const getSLAStatus = (request) => {
     if (!request.priority || !request.created_at) return null;
+    
     try {
       const created = new Date(request.created_at);
       const now = new Date();
@@ -188,8 +182,8 @@ const ITRequests = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading IT requests...</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading request inbox...</p>
         </div>
       </div>
     );
@@ -200,25 +194,17 @@ const ITRequests = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">IT Service Requests</h1>
-              <p className="text-gray-600">Submit and manage your IT service requests</p>
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Inbox className="w-6 h-6 text-blue-600" />
             </div>
-            <Button
-              onClick={() => {
-                setEditingRequest(null);
-                resetForm();
-                setShowForm(true);
-              }}
-              className="flex items-center space-x-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Request</span>
-            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">IT Request Inbox</h1>
+              <p className="text-gray-600">Manage and respond to IT service requests</p>
+            </div>
           </div>
-
-          {/* Stats Cards */}
+          
+          {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
@@ -271,14 +257,17 @@ const ITRequests = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <FileText className="w-5 h-5 text-purple-600" />
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <Flag className="w-5 h-5 text-red-600" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">
-                      {requests.length}
+                      {requests.filter(r => {
+                        const sla = getSLAStatus(r);
+                        return sla && sla.status === 'overdue';
+                      }).length}
                     </p>
-                    <p className="text-sm text-gray-600">Total</p>
+                    <p className="text-sm text-gray-600">Overdue</p>
                   </div>
                 </div>
               </CardContent>
@@ -289,7 +278,7 @@ const ITRequests = () => {
         {/* Filters */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
                 <Label htmlFor="status-filter">Status</Label>
                 <select
@@ -299,26 +288,8 @@ const ITRequests = () => {
                   className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">All Statuses</option>
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="pending_user">Pending User</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-              
-              <div>
-                <Label htmlFor="category-filter">Category</Label>
-                <select
-                  id="category-filter"
-                  value={filters.category_id}
-                  onChange={(e) => setFilters({ ...filters, category_id: e.target.value })}
-                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map(category => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
+                  {statuses.map(status => (
+                    <option key={status.value} value={status.value}>{status.label}</option>
                   ))}
                 </select>
               </div>
@@ -327,13 +298,28 @@ const ITRequests = () => {
                 <Label htmlFor="priority-filter">Priority</Label>
                 <select
                   id="priority-filter"
-                  value={filters.priority_id}
-                  onChange={(e) => setFilters({ ...filters, priority_id: e.target.value })}
+                  value={filters.priority}
+                  onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
                   className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">All Priorities</option>
                   {priorities.map(priority => (
                     <option key={priority.id} value={priority.id}>{priority.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <Label htmlFor="category-filter">Category</Label>
+                <select
+                  id="category-filter"
+                  value={filters.category}
+                  onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
                 </select>
               </div>
@@ -349,6 +335,28 @@ const ITRequests = () => {
                   className="mt-1"
                 />
               </div>
+
+              <div>
+                <Label htmlFor="date-from-filter">From Date</Label>
+                <Input
+                  id="date-from-filter"
+                  type="date"
+                  value={filters.date_from}
+                  onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="date-to-filter">To Date</Label>
+                <Input
+                  id="date-to-filter"
+                  type="date"
+                  value={filters.date_to}
+                  onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -358,16 +366,9 @@ const ITRequests = () => {
           {requests.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <Inbox className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No requests found</h3>
-                <p className="text-gray-600">You haven't submitted any IT service requests yet.</p>
-                <Button
-                  onClick={() => setShowForm(true)}
-                  className="mt-4"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Submit Your First Request
-                </Button>
+                <p className="text-gray-600">There are no requests matching your current filters.</p>
               </CardContent>
             </Card>
           ) : (
@@ -401,7 +402,7 @@ const ITRequests = () => {
                           )}
                         </div>
                         
-                        <p className="text-gray-600 mb-3">{request.description}</p>
+                        <p className="text-gray-600 mb-3 line-clamp-2">{request.description}</p>
                         
                         <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
                           <span className="flex items-center space-x-1">
@@ -412,6 +413,10 @@ const ITRequests = () => {
                             <Calendar className="w-4 h-4" />
                             {formatDate(request.created_at)}
                           </span>
+                          <span className="flex items-center space-x-1">
+                            <User className="w-4 h-4" />
+                            {request.requester?.full_name || 'Unknown'}
+                          </span>
                           {request.assigned_to && (
                             <span className="flex items-center space-x-1">
                               <Wrench className="w-4 h-4" />
@@ -421,35 +426,63 @@ const ITRequests = () => {
                         </div>
 
                         {request.resolution_notes && (
-                          <div className="bg-blue-50 p-3 rounded-md mb-3">
-                            <p className="text-sm text-blue-800">
-                              <strong>Response:</strong> {request.resolution_notes}
+                          <div className="bg-gray-50 p-3 rounded-md mb-3">
+                            <p className="text-sm text-gray-700">
+                              <strong>Resolution Notes:</strong> {request.resolution_notes}
                             </p>
                           </div>
                         )}
                       </div>
                       
                       <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setResponseData({
+                              response: request.resolution_notes || '',
+                              status: request.status,
+                              assigned_to: request.assigned_to || ''
+                            });
+                            setShowResponseForm(true);
+                          }}
+                        >
+                          <Reply className="w-4 h-4 mr-2" />
+                          Respond
+                        </Button>
+                        
                         {request.status === 'open' && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(request)}
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(request.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </Button>
-                          </>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAssignRequest(request.id, user.id)}
+                          >
+                            <Wrench className="w-4 h-4 mr-2" />
+                            Assign to Me
+                          </Button>
+                        )}
+                        
+                        {request.status === 'in_progress' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleStatusUpdate(request.id, 'resolved')}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Resolve
+                          </Button>
+                        )}
+                        
+                        {request.status === 'resolved' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCloseRequest(request.id)}
+                          >
+                            <Archive className="w-4 h-4 mr-2" />
+                            Close
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -460,9 +493,9 @@ const ITRequests = () => {
           )}
         </div>
 
-        {/* Request Form Modal */}
+        {/* Response Form Modal */}
         <AnimatePresence>
-          {showForm && (
+          {showResponseForm && selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -472,92 +505,46 @@ const ITRequests = () => {
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      {editingRequest ? 'Edit Request' : 'New IT Service Request'}
-                    </h2>
+                    <h2 className="text-xl font-semibold text-gray-900">Respond to Request</h2>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setShowForm(false);
-                        setEditingRequest(null);
-                        resetForm();
+                        setShowResponseForm(false);
+                        setSelectedRequest(null);
+                        setResponseData({ response: '', status: '', assigned_to: '' });
                       }}
                     >
                       <XCircle className="w-5 h-5" />
                     </Button>
                   </div>
                   
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <form onSubmit={handleResponseSubmit} className="space-y-4">
                     <div>
-                      <Label htmlFor="title">Title *</Label>
-                      <Input
-                        id="title"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        placeholder="Brief description of your request"
+                      <Label htmlFor="status">Update Status</Label>
+                      <select
+                        id="status"
+                        value={responseData.status}
+                        onChange={(e) => setResponseData({ ...responseData, status: e.target.value })}
+                        className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         required
-                        className="mt-1"
-                      />
+                      >
+                        {statuses.map(status => (
+                          <option key={status.value} value={status.value}>{status.label}</option>
+                        ))}
+                      </select>
                     </div>
                     
                     <div>
-                      <Label htmlFor="description">Description *</Label>
+                      <Label htmlFor="response">Response / Resolution Notes</Label>
                       <Textarea
-                        id="description"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Detailed description of your IT service request"
+                        id="response"
+                        value={responseData.response}
+                        onChange={(e) => setResponseData({ ...responseData, response: e.target.value })}
+                        placeholder="Provide a detailed response or resolution notes..."
+                        className="mt-1"
                         rows={4}
                         required
-                        className="mt-1"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="category">Category *</Label>
-                        <select
-                          id="category"
-                          value={formData.category_id}
-                          onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                          required
-                          className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">Select Category</option>
-                          {categories.map(category => (
-                            <option key={category.id} value={category.id}>{category.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="priority">Priority *</Label>
-                        <select
-                          id="priority"
-                          value={formData.priority_id}
-                          onChange={(e) => setFormData({ ...formData, priority_id: e.target.value })}
-                          required
-                          className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">Select Priority</option>
-                          {priorities.map(priority => (
-                            <option key={priority.id} value={priority.id}>
-                              {priority.name} ({(priority.sla_hours || 72)}h SLA)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="estimated_date">Estimated Completion Date (Optional)</Label>
-                      <Input
-                        id="estimated_date"
-                        type="date"
-                        value={formData.estimated_completion_date}
-                        onChange={(e) => setFormData({ ...formData, estimated_completion_date: e.target.value })}
-                        className="mt-1"
                       />
                     </div>
                     
@@ -566,15 +553,15 @@ const ITRequests = () => {
                         type="button"
                         variant="outline"
                         onClick={() => {
-                          setShowForm(false);
-                          setEditingRequest(null);
-                          resetForm();
+                          setShowResponseForm(false);
+                          setSelectedRequest(null);
+                          setResponseData({ response: '', status: '', assigned_to: '' });
                         }}
                       >
                         Cancel
                       </Button>
                       <Button type="submit">
-                        {editingRequest ? 'Update Request' : 'Submit Request'}
+                        Submit Response
                       </Button>
                     </div>
                   </form>
@@ -588,4 +575,4 @@ const ITRequests = () => {
   );
 };
 
-export default ITRequests;
+export default RequestInbox;

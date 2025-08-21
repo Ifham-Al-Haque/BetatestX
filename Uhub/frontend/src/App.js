@@ -53,6 +53,10 @@ const ITTickets = React.lazy(() => import('./pages/ITTickets'));
 const CSPA = React.lazy(() => import('./pages/CSPA'));
 const Tickets = React.lazy(() => import('./pages/Tickets'));
 const Complaints = React.lazy(() => import('./pages/Complaints'));
+const ComplaintsInbox = React.lazy(() => import('./pages/ComplaintsInbox'));
+const ComplaintsTest = React.lazy(() => import('./pages/ComplaintsTest'));
+const RoleDebug = React.lazy(() => import('./pages/RoleDebug'));
+const RequestInbox = React.lazy(() => import('./pages/RequestInbox'));
 const Surveys = React.lazy(() => import('./pages/Surveys'));
 const Attendance = React.lazy(() => import('./pages/Attendance'));
 const AttendanceUpload = React.lazy(() => import('./pages/AttendanceUpload'));
@@ -248,6 +252,38 @@ function App() {
                       <ProtectedRoute requiredFeature="complaints">
                         <Layout>
                           <Complaints />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/complaints-inbox" element={
+                      <ProtectedRoute requiredFeature="complaints_inbox">
+                        <Layout>
+                          <ComplaintsInbox />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/complaints-test" element={
+                      <ProtectedRoute requiredFeature="complaints_test">
+                        <Layout>
+                          <ComplaintsTest />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/request-inbox" element={
+                      <ProtectedRoute requiredFeature="request_inbox">
+                        <Layout>
+                          <RequestInbox />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/role-debug" element={
+                      <ProtectedRoute requiredFeature="role_debug">
+                        <Layout>
+                          <RoleDebug />
                         </Layout>
                       </ProtectedRoute>
                     } />

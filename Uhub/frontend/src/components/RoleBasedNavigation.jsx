@@ -4,7 +4,7 @@ import {
   Home, Users, Shield, Settings, BarChart3, 
   Car, Headphones, FileText, Calendar, 
   UserCheck, Building, Database, Cog, AlertTriangle,
-  CheckSquare, ClipboardList
+  CheckSquare, ClipboardList, Inbox
 } from 'lucide-react';
 import { useRoleAccess, ROLE_PERMISSIONS } from './RoleBasedRoute';
 import { useSidebar } from '../context/SidebarContext';
@@ -224,6 +224,38 @@ const NAVIGATION_ITEMS = {
     description: 'Employee complaints and grievances management'
   },
 
+  complaints_inbox: {
+    path: '/complaints-inbox',
+    label: 'Complaints Inbox',
+    icon: Inbox,
+    roles: ['admin', 'hr_manager'],
+    description: 'HR complaints inbox - manage and respond to all complaints'
+  },
+
+  complaints_test: {
+    path: '/complaints-test',
+    label: 'Complaints Test',
+    icon: AlertTriangle,
+    roles: ['admin', 'hr_manager'],
+    description: 'Test and debug complaints system'
+  },
+
+  role_debug: {
+    path: '/role-debug',
+    label: 'Role Debug',
+    icon: Shield,
+    roles: ['admin', 'hr_manager', 'cs_manager'],
+    description: 'Debug role and permission issues'
+  },
+
+  request_inbox: {
+    path: '/request-inbox',
+    label: 'Request Inbox',
+    icon: Inbox,
+    roles: ['admin', 'it_manager', 'it_support', 'tech_support'],
+    description: 'IT service request inbox for tech support'
+  },
+
   surveys: {
     path: '/surveys',
     label: 'Surveys',
@@ -343,7 +375,7 @@ const NAVIGATION_GROUPS = {
 
   it_services: {
     title: 'IT Services',
-    items: ['it_requests'],
+    items: ['it_requests', 'request_inbox'],
     roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee']
   },
   driver_management: {
@@ -363,7 +395,7 @@ const NAVIGATION_GROUPS = {
   },
   hr_panel: {
     title: 'HR Panel',
-    items: ['attendance', 'complaints'],
+    items: ['attendance', 'complaints', 'complaints_inbox', 'complaints_test', 'role_debug'],
     roles: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee']
   },
   todo_list: {

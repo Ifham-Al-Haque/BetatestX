@@ -82,31 +82,8 @@ export default function Login() {
   };
 
   const redirectToRolePage = (role) => {
-    switch (role) {
-      case 'admin':
-        navigate('/admin/dashboard', { replace: true });
-        break;
-      case 'manager':
-        navigate('/dashboard', { replace: true });
-        break;
-      case 'driver_management':
-        navigate('/drivers', { replace: true });
-        break;
-      case 'hr_manager':
-        navigate('/attendance', { replace: true });
-        break;
-      case 'cs_manager':
-        navigate('/cspa', { replace: true });
-        break;
-      case 'employee':
-        navigate('/tasks', { replace: true });
-        break;
-      case 'viewer':
-        navigate('/dashboard', { replace: true });
-        break;
-      default:
-        navigate('/dashboard', { replace: true });
-    }
+    // Redirect all users to home page after login instead of role-specific pages
+    navigate('/', { replace: true });
   };
 
   async function handleAuth(e) {

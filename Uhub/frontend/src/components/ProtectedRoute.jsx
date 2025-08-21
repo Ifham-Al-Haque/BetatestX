@@ -10,6 +10,17 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
   const navigate = useNavigate();
   const hasNavigated = useRef(false);
 
+  // Add debugging for CS Manager issues
+  console.log('ProtectedRoute Debug:', {
+    user,
+    userRole,
+    roleInfo,
+    requiredFeature,
+    requiredRole,
+    minRoleLevel,
+    hasFeatureAccess: requiredFeature ? hasFeatureAccess(requiredFeature) : 'N/A'
+  });
+
   // Handle all navigation logic in useEffect hooks
   useEffect(() => {
     if (loading || hasNavigated.current) return;
@@ -25,6 +36,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
     // Check feature-based access
     if (requiredFeature && !hasFeatureAccess(requiredFeature)) {
+      console.log('ProtectedRoute: Feature access denied', { requiredFeature, userRole });
       hasNavigated.current = true;
       setTimeout(() => {
         redirectToRolePage(userRole);
@@ -34,6 +46,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
     // Check role-based access
     if (requiredRole && userRole !== requiredRole) {
+      console.log('ProtectedRoute: Role access denied', { requiredRole, userRole });
       hasNavigated.current = true;
       setTimeout(() => {
         redirectToRolePage(userRole);
@@ -43,6 +56,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
     // Check minimum role level
     if (minRoleLevel && !hasRoleLevel(minRoleLevel)) {
+      console.log('ProtectedRoute: Role level access denied', { minRoleLevel, userRole });
       hasNavigated.current = true;
       setTimeout(() => {
         redirectToRolePage(userRole);

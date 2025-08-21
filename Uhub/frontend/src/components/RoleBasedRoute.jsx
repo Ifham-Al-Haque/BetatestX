@@ -98,9 +98,13 @@ export const FEATURE_ACCESS = {
   // CS Manager features
   cspa: ['admin', 'hr_manager', 'cs_manager'],
   cs_tickets: ['admin', 'hr_manager', 'cs_manager'],
+  complaints: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
+  complaints_inbox: ['admin', 'hr_manager'],
+  complaints_test: ['admin', 'hr_manager'],
+  role_debug: ['admin', 'hr_manager', 'cs_manager'],
+  request_inbox: ['admin', 'it_manager', 'it_support', 'tech_support'],
   requests: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
   attendance_view: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
-  complaints: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
   task_management: ['admin', 'manager', 'driver_management', 'cs_manager'],
   my_tasks: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee'],
   reports: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager'],
@@ -113,7 +117,6 @@ export const FEATURE_ACCESS = {
   
   // Employee features
   personal_data: ['admin', 'manager', 'hr_manager', 'employee'],
-  complaints: ['admin', 'manager', 'employee'],
   my_tasks: ['admin', 'manager', 'employee'],
   reports: ['admin', 'manager', 'hr_manager', 'employee'],
   user_profile: ['admin', 'manager', 'hr_manager', 'employee'],
@@ -145,12 +148,20 @@ export const FEATURE_ACCESS = {
 
 // Check if user has access to a specific feature
 export const hasFeatureAccess = (userRole, feature) => {
-  if (!userRole || !feature) return false;
+  if (!userRole || !feature) {
+    console.log('hasFeatureAccess: Missing userRole or feature', { userRole, feature });
+    return false;
+  }
   
   const allowedRoles = FEATURE_ACCESS[feature];
-  if (!allowedRoles) return false;
+  if (!allowedRoles) {
+    console.log('hasFeatureAccess: Feature not found in FEATURE_ACCESS', { feature, userRole });
+    return false;
+  }
   
-  return allowedRoles.includes(userRole) || allowedRoles.includes('all');
+  const hasAccess = allowedRoles.includes(userRole) || allowedRoles.includes('all');
+  console.log('hasFeatureAccess:', { userRole, feature, allowedRoles, hasAccess });
+  return hasAccess;
 };
 
 // Check if user has minimum role level

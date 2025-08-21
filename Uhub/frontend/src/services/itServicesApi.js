@@ -9,7 +9,7 @@ export const itServicesApi = {
         .from('it_request_categories')
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('sort_order, name');
       
       if (error) throw error;
       return data;
@@ -53,18 +53,26 @@ export const itServicesApi = {
 
   // IT Requests
   requests: {
-    getAll: async (filters = {}) => {
+    // Get all requests with role-based filtering
+    getAll: async (filters = {}, userId = null, userRole = null) => {
       let query = supabase
         .from('it_requests')
         .select(`
           *,
-          category:it_request_categories(name, color, icon),
+          category:it_request_categories(name, color, icon, description),
           priority:it_request_priorities(name, level, color, sla_hours),
           requester:requester_id(full_name, email, department, position),
           assignee:assigned_to(full_name, email, department, position),
           closed_by_user:closed_by(full_name)
         `)
         .order('created_at', { ascending: false });
+
+      // Apply role-based filtering
+      if (userRole === 'employee' || (!userRole && userId)) {
+        // Regular users can only see their own requests
+        query = query.eq('requester_id', userId);
+      }
+      // Tech roles and admins can see all requests (no additional filtering needed)
 
       // Apply filters
       if (filters.status) {
@@ -85,11 +93,87 @@ export const itServicesApi = {
       if (filters.request_type) {
         query = query.eq('request_type', filters.request_type);
       }
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+      }
 
       const { data, error, count } = await query;
       
       if (error) throw error;
-      return { data, count };
+      return { data: data || [], count: count || 0 };
+    },
+
+    // Get all requests for tech roles and admins (no filtering)
+    getAllForTech: async () => {
+      const { data, error } = await supabase
+        .from('it_requests')
+        .select(`
+          *,
+          category:it_request_categories(name, color, icon, description),
+          priority:it_request_priorities(name, level, color, sla_hours),
+          requester:requester_id(full_name, email, department, position),
+          assignee:assigned_to(full_name, email, department, position),
+          closed_by_user:closed_by(full_name)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+
+    // Get requests with advanced filtering for tech roles
+    getWithFilters: async (filters = {}) => {
+      let query = supabase
+        .from('it_requests')
+        .select(`
+          *,
+          category:it_request_categories(name, color, icon, description),
+          priority:it_request_priorities(name, level, color, sla_hours),
+          requester:requester_id(full_name, email, department, position),
+          assignee:assigned_to(full_name, email, department, position),
+          closed_by_user:closed_by(full_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply status filter
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      // Apply priority filter
+      if (filters.priority) {
+        query = query.eq('priority_id', filters.priority);
+      }
+
+      // Apply category filter
+      if (filters.category) {
+        query = query.eq('category_id', filters.category);
+      }
+
+      // Apply assignee filter
+      if (filters.assignee) {
+        query = query.eq('assigned_to', filters.assignee);
+      }
+
+      // Apply date range filter
+      if (filters.date_from) {
+        query = query.gte('created_at', filters.date_from);
+      }
+      if (filters.date_to) {
+        query = query.lte('created_at', filters.date_to);
+      }
+
+      // Apply search filter
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      return data || [];
     },
 
     getById: async (id) => {
@@ -98,7 +182,7 @@ export const itServicesApi = {
         .select(`
           *,
           category:it_request_categories(name, color, icon, description),
-          priority:it_request_priorities(name, level, color, sla_hours, description),
+          priority:it_request_priorities(name, level, color, sla_hours),
           requester:requester_id(full_name, email, department, position),
           assignee:assigned_to(full_name, email, department, position),
           closed_by_user:closed_by(full_name)
@@ -113,399 +197,182 @@ export const itServicesApi = {
     create: async (requestData) => {
       const { data, error } = await supabase
         .from('it_requests')
-        .insert(requestData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    update: async (id, requestData) => {
-      const { data, error } = await supabase
-        .from('it_requests')
-        .update(requestData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    delete: async (id) => {
-      const { error } = await supabase
-        .from('it_requests')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      return true;
-    },
-
-    // Get requests by user
-    getByUser: async (userId, filters = {}) => {
-      let query = supabase
-        .from('it_requests')
-        .select(`
-          *,
-          category:it_request_categories(name, color, icon),
-          priority:it_request_priorities(name, level, color, sla_hours),
-          requester:requester_id(full_name, email, department, position),
-          assignee:assigned_to(full_name, email, department, position)
-        `)
-        .eq('requester_id', userId)
-        .order('created_at', { ascending: false });
-
-      // Apply additional filters
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-      if (filters.category_id) {
-        query = query.eq('category_id', filters.category_id);
-      }
-
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data;
-    },
-
-    // Get assigned requests
-    getAssigned: async (userId, filters = {}) => {
-      let query = supabase
-        .from('it_requests')
-        .select(`
-          *,
-          category:it_request_categories(name, color, icon),
-          priority:it_request_priorities(name, level, color, sla_hours),
-          requester:requester_id(full_name, email, department, position),
-          assignee:assigned_to(full_name, email, department, position)
-        `)
-        .eq('assigned_to', userId)
-        .order('created_at', { ascending: false });
-
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data;
-    }
-  },
-
-  // IT Tickets
-  tickets: {
-    getAll: async (filters = {}) => {
-      let query = supabase
-        .from('it_tickets')
-        .select(`
-          *,
-          request:it_requests(request_number, title, request_type),
-          priority:it_request_priorities(name, level, color, sla_hours),
-          assignee:assigned_to(full_name, email, department, position),
-          closed_by_user:closed_by(full_name)
-        `)
-        .order('created_at', { ascending: false });
-
-      // Apply filters
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-      if (filters.priority_id) {
-        query = query.eq('priority_id', filters.priority_id);
-      }
-      if (filters.assigned_to) {
-        query = query.eq('assigned_to', filters.assigned_to);
-      }
-      if (filters.request_id) {
-        query = query.eq('request_id', filters.request_id);
-      }
-
-      const { data, error, count } = await query;
-      
-      if (error) throw error;
-      return { data, count };
-    },
-
-    getById: async (id) => {
-      const { data, error } = await supabase
-        .from('it_tickets')
-        .select(`
-          *,
-          request:it_requests(request_number, title, request_type, description),
-          priority:it_request_priorities(name, level, color, sla_hours, description),
-          assignee:assigned_to(full_name, email, department, position),
-          closed_by_user:closed_by(full_name)
-        `)
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    create: async (ticketData) => {
-      const { data, error } = await supabase
-        .from('it_tickets')
-        .insert(ticketData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    update: async (id, ticketData) => {
-      const { data, error } = await supabase
-        .from('it_tickets')
-        .update(ticketData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    delete: async (id) => {
-      const { error } = await supabase
-        .from('it_tickets')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      return true;
-    },
-
-    // Get tickets by user
-    getByUser: async (userId, filters = {}) => {
-      let query = supabase
-        .from('it_tickets')
-        .select(`
-          *,
-          request:it_requests(request_number, title, request_type),
-          priority:it_request_priorities(name, level, color, sla_hours),
-          assignee:assigned_to(full_name, email, department, position)
-        `)
-        .eq('assigned_to', userId)
-        .order('created_at', { ascending: false });
-
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data;
-    },
-
-    // Get tickets by request
-    getByRequest: async (requestId) => {
-      const { data, error } = await supabase
-        .from('it_tickets')
-        .select(`
-          *,
-          priority:it_request_priorities(name, level, color, sla_hours),
-          assignee:assigned_to(full_name, email, department, position),
-          closed_by_user:closed_by(full_name)
-        `)
-        .eq('request_id', requestId)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    }
-  },
-
-  // IT Assets
-  assets: {
-    getAll: async (filters = {}) => {
-      let query = supabase
-        .from('it_assets')
-        .select(`
-          *,
-          assigned_employee:assigned_to(full_name, email, department, position)
-        `)
-        .order('created_at', { ascending: false });
-
-      // Apply filters
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-      if (filters.type) {
-        query = query.eq('type', filters.type);
-      }
-      if (filters.assigned_to) {
-        query = query.eq('assigned_to', filters.assigned_to);
-      }
-
-      const { data, error, count } = await query;
-      
-      if (error) throw error;
-      return { data, count };
-    },
-
-    getById: async (id) => {
-      const { data, error } = await supabase
-        .from('it_assets')
-        .select(`
-          *,
-          assigned_employee:assigned_to(full_name, email, department, position)
-        `)
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    create: async (assetData) => {
-      const { data, error } = await supabase
-        .from('it_assets')
-        .insert(assetData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    update: async (id, assetData) => {
-      const { data, error } = await supabase
-        .from('it_assets')
-        .update(assetData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    delete: async (id) => {
-      const { error } = await supabase
-        .from('it_assets')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      return true;
-    },
-
-    // Assign asset to employee
-    assign: async (assetId, employeeId, assignedBy, notes = '') => {
-      // Update asset status and assignment
-      const { data: assetUpdate, error: assetError } = await supabase
-        .from('it_assets')
-        .update({
-          assigned_to: employeeId,
-          assigned_at: new Date().toISOString(),
-          status: 'assigned'
-        })
-        .eq('id', assetId)
-        .select()
-        .single();
-
-      if (assetError) throw assetError;
-
-      // Create assignment record
-      const { error: assignmentError } = await supabase
-        .from('it_asset_assignments')
         .insert({
-          asset_id: assetId,
-          employee_id: employeeId,
-          assigned_by: assignedBy,
-          notes
-        });
-
-      if (assignmentError) throw assignmentError;
-
-      return assetUpdate;
-    },
-
-    // Return asset
-    return: async (assetId, returnedTo, notes = '') => {
-      // Update asset status
-      const { data: assetUpdate, error: assetError } = await supabase
-        .from('it_assets')
-        .update({
-          assigned_to: null,
-          assigned_at: null,
-          status: 'available'
+          title: requestData.title,
+          description: requestData.description,
+          request_type: requestData.request_type || 'it_service',
+          category_id: requestData.category_id,
+          priority_id: requestData.priority_id,
+          requester_id: requestData.requester_id,
+          estimated_completion_date: requestData.estimated_completion_date,
+          status: 'open'
         })
-        .eq('id', assetId)
         .select()
         .single();
+      
+      if (error) throw error;
+      return data;
+    },
 
-      if (assetError) throw assetError;
-
-      // Update assignment record
-      const { error: assignmentError } = await supabase
-        .from('it_asset_assignments')
+    update: async (id, updateData) => {
+      const { data, error } = await supabase
+        .from('it_requests')
         .update({
-          returned_at: new Date().toISOString(),
-          returned_to: returnedTo,
-          notes
+          ...updateData,
+          updated_at: new Date().toISOString()
         })
-        .eq('asset_id', assetId)
-        .is('returned_at', null);
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
 
-      if (assignmentError) throw assignmentError;
+    // Update request status
+    updateStatus: async (id, status, notes = null, assignedTo = null) => {
+      const updateData = {
+        status,
+        updated_at: new Date().toISOString()
+      };
 
-      return assetUpdate;
+      if (notes) {
+        updateData.resolution_notes = notes;
+      }
+
+      if (assignedTo) {
+        updateData.assigned_to = assignedTo;
+        updateData.assigned_at = new Date().toISOString();
+      }
+
+      if (status === 'resolved' || status === 'closed') {
+        updateData.actual_completion_date = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from('it_requests')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+
+    // Assign request to tech support
+    assignRequest: async (id, assignedTo) => {
+      const { data, error } = await supabase
+        .from('it_requests')
+        .update({
+          assigned_to: assignedTo,
+          assigned_at: new Date().toISOString(),
+          status: 'in_progress',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+
+    // Close request
+    closeRequest: async (id, closedBy, notes = null) => {
+      const { data, error } = await supabase
+        .from('it_requests')
+        .update({
+          status: 'closed',
+          closed_by: closedBy,
+          closed_at: new Date().toISOString(),
+          resolution_notes: notes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+
+    delete: async (id) => {
+      const { error } = await supabase
+        .from('it_requests')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return true;
+    },
+
+    // Get request statistics
+    getStats: async (userId = null, userRole = null) => {
+      let query = supabase
+        .from('it_requests')
+        .select('*');
+
+      // Apply role-based filtering for statistics
+      if (userRole === 'employee' && userId) {
+        query = query.eq('requester_id', userId);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+
+      const requests = data || [];
+      
+      return {
+        total_requests: requests.length,
+        open_requests: requests.filter(r => r.status === 'open').length,
+        in_progress_requests: requests.filter(r => r.status === 'in_progress').length,
+        pending_user_requests: requests.filter(r => r.status === 'pending_user').length,
+        resolved_requests: requests.filter(r => r.status === 'resolved').length,
+        closed_requests: requests.filter(r => r.status === 'closed').length,
+        cancelled_requests: requests.filter(r => r.status === 'cancelled').length,
+        high_priority_requests: requests.filter(r => {
+          // Assuming priority levels 1-2 are high priority
+          return r.priority && r.priority.level <= 2;
+        }).length,
+        assigned_requests: requests.filter(r => r.assigned_to).length,
+        unassigned_requests: requests.filter(r => !r.assigned_to).length
+      };
+    },
+
+    // Get requests by status for dashboard
+    getByStatus: async (status, userId = null, userRole = null) => {
+      let query = supabase
+        .from('it_requests')
+        .select(`
+          *,
+          category:it_request_categories(name, color, icon),
+          priority:it_request_priorities(name, level, color),
+          requester:requester_id(full_name, email)
+        `)
+        .eq('status', status)
+        .order('created_at', { ascending: false });
+
+      // Apply role-based filtering
+      if (userRole === 'employee' && userId) {
+        query = query.eq('requester_id', userId);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      return data || [];
     }
   },
 
-  // Dashboard Statistics
-  dashboard: {
-    getStats: async () => {
+  // IT Assets (if needed)
+  assets: {
+    getAll: async () => {
       const { data, error } = await supabase
-        .from('it_dashboard_stats')
+        .from('it_assets')
         .select('*')
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-
-    getRecentRequests: async (limit = 10) => {
-      const { data, error } = await supabase
-        .from('it_requests')
-        .select(`
-          id,
-          request_number,
-          title,
-          status,
-          created_at,
-          category:it_request_categories(name, color),
-          priority:it_request_priorities(name, color),
-          requester:requester_id(full_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (error) throw error;
-      return data;
-    },
-
-    getRecentTickets: async (limit = 10) => {
-      const { data, error } = await supabase
-        .from('it_tickets')
-        .select(`
-          id,
-          ticket_number,
-          title,
-          status,
-          created_at,
-          priority:it_request_priorities(name, color),
-          assignee:assigned_to(full_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+        .order('name');
       
       if (error) throw error;
       return data;
