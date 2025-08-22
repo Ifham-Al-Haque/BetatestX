@@ -170,12 +170,23 @@ export default function Login() {
           className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white text-center">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <img src="/Uhub.png" alt="Uhub Logo" className="w-12 h-12" />
+          <div className="text-center mb-8">
+            <div className="flex justify-center items-center mb-6">
+              <img src="/Udrivehub.png" alt="U Drive Logo" className="h-16 w-auto mr-4" />
+              <div className="text-left">
+                <h1 className="text-3xl font-bold text-gray-900">U Drive</h1>
+                <p className="text-sm text-gray-600">Fleet & HR Management Platform</p>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold mb-2">Welcome to UHub</h1>
-            <p className="text-blue-100">Sign in to your account</p>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              {isSignup ? "Create Account" : "Welcome Back"}
+            </h2>
+            <p className="text-gray-600 mt-2">
+              {isSignup 
+                ? "Sign up to get started with U Drive" 
+                : "Sign in to your U Drive account"
+              }
+            </p>
           </div>
 
           {/* Login Form */}

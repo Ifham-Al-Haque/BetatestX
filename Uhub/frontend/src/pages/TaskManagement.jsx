@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { enhancedEmployeeApi } from '../services/enhancedEmployeeApi';
 import Sidebar from '../components/Sidebar';
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';
@@ -22,7 +23,8 @@ const TaskManagement = () => {
   const { success, error: showError } = useToast();
   
   const [tasks, setTasks] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [departmentEmployees, setDepartmentEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -65,16 +67,54 @@ const TaskManagement = () => {
     fetchData();
   }, [filters]);
 
+  // Fetch all employees when component mounts
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  // Update department employees when department changes
+  useEffect(() => {
+    if (formData.department) {
+      filterEmployeesByDepartment(formData.department);
+    } else {
+      setDepartmentEmployees([]);
+    }
+    // Reset assigned_to when department changes
+    setFormData(prev => ({ ...prev, assigned_to: '' }));
+  }, [formData.department, allEmployees]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data: employees } = await enhancedEmployeeApi.employees.getAll(1, 1000, '', {});
+      if (employees) {
+        setAllEmployees(employees);
+      }
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+      // Fallback to mock data if API fails
+      const mockEmployees = [
+        { id: '1', full_name: 'Talha', department: 'IT Services', email: 'talha@example.com' },
+        { id: '2', full_name: 'Ifham', department: 'Operations', email: 'ifham@example.com' },
+        { id: '3', full_name: 'Admin User', department: 'General', email: 'admin@example.com' },
+        { id: '4', full_name: 'John Doe', department: 'IT Services', email: 'john@example.com' },
+        { id: '5', full_name: 'Jane Smith', department: 'Customer Service', email: 'jane@example.com' },
+        { id: '6', full_name: 'Mike Johnson', department: 'Finance', email: 'mike@example.com' }
+      ];
+      setAllEmployees(mockEmployees);
+    }
+  };
+
+  const filterEmployeesByDepartment = (department) => {
+    const filtered = allEmployees.filter(employee => 
+      employee.department === department && employee.status !== 'inactive'
+    );
+    setDepartmentEmployees(filtered);
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       // Mock data for now - replace with actual API calls
-      const mockEmployees = [
-        { id: '1', full_name: 'Talha', department: 'IT Services', email: 'talha@example.com' },
-        { id: '2', full_name: 'Ifham', department: 'Operations', email: 'ifham@example.com' },
-        { id: '3', full_name: 'Admin User', department: 'General', email: 'admin@example.com' }
-      ];
-      
       const mockTasks = [
         {
           id: '1',
@@ -92,7 +132,6 @@ const TaskManagement = () => {
         }
       ];
 
-      setEmployees(mockEmployees);
       setTasks(mockTasks);
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -216,12 +255,12 @@ const TaskManagement = () => {
   };
 
   const getAssignedEmployeeName = (employeeId) => {
-    const employee = employees.find(emp => emp.id === employeeId);
+    const employee = allEmployees.find(emp => emp.id === employeeId);
     return employee ? employee.full_name : 'Unknown';
   };
 
   const getAssignedByEmployeeName = (employeeId) => {
-    const employee = employees.find(emp => emp.id === employeeId);
+    const employee = allEmployees.find(emp => emp.id === employeeId);
     return employee ? employee.full_name : 'Unknown';
   };
 
@@ -388,12 +427,29 @@ const TaskManagement = () => {
               animate={{ scale: 1, opacity: 1 }}
               className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">
-                  {editingTask ? 'Edit Task' : 'Create New Task'}
-                </h2>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {editingTask ? 'Edit Task' : 'Create New Task'}
+                  </h2>
+                  {formData.department && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-gray-600">Department:</span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <Building className="w-3 h-3 mr-1" />
+                        {formData.department}
+                      </span>
+                      {departmentEmployees.length > 0 && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <Users className="w-3 h-3 mr-1" />
+                          {departmentEmployees.length} user(s) available
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     setShowForm(false);
@@ -403,6 +459,23 @@ const TaskManagement = () => {
                 >
                   <XCircle className="w-5 h-5" />
                 </Button>
+              </div>
+
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <Building className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-900 mb-1">How to Assign Tasks</h3>
+                    <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                      <li>First, select the <strong>Department</strong> where the task will be performed</li>
+                      <li>Then, choose an <strong>Employee</strong> from that department to assign the task to</li>
+                      <li>Only active users from the selected department will be available for assignment</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -456,14 +529,32 @@ const TaskManagement = () => {
                       onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
+                      disabled={!formData.department}
                     >
-                      <option value="">Select Employee</option>
-                      {employees.map(employee => (
+                      <option value="">
+                        {!formData.department 
+                          ? 'Select Department First' 
+                          : departmentEmployees.length === 0 
+                            ? 'No Users in Department' 
+                            : 'Select Employee'
+                        }
+                      </option>
+                      {departmentEmployees.map(employee => (
                         <option key={employee.id} value={employee.id}>
-                          {employee.full_name} - {employee.department}
+                          {employee.full_name} - {employee.email}
                         </option>
                       ))}
                     </select>
+                    {formData.department && departmentEmployees.length === 0 && (
+                      <p className="text-sm text-red-500 mt-1">
+                        No active users found in {formData.department} department
+                      </p>
+                    )}
+                    {formData.department && departmentEmployees.length > 0 && (
+                      <p className="text-sm text-green-600 mt-1">
+                        {departmentEmployees.length} user(s) available in {formData.department}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -499,8 +590,9 @@ const TaskManagement = () => {
                     type="number"
                     value={formData.estimated_hours}
                     onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                    placeholder="e.g., 8"
+                    placeholder="e.g., 4"
                     min="0"
+                    step="0.5"
                   />
                 </div>
 

@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import React, { useState, useMemo, Suspense } from 'react';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -9,7 +10,7 @@ import { useExpenseStats } from '../hooks/useExpenseStats';
 import { usePaymentEvents } from '../hooks/usePaymentEvents';
 import { useQueryClient } from '@tanstack/react-query';
 import Header from '../components/Header';
-import Sidebar from '../components/Sidebar';
+import PageLayout from '../components/PageLayout';
 import GlobalFilter from '../components/GlobalFilter';
 import UpcomingPaymentEvents from '../components/UpcomingPaymentEvents';
 import PaymentCalendar from '../components/PaymentCalendar';
@@ -22,59 +23,95 @@ import InteractiveExpenseChart from '../components/InteractiveExpenseChart';
 import TodaySpendingChart from '../components/TodaySpendingChart';
 import RoleDebug from '../components/RoleDebug';
 
-// Color scheme for charts
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+// Import dashboard styles
+import './Dashboard.css';
 
-// Summary Card Component
+// Enhanced color scheme for charts and UI elements
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899', '#14B8A6'];
+
+// Enhanced Summary Card Component
 const SummaryCard = ({ title, value, change, iconName, color = 'blue' }) => {
   const Icon = LucideIcons[iconName];
+  const colorVariants = {
+    blue: 'from-blue-500 to-blue-600',
+    green: 'from-emerald-500 to-emerald-600',
+    purple: 'from-purple-500 to-purple-600',
+    orange: 'from-orange-500 to-orange-600',
+    red: 'from-red-500 to-red-600',
+    indigo: 'from-indigo-500 to-indigo-600'
+  };
+  
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-300">
-      <div className="flex items-center justify-between h-full">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mb-2">{value}</p>
+    <div className="summary-card group relative overflow-hidden bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      {/* Gradient background overlay */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${colorVariants[color]} opacity-5 group-hover:opacity-10 transition-opacity duration-300`} />
+      
+      <div className="summary-card-content relative z-10 flex items-center justify-between">
+        <div className="flex-1 min-w-0 pr-6">
+          <p className="text-sm font-medium text-gray-600 mb-2 opacity-80">{title}</p>
+          <p className="text-3xl font-bold text-gray-900 mb-3 leading-tight">{value}</p>
           {change !== undefined && (
-            <div className="flex items-center">
-              <span className={`text-sm font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="flex items-center flex-wrap gap-2">
+              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
+                change >= 0 
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+              }`}>
+                <span className="mr-1">{change >= 0 ? '↗' : '↘'}</span>
                 {change >= 0 ? '+' : ''}{change}%
               </span>
-              <span className="text-sm text-gray-500 ml-1">vs last month</span>
+              <span className="text-xs text-gray-500">vs last month</span>
             </div>
           )}
         </div>
-        <div className={`p-3 rounded-lg bg-${color}-50 flex-shrink-0 ml-4`}>
-          {Icon && <Icon className={`w-6 h-6 text-${color}-600`} />}
+        <div className={`summary-card-icon p-4 rounded-xl bg-gradient-to-br ${colorVariants[color]} shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+          {Icon && <Icon className="w-7 h-7 text-white" />}
         </div>
       </div>
+      
+      {/* Decorative elements */}
+      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-white/20 to-transparent rounded-full -translate-y-10 translate-x-10" />
     </div>
   );
 };
 
-// Section Header Component
-const SectionHeader = ({ title, iconName, action }) => {
+// Enhanced Section Header Component
+const SectionHeader = ({ title, iconName, action, subtitle }) => {
   const Icon = LucideIcons[iconName];
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center space-x-3">
-        <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
-          {Icon && <Icon className="w-5 h-5 text-blue-600" />}
+    <div className="section-header">
+      <div className="section-header-left">
+        <div className="section-header-icon">
+          {Icon && <Icon className="w-6 h-6 text-white" />}
         </div>
-        <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+        <div className="section-header-text">
+          <h2 className="section-header-title">
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="section-header-subtitle">{subtitle}</p>
+          )}
+        </div>
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {action && <div className="section-header-action">{action}</div>}
     </div>
   );
 };
 
-// Animated Card Component
-const AnimatedCard = ({ children, className = '', delay = 0 }) => (
-  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-300">
-    {children}
+// Enhanced Animated Card Component
+const AnimatedCard = ({ children, className = '', delay = 0, gradient = false }) => (
+  <div className={`animated-card ${gradient ? 'gradient' : ''} ${className}`}>
+    {/* Subtle border gradient */}
+    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+    
+    {/* Content */}
+    <div className="relative z-10 p-8">
+      {children}
+    </div>
   </div>
 );
 
-// Departmental Expenses Chart Component using Recharts
+// Enhanced Departmental Expenses Chart Component
 const DepartmentalExpensesLineChart = ({ data }) => {
   const [filterType, setFilterType] = useState('monthly');
 
@@ -89,8 +126,9 @@ const DepartmentalExpensesLineChart = ({ data }) => {
     return (
       <div className="h-80 flex items-center justify-center text-gray-500">
         <div className="text-center">
-          {LineChartIcon && <LineChartIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />}
-          <p>No departmental expense data available</p>
+          {LineChartIcon && <LineChartIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />}
+          <p className="text-lg font-medium text-gray-400">No departmental expense data available</p>
+          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
         </div>
       </div>
     );
@@ -100,8 +138,11 @@ const DepartmentalExpensesLineChart = ({ data }) => {
     const deptData = {};
 
     data.forEach(expense => {
-      const dept = expense.department?.trim();
-      if (!dept || !expense.amount_aed) return;
+      // Try different possible field names for department and amount
+      const dept = (expense.department || expense.dept || expense.division || 'Unknown Department')?.trim();
+      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+      
+      if (!dept || !amount || amount <= 0) return;
 
       if (!deptData[dept]) {
         deptData[dept] = { monthly: {}, yearly: {} };
@@ -116,11 +157,11 @@ const DepartmentalExpensesLineChart = ({ data }) => {
       if (date) {
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         deptData[dept].monthly[monthKey] =
-          (deptData[dept].monthly[monthKey] || 0) + expense.amount_aed;
+          (deptData[dept].monthly[monthKey] || 0) + parseFloat(amount);
 
         const yearKey = date.getFullYear().toString();
         deptData[dept].yearly[yearKey] =
-          (deptData[dept].yearly[yearKey] || 0) + expense.amount_aed;
+          (deptData[dept].yearly[yearKey] || 0) + parseFloat(amount);
       }
     });
 
@@ -174,261 +215,266 @@ const DepartmentalExpensesLineChart = ({ data }) => {
       // Generate sample data if no real data exists
       if (sortedYears.length === 0) {
         const sampleYears = [];
-        const currentYear = new Date().getFullYear();
+        const currentDate = new Date();
         for (let i = 2; i >= 0; i--) {
-          sampleYears.push((currentYear - i).toString());
+          sampleYears.push(currentDate.getFullYear() - i);
         }
         return sampleYears.map(year => {
-          const row = { period: year };
-          let total = 0;
+          const row = { period: year.toString() };
           departments.forEach(dept => {
-            const value = Math.random() * 50000 + 10000;
-            row[dept] = value;
-            total += value;
+            row[dept] = Math.random() * 100000 + 10000;
           });
-          row.total = total;
           return row;
         });
       }
 
       return sortedYears.map(year => {
-        const row = { period: year };
-        let total = 0;
+        const row = { period: year.toString() };
         departments.forEach(dept => {
-          const value = deptData[dept].yearly[year] || 0;
-          row[dept] = value;
-          total += value;
+          row[dept] = deptData[dept].yearly[year] || 0;
         });
-        row.total = total;
         return row;
       });
     }
+
     return [];
   };
 
   const chartData = getChartData();
 
   return (
-    <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-8 border border-gray-100 shadow-sm">
-      {/* Filter Buttons */}
-      <div className="flex space-x-3 mb-6">
-        {['monthly', 'yearly'].map(type => (
+    <div className="space-y-6">
+      {/* Enhanced filter buttons */}
+      <div className="flex justify-center">
+        <div className="inline-flex bg-gray-100 rounded-xl p-1 shadow-inner">
           <button
-            key={type}
-            onClick={() => setFilterType(type)}
-            className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-              filterType === type
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'
+            onClick={() => setFilterType('monthly')}
+            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              filterType === 'monthly'
+                ? 'bg-white text-blue-600 shadow-md'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
             }`}
           >
-            {type.charAt(0).toUpperCase() + type.slice(1)}
+            Monthly View
           </button>
-        ))}
+          <button
+            onClick={() => setFilterType('yearly')}
+            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              filterType === 'yearly'
+                ? 'bg-white text-blue-600 shadow-md'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+            }`}
+          >
+            Yearly View
+          </button>
+        </div>
       </div>
 
-             {/* Chart */}
-       <div className="h-[500px]">
-         <ResponsiveContainer width="100%" height="100%">
-           {filterType === 'monthly' ? (
-             <RechartsLineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
-               <CartesianGrid strokeDasharray="3 3" />
-               <XAxis dataKey="period" angle={-45} textAnchor="end" height={70} />
-               <YAxis tickFormatter={(v) => `AED ${v.toLocaleString()}`} />
-               <Tooltip formatter={(v) => `AED ${v.toLocaleString()}`} />
-               <Legend />
-               {departments.map((dept, index) => (
-                 <Line
-                   key={dept}
-                   type="monotone"
-                   dataKey={dept}
-                   stroke={COLORS[index % COLORS.length]}
-                   strokeWidth={2}
-                   dot={{ r: 4 }}
-                   activeDot={{ r: 6 }}
-                 />
-               ))}
-             </RechartsLineChart>
-           ) : (
-             <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
-               <CartesianGrid strokeDasharray="3 3" />
-               <XAxis dataKey="period" />
-               <YAxis tickFormatter={(v) => `AED ${v.toLocaleString()}`} />
-               <Tooltip formatter={(v) => `AED ${v.toLocaleString()}`} />
-               <Legend />
-               {departments.map((dept, index) => (
-                 <Bar
-                   key={dept}
-                   dataKey={dept}
-                   stackId="a"
-                   fill={COLORS[index % COLORS.length]}
-                 />
-               ))}
-               <Bar dataKey="total" fill="transparent">
-                 <LabelList
-                   dataKey="total"
-                   position="top"
-                   formatter={(v) => `AED ${v.toLocaleString()}`}
-                 />
-               </Bar>
-             </BarChart>
-           )}
-         </ResponsiveContainer>
-       </div>
-
-      {/* Summary table for yearly view */}
-      {filterType === 'yearly' && (
-        <div className="mt-6 space-y-4">
-          {chartData.map((period, index) => (
-            <div key={index} className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex justify-between font-semibold text-gray-700 mb-2">
-                <span>{period.period} Total:</span>
-                <span>{period.total.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {departments.map((dept, i) => (
-                  <div key={dept} className="flex items-center space-x-2">
-                    <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                    />
-                    <span className="text-sm text-gray-600">{dept}:</span>
-                    <span className="text-sm font-medium">
-                      {period[dept]?.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <ResponsiveContainer width="100%" height={350}>
+        <RechartsLineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <XAxis 
+            dataKey="period" 
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tickFormatter={(value) => {
+              if (filterType === 'monthly') {
+                const [year, month] = value.split('-');
+                return `${month}/${year.slice(2)}`;
+              }
+              return value;
+            }}
+          />
+          <YAxis 
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+          />
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #E5E7EB',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+            }}
+            formatter={(value, name) => [
+              `${(value / 1000).toFixed(1)}k AED`,
+              name
+            ]}
+            labelFormatter={(label) => {
+              if (filterType === 'monthly') {
+                const [year, month] = label.split('-');
+                const monthNames = [
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+              }
+              return `Year ${label}`;
+            }}
+          />
+          <Legend />
+          {departments.map((dept, index) => (
+            <Line
+              key={dept}
+              type="monotone"
+              dataKey={dept}
+              stroke={COLORS[index % COLORS.length]}
+              strokeWidth={3}
+              dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 5 }}
+              activeDot={{ r: 8, strokeWidth: 2, stroke: 'white' }}
+            />
           ))}
-        </div>
-      )}
+        </RechartsLineChart>
+      </ResponsiveContainer>
     </div>
   );
 };
 
-// Average Spending Chart Component
+// Enhanced Average Spending Chart Component
 const AverageSpendingChart = ({ data }) => {
+  // Debug: Log the data structure to see what fields are available
+  console.log('AverageSpendingChart data:', data);
+  if (data && data.length > 0) {
+    console.log('Sample expense object:', data[0]);
+    console.log('Available fields:', Object.keys(data[0]));
+  }
+
   if (!data || data.length === 0) {
-    const DollarSignIcon = LucideIcons.DollarSign;
+    const BarChartIcon = LucideIcons.BarChart3;
     return (
       <div className="h-80 flex items-center justify-center text-gray-500">
         <div className="text-center">
-          {DollarSignIcon && <DollarSignIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />}
-          <p>No average spending data available</p>
+          {BarChartIcon && <BarChartIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />}
+          <p className="text-lg font-medium text-gray-400">No expense data available</p>
+          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
         </div>
       </div>
     );
   }
 
-  // Calculate average spending per service
+  // Calculate average spending by service - try different possible field names
   const serviceStats = {};
   data.forEach(expense => {
-    if (expense.service_name && expense.amount_aed) {
-      if (!serviceStats[expense.service_name]) {
-        serviceStats[expense.service_name] = {
-          total: 0,
-          count: 0
-        };
-      }
-      serviceStats[expense.service_name].total += expense.amount_aed;
-      serviceStats[expense.service_name].count += 1;
+    // Try different possible field names for service and amount
+    const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
+    const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+    
+    if (!serviceName || !amount || amount <= 0) return;
+    
+    if (!serviceStats[serviceName]) {
+      serviceStats[serviceName] = {
+        total: 0,
+        count: 0
+      };
     }
+    serviceStats[serviceName].total += parseFloat(amount);
+    serviceStats[serviceName].count += 1;
   });
 
-  const averageData = Object.entries(serviceStats)
+  console.log('Processed service stats:', serviceStats);
+
+  const chartData = Object.entries(serviceStats)
     .map(([service, stats]) => ({
-      service,
+      service: service.length > 20 ? service.substring(0, 20) + '...' : service,
       average: stats.total / stats.count,
-      total: stats.total,
       count: stats.count
     }))
     .sort((a, b) => b.average - a.average)
-    .slice(0, 10); // Top 10 services by average spending
+    .slice(0, 8); // Top 8 services
 
-  return (
-    <div className="h-80">
-      <div className="h-full overflow-y-auto space-y-4 pr-2">
-        {averageData.map((item, index) => (
-          <div key={item.service} className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-            <div className="flex items-center justify-between w-full">
-              {/* Left side - Color and Service info */}
-              <div className="flex items-center space-x-3 min-w-0 flex-1">
-                <div 
-                  className="w-4 h-4 rounded-full shadow-sm flex-shrink-0"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-gray-800 truncate mb-1">
-                    {item.service}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {item.count} transactions • {((item.average / Math.max(...averageData.map(d => d.average))) * 100).toFixed(1)}% of max
-                  </div>
-                </div>
-              </div>
-              
-              {/* Right side - Progress bar and Amount */}
-              <div className="flex items-center space-x-4 ml-4">
-                <div className="w-24 flex-shrink-0">
-                  <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-500 ease-out"
-                      style={{ 
-                        backgroundColor: COLORS[index % COLORS.length],
-                        width: (() => {
-                          const maxAverage = Math.max(...averageData.map(d => d.average));
-                          const percentage = maxAverage > 0 ? (item.average / maxAverage) * 100 : 0;
-                          return Math.min(percentage, 100) + '%';
-                        })()
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="text-right min-w-[140px] flex-shrink-0">
-                  <div className="text-sm font-bold text-gray-900 mb-1">
-                    {item.average.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    avg
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+  console.log('Chart data:', chartData);
 
-// Top Expense Categories Component
-const TopExpenseCategories = ({ data }) => {
-  if (!data || data.length === 0) {
-    const DollarSignIcon = LucideIcons.DollarSign;
+  // If no valid data, show empty state
+  if (chartData.length === 0) {
     return (
       <div className="h-80 flex items-center justify-center text-gray-500">
         <div className="text-center">
-          {DollarSignIcon && <DollarSignIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />}
-          <p>No expense data available</p>
+          <span className="text-4xl mb-4">📊</span>
+          <p className="text-lg font-medium text-gray-400">No spending data available</p>
+          <p className="text-sm text-gray-400 mt-1">Check if expense data has service names and amounts</p>
         </div>
       </div>
     );
   }
 
-  // Calculate top expense categories by service
+  return (
+    <ResponsiveContainer width="100%" height={350}>
+      <BarChart data={chartData} layout="horizontal" margin={{ left: 20, right: 20 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+        <XAxis 
+          type="number" 
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          tickFormatter={(value) => {
+            if (value === 0) return '0';
+            if (value < 1000) return `${value.toFixed(0)}`;
+            return `${(value / 1000).toFixed(1)}k`;
+          }}
+        />
+        <YAxis 
+          type="category" 
+          dataKey="service" 
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          width={120}
+        />
+        <Tooltip 
+          contentStyle={{
+            backgroundColor: 'white',
+            border: '1px solid #E5E7EB',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}
+          formatter={(value, name) => [
+            `${value.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}`,
+            name === 'average' ? 'Average' : name
+          ]}
+        />
+        <Bar 
+          dataKey="average" 
+          fill="url(#gradient)"
+          radius={[0, 6, 6, 0]}
+        />
+        <defs>
+          <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#3B82F6" />
+            <stop offset="100%" stopColor="#8B5CF6" />
+          </linearGradient>
+        </defs>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+// Enhanced Top Expense Categories Component
+const TopExpenseCategories = ({ data }) => {
+  if (!data || data.length === 0) {
+    const TrendingUpIcon = LucideIcons.TrendingUp;
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          {TrendingUpIcon && <TrendingUpIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />}
+          <p className="text-lg font-medium text-gray-400">No expense data available</p>
+          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate total spending by service - try different possible field names
   const serviceStats = {};
   data.forEach(expense => {
-    if (expense.service_name && expense.amount_aed) {
-      if (!serviceStats[expense.service_name]) {
-        serviceStats[expense.service_name] = {
-          total: 0,
-          count: 0
-        };
-      }
-      serviceStats[expense.service_name].total += expense.amount_aed;
-      serviceStats[expense.service_name].count += 1;
+    // Try different possible field names for service and amount
+    const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
+    const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+    
+    if (!serviceName || !amount || amount <= 0) return;
+    
+    if (!serviceStats[serviceName]) {
+      serviceStats[serviceName] = {
+        total: 0,
+        count: 0
+      };
     }
+    serviceStats[serviceName].total += parseFloat(amount);
+    serviceStats[serviceName].count += 1;
   });
 
   const topCategories = Object.entries(serviceStats)
@@ -440,23 +486,37 @@ const TopExpenseCategories = ({ data }) => {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5); // Top 5 categories
 
+  // If no valid data, show empty state
+  if (topCategories.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <span className="text-4xl mb-4">📊</span>
+          <p className="text-lg font-medium text-gray-400">No spending data available</p>
+          <p className="text-sm text-gray-400 mt-1">Check if expense data has service names and amounts</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-80">
       <div className="h-full overflow-y-auto space-y-4 pr-2">
         {topCategories.map((item, index) => (
-          <div key={item.service} className="bg-gradient-to-r from-white to-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
+          <div key={item.service} className="group bg-gradient-to-r from-white to-gray-50 rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-200">
             <div className="flex items-center justify-between w-full">
               {/* Left side - Color and Service info */}
-              <div className="flex items-center space-x-3 min-w-0 flex-1">
+              <div className="flex items-center space-x-4 min-w-0 flex-1">
                 <div 
-                  className="w-3 h-3 rounded-full shadow-sm flex-shrink-0"
+                  className="w-4 h-4 rounded-full shadow-sm flex-shrink-0 ring-2 ring-white"
                   style={{ backgroundColor: COLORS[index % COLORS.length] }}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-gray-800 truncate mb-1">
+                  <div className="text-sm font-semibold text-gray-800 truncate mb-1 group-hover:text-blue-600 transition-colors">
                     {item.service}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <span className="mr-2">📊</span>
                     {item.count} transactions
                   </div>
                 </div>
@@ -467,7 +527,7 @@ const TopExpenseCategories = ({ data }) => {
                 <div className="text-sm font-bold text-gray-900 mb-1">
                   {item.total.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                   {((item.total / Math.max(...topCategories.map(d => d.total))) * 100).toFixed(1)}% of total
                 </div>
               </div>
@@ -506,81 +566,83 @@ export default function Dashboard() {
       };
     }
 
-    const totalExpenses = safeExpenseStats.reduce((sum, expense) => sum + (expense.amount_aed || 0), 0);
+    const totalExpenses = safeExpenseStats.reduce((sum, expense) => {
+      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+      return sum + parseFloat(amount);
+    }, 0);
+    
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
     const currentMonthExpenses = safeExpenseStats.filter(expense => {
-      const expenseDate = new Date(expense.date_paid);
+      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
       return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-    }).reduce((sum, expense) => sum + (expense.amount_aed || 0), 0);
+    }).reduce((sum, expense) => {
+      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+      return sum + parseFloat(amount);
+    }, 0);
 
     const lastMonthExpenses = safeExpenseStats.filter(expense => {
-      const expenseDate = new Date(expense.date_paid);
+      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
       const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
       const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
       return expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
-    }).reduce((sum, expense) => sum + (expense.amount_aed || 0), 0);
+    }).reduce((sum, expense) => {
+      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+      return sum + parseFloat(amount);
+    }, 0);
 
     const monthlyGrowth = lastMonthExpenses > 0 
-      ? ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses * 100).toFixed(1)
+      ? ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 
       : 0;
 
-    // Calculate unique departments
-    const uniqueDepartments = new Set(safeExpenseStats.map(expense => expense.department).filter(Boolean));
-    
-    // Calculate average per expense
+    const uniqueDepartments = new Set(safeExpenseStats.map(expense => 
+      expense.department || expense.dept || expense.division
+    ).filter(Boolean));
     const averagePerExpense = totalExpenses / safeExpenseStats.length;
 
     return {
       totalExpenses: totalExpenses.toLocaleString('en-US', { style: 'currency', currency: 'AED' }),
       totalDepartments: uniqueDepartments.size.toString(),
       averagePerExpense: averagePerExpense.toLocaleString('en-US', { style: 'currency', currency: 'AED' }),
-      monthlyGrowth: parseFloat(monthlyGrowth)
+      monthlyGrowth: Math.round(monthlyGrowth)
     };
   }, [safeExpenseStats]);
 
-  // Process expense data for charts
+  // Process monthly data for charts
   const monthlyData = useMemo(() => {
     if (!safeExpenseStats.length) return [];
 
-    const monthlyExpenses = {};
+    const monthlyStats = {};
     safeExpenseStats.forEach(expense => {
-      if (expense.date_paid && expense.amount_aed) {
-        const date = new Date(expense.date_paid);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        monthlyExpenses[monthKey] = (monthlyExpenses[monthKey] || 0) + expense.amount_aed;
+      const date = expense.date_paid || expense.date || expense.created_at;
+      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+      
+      if (!date || !amount || amount <= 0) return;
+      
+      const expenseDate = new Date(date);
+      const monthKey = `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyStats[monthKey]) {
+        monthlyStats[monthKey] = 0;
       }
+      monthlyStats[monthKey] += parseFloat(amount);
     });
 
-    return Object.entries(monthlyExpenses)
-      .map(([month, amount]) => ({ month, amount }))
+    return Object.entries(monthlyStats)
+      .map(([month, total]) => ({ month, total }))
       .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-12); // Last 12 months
-  }, [safeExpenseStats]);
-
-  const departmentData = useMemo(() => {
-    if (!safeExpenseStats.length) return [];
-
-    const deptExpenses = {};
-    safeExpenseStats.forEach(expense => {
-      if (expense.department && expense.amount_aed) {
-        deptExpenses[expense.department] = (deptExpenses[expense.department] || 0) + expense.amount_aed;
-      }
-    });
-
-    return Object.entries(deptExpenses)
-      .map(([department, amount]) => ({ department, amount }))
-      .sort((a, b) => b.amount - a.amount);
+      .slice(-6); // Last 6 months
   }, [safeExpenseStats]);
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
+    // You can add a modal or navigation here
   };
 
-  const handleDateClick = (date, events) => {
-    console.log('Date clicked:', date, 'Events:', events);
-    // You can add a modal or navigation here
+  const handleDateClick = (date) => {
+    // Handle date click from calendar
+    console.log('Date clicked:', date);
   };
 
   // Show loading state only if both queries are loading and we have no cached data
@@ -588,199 +650,234 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar />
-        <div className="flex-1 ml-80">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <LoadingSpinner size="xl" text="Loading dashboard data..." />
-          </div>
+      <PageLayout className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+        <div className="page-content">
+          <LoadingSpinner size="xl" text="Loading dashboard data..." />
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar />
-      
-      <div className="flex-1 ml-80">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Welcome Section */}
-          <div
-            className="mb-8"
-          >
-            <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {userProfile?.full_name || user?.email?.split('@')[0] || 'User'}! 👋
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Here's what's happening with your organization today.
-            </p>
+    <PageLayout className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+      <div className="page-content">
+        {/* Enhanced Welcome Section */}
+        <div className="welcome-section">
+          <div className="welcome-icon">
+            <span className="text-2xl">👋</span>
           </div>
+          <h1 className="welcome-title">
+            Welcome back, {userProfile?.full_name || user?.email?.split('@')[0] || 'User'}!
+          </h1>
+          <p className="welcome-subtitle">
+            Here's what's happening with your organization today. Track expenses, monitor trends, and stay on top of your financial data.
+          </p>
+        </div>
 
-          {/* Global Filter */}
+        {/* Global Filter */}
+        <div className="global-filter-container">
           <GlobalFilter onFilterChange={handleFilterChange} filters={filters} />
+        </div>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <SummaryCard
-              title="Total Expenses"
-              value={summaryStats.totalExpenses}
-              change={summaryStats.monthlyGrowth}
-              iconName="DollarSign"
-              color="blue"
+        {/* Enhanced Summary Cards */}
+        <div className="dashboard-grid cols-3">
+          <SummaryCard
+            title="Total Expenses"
+            value={summaryStats.totalExpenses}
+            change={summaryStats.monthlyGrowth}
+            iconName="DollarSign"
+            color="blue"
+          />
+          <SummaryCard
+            title="Active Departments"
+            value={summaryStats.totalDepartments}
+            iconName="Users"
+            color="green"
+          />
+          <SummaryCard
+            title="Average per Expense"
+            value={summaryStats.averagePerExpense}
+            iconName="TrendingUp"
+            color="purple"
+          />
+        </div>
+
+        {/* Enhanced Charts Section */}
+        <div className="dashboard-grid cols-1">
+          {/* Monthly Expense Chart */}
+          <AnimatedCard delay={0.1} gradient={true}>
+            <SectionHeader 
+              title="Monthly Expense Trend" 
+              iconName="TrendingUp"
+              subtitle="Track your spending patterns over time"
             />
-            <SummaryCard
-              title="Departments"
-              value={summaryStats.totalDepartments}
-              iconName="Users"
-              color="green"
-            />
-            <SummaryCard
-              title="Average per Expense"
-              value={summaryStats.averagePerExpense}
-              iconName="DollarSign"
-              color="purple"
-            />
-          </div>
-
-
-
-          {/* Charts Section - Now Vertical Layout */}
-          <div className="space-y-8 mb-8">
-            {/* Monthly Expense Chart */}
-            <AnimatedCard delay={0.1}>
-              <SectionHeader title="Monthly Expense Trend" iconName="TrendingUp" />
-              <div className="mt-4">
-                <InteractiveExpenseChart data={monthlyData} />
-              </div>
-            </AnimatedCard>
-
-            {/* Departmental Expenses Line Chart */}
-            <AnimatedCard delay={0.2}>
-              <SectionHeader title="Departmental Expenses" iconName="LineChart" />
-              <div className="mt-4">
-                <DepartmentalExpensesLineChart data={safeExpenseStats} />
-              </div>
-            </AnimatedCard>
-
-            {/* Average Spending Chart and Top Expense Categories - Side by Side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Average Spending Chart */}
-              <AnimatedCard delay={0.3}>
-                <SectionHeader title="Average Spending by Service" iconName="DollarSign" />
-                <div className="mt-4">
-                  <AverageSpendingChart data={safeExpenseStats} />
-                </div>
-              </AnimatedCard>
-
-              {/* Top Expense Categories */}
-              <AnimatedCard delay={0.4}>
-                <SectionHeader title="Top Expense Categories" iconName="DollarSign" />
-                <div className="mt-4">
-                  <TopExpenseCategories data={safeExpenseStats} />
-                </div>
-              </AnimatedCard>
+            <div className="mt-6">
+              <InteractiveExpenseChart data={monthlyData} />
             </div>
+          </AnimatedCard>
 
-            {/* Today's Spending Chart */}
-            <AnimatedCard delay={0.5}>
-              <SectionHeader title="Today's Spending Breakdown" iconName="Activity" />
-              <div className="mt-4">
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-gray-600">Today's Spending</span>
-                    <span className="text-sm text-gray-500">
-                      {new Date().toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </span>
-                  </div>
-                  <div className="text-3xl font-bold text-gray-900 mb-2">
-                    {(() => {
-                      const today = new Date();
-                      const todayExpenses = safeExpenseStats.filter(expense => {
-                        const expenseDate = new Date(expense.date_paid);
-                        return expenseDate.toDateString() === today.toDateString();
-                      });
-                      const totalToday = todayExpenses.reduce((sum, expense) => sum + (expense.amount_aed || 0), 0);
-                      return totalToday.toLocaleString('en-US', { style: 'currency', currency: 'AED' });
-                    })()}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {(() => {
-                      const today = new Date();
-                      const todayExpenses = safeExpenseStats.filter(expense => {
-                        const expenseDate = new Date(expense.date_paid);
-                        return expenseDate.toDateString() === today.toDateString();
-                      });
-                      return `${todayExpenses.length} transactions`;
-                    })()}
-                  </div>
-                </div>
-                <TodaySpendingChart data={safeExpenseStats} />
+          {/* Departmental Expenses Line Chart */}
+          <AnimatedCard delay={0.2}>
+            <SectionHeader 
+              title="Departmental Expenses" 
+              iconName="LineChart"
+              subtitle="Compare spending across different departments"
+            />
+            <div className="mt-6">
+              <DepartmentalExpensesLineChart data={safeExpenseStats} />
+            </div>
+          </AnimatedCard>
+
+          {/* Average Spending Chart and Top Expense Categories - Side by Side */}
+          <div className="dashboard-grid cols-2">
+            {/* Average Spending Chart */}
+            <AnimatedCard delay={0.3}>
+              <SectionHeader 
+                title="Average Spending by Service" 
+                iconName="DollarSign"
+                subtitle="Top services by average transaction value"
+              />
+              <div className="mt-6">
+                <AverageSpendingChart data={safeExpenseStats} />
+              </div>
+            </AnimatedCard>
+
+            {/* Top Expense Categories */}
+            <AnimatedCard delay={0.4}>
+              <SectionHeader 
+                title="Top Expense Categories" 
+                iconName="BarChart3"
+                subtitle="Highest spending categories overview"
+              />
+              <div className="mt-6">
+                <TopExpenseCategories data={safeExpenseStats} />
               </div>
             </AnimatedCard>
           </div>
 
-          {/* Payment Calendar and Upcoming Events */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Payment Calendar */}
-            <AnimatedCard delay={0.6}>
+          {/* Today's Spending Chart */}
+          <AnimatedCard delay={0.5} gradient={true}>
+            <SectionHeader 
+              title="Today's Spending Breakdown" 
+              iconName="Activity"
+              subtitle="Real-time spending analysis for today"
+            />
+            <div className="mt-6">
+              <div className="today-spending">
+                <div className="today-spending-header">
+                  <span className="today-spending-title">Today's Spending</span>
+                  <span className="today-spending-date">
+                    {new Date().toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </span>
+                </div>
+                <div className="today-spending-amount">
+                  {(() => {
+                    const today = new Date();
+                    const todayExpenses = safeExpenseStats.filter(expense => {
+                      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
+                      return expenseDate.toDateString() === today.toDateString();
+                    });
+                    const totalToday = todayExpenses.reduce((sum, expense) => {
+                      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+                      return sum + parseFloat(amount);
+                    }, 0);
+                    return totalToday.toLocaleString('en-US', { style: 'currency', currency: 'AED' });
+                  })()}
+                </div>
+                <div className="today-spending-stats">
+                  <span className="mr-2">📊</span>
+                  {(() => {
+                    const today = new Date();
+                    const todayExpenses = safeExpenseStats.filter(expense => {
+                      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
+                      return expenseDate.toDateString() === today.toDateString();
+                    });
+                    return `${todayExpenses.length} transactions today`;
+                  })()}
+                </div>
+              </div>
+              <TodaySpendingChart data={safeExpenseStats} />
+            </div>
+          </AnimatedCard>
+        </div>
+
+        {/* Enhanced Payment Calendar and Upcoming Events */}
+        <div className="dashboard-grid cols-2">
+          {/* Payment Calendar */}
+          <AnimatedCard delay={0.6}>
+            <SectionHeader 
+              title="Payment Calendar" 
+              iconName="Calendar"
+              subtitle="Schedule and track upcoming payments"
+            />
+            <div className="mt-6">
               <PaymentCalendar 
                 events={safePaymentEvents} 
                 onDateClick={handleDateClick}
                 onEventsUpdate={handleEventsUpdate}
               />
-            </AnimatedCard>
-
-            {/* Upcoming Payment Events */}
-            <AnimatedCard delay={0.7}>
-              <SectionHeader 
-                title="Upcoming Payment Events" 
-                iconName="Calendar"
-                action={
-                  <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                    {(() => {
-                      const DollarSignIcon = LucideIcons.DollarSign;
-                      return DollarSignIcon && <DollarSignIcon className="w-4 h-4" />;
-                    })()}
-                    <span>Add Event</span>
-                  </button>
-                }
-              />
-              {eventsError ? (
-                <div className="text-center py-8">
-                  <p className="text-red-600 mb-2">Failed to load payment events</p>
-                  <p className="text-sm text-gray-500">{eventsError.message}</p>
-                </div>
-              ) : (
-                <UpcomingPaymentEvents />
-              )}
-            </AnimatedCard>
-          </div>
-
-          {/* Detailed Expense Data */}
-          <AnimatedCard className="mb-8" delay={0.8}>
-                          <SectionHeader title="Detailed Expense Data" iconName="LineChart" />
-            {statsError ? (
-              <div className="text-center py-8">
-                <p className="text-red-600 mb-2">Failed to load expense data</p>
-                <p className="text-sm text-gray-500">{statsError.message}</p>
-              </div>
-            ) : (
-              <ScrollableExpenseTable data={safeExpenseStats} />
-            )}
+            </div>
           </AnimatedCard>
 
-          {/* Role Debug Component - Temporary */}
-          <RoleDebug />
-        </main>
+          {/* Upcoming Payment Events */}
+          <AnimatedCard delay={0.7}>
+            <SectionHeader 
+              title="Upcoming Payment Events" 
+              iconName="Clock"
+              subtitle="Stay on top of your payment schedule"
+              action={
+                <button className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium">
+                  {(() => {
+                    const PlusIcon = LucideIcons.Plus;
+                    return PlusIcon && <PlusIcon className="w-4 h-4" />;
+                  })()}
+                  <span>Add Event</span>
+                </button>
+              }
+            />
+            {eventsError ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <p className="text-red-600 mb-2 font-medium">Failed to load payment events</p>
+                <p className="text-sm text-gray-500">{eventsError.message}</p>
+              </div>
+            ) : (
+              <div className="mt-6">
+                <UpcomingPaymentEvents />
+              </div>
+            )}
+          </AnimatedCard>
+        </div>
+
+        {/* Enhanced Detailed Expense Data */}
+        <AnimatedCard className="mb-12" delay={0.8}>
+          <SectionHeader 
+            title="Detailed Expense Data" 
+            iconName="LineChart"
+            subtitle="Comprehensive view of all expense transactions"
+          />
+          {statsError ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <p className="text-red-600 mb-2 font-medium">Failed to load expense data</p>
+              <p className="text-sm text-gray-500">{statsError.message}</p>
+            </div>
+          ) : (
+            <div className="mt-6">
+              <ScrollableExpenseTable data={safeExpenseStats} />
+            </div>
+          )}
+        </AnimatedCard>
       </div>
-    </div>
+    </PageLayout>
   );
 }
-
-

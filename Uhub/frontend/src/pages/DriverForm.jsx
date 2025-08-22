@@ -354,267 +354,208 @@ export default function DriverForm() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Basic Information */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Personal Information Section */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                   <User className="w-5 h-5 text-blue-600" />
-                  Basic Information
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Full Name *
                     </label>
                     <input
                       type="text"
-                      name="full_name"
+                      id="full_name"
                       value={formData.full_name}
-                      onChange={handleInputChange}
+                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Enter driver's full name"
                     />
                   </div>
-
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Employee ID
-                    </label>
-                    <input
-                      type="text"
-                      name="employee_id"
-                      value={formData.employee_id}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="designation" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Designation *
                     </label>
                     <input
                       type="text"
-                      name="designation"
+                      id="designation"
                       value={formData.designation}
-                      onChange={handleInputChange}
-                      required
+                      onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      required
+                      placeholder="e.g., Delivery Driver, Fleet Driver"
                     />
                   </div>
-
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Nationality *
+                    <label htmlFor="nationality" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Nationality
                     </label>
                     <input
                       type="text"
-                      name="nationality"
+                      id="nationality"
                       value={formData.nationality}
-                      onChange={handleInputChange}
-                      required
+                      onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="e.g., UAE, India, Pakistan"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Employee ID
+                    </label>
+                    <input
+                      type="text"
+                      id="employee_id"
+                      value={formData.employee_id}
+                      onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="e.g., EMP001"
                     />
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Contact Information */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              {/* Contact Information Section */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                   <Phone className="w-5 h-5 text-green-600" />
                   Contact Information
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Company Mobile Number *
+                    <label htmlFor="company_mobile" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Company Mobile *
                     </label>
                     <input
                       type="tel"
-                      name="company_mobile"
+                      id="company_mobile"
                       value={formData.company_mobile}
-                      onChange={handleInputChange}
-                      required
+                      onChange={(e) => setFormData({ ...formData, company_mobile: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      required
+                      placeholder="+971 XX XXX XXXX"
                     />
                   </div>
-
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Personal Mobile Number
+                    <label htmlFor="personal_mobile" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Personal Mobile
                     </label>
                     <input
                       type="tel"
-                      name="personal_mobile"
+                      id="personal_mobile"
                       value={formData.personal_mobile}
-                      onChange={handleInputChange}
+                      onChange={(e) => setFormData({ ...formData, personal_mobile: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="+971 XX XXX XXXX"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="udrive_email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      U Drive Email *
+                    </label>
+                    <input
+                      type="email"
+                      id="udrive_email"
+                      value={formData.udrive_email}
+                      onChange={(e) => setFormData({ ...formData, udrive_email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      required
+                      placeholder="driver@udrive.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="zimyo_email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Zimyo Email
+                    </label>
+                    <input
+                      type="email"
+                      id="zimyo_email"
+                      value={formData.zimyo_email}
+                      onChange={(e) => setFormData({ ...formData, zimyo_email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="driver@zimyo.com"
                     />
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Identification Documents */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-purple-600" />
-                  Identification Documents
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Professional Details Section */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-purple-600" />
+                  Professional Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Emirates ID Number *
-                    </label>
-                    <input
-                      type="text"
-                      name="emirates_id_no"
-                      value={formData.emirates_id_no}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Driving License Number *
-                    </label>
-                    <input
-                      type="text"
-                      name="driving_license_no"
-                      value={formData.driving_license_no}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Udrive Customer Account ID
-                    </label>
-                    <input
-                      type="text"
-                      name="udrive_customer_account_id"
-                      value={formData.udrive_customer_account_id}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Service Car Plate Number
-                    </label>
-                    <input
-                      type="text"
-                      name="service_car_plate"
-                      value={formData.service_car_plate}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Team Information */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                  <Building className="w-5 h-5 text-indigo-600" />
-                  Team Information
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="team_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Team Type
                     </label>
-                    <input
-                      type="text"
-                      name="team_type"
+                    <select
+                      id="team_type"
                       value={formData.team_type}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Delivery, Transport, etc."
+                      onChange={(e) => setFormData({ ...formData, team_type: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
+                    >
+                      <option value="">Select Team Type</option>
+                      <option value="Delivery">Delivery</option>
+                      <option value="Fleet">Fleet</option>
+                      <option value="Logistics">Logistics</option>
+                      <option value="Transport">Transport</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
-
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="team_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Team Name
                     </label>
                     <input
                       type="text"
-                      name="team_name"
+                      id="team_name"
                       value={formData.team_name}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Team Alpha, Team Beta"
+                      onChange={(e) => setFormData({ ...formData, team_name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="e.g., Team Alpha, Night Shift"
                     />
                   </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Team Members
-                    </label>
-                    <textarea
-                      name="team_members"
-                      value={formData.team_members}
-                      onChange={handleInputChange}
-                      rows={3}
-                      placeholder="List team members or describe team structure..."
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="shift_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Shift Type *
                     </label>
                     <select
-                      name="shift_type"
+                      id="shift_type"
                       value={formData.shift_type}
-                      onChange={handleInputChange}
-                      required
+                      onChange={(e) => setFormData({ ...formData, shift_type: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      required
                     >
-                      <option value="Day">Day</option>
-                      <option value="Night">Night</option>
+                      <option value="Day">Day Shift</option>
+                      <option value="Night">Night Shift</option>
+                      <option value="Flexible">Flexible</option>
                     </select>
                   </div>
-
+                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Status
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Status *
                     </label>
                     <select
-                      name="status"
+                      id="status"
                       value={formData.status}
-                      onChange={handleInputChange}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      required
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
@@ -622,313 +563,297 @@ export default function DriverForm() {
                     </select>
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Access Credentials */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-amber-600" />
-                  Access Credentials
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Udrive Credentials */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                      <Car className="w-5 h-5 text-blue-600" />
-                      Udrive Company Credentials
-                    </h3>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Company Email
-                      </label>
-                      <input
-                        type="email"
-                        name="udrive_email"
-                        value={formData.udrive_email}
-                        onChange={handleInputChange}
-                        placeholder="driver@udrive.com"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Company Password
-                      </label>
-                      <input
-                        type="password"
-                        name="udrive_password"
-                        value={formData.udrive_password}
-                        onChange={handleInputChange}
-                        placeholder="Enter Udrive password"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
+              {/* Identification Documents */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-indigo-600" />
+                  Identification Documents
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="emirates_id_no" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Emirates ID Number
+                    </label>
+                    <input
+                      type="text"
+                      id="emirates_id_no"
+                      value={formData.emirates_id_no}
+                      onChange={(e) => setFormData({ ...formData, emirates_id_no: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="XXX-XXXX-XXXXXXX-X"
+                    />
                   </div>
-
-                  {/* Zimyo Credentials */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                      <Monitor className="w-5 h-5 text-green-600" />
-                      Zimyo Platform Credentials
-                    </h3>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Zimyo Email
-                      </label>
-                      <input
-                        type="email"
-                        name="zimyo_email"
-                        value={formData.zimyo_email}
-                        onChange={handleInputChange}
-                        placeholder="driver@zimyo.com"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Zimyo Password
-                      </label>
-                      <input
-                        type="password"
-                        name="zimyo_password"
-                        value={formData.zimyo_password}
-                        onChange={handleInputChange}
-                        placeholder="Enter Zimyo password"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
+                  <div>
+                    <label htmlFor="driving_license_no" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Driving License Number
+                    </label>
+                    <input
+                      type="text"
+                      id="driving_license_no"
+                      value={formData.driving_license_no}
+                      onChange={(e) => setFormData({ ...formData, driving_license_no: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="License number"
+                    />
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Profile Picture */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              {/* Vehicle & Service Information */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                  <Car className="w-5 h-5 text-purple-600" />
+                  Vehicle & Service Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="service_car_plate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Service Car Plate
+                    </label>
+                    <input
+                      type="text"
+                      id="service_car_plate"
+                      value={formData.service_car_plate}
+                      onChange={(e) => setFormData({ ...formData, service_car_plate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="e.g., ABC-1234"
+                    />
+                  </div>
+                    
+                  <div>
+                    <label htmlFor="udrive_customer_account_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      U Drive Customer Account ID
+                    </label>
+                    <input
+                      type="text"
+                      id="udrive_customer_account_id"
+                      value={formData.udrive_customer_account_id}
+                      onChange={(e) => setFormData({ ...formData, udrive_customer_account_id: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Customer account ID"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Credentials */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                  <Monitor className="w-5 h-5 text-amber-600" />
+                  Account Credentials
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="udrive_password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      U Drive Password
+                    </label>
+                    <input
+                      type="password"
+                      id="udrive_password"
+                      value={formData.udrive_password}
+                      onChange={(e) => setFormData({ ...formData, udrive_password: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Enter password"
+                    />
+                  </div>
+                    
+                  <div>
+                    <label htmlFor="zimyo_password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Zimyo Password
+                    </label>
+                    <input
+                      type="password"
+                      id="zimyo_password"
+                      value={formData.zimyo_password}
+                      onChange={(e) => setFormData({ ...formData, zimyo_password: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Enter password"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Picture Upload */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                   <Camera className="w-5 h-5 text-pink-600" />
                   Profile Picture
-                </h2>
-                
-                <div className="flex items-center gap-6">
+                </h3>
+                <div className="flex items-center space-x-6">
                   <div className="flex-shrink-0">
                     {formData.profile_picture ? (
                       <img
                         src={formData.profile_picture}
-                        alt="Profile"
-                        className="h-24 w-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
+                        alt="Profile preview"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
                       />
                     ) : (
-                      <div className="h-24 w-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <User className="h-12 w-12 text-gray-400" />
+                      <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <Camera className="w-8 h-8 text-gray-400" />
                       </div>
                     )}
                   </div>
-                  
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="profile_picture" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Upload Profile Picture
                     </label>
                     <input
                       type="file"
+                      id="profile_picture"
                       accept="image/*"
                       onChange={(e) => handleImageUpload(e, 'profile_picture')}
-                      disabled={uploading}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
-                    {uploading && <p className="text-sm text-gray-500 mt-1">Uploading...</p>}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Recommended: Square image, 400x400 pixels or larger
+                    </p>
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Document Uploads */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.55 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
-              >
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-orange-600" />
                   Document Uploads
-                </h2>
-                
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Emirates ID */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-blue-600" />
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-blue-600" />
                       Emirates ID
-                    </h3>
+                    </h4>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Front Side
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleDocumentUpload(e, 'emirates_id_front')}
-                        disabled={uploading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                      {documents.emirates_id_front && (
-                        <a href={documents.emirates_id_front} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block">
-                          View uploaded document
-                        </a>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Back Side
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleDocumentUpload(e, 'emirates_id_back')}
-                        disabled={uploading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                      {documents.emirates_id_back && (
-                        <a href={documents.emirates_id_back} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block">
-                          View uploaded document
-                        </a>
-                      )}
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Front Side
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleDocumentUpload(e, 'emirates_id_front')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Back Side
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleDocumentUpload(e, 'emirates_id_back')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {/* Driving License */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                      <Car className="w-5 h-5 text-green-600" />
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <Car className="w-4 h-4 text-green-600" />
                       Driving License
-                    </h3>
+                    </h4>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Front Side
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleDocumentUpload(e, 'driving_license_front')}
-                        disabled={uploading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                      {documents.driving_license_front && (
-                        <a href={documents.driving_license_front} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block">
-                          View uploaded document
-                        </a>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Back Side
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleDocumentUpload(e, 'driving_license_back')}
-                        disabled={uploading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                      {documents.driving_license_back && (
-                        <a href={documents.driving_license_back} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block">
-                          View uploaded document
-                        </a>
-                      )}
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Front Side
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleDocumentUpload(e, 'driving_license_front')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Back Side
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleDocumentUpload(e, 'driving_license_back')}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                                     {/* Passport */}
-                   <div className="md:col-span-2 space-y-4">
-                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                       Passport Information
-                     </h3>
+                  {/* Passport */}
+                  <div className="md:col-span-2 space-y-3">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-purple-600" />
+                      Passport Information
+                    </h4>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="passport_number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Passport Number
                         </label>
                         <input
                           type="text"
-                          name="passport_number"
+                          id="passport_number"
                           value={documents.passport_number}
-                          onChange={handleDocumentChange}
+                          onChange={(e) => setDocuments({ ...documents, passport_number: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          placeholder="Passport number"
                         />
                       </div>
-
+                      
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Passport Copy
                         </label>
                         <input
                           type="file"
                           accept="image/*,.pdf"
                           onChange={(e) => handleDocumentUpload(e, 'passport_copy')}
-                          disabled={uploading}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
-                        {documents.passport_copy && (
-                          <a href={documents.passport_copy} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block">
-                            View uploaded document
-                          </a>
-                        )}
                       </div>
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Submit Button */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.65 }}
-                className="flex justify-end gap-4"
-              >
+              {/* Form Actions */}
+              <div className="flex justify-end space-x-4 pt-6">
                 <button
                   type="button"
-                  onClick={() => navigate("/drivers")}
+                  onClick={() => navigate(-1)}
                   className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || uploading}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  disabled={loading}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Saving...
+                      {id ? 'Updating...' : 'Creating...'}
                     </>
                   ) : (
                     <>
                       <Save className="w-4 h-4" />
-                      {id ? "Update Driver" : "Create Driver"}
+                      {id ? 'Update Driver' : 'Create Driver'}
                     </>
                   )}
                 </button>
-              </motion.div>
+              </div>
             </form>
           </div>
         </main>

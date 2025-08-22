@@ -4,7 +4,7 @@ import {
   Home, Users, Shield, Settings, BarChart3, 
   Car, Headphones, FileText, Calendar, 
   UserCheck, Building, Database, Cog, AlertTriangle,
-  CheckSquare, ClipboardList, Inbox
+  CheckSquare, ClipboardList, Inbox, Lightbulb
 } from 'lucide-react';
 import { useRoleAccess, ROLE_PERMISSIONS } from './RoleBasedRoute';
 import { useSidebar } from '../context/SidebarContext';
@@ -540,6 +540,7 @@ export const RoleBasedActions = () => {
           { label: 'IT Requests', path: '/it-requests', icon: FileText },
           { label: 'Attendance', path: '/attendance', icon: Calendar },
           { label: 'Complaints', path: '/complaints', icon: AlertTriangle },
+          { label: 'Suggestions', path: '/suggestions', icon: Lightbulb },
           { label: 'Task Management', path: '/task-management', icon: ClipboardList },
           { label: 'My Tasks', path: '/tasks', icon: CheckSquare },
           { label: 'Reports', path: '/reports', icon: BarChart3 },
@@ -573,6 +574,7 @@ export const RoleBasedActions = () => {
           { label: 'Home', path: '/', icon: Home },
           { label: 'My Tasks', path: '/tasks', icon: CheckSquare },
           { label: 'Attendance', path: '/attendance', icon: Calendar },
+          { label: 'Suggestions', path: '/suggestions', icon: Lightbulb },
           { label: 'User Profile', path: '/profile', icon: UserCheck },
           { label: 'Calendar View', path: '/calendar-view', icon: Calendar }
         ];
@@ -581,6 +583,7 @@ export const RoleBasedActions = () => {
         return [
           { label: 'Attendance', path: '/attendance', icon: Calendar },
           { label: 'Complaints', path: '/complaints', icon: AlertTriangle },
+          { label: 'Suggestions', path: '/suggestions', icon: Lightbulb },
           { label: 'Surveys', path: '/surveys', icon: FileText },
           { label: 'Payroll', path: '/payroll', icon: BarChart3 },
           { label: 'EPR', path: '/epr', icon: UserCheck }

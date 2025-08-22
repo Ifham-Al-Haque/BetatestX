@@ -6,20 +6,22 @@ import { useSidebar } from "../context/SidebarContext";
 import "./Sidebar.css";
 
 const Layout = ({ children }) => {
-  const { sidebarWidth } = useSidebar();
+  const { sidebarWidth, isCollapsed } = useSidebar();
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #ffffffff 0%, #fdfeffff 100%)" }}>
       <Sidebar />
       <main 
-        className="main-content p-10 transition-all duration-300 ease-in-out"
-        style={{ marginLeft: `${sidebarWidth}px` }}
+        className={`main-content p-10 transition-all duration-300 ease-in-out ${
+          isCollapsed ? 'sidebar-collapsed' : ''
+        }`}
+        style={{ marginLeft: `${sidebarWidth}px`, width: `calc(100vw - ${sidebarWidth}px)` }}
       >
         {/* Header with user controls */}
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center gap-4">
-            <img src="/Udrivehub.png" alt="Udrivehub Logo" className="h-10 w-auto" />
-            <h1 className="text-4xl font-bold tracking-tight">Uhub Dashboard</h1>
+            <img src="/Udrivehub.png" alt="U Drive Logo" className="h-12 w-auto" />
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900">U Drive Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
             <DarkModeToggle />

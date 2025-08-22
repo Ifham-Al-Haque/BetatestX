@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ChatProvider } from './context/ChatContext';
 import LoadingSpinner from './components/LoadingSpinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
@@ -86,6 +87,11 @@ const InvitationAccept = React.lazy(() => import('./pages/InvitationAccept'));
 const InvitationSignup = React.lazy(() => import('./pages/InvitationSignup'));
 const ConfirmEmail = React.lazy(() => import('./pages/ConfirmEmail'));
 const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
+const Suggestions = React.lazy(() => import('./pages/Suggestions'));
+const Events = React.lazy(() => import('./pages/Events'));
+const Memories = React.lazy(() => import('./pages/Memories'));
+const EventPictureUpload = React.lazy(() => import('./pages/EventPictureUpload'));
+const Chat = React.lazy(() => import('./pages/Chat'));
 
 function App() {
   return (
@@ -95,6 +101,7 @@ function App() {
           <SidebarProvider>
             <ToastProvider>
               <ThemeProvider>
+                <ChatProvider>
                 <Suspense fallback={<LoadingSpinner />}>
                   <Routes>
                     {/* Public Routes */}
@@ -208,6 +215,14 @@ function App() {
                       </ProtectedRoute>
                     } />
 
+                    <Route path="/driver/new" element={
+                      <ProtectedRoute requiredFeature="drivers">
+                        <Layout>
+                          <DriverForm />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
                     <Route path="/assets" element={
                       <ProtectedRoute requiredFeature="assets">
                         <Layout>
@@ -268,6 +283,47 @@ function App() {
                       <ProtectedRoute requiredFeature="complaints_test">
                         <Layout>
                           <ComplaintsTest />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/suggestions" element={
+                      <ProtectedRoute requiredFeature="suggestions">
+                        <Layout>
+                          <Suggestions />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Slice of Life Routes */}
+                    <Route path="/events" element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Events />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/memories" element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Memories />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/event-picture-upload" element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <EventPictureUpload />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/chat" element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Chat />
                         </Layout>
                       </ProtectedRoute>
                     } />
@@ -477,6 +533,7 @@ function App() {
                   </Routes>
                 </Suspense>
                 <ReactQueryDevtools initialIsOpen={false} />
+                </ChatProvider>
               </ThemeProvider>
             </ToastProvider>
           </SidebarProvider>

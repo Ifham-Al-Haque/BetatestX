@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ChatNotification from './ChatNotification';
 import { 
   Menu, 
   X, 
@@ -83,6 +84,9 @@ const Header = () => {
                 className="bg-transparent border-none outline-none text-sm text-gray-600 placeholder-gray-400 w-32"
               />
             </div>
+
+            {/* Chat Notifications */}
+            <ChatNotification />
 
             {/* Notifications */}
             <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200">
