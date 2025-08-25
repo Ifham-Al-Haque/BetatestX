@@ -1,15 +1,16 @@
 // src/components/SidebarNew.jsx
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Shield
+  ChevronLeft, ChevronRight, Settings, 
+  Home, Users, Car, Calendar, BarChart3, 
+  FileText, MessageSquare, Bell, Shield,
+  Package, CreditCard, FileText as FileTextIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
+import Logo from './ui/logo';
 import { RoleBasedNavigation, RoleIndicator } from './RoleBasedNavigation';
 
 const Sidebar = () => {
@@ -38,12 +39,9 @@ const Sidebar = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center space-x-3"
+                className="flex items-center"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">U</span>
-                </div>
-                <span className="text-xl font-bold text-gray-900">Udrivehub</span>
+                <Logo size="sm" showText={true} compact={true} />
               </motion.div>
             ) : (
               <motion.div
@@ -51,9 +49,9 @@ const Sidebar = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center mx-auto"
+                className="flex justify-center"
               >
-                <span className="text-white font-bold text-sm">U</span>
+                <Logo size="sm" showText={false} />
               </motion.div>
             )}
           </AnimatePresence>

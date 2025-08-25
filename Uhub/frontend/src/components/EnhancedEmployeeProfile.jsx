@@ -726,7 +726,7 @@ export default function EnhancedEmployeeProfile({ employeeId, onEdit, onBack }) 
             </div>
             <div className="flex gap-3">
               <button
-                onClick={onEdit}
+                onClick={() => onEdit(employeeId)}
                 className="bg-white/20 hover:bg-white/30 text-white px-8 py-4 rounded-xl transition-all duration-200 flex items-center gap-3 border-2 border-white/30 backdrop-blur-sm hover:shadow-lg"
               >
                 <Edit className="w-5 h-5" />

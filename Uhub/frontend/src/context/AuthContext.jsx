@@ -90,20 +90,24 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     try {
+      console.log("🔄 Starting sign out process...");
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error("Error signing out:", error);
+        console.error("❌ Error signing out:", error);
         console.warn("Sign Out Error: Failed to sign out. Please try again.");
+        throw error; // Re-throw the error so the calling component can handle it
       } else {
+        console.log("✅ Supabase sign out successful, clearing local state...");
         setUser(null);
         setUserProfile(null);
         setRole(null);
         // Clear cache on sign out
         setProfileCache(new Map());
-        console.log("User signed out successfully");
+        console.log("✅ User signed out successfully, local state cleared");
       }
     } catch (error) {
-      console.error("Error in signOut:", error);
+      console.error("❌ Error in signOut:", error);
+      throw error; // Re-throw the error so the calling component can handle it
     }
   }, []);
 

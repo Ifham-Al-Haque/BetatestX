@@ -1,6 +1,6 @@
 {
   "short_name": "Uhub",
-  "name": "Uhub - Internal Management System",
+  "name": "Uhub - Unified Platform for All Departments",
   "icons": [
     {
       "src": "favicon.ico",
@@ -13,7 +13,7 @@
       "sizes": "192x192"
     },
     {
-      "src": "Udrivehub.png",
+      "src": "uDriveLogo.png",
       "type": "image/png",
       "sizes": "512x512"
     }

@@ -338,3 +338,4 @@ After running these scripts:
 1. Create some test conversations using the RPC functions
 2. Test sending messages between users
 3. Verify that online status updates work correctly
+

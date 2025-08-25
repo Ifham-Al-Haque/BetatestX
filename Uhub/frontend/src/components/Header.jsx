@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ChatNotification from './ChatNotification';
@@ -14,8 +14,10 @@ import {
   Users,
   Package,
   CreditCard,
-  FileText
+  FileText,
+  ChevronDown
 } from 'lucide-react';
+import Logo from './ui/logo';
 
 const Header = () => {
   const { user, userProfile, signOut } = useAuth();
@@ -44,11 +46,8 @@ const Header = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <div className="flex items-center">
-            <Link to="/dashboard" className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">U</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">Udrivehub</span>
+            <Link to="/dashboard" className="flex items-center">
+              <Logo size="sm" showText={true} compact={true} />
             </Link>
           </div>
 

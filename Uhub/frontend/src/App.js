@@ -92,6 +92,7 @@ const Events = React.lazy(() => import('./pages/Events'));
 const Memories = React.lazy(() => import('./pages/Memories'));
 const EventPictureUpload = React.lazy(() => import('./pages/EventPictureUpload'));
 const Chat = React.lazy(() => import('./pages/Chat'));
+const LogoTest = React.lazy(() => import('./pages/LogoTest'));
 
 function App() {
   return (
@@ -187,6 +188,14 @@ function App() {
                       <ProtectedRoute requiredFeature="employees">
                         <Layout>
                           <EmployeeProfile />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/employee/:id/edit" element={
+                      <ProtectedRoute requiredFeature="employees">
+                        <Layout>
+                          <EmployeeForm />
                         </Layout>
                       </ProtectedRoute>
                     } />
@@ -340,6 +349,14 @@ function App() {
                       <ProtectedRoute requiredFeature="role_debug">
                         <Layout>
                           <RoleDebug />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/logo-test" element={
+                      <ProtectedRoute requiredFeature="role_debug">
+                        <Layout>
+                          <LogoTest />
                         </Layout>
                       </ProtectedRoute>
                     } />

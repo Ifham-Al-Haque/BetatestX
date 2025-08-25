@@ -1,7 +1,11 @@
 // src/pages/ResetPassword.jsx
-import { useState } from "react";
-import { supabase } from "../supabaseClient";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+import { useToast } from '../context/ToastContext';
+import Logo from '../components/ui/logo';
 
 export default function ResetPassword() {
   const [newPassword, setNewPassword] = useState("");
@@ -28,7 +32,7 @@ export default function ResetPassword() {
         onSubmit={handleReset}
         className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center"
       >
-        <img src="/Uhub.png" alt="Uhub Logo" className="mx-auto w-20 h-20 mb-4" />
+        <Logo size="xl" showText={true} centered={true} className="mx-auto mb-6" />
         <h2 className="text-xl font-bold text-[#1E3A8A] mb-4">Set New Password</h2>
 
         {message && <p className="text-sm mb-4 text-center text-red-600">{message}</p>}

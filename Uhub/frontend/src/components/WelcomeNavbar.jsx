@@ -13,12 +13,14 @@ import {
 
 const WelcomeNavbar = () => {
   const navigate = useNavigate();
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
-      await logout();
+      console.log('Starting logout process...');
+      await signOut();
+      console.log('Sign out completed, navigating to home...');
       navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);

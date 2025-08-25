@@ -286,3 +286,4 @@ COMMENT ON TABLE conversation_participants IS 'Users participating in conversati
 COMMENT ON TABLE messages IS 'Individual chat messages';
 COMMENT ON TABLE user_status IS 'User online status and availability';
 COMMENT ON TABLE typing_indicators IS 'Real-time typing indicators for conversations';
+

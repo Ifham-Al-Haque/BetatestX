@@ -3,6 +3,7 @@ import Sidebar from "./Sidebar";
 import UserDropdown from "./UserDropdown";
 import DarkModeToggle from "./DarkModeToggle";
 import { useSidebar } from "../context/SidebarContext";
+import Logo from "./ui/logo";
 import "./Sidebar.css";
 
 const Layout = ({ children }) => {
@@ -19,9 +20,12 @@ const Layout = ({ children }) => {
       >
         {/* Header with user controls */}
         <div className="flex justify-between items-center mb-10">
-          <div className="flex items-center gap-4">
-            <img src="/Udrivehub.png" alt="U Drive Logo" className="h-12 w-auto" />
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">U Drive Dashboard</h1>
+          <div className="flex items-center gap-6">
+            <Logo size="lg" showText={false} />
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-gray-900">Uhub Dashboard</h1>
+              <p className="text-lg text-gray-600 mt-1">Unified platform for all departments</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <DarkModeToggle />

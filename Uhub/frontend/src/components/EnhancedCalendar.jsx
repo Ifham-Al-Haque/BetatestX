@@ -1,20 +1,24 @@
-// PaymentCalendar.jsx
+// EnhancedCalendar.jsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, ChevronLeft, ChevronRight, Clock, DollarSign, 
   TrendingUp, TrendingDown, CheckCircle, AlertTriangle, XCircle,
-  Plus, Eye, Filter, Search, Sparkles, Zap, X
+  Plus, Eye, Filter, Search, Sparkles, Zap, Grid, List, CalendarDays,
+  BarChart3, PieChart, LineChart, Settings, Download, Share2, X
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
-const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
+const EnhancedCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
-  const [viewMode, setViewMode] = useState('month'); // month, week, list
+  const [viewMode, setViewMode] = useState('month'); // month, week, list, agenda
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showEventModal, setShowEventModal] = useState(false);
 
   // Check and update overdue events automatically
   useEffect(() => {
@@ -57,7 +61,7 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
     checkAndUpdateOverdueEvents();
   }, [events, onEventsUpdate]);
 
-  // Generate calendar days
+  // Generate calendar days with proper week alignment
   const calendarDays = useMemo(() => {
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -107,7 +111,7 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
     });
   };
 
-  // Get status color and icon for events
+  // Get status configuration for events
   const getStatusConfig = (status) => {
     switch (status) {
       case 'paid':
@@ -117,7 +121,8 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           icon: CheckCircle,
-          label: 'Paid'
+          label: 'Paid',
+          priority: 1
         };
       case 'pending':
         return {
@@ -126,7 +131,8 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
           bgColor: 'bg-yellow-50',
           borderColor: 'border-yellow-200',
           icon: Clock,
-          label: 'Pending'
+          label: 'Pending',
+          priority: 2
         };
       case 'overdue':
         return {
@@ -135,7 +141,8 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200',
           icon: AlertTriangle,
-          label: 'Overdue'
+          label: 'Overdue',
+          priority: 3
         };
       case 'cancelled':
         return {
@@ -144,7 +151,8 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
           bgColor: 'bg-gray-50',
           borderColor: 'border-gray-200',
           icon: XCircle,
-          label: 'Cancelled'
+          label: 'Cancelled',
+          priority: 4
         };
       default:
         return {
@@ -153,7 +161,8 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           icon: Clock,
-          label: 'Unknown'
+          label: 'Unknown',
+          priority: 5
         };
     }
   };
@@ -174,7 +183,7 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
     return 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100';
   };
 
-  // Navigation
+  // Navigation functions
   const goToPreviousMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
@@ -191,15 +200,25 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
   // Get day names for header
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // Calculate statistics
+  // Calculate comprehensive statistics
   const stats = useMemo(() => {
     const total = filteredEvents.length;
     const pending = filteredEvents.filter(e => e.status === 'pending').length;
     const paid = filteredEvents.filter(e => e.status === 'paid').length;
     const overdue = filteredEvents.filter(e => e.status === 'overdue').length;
+    const cancelled = filteredEvents.filter(e => e.status === 'cancelled').length;
     const totalAmount = filteredEvents.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const pendingAmount = filteredEvents
+      .filter(e => e.status === 'pending')
+      .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    const overdueAmount = filteredEvents
+      .filter(e => e.status === 'overdue')
+      .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
     
-    return { total, pending, paid, overdue, totalAmount };
+    return { 
+      total, pending, paid, overdue, cancelled, 
+      totalAmount, pendingAmount, overdueAmount 
+    };
   }, [filteredEvents]);
 
   const handleDateClick = (day, dayEvents) => {
@@ -212,6 +231,221 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
     }
   };
 
+  const handleEventClick = (event) => {
+    setSelectedEvent(event);
+    setShowEventModal(true);
+  };
+
+  // Render different view modes
+  const renderMonthView = () => (
+    <div className="grid grid-cols-7 gap-2">
+      {/* Day Headers */}
+      {dayNames.map((day, index) => (
+        <motion.div
+          key={day}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 }}
+          className="p-4 text-center text-sm font-semibold text-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200"
+        >
+          {day}
+        </motion.div>
+      ))}
+
+      {/* Calendar Days */}
+      {calendarDays.map((day, index) => {
+        const dayEvents = getEventsForDate(day);
+        const isToday = day.toDateString() === new Date().toDateString();
+        const isCurrentMonth = day.getMonth() === currentDate.getMonth() && day.getFullYear() === currentDate.getFullYear();
+        const isSelected = selectedDate && selectedDate.toDateString() === day.toDateString();
+
+        return (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.02 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => handleDateClick(day, dayEvents)}
+            className={`
+              relative p-3 min-h-[100px] border-2 rounded-xl cursor-pointer transition-all duration-300
+              ${isCurrentMonth ? getDayBackgroundColor(day) : 'bg-gray-50 border-gray-200'}
+              ${isToday ? 'ring-2 ring-blue-500 ring-opacity-70 shadow-lg' : ''}
+              ${isSelected ? 'ring-2 ring-purple-500 ring-opacity-70 shadow-xl' : ''}
+              hover:shadow-lg transform hover:-translate-y-1
+            `}
+          >
+            {/* Day Number */}
+            <div className={`
+              text-sm font-bold mb-2 flex items-center justify-between
+              ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
+              ${isToday ? 'text-blue-600' : ''}
+              ${isSelected ? 'text-purple-600' : ''}
+            `}>
+              <span>{day.getDate()}</span>
+              {dayEvents.length > 0 && (
+                <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+              )}
+            </div>
+
+            {/* Event Indicators */}
+            {dayEvents.length > 0 && (
+              <div className="space-y-1">
+                {dayEvents
+                  .sort((a, b) => getStatusConfig(a.status).priority - getStatusConfig(b.status).priority)
+                  .slice(0, 3)
+                  .map((event, eventIndex) => {
+                    const statusConfig = getStatusConfig(event.status);
+                    const IconComponent = statusConfig.icon;
+                    
+                    return (
+                      <motion.div
+                        key={eventIndex}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: eventIndex * 0.1 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEventClick(event);
+                        }}
+                        className={`
+                          flex items-center space-x-2 p-2 rounded-lg text-xs font-medium
+                          ${statusConfig.bgColor} ${statusConfig.borderColor} border
+                          hover:shadow-md transition-all duration-200 cursor-pointer
+                        `}
+                        title={`${event.description} - ${event.amount} ${event.currency}`}
+                      >
+                        <IconComponent className="w-3 h-3" />
+                        <span className={`${statusConfig.textColor} truncate`}>
+                          {event.description?.substring(0, 15)}...
+                        </span>
+                      </motion.div>
+                    );
+                  })}
+                {dayEvents.length > 3 && (
+                  <div className="text-xs text-gray-500 text-center bg-white/50 rounded-lg py-1">
+                    +{dayEvents.length - 3} more
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+
+  const renderListView = () => (
+    <div className="space-y-3">
+      {filteredEvents
+        .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+        .map((event, index) => {
+          const statusConfig = getStatusConfig(event.status);
+          const IconComponent = statusConfig.icon;
+          
+          return (
+            <motion.div
+              key={event.id || index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => handleEventClick(event)}
+              className={`
+                p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
+                ${statusConfig.borderColor} ${statusConfig.bgColor}
+                hover:shadow-lg transform hover:-translate-y-1
+              `}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 ${statusConfig.color} rounded-full flex items-center justify-center`}>
+                    <IconComponent className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{event.description}</h4>
+                    <p className="text-sm text-gray-600">
+                      Due: {new Date(event.due_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${statusConfig.color} text-white`}>
+                    {statusConfig.label}
+                  </div>
+                  <div className="text-lg font-bold text-gray-900 mt-1">
+                    {event.amount} {event.currency}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+    </div>
+  );
+
+  const renderAgendaView = () => (
+    <div className="space-y-4">
+      {filteredEvents
+        .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+        .map((event, index) => {
+          const statusConfig = getStatusConfig(event.status);
+          const IconComponent = statusConfig.icon;
+          const dueDate = new Date(event.due_date);
+          const daysUntilDue = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
+          
+          return (
+            <motion.div
+              key={event.id || index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => handleEventClick(event)}
+              className={`
+                p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
+                ${statusConfig.borderColor} ${statusConfig.bgColor}
+                hover:shadow-lg transform hover:-translate-y-1
+              `}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 ${statusConfig.color} rounded-full flex items-center justify-center`}>
+                    <IconComponent className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900">{event.description}</h4>
+                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {dueDate.toLocaleDateString()}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        daysUntilDue < 0 ? 'bg-red-100 text-red-700' :
+                        daysUntilDue === 0 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} days overdue` :
+                         daysUntilDue === 0 ? 'Due today' :
+                         `${daysUntilDue} days remaining`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`px-4 py-2 rounded-full text-sm font-medium ${statusConfig.color} text-white mb-2`}>
+                    {statusConfig.label}
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {event.amount} {event.currency}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+    </div>
+  );
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
       {/* Enhanced Header */}
@@ -222,24 +456,30 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Payment Calendar</h2>
-              <p className="text-blue-100 text-sm">Track and manage your payment schedule</p>
+              <h2 className="text-2xl font-bold">Enhanced Calendar</h2>
+              <p className="text-blue-100 text-sm">Advanced payment tracking and management</p>
             </div>
           </div>
           
           {/* View Mode Toggle */}
           <div className="flex items-center space-x-2 bg-white/20 rounded-xl p-1 backdrop-blur-sm">
-            {['month', 'week', 'list'].map((mode) => (
+            {[
+              { key: 'month', icon: Grid, label: 'Month' },
+              { key: 'week', icon: CalendarDays, label: 'Week' },
+              { key: 'list', icon: List, label: 'List' },
+              { key: 'agenda', icon: BarChart3, label: 'Agenda' }
+            ].map(({ key, icon: Icon, label }) => (
               <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  viewMode === mode 
+                key={key}
+                onClick={() => setViewMode(key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                  viewMode === key 
                     ? 'bg-white text-blue-600 shadow-lg' 
                     : 'text-white hover:bg-white/20'
                 }`}
               >
-                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                <Icon className="w-4 h-4" />
+                {label}
               </button>
             ))}
           </div>
@@ -269,6 +509,15 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
             <option value="overdue">Overdue</option>
             <option value="cancelled">Cancelled</option>
           </select>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowFilters(!showFilters)}
+            className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors duration-200 backdrop-blur-sm"
+          >
+            <Filter className="w-5 h-5" />
+          </motion.button>
         </div>
       </div>
 
@@ -314,9 +563,9 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Enhanced Quick Stats */}
       <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-6 gap-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
             <div className="text-xs text-gray-600 uppercase tracking-wide">Total</div>
@@ -337,100 +586,24 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
             <div className="text-2xl font-bold text-purple-600">AED {stats.totalAmount.toLocaleString()}</div>
             <div className="text-xs text-gray-600 uppercase tracking-wide">Total Amount</div>
           </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-orange-600">AED {stats.pendingAmount.toLocaleString()}</div>
+            <div className="text-xs text-gray-600 uppercase tracking-wide">Pending Amount</div>
+          </div>
         </div>
       </div>
 
-      {/* Calendar Grid */}
+      {/* Calendar Content */}
       <div className="p-6">
-        <div className="grid grid-cols-7 gap-2">
-          {/* Day Headers */}
-          {dayNames.map((day, index) => (
-            <motion.div
-              key={day}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-4 text-center text-sm font-semibold text-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200"
-            >
-              {day}
-            </motion.div>
-          ))}
-
-          {/* Calendar Days */}
-          {calendarDays.map((day, index) => {
-            const dayEvents = getEventsForDate(day);
-            const isToday = day.toDateString() === new Date().toDateString();
-            const isCurrentMonth = day.getMonth() === currentDate.getMonth() && day.getFullYear() === currentDate.getFullYear();
-            const isSelected = selectedDate && selectedDate.toDateString() === day.toDateString();
-
-            return (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.02 }}
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleDateClick(day, dayEvents)}
-                className={`
-                  relative p-3 min-h-[100px] border-2 rounded-xl cursor-pointer transition-all duration-300
-                  ${isCurrentMonth ? getDayBackgroundColor(day) : 'bg-gray-50 border-gray-200'}
-                  ${isToday ? 'ring-2 ring-blue-500 ring-opacity-70 shadow-lg' : ''}
-                  ${isSelected ? 'ring-2 ring-purple-500 ring-opacity-70 shadow-xl' : ''}
-                  hover:shadow-lg transform hover:-translate-y-1
-                `}
-              >
-                {/* Day Number */}
-                <div className={`
-                  text-sm font-bold mb-2 flex items-center justify-between
-                  ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-                  ${isToday ? 'text-blue-600' : ''}
-                  ${isSelected ? 'text-purple-600' : ''}
-                `}>
-                  <span>{day.getDate()}</span>
-                  {dayEvents.length > 0 && (
-                    <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
-                  )}
-                </div>
-
-                {/* Event Indicators */}
-                {dayEvents.length > 0 && (
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((event, eventIndex) => {
-                      const statusConfig = getStatusConfig(event.status);
-                      const IconComponent = statusConfig.icon;
-                      
-                      return (
-                        <motion.div
-                          key={eventIndex}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: eventIndex * 0.1 }}
-                          className={`
-                            flex items-center space-x-2 p-2 rounded-lg text-xs font-medium
-                            ${statusConfig.bgColor} ${statusConfig.borderColor} border
-                            hover:shadow-md transition-all duration-200
-                          `}
-                          title={`${event.description} - ${event.amount} ${event.currency}`}
-                        >
-                          <IconComponent className="w-3 h-3" />
-                          <span className={`${statusConfig.textColor} truncate`}>
-                            {event.description?.substring(0, 15)}...
-                          </span>
-                        </motion.div>
-                      );
-                    })}
-                    {dayEvents.length > 3 && (
-                      <div className="text-xs text-gray-500 text-center bg-white/50 rounded-lg py-1">
-                        +{dayEvents.length - 3} more
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
+        {viewMode === 'month' && renderMonthView()}
+        {viewMode === 'list' && renderListView()}
+        {viewMode === 'agenda' && renderAgendaView()}
+        {viewMode === 'week' && (
+          <div className="text-center py-12 text-gray-500">
+            <CalendarDays className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <p className="text-lg">Week view coming soon!</p>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Legend */}
@@ -521,11 +694,78 @@ const PaymentCalendar = ({ events = [], onDateClick, onEventsUpdate }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Event Detail Modal */}
+      <AnimatePresence>
+        {showEventModal && selectedEvent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border border-gray-100"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Event Details</h3>
+                <button
+                  onClick={() => setShowEventModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-2">Description</h4>
+                  <p className="text-gray-700">{selectedEvent.description}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">Amount</h4>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {selectedEvent.amount} {selectedEvent.currency}
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">Status</h4>
+                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                      getStatusConfig(selectedEvent.status).color
+                    } text-white`}>
+                                             {(() => {
+                         const IconComponent = getStatusConfig(selectedEvent.status).icon;
+                         return IconComponent && <IconComponent className="w-4 h-4" />;
+                       })()}
+                      {getStatusConfig(selectedEvent.status).label}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-2">Due Date</h4>
+                  <p className="text-gray-700">
+                    {new Date(selectedEvent.due_date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-export default PaymentCalendar;
-
-
-
+export default EnhancedCalendar;

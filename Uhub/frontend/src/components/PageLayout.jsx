@@ -19,3 +19,4 @@ const PageLayout = ({ children, className = '', showSidebar = true }) => {
 };
 
 export default PageLayout;
+

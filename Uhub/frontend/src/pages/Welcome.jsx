@@ -27,6 +27,7 @@ import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
+import Logo from '../components/ui/logo';
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -262,155 +263,155 @@ const Welcome = () => {
 
         {/* Main content area */}
         <div className="pt-16">
-          {/* Welcome content */}
-          <div className="p-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-8">
-                  Welcome back,{' '}
-                  <span className="bg-gradient-to-r from-[#2FF9B5] to-[#FF51EB] bg-clip-text text-transparent">
-                    {userProfile.full_name || user.email.split('@')[0]}!
-                  </span>
-                </h1>
-                <p className="text-xl text-gray-600 leading-relaxed max-w-4xl mx-auto">
-                  Ready to continue managing your operations? Access your dashboard, 
-                  manage tasks, or explore the latest features available to your role.
-                </p>
+                     {/* Welcome content */}
+           <div className="p-6">
+             <div className="max-w-6xl mx-auto">
+               <div className="text-center mb-12">
+                                 <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+                   Welcome back,{' '}
+                   <span className="bg-gradient-to-r from-[#2FF9B5] to-[#FF51EB] bg-clip-text text-transparent">
+                     {userProfile.full_name || user.email.split('@')[0]}!
+                   </span>
+                 </h1>
+                 <p className="text-lg text-gray-600 leading-relaxed max-w-4xl mx-auto">
+                   Ready to continue managing your operations? Access your dashboard, 
+                   manage tasks, or explore the latest features available to your role.
+                 </p>
               </div>
 
-              {/* User Details Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center hover:shadow-xl transition-shadow duration-300">
-                  <div className="text-4xl font-bold text-[#2FF9B5] mb-3">
-                    {userProfile.role === 'admin' ? 'Admin' : 
-                     userProfile.role === 'cs_manager' ? 'CS Manager' : 
-                     userProfile.role === 'hr_manager' ? 'HR Manager' : 
-                     userProfile.role === 'driver_management' ? 'Driver Manager' :
-                     userProfile.role === 'manager' ? 'Manager' :
-                     userProfile.role === 'employee' ? 'Employee' :
-                     userProfile.role === 'viewer' ? 'Viewer' : userProfile.role}
-                  </div>
-                  <div className="text-gray-600 text-base font-medium">Your Role</div>
-                </div>
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center hover:shadow-xl transition-shadow duration-300">
-                  <div className="text-4xl font-bold text-[#FF51EB] mb-3">
-                    {userProfile.department || 'Unassigned'}
-                  </div>
-                  <div className="text-gray-600 text-base font-medium">Department</div>
-                </div>
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center hover:shadow-xl transition-shadow duration-300">
-                  <div className="text-4xl font-bold text-[#2562CF] mb-3">
-                    {userProfile.position || 'Employee'}
-                  </div>
-                  <div className="text-gray-600 text-base font-medium">Position</div>
-                </div>
-              </div>
+                             {/* User Details Cards */}
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 text-center hover:shadow-lg transition-shadow duration-300">
+                   <div className="text-2xl font-bold text-[#2FF9B5] mb-2">
+                     {userProfile.role === 'admin' ? 'Admin' : 
+                      userProfile.role === 'cs_manager' ? 'CS Manager' : 
+                      userProfile.role === 'hr_manager' ? 'HR Manager' : 
+                      userProfile.role === 'driver_management' ? 'Driver Manager' :
+                      userProfile.role === 'manager' ? 'Manager' :
+                      userProfile.role === 'employee' ? 'Employee' :
+                      userProfile.role === 'viewer' ? 'Viewer' : userProfile.role}
+                   </div>
+                   <div className="text-gray-600 text-sm font-medium">Your Role</div>
+                 </div>
+                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 text-center hover:shadow-lg transition-shadow duration-300">
+                   <div className="text-2xl font-bold text-[#FF51EB] mb-2">
+                     {userProfile.department || 'Unassigned'}
+                   </div>
+                   <div className="text-gray-600 text-sm font-medium">Department</div>
+                 </div>
+                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 text-center hover:shadow-xl transition-shadow duration-300">
+                   <div className="text-2xl font-bold text-[#2562CF] mb-2">
+                     {userProfile.position || 'Employee'}
+                   </div>
+                   <div className="text-gray-600 text-sm font-medium">Position</div>
+                 </div>
+               </div>
 
-              {/* Quick Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-                {/* Suggestion Box */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-3">
-                      <Lightbulb className="w-8 h-8 text-blue-600" />
-                      <h2 className="text-2xl font-bold text-gray-900">Share Your Ideas</h2>
-                    </div>
-                    <Button
-                      onClick={() => setShowSuggestionForm(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>New Suggestion</span>
-                    </Button>
-                  </div>
-                  <p className="text-gray-600 mb-6">
-                    Have an idea to improve our organization? Share your suggestions for processes, 
-                    technology, communication, or any other area.
-                  </p>
+                             {/* Quick Actions */}
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+                 {/* Suggestion Box */}
+                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                   <div className="flex items-center justify-between mb-4">
+                     <div className="flex items-center space-x-3">
+                       <Lightbulb className="w-6 h-6 text-blue-600" />
+                       <h2 className="text-xl font-bold text-gray-900">Share Your Ideas</h2>
+                     </div>
+                     <Button
+                       onClick={() => setShowSuggestionForm(true)}
+                       className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center space-x-2 text-sm"
+                     >
+                       <Plus className="w-4 h-4" />
+                       <span>New Suggestion</span>
+                     </Button>
+                   </div>
+                   <p className="text-gray-600 mb-4 text-sm">
+                     Have an idea to improve our organization? Share your suggestions for processes, 
+                     technology, communication, or any other area.
+                   </p>
                   
-                  {/* Recent Suggestions */}
-                  {recentSuggestions.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-semibold text-gray-900">Recent Suggestions</h3>
-                      {recentSuggestions.map((suggestion) => (
-                        <div key={suggestion.id} className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 text-sm">{suggestion.title}</h4>
-                              <div className="flex items-center space-x-2 mt-1">
-                                {suggestion.suggestion_type === 'user_specific' ? (
-                                  <span className="flex items-center space-x-1 text-blue-600 text-xs">
-                                    <Target className="w-3 h-3" />
-                                    <span>For: {suggestion.target_user_name}</span>
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center space-x-1 text-green-600 text-xs">
-                                    <Globe className="w-3 h-3" />
-                                    <span>General</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleVote(suggestion.id, 'upvote')}
-                                className="flex items-center space-x-1 text-green-600 hover:text-green-700 text-xs"
-                              >
-                                <ThumbsUp className="w-3 h-3" />
-                                <span>{suggestion.upvotes || 0}</span>
-                              </button>
-                              <button
-                                onClick={() => handleVote(suggestion.id, 'downvote')}
-                                className="flex items-center space-x-1 text-red-600 hover:text-red-700 text-xs"
-                              >
-                                <ThumbsDown className="w-3 h-3" />
-                                <span>{suggestion.downvotes || 0}</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                                     {/* Recent Suggestions */}
+                   {recentSuggestions.length > 0 && (
+                     <div className="space-y-2">
+                       <h3 className="font-semibold text-gray-900 text-sm">Recent Suggestions</h3>
+                       {recentSuggestions.map((suggestion) => (
+                         <div key={suggestion.id} className="bg-gray-50 rounded-lg p-2.5">
+                           <div className="flex items-start justify-between">
+                             <div className="flex-1">
+                               <h4 className="font-medium text-gray-900 text-xs">{suggestion.title}</h4>
+                               <div className="flex items-center space-x-2 mt-1">
+                                 {suggestion.suggestion_type === 'user_specific' ? (
+                                   <span className="flex items-center space-x-1 text-blue-600 text-xs">
+                                     <Target className="w-3 h-3" />
+                                     <span>For: {suggestion.target_user_name}</span>
+                                   </span>
+                                 ) : (
+                                   <span className="flex items-center space-x-1 text-green-600 text-xs">
+                                     <Globe className="w-3 h-3" />
+                                     <span>General</span>
+                                   </span>
+                                 )}
+                               </div>
+                             </div>
+                             <div className="flex items-center space-x-2">
+                               <button
+                                 onClick={() => handleVote(suggestion.id, 'upvote')}
+                                 className="flex items-center space-x-1 text-green-600 hover:text-green-700 text-xs"
+                               >
+                                 <ThumbsUp className="w-3 h-3" />
+                                 <span>{suggestion.upvotes || 0}</span>
+                               </button>
+                               <button
+                                 onClick={() => handleVote(suggestion.id, 'downvote')}
+                                 className="flex items-center space-x-1 text-red-600 hover:text-red-700 text-xs"
+                               >
+                                 <ThumbsDown className="w-3 h-3" />
+                                 <span>{suggestion.downvotes || 0}</span>
+                               </button>
+                             </div>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   )}
                 </div>
 
-                {/* Quick Navigation */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Navigation</h2>
-                  <div className="space-y-4">
-                    <button
-                      onClick={() => navigate('/suggestions')}
-                      className="w-full text-left p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Lightbulb className="w-5 h-5 text-blue-600" />
-                        <div>
-                          <div className="font-medium text-gray-900">View All Suggestions</div>
-                          <div className="text-sm text-gray-600">Browse and manage suggestions</div>
-                        </div>
-                      </div>
-                    </button>
-                    
-                    <button
-                      onClick={handleDashboardClick}
-                      className="w-full text-left p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <BarChart3 className="w-5 h-5 text-green-600" />
-                        <div>
-                          <div className="font-medium text-gray-900">Go to Dashboard</div>
-                          <div className="text-sm text-gray-600">Access your main workspace</div>
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
+                                 {/* Quick Navigation */}
+                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                   <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Navigation</h2>
+                   <div className="space-y-3">
+                     <button
+                       onClick={() => navigate('/suggestions')}
+                       className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                     >
+                       <div className="flex items-center space-x-3">
+                         <Lightbulb className="w-5 h-5 text-blue-600" />
+                         <div>
+                           <div className="font-medium text-gray-900 text-sm">View All Suggestions</div>
+                           <div className="text-xs text-gray-600">Browse and manage suggestions</div>
+                         </div>
+                       </div>
+                     </button>
+                     
+                     <button
+                       onClick={handleDashboardClick}
+                       className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                     >
+                       <div className="flex items-center space-x-3">
+                         <BarChart3 className="w-5 h-5 text-green-600" />
+                         <div>
+                           <div className="font-medium text-gray-900 text-sm">Go to Dashboard</div>
+                           <div className="text-xs text-gray-600">Access your main workspace</div>
+                         </div>
+                       </div>
+                     </button>
+                   </div>
+                 </div>
               </div>
 
-              {/* Feature showcase */}
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10">
-                <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">System Features</h2>
-                <div className="relative h-96 w-full">
+                             {/* Feature showcase */}
+               <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8">
+                 <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">System Features</h2>
+                 <div className="relative h-80 w-full">
                   {features.map((feature, index) => (
                     <div
                       key={index}
@@ -420,12 +421,12 @@ const Welcome = () => {
                           : 'opacity-0 scale-95 rotate-3'
                       }`}
                     >
-                      <div className={`h-full w-full bg-gradient-to-br ${feature.color} rounded-3xl p-10 flex flex-col items-center justify-center text-center text-white shadow-2xl`}>
-                        <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8">
-                          <feature.icon className="w-12 h-12" />
+                      <div className={`h-full w-full bg-gradient-to-br ${feature.color} rounded-2xl p-8 flex flex-col items-center justify-center text-center text-white shadow-xl`}>
+                        <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-6">
+                          <feature.icon className="w-10 h-10" />
                         </div>
-                        <h3 className="text-3xl font-bold mb-4">{feature.title}</h3>
-                        <p className="text-white/90 leading-relaxed text-lg">{feature.description}</p>
+                        <h3 className="text-2xl font-bold mb-3">{feature.title}</h3>
+                        <p className="text-white/90 leading-relaxed text-base">{feature.description}</p>
                       </div>
                     </div>
                   ))}
@@ -646,50 +647,50 @@ const Welcome = () => {
           }} />
         </div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            {/* Logo and Brand */}
-            <div className="flex justify-center items-center mb-8">
-              <img src="/Udrivehub.png" alt="U Drive Logo" className="h-20 w-auto mr-4" />
-              <div className="text-left">
-                <h1 className="text-6xl font-bold tracking-tight mb-2">
-                  U Drive
-                </h1>
-                <p className="text-xl text-blue-200">
-                  Comprehensive Fleet & HR Management Platform
-                </p>
-              </div>
-            </div>
+                 <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+           <div className="text-center">
+             {/* Logo and Brand */}
+             <div className="flex justify-center items-center mb-6">
+               <Logo size="2xl" showText={true} centered={true} />
+             </div>
+             <div className="text-center mb-6">
+               <h1 className="text-5xl font-bold tracking-tight mb-2">
+                 Unified Platform for All Departments
+               </h1>
+               <p className="text-lg text-blue-200">
+                 Bringing your organization together as one family
+               </p>
+             </div>
+             
+             <p className="text-lg text-blue-200 max-w-3xl mx-auto mb-6">
+               Connect, collaborate, and manage operations across all departments with our integrated platform. 
+               From Fleet Management to HR, IT to Customer Service, Marketing to Sales and Finance to Management - everything you need in one place.
+             </p>
             
-            <p className="text-xl text-blue-200 max-w-3xl mx-auto mb-8">
-              Streamline your operations with our integrated platform for fleet management, 
-              HR operations, analytics, and task management. Built for modern businesses.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => navigate('/login')}
-                className="bg-white text-blue-900 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors duration-200 flex items-center justify-center gap-2"
-              >
-                Get Started
-                <ArrowRight className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setShowSuggestionForm(true)}
-                className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-900 transition-colors duration-200 flex items-center justify-center gap-2"
-              >
-                <Lightbulb className="w-5 h-5" />
-                Share Feedback
-              </button>
-            </div>
+                         <div className="flex flex-col sm:flex-row gap-3 justify-center">
+               <button
+                 onClick={() => navigate('/login')}
+                 className="bg-white text-blue-900 px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-50 transition-colors duration-200 flex items-center justify-center gap-2"
+               >
+                 Get Started
+                 <ArrowRight className="w-4 h-4" />
+               </button>
+               <button
+                 onClick={() => setShowSuggestionForm(true)}
+                 className="border-2 border-white text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-white hover:text-blue-900 transition-colors duration-200 flex items-center justify-center gap-2"
+               >
+                 <Lightbulb className="w-4 h-4" />
+                 Share Feedback
+               </button>
+             </div>
           </div>
         </div>
       </div>
 
-      {/* Feature showcase */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-10 mx-4 my-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">System Features</h2>
-        <div className="relative h-96 w-full">
+             {/* Feature showcase */}
+       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8 mx-4 my-6">
+         <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">System Features</h2>
+         <div className="relative h-80 w-full">
           {features.map((feature, index) => (
             <div
               key={index}
@@ -699,12 +700,12 @@ const Welcome = () => {
                   : 'opacity-0 scale-95 rotate-3'
               }`}
             >
-              <div className={`h-full w-full bg-gradient-to-br ${feature.color} rounded-3xl p-10 flex flex-col items-center justify-center text-center text-white shadow-2xl`}>
-                <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-8">
-                  <feature.icon className="w-12 h-12" />
+              <div className={`h-full w-full bg-gradient-to-br ${feature.color} rounded-2xl p-8 flex flex-col items-center justify-center text-center text-white shadow-xl`}>
+                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-6">
+                  <feature.icon className="w-10 h-10" />
                 </div>
-                <h3 className="text-3xl font-bold mb-4">{feature.title}</h3>
-                <p className="text-white/90 leading-relaxed text-lg">{feature.description}</p>
+                <h3 className="text-2xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-white/90 leading-relaxed text-base">{feature.description}</p>
               </div>
             </div>
           ))}
