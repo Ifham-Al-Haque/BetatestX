@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useUserProfileData, useUpdateUserProfileData } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
-import Sidebar from '../components/Sidebar';
+
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';
 import { AnimatePresence } from 'framer-motion';
@@ -152,7 +152,7 @@ export default function UserProfile() {
   if (error) {
     return (
       <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-        <Sidebar />
+        
         <div className="ml-64 p-6 w-full">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h3 className="text-red-800 font-medium">Error Loading Profile</h3>
@@ -177,7 +177,7 @@ export default function UserProfile() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-        <Sidebar />
+        
         <div className="ml-64 p-6 w-full">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -191,7 +191,7 @@ export default function UserProfile() {
   if (!userProfile && !error && !isLoading) {
     return (
       <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-        <Sidebar />
+        
         <div className="ml-64 p-6 w-full">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <h3 className="text-yellow-800 font-medium">Profile Not Found</h3>
@@ -213,7 +213,7 @@ export default function UserProfile() {
   return (
     <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
       <div className="flex">
-        <Sidebar />
+        
         <main className="flex-1 ml-64 p-10">
           {/* Header */}
           <div className="flex justify-between items-center mb-10">

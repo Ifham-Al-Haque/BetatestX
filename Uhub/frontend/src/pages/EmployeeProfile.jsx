@@ -13,7 +13,6 @@ import {
   Zap, Crown, Trophy, CalendarDays, MapPinIcon
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import Sidebar from "../components/Sidebar";
 import UserDropdown from "../components/UserDropdown";
 import DarkModeToggle from "../components/DarkModeToggle";
 
@@ -107,8 +106,7 @@ export default function EmployeeProfile() {
     return (
       <div className="min-h-screen font-sans bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="flex">
-          <Sidebar />
-          <main className="flex-1 ml-64 p-8">
+                    <main className="flex-1 ml-64 p-8">
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -125,8 +123,7 @@ export default function EmployeeProfile() {
     return (
       <div className="min-h-screen font-sans bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="flex">
-          <Sidebar />
-          <main className="flex-1 ml-64 p-8">
+                    <main className="flex-1 ml-64 p-8">
             <div className="text-center">
               <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-600 mb-2">Employee Not Found</h2>
@@ -505,8 +502,7 @@ export default function EmployeeProfile() {
   return (
     <div className="min-h-screen font-sans bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="flex">
-        <Sidebar />
-        <main className="flex-1 ml-64 p-6">
+                <main className="flex-1 ml-64 p-6">
           {/* Enhanced Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}

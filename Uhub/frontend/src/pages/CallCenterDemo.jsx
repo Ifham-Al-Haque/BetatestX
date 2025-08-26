@@ -15,7 +15,7 @@ import CSVDataImporter from '../components/CSVDataImporter';
 import CSPAPerformanceAnalytics from '../components/CSPAPerformanceAnalytics';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { HRManagerAndAbove } from '../components/RoleBasedSection';
-import Sidebar from '../components/Sidebar';
+
 
 const CallCenterDemo = () => {
   const [importedData, setImportedData] = useState(null);
@@ -106,7 +106,7 @@ const CallCenterDemo = () => {
       }
     >
       <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
+        
         <div className="flex-1 py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Header */}

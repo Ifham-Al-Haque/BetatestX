@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import Sidebar from '../components/Sidebar';
+
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
@@ -220,7 +220,7 @@ const Complaints = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
-        <Sidebar />
+        
         <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: '320px' }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50">
@@ -240,7 +240,7 @@ const Complaints = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
-      <Sidebar />
+      
       <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: '320px' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Enhanced Header */}

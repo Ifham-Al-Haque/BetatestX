@@ -97,9 +97,12 @@ export const ChatProvider = ({ children }) => {
     if (!user) return;
     
     try {
-      await chatService.updateUserStatus(isOnline, statusMessage);
+      const result = await chatService.updateUserStatus(isOnline, statusMessage);
+      if (!result) {
+        console.warn('User status update skipped (table not available or user not authenticated)');
+      }
     } catch (error) {
-      console.error('Failed to update user status:', error);
+      console.warn('Failed to update user status:', error.message);
     }
   }, [user]);
 

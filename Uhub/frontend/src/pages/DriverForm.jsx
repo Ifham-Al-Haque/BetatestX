@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
-import { useSidebar } from "../context/SidebarContext";
-import Sidebar from "../components/Sidebar";
+
+
 import { motion } from "framer-motion";
 import { 
   User, Mail, Phone, MapPin, Calendar, Building, 
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 export default function DriverForm() {
-  const { sidebarWidth } = useSidebar();
+  
   const [formData, setFormData] = useState({
     full_name: "",
     designation: "",
@@ -298,7 +298,7 @@ export default function DriverForm() {
     return (
       <div className="min-h-screen font-sans bg-gray-50 dark:bg-gray-900">
         <div className="flex">
-          <Sidebar />
+          
           <main className="flex-1 ml-64 p-10">
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -312,7 +312,7 @@ export default function DriverForm() {
   return (
     <div className="min-h-screen font-sans bg-gray-50 dark:bg-gray-900">
       <div className="flex">
-        <Sidebar />
+        
         <main className="flex-1 ml-64 p-10">
           <div className="max-w-4xl mx-auto">
             {/* Header */}

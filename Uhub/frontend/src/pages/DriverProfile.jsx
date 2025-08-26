@@ -8,7 +8,7 @@ import {
   FileText, Download, Eye, EyeOff, CreditCard, TrendingUp
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
-import Sidebar from "../components/Sidebar";
+
 import UserDropdown from "../components/UserDropdown";
 import DarkModeToggle from "../components/DarkModeToggle";
 
@@ -76,7 +76,7 @@ export default function DriverProfile() {
     return (
       <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
         <div className="flex">
-          <Sidebar />
+          
           <main className="flex-1 ml-64 p-10">
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -91,7 +91,7 @@ export default function DriverProfile() {
     return (
       <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
         <div className="flex">
-          <Sidebar />
+          
           <main className="flex-1 ml-64 p-10">
             <div className="text-center">
               <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -126,7 +126,7 @@ export default function DriverProfile() {
   return (
     <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
       <div className="flex">
-        <Sidebar />
+        
         <main className="flex-1 ml-64 p-10">
           <div className="max-w-6xl mx-auto">
             {/* Header */}

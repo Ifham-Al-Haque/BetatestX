@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Clock, AlertTriangle, CheckCircle, Plus } from 'lucide-react';
 import paymentService from '../services/paymentService';
-import Sidebar from '../components/Sidebar';
+
 
 const UpcomingPaymentEvents = () => {
   const [paymentEvents, setPaymentEvents] = useState([]);
@@ -88,7 +88,7 @@ const UpcomingPaymentEvents = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+      
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

@@ -1,36 +1,33 @@
--- Fix Chat System Database Issues - Complete Solution
+-- Fix Chat System Complete Implementation
+-- This script creates a fully functional chat system for UHub
 -- Run this in your Supabase SQL editor
 
--- 1. Drop existing tables if they exist (to avoid conflicts)
+-- 1. Clean up existing chat tables to avoid conflicts
 DROP TABLE IF EXISTS typing_indicators CASCADE;
+DROP TABLE IF EXISTS message_reactions CASCADE;
+DROP TABLE IF EXISTS file_attachments CASCADE;
 DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS conversation_participants CASCADE;
 DROP TABLE IF EXISTS conversations CASCADE;
 DROP TABLE IF EXISTS user_status CASCADE;
-DROP TABLE IF EXISTS user_profiles CASCADE;
 
--- 2. Create user_profiles table
-CREATE TABLE user_profiles (
-    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    full_name VARCHAR(255),
-    avatar_url TEXT,
-    role VARCHAR(50) DEFAULT 'user',
-    department VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- 2. Drop existing functions to avoid conflicts
+DROP FUNCTION IF EXISTS get_user_conversations() CASCADE;
+DROP FUNCTION IF EXISTS get_available_users_for_chat() CASCADE;
+DROP FUNCTION IF EXISTS create_direct_conversation(UUID) CASCADE;
+DROP FUNCTION IF EXISTS create_group_conversation(VARCHAR, UUID[]) CASCADE;
+DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
 
--- 3. Create chat system tables
+-- 3. Create basic chat system tables
 CREATE TABLE conversations (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name VARCHAR(255),
-    type VARCHAR(20) NOT NULL DEFAULT 'direct',
+    name VARCHAR(255), -- For group chats, NULL for direct messages
+    type VARCHAR(20) NOT NULL DEFAULT 'direct', -- 'direct' or 'group'
     created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     is_active BOOLEAN DEFAULT true,
-    metadata JSONB DEFAULT '{}'
+    metadata JSONB DEFAULT '{}' -- For additional chat settings
 );
 
 CREATE TABLE conversation_participants (
@@ -39,7 +36,7 @@ CREATE TABLE conversation_participants (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_admin BOOLEAN DEFAULT false,
+    is_admin BOOLEAN DEFAULT false, -- For group chat admins
     is_muted BOOLEAN DEFAULT false,
     UNIQUE(conversation_id, user_id)
 );
@@ -49,19 +46,19 @@ CREATE TABLE messages (
     conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
     sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     content TEXT NOT NULL,
-    message_type VARCHAR(20) DEFAULT 'text',
-    metadata JSONB DEFAULT '{}',
+    message_type VARCHAR(20) DEFAULT 'text', -- 'text', 'image', 'file', 'system'
+    metadata JSONB DEFAULT '{}', -- For file info, reactions, etc.
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     is_edited BOOLEAN DEFAULT false,
-    reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL
+    reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL -- For reply messages
 );
 
 CREATE TABLE user_status (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     is_online BOOLEAN DEFAULT false,
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    status_message VARCHAR(255),
+    status_message VARCHAR(255), -- Custom status like "In a meeting", "Available", etc.
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -74,19 +71,21 @@ CREATE TABLE typing_indicators (
     UNIQUE(conversation_id, user_id)
 );
 
--- 4. Enable RLS
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+-- 4. Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_conversation_participants_user_id ON conversation_participants(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_status_online ON user_status(is_online);
+
+-- 5. Enable Row Level Security (RLS)
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_status ENABLE ROW LEVEL SECURITY;
 ALTER TABLE typing_indicators ENABLE ROW LEVEL SECURITY;
 
--- 5. Create RLS policies
-CREATE POLICY "Users can view all profiles" ON user_profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update their own profile" ON user_profiles FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own profile" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
-
+-- 6. Create RLS policies
 CREATE POLICY "Users can view conversations they participate in" ON conversations
     FOR SELECT USING (
         EXISTS (
@@ -98,6 +97,9 @@ CREATE POLICY "Users can view conversations they participate in" ON conversation
 
 CREATE POLICY "Users can create conversations" ON conversations
     FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+CREATE POLICY "Conversation creators can update their conversations" ON conversations
+    FOR UPDATE USING (auth.uid() = created_by);
 
 CREATE POLICY "Users can view participants in their conversations" ON conversation_participants
     FOR SELECT USING (
@@ -111,45 +113,87 @@ CREATE POLICY "Users can view participants in their conversations" ON conversati
 CREATE POLICY "Users can join conversations" ON conversation_participants
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update their own participation" ON conversation_participants
+    FOR UPDATE USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can view messages in their conversations" ON messages
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM conversation_participants 
-            WHERE conversation_id = messages.conversation_id 
-            AND user_id = auth.uid()
+            SELECT 1 FROM conversation_participants cp
+            WHERE cp.conversation_id = messages.conversation_id
+            AND cp.user_id = auth.uid()
         )
     );
 
 CREATE POLICY "Users can send messages to their conversations" ON messages
     FOR INSERT WITH CHECK (
-        auth.uid() = sender_id AND
-        EXISTS (
-            SELECT 1 FROM conversation_participants 
-            WHERE conversation_id = messages.conversation_id 
-            AND user_id = auth.uid()
+        auth.uid() = sender_id
+        AND EXISTS (
+            SELECT 1 FROM conversation_participants cp
+            WHERE cp.conversation_id = messages.conversation_id
+            AND cp.user_id = auth.uid()
         )
     );
 
+CREATE POLICY "Users can edit their own messages" ON messages
+    FOR UPDATE USING (auth.uid() = sender_id);
+
 CREATE POLICY "Users can view all user statuses" ON user_status FOR SELECT USING (true);
-CREATE POLICY "Users can update their own status" ON user_status FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own status" ON user_status FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own status" ON user_status
+    FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own status" ON user_status
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can view typing indicators in their conversations" ON typing_indicators
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM conversation_participants 
-            WHERE conversation_id = typing_indicators.conversation_id 
-            AND user_id = auth.uid()
+            SELECT 1 FROM conversation_participants cp
+            WHERE cp.conversation_id = typing_indicators.conversation_id
+            AND cp.user_id = auth.uid()
         )
     );
 
-CREATE POLICY "Users can update their own typing indicators" ON typing_indicators
-    FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own typing indicators" ON typing_indicators
+    FOR ALL USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own typing indicators" ON typing_indicators
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- 7. Create RPC functions for chat operations
 
--- 6. Create required RPC functions with proper table aliases
+-- Function to get all available users for chat
+CREATE OR REPLACE FUNCTION get_available_users_for_chat()
+RETURNS TABLE (
+    user_id UUID,
+    full_name VARCHAR(255),
+    avatar_url TEXT,
+    role VARCHAR(50),
+    department VARCHAR(100),
+    is_online BOOLEAN,
+    last_seen TIMESTAMPTZ,
+    status_message VARCHAR(255)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        u.id as user_id,
+        COALESCE(u.full_name, u.email) as full_name,
+        u.avatar_url,
+        u.role,
+        u.department,
+        COALESCE(us.is_online, false) as is_online,
+        us.last_seen,
+        us.status_message
+    FROM users u
+    LEFT JOIN user_status us ON u.id = us.user_id
+    WHERE u.id != auth.uid()  -- Exclude current user
+    AND u.id IS NOT NULL
+    AND u.status = 'active'  -- Only active users
+    ORDER BY 
+        us.is_online DESC NULLS LAST,
+        us.last_seen DESC NULLS LAST,
+        COALESCE(u.full_name, u.email);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get user's conversations with latest message
 CREATE OR REPLACE FUNCTION get_user_conversations()
 RETURNS TABLE (
     conversation_id UUID,
@@ -167,9 +211,9 @@ BEGIN
         COALESCE(c.name, 
             CASE 
                 WHEN c.type = 'direct' THEN (
-                    SELECT up.full_name 
+                    SELECT COALESCE(u.full_name, u.email)
                     FROM conversation_participants cp2
-                    JOIN user_profiles up ON cp2.user_id = up.id
+                    JOIN users u ON cp2.user_id = u.id
                     WHERE cp2.conversation_id = c.id 
                     AND cp2.user_id != auth.uid()
                     LIMIT 1
@@ -203,6 +247,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Function to create a direct conversation between two users
 CREATE OR REPLACE FUNCTION create_direct_conversation(other_user_id UUID)
 RETURNS UUID AS $$
 DECLARE
@@ -237,6 +282,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Function to create a group conversation
 CREATE OR REPLACE FUNCTION create_group_conversation(group_name VARCHAR, participant_ids UUID[])
 RETURNS UUID AS $$
 DECLARE
@@ -265,40 +311,59 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 7. Initialize user profiles for existing users
-INSERT INTO user_profiles (id, user_id, full_name, role, department)
+-- 8. Create triggers for updated_at timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_conversations_updated_at
+    BEFORE UPDATE ON conversations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_messages_updated_at
+    BEFORE UPDATE ON messages
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- 9. Grant necessary permissions
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+-- 10. Insert sample data for testing
+-- Create a general company chat
+INSERT INTO conversations (name, type, created_by) 
+VALUES ('UDrive General', 'group', (SELECT id FROM auth.users LIMIT 1))
+ON CONFLICT DO NOTHING;
+
+-- Add all users to general chat
+INSERT INTO conversation_participants (conversation_id, user_id)
 SELECT 
-    id,
-    id,
-    COALESCE(raw_user_meta_data->>'full_name', 'User ' || id),
-    COALESCE(raw_user_meta_data->>'role', 'user'),
-    COALESCE(raw_user_meta_data->>'department', 'General')
-FROM auth.users
-ON CONFLICT (id) DO NOTHING;
+    (SELECT id FROM conversations WHERE name = 'UDrive General' LIMIT 1),
+    id 
+FROM users
+WHERE status = 'active'
+ON CONFLICT DO NOTHING;
 
--- 8. Initialize user status for existing users
-INSERT INTO user_status (user_id, is_online, last_seen)
-SELECT id, false, NOW()
-FROM auth.users
-ON CONFLICT (user_id) DO NOTHING;
-
--- 9. Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at);
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
-CREATE INDEX IF NOT EXISTS idx_conversation_participants_user_id ON conversation_participants(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_status_online ON user_status(is_online);
-
--- 10. Add comments for documentation
+-- 11. Add comments for documentation
 COMMENT ON TABLE conversations IS 'Chat conversations - both direct messages and group chats';
 COMMENT ON TABLE conversation_participants IS 'Users participating in conversations';
 COMMENT ON TABLE messages IS 'Individual chat messages';
 COMMENT ON TABLE user_status IS 'User online status and availability';
 COMMENT ON TABLE typing_indicators IS 'Real-time typing indicators for conversations';
-COMMENT ON TABLE user_profiles IS 'Extended user profile information';
 
--- 11. Grant necessary permissions
-GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+-- Success message
+DO $$
+BEGIN
+    RAISE NOTICE 'Chat System setup completed successfully!';
+    RAISE NOTICE 'Features implemented:';
+    RAISE NOTICE '- Direct messaging between users';
+    RAISE NOTICE '- Group conversations';
+    RAISE NOTICE '- Real-time typing indicators';
+    RAISE NOTICE '- User online status tracking';
+    RAISE NOTICE '- Message history and unread counts';
+END $$;

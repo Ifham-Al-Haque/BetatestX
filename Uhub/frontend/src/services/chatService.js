@@ -28,7 +28,7 @@ class ChatService {
         .from('messages')
         .select(`
           *,
-          sender:user_profiles!messages_sender_id_fkey(
+          sender:users!messages_sender_id_fkey(
             id,
             full_name,
             avatar_url,
@@ -120,7 +120,7 @@ class ChatService {
         .from('conversation_participants')
         .select(`
           *,
-          user:user_profiles!conversation_participants_user_id_fkey(
+          user:users!conversation_participants_user_id_fkey(
             id,
             full_name,
             avatar_url,
@@ -161,7 +161,31 @@ class ChatService {
   // Update user online status
   async updateUserStatus(isOnline, statusMessage = null) {
     try {
-      const userId = (await supabase.auth.getUser()).data.user.id;
+      // Get current user from auth
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !authUser) {
+        console.warn('User not authenticated, skipping status update');
+        return false;
+      }
+      
+      const userId = authUser.id;
+      
+      // Check if user_status table exists before trying to use it
+      const { data: tableCheck, error: tableError } = await supabase
+        .from('user_status')
+        .select('id')
+        .limit(1);
+      
+      if (tableError) {
+        if (tableError.code === '42P01') {
+          console.warn('user_status table does not exist. Please run the create_user_status_table.sql script.');
+        } else {
+          console.warn('user_status table not available:', tableError.message);
+        }
+        return false;
+      }
+      
       const { error } = await supabase
         .from('user_status')
         .upsert({
@@ -171,11 +195,15 @@ class ChatService {
           last_seen: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Error updating user status:', error.message);
+        return false;
+      }
+      
       return true;
     } catch (error) {
-      console.error('Error updating user status:', error);
-      throw error;
+      console.warn('Error updating user status:', error.message);
+      return false; // Don't throw, just return false
     }
   }
 
@@ -187,7 +215,7 @@ class ChatService {
         .from('user_status')
         .select(`
           *,
-          user:user_profiles!user_status_user_id_fkey(
+          user:users(
             id,
             full_name,
             avatar_url,
@@ -248,7 +276,7 @@ class ChatService {
         .from('typing_indicators')
         .select(`
           *,
-          user:user_profiles!typing_indicators_user_id_fkey(
+          user:users(
             id,
             full_name,
             avatar_url
@@ -261,22 +289,25 @@ class ChatService {
       return data || [];
     } catch (error) {
       console.error('Error fetching typing indicators:', error);
-      throw error;
+      return [];
     }
   }
 
-  // Search users for starting conversations
+  // Search users for starting conversations - Updated to use the correct table
   async searchUsers(query, excludeCurrentUser = true) {
     try {
       let queryBuilder = supabase
-        .from('user_profiles')
-        .select('id, full_name, avatar_url, role, department')
-        .ilike('full_name', `%${query}%`)
+        .from('users')
+        .select('id, full_name, avatar_url, role, department, email')
+        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .eq('status', 'active')
         .limit(10);
 
       if (excludeCurrentUser) {
         const currentUser = (await supabase.auth.getUser()).data.user;
-        queryBuilder = queryBuilder.neq('id', currentUser.id);
+        if (currentUser) {
+          queryBuilder = queryBuilder.neq('id', currentUser.id);
+        }
       }
 
       const { data, error } = await queryBuilder;
@@ -286,6 +317,38 @@ class ChatService {
     } catch (error) {
       console.error('Error searching users:', error);
       throw error;
+    }
+  }
+
+  // Get all available users for chat - New function to get all users
+  async getAllUsers() {
+    try {
+      // Try to use the RPC function first
+      const { data, error } = await supabase
+        .rpc('get_available_users_for_chat');
+      
+      if (error) {
+        // Fallback to direct query if RPC function doesn't exist
+        console.warn('get_available_users_for_chat RPC function not available, using fallback:', error.message);
+        
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        if (!currentUser) return [];
+        
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('users')
+          .select('id, full_name, avatar_url, role, department, email')
+          .eq('status', 'active')
+          .neq('id', currentUser.id)
+          .order('full_name');
+        
+        if (fallbackError) throw fallbackError;
+        return fallbackData || [];
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      return [];
     }
   }
 

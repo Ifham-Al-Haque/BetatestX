@@ -5,8 +5,8 @@ import {
   DollarSign, User, Building, Tag, CreditCard, Receipt, Clock,
   X, Save, Eye, Printer, Share2, AlertCircle, CheckCircle
 } from "lucide-react";
-import { useSidebar } from "../context/SidebarContext";
-import Sidebar from "../components/Sidebar";
+
+
 
 // Voucher Form Component
 const VoucherForm = ({ voucher, onClose, onSubmit, isLoading }) => {
@@ -423,7 +423,7 @@ const VoucherCard = ({ voucher, onEdit, onDelete, onDownload }) => {
 };
 
 export default function Voucher() {
-  const { sidebarWidth } = useSidebar();
+  
   
   // State management
   const [showForm, setShowForm] = useState(false);
@@ -573,8 +573,8 @@ export default function Voucher() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      <Sidebar />
-      <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+      
+      <div className="flex-1 transition-all duration-300 ease-in-out" >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">

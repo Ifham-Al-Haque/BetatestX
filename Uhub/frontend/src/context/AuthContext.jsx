@@ -26,7 +26,12 @@ export const AuthProvider = ({ children }) => {
       console.log("Fetching profile for user ID:", userId);
       
       // Get current user's email from Supabase Auth
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        return null;
+      }
       
       if (!authUser || !authUser.email) {
         console.error("No auth user or email found");
@@ -35,7 +40,7 @@ export const AuthProvider = ({ children }) => {
       
       console.log("Auth user email:", authUser.email);
       
-      // Try to get user profile from the users table directly
+      // Try to get user profile from the users table (for application access control)
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("*")
@@ -61,11 +66,11 @@ export const AuthProvider = ({ children }) => {
         .insert({
           email: authUser.email,
           auth_user_id: userId,
-          role: 'employee', // Default role
+          role: 'admin', // Default role for new users (since you're admin)
           status: 'active',
           full_name: authUser.email.split('@')[0],
-          department: 'Unassigned',
-          position: 'Employee'
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
         .single();

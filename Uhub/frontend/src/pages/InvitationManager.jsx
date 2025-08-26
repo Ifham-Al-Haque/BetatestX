@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Mail, Plus, Search, Filter, Download } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
 
 const InvitationManager = () => {
   const [invitations, setInvitations] = useState([]);
@@ -89,7 +88,6 @@ const InvitationManager = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

@@ -27,18 +27,30 @@ import {
   Lightbulb,
   Heart,
   Camera,
-  Image as ImageIcon,
+  ImageIcon,
   Sparkles,
   MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
-import { RoleBasedNavigation, RoleIndicator } from './RoleBasedNavigation';
+import { canSeePanel, hasFeatureAccess } from './RoleBasedRoute';
 
 const Sidebar = () => {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const location = useLocation();
   const { user, userProfile, signOut } = useAuth();
+  
+  // Add safety check for userProfile
+  const userRole = userProfile?.role || user?.role || 'loading';
+  
+  console.log('🔍 Sidebar component rendering:', {
+    hasUser: !!user,
+    hasUserProfile: !!userProfile,
+    userRole: userRole,
+    userEmail: user?.email,
+    profileName: userProfile?.full_name
+  });
+  
   const [expandedPanels, setExpandedPanels] = useState({
     main: true,
     admin: true,
@@ -55,7 +67,11 @@ const Sidebar = () => {
   });
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const togglePanel = (panelKey) => {
@@ -67,16 +83,33 @@ const Sidebar = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  // Navigation panels configuration - Restored to match your original structure
+  // Safety check - don't render if auth is not initialized
+  if (!user && !userProfile) {
+    console.log('🔍 Sidebar: Auth not initialized yet, showing loading state');
+    return (
+      <div className="h-screen bg-gradient-to-b from-blue-50 to-white border-r border-gray-200 shadow-lg flex-shrink-0 w-80">
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+            <div className="text-white font-semibold text-lg">UHub</div>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-gray-500">Loading...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Navigation panels configuration with role-based filtering
   const navigationPanels = [
     {
       key: 'main',
       title: 'Main',
       icon: Home,
       items: [
-        { label: 'Home', path: '/', icon: Home },
-        { label: 'Dashboard', path: '/dashboard', icon: BarChart3 },
-        { label: 'Calendar View', path: '/calendar-view', icon: Calendar }
+        { label: 'Home', path: '/', icon: Home, feature: 'home' },
+        { label: 'Dashboard', path: '/dashboard', icon: BarChart3, feature: 'dashboard' },
+        { label: 'Calendar View', path: '/calendar-view', icon: Calendar, feature: 'calendar_view' }
       ]
     },
     {
@@ -84,9 +117,9 @@ const Sidebar = () => {
       title: 'Slice of Life',
       icon: Heart,
       items: [
-        { label: 'Events', path: '/events', icon: Calendar },
-        { label: 'Memories', path: '/memories', icon: Heart },
-        { label: 'Picture Upload', path: '/event-picture-upload', icon: Camera }
+        { label: 'Events', path: '/events', icon: Calendar, feature: 'events' },
+        { label: 'Memories', path: '/memories', icon: Heart, feature: 'memories' },
+        { label: 'Picture Upload', path: '/event-picture-upload', icon: Camera, feature: 'events' }
       ]
     },
     {
@@ -94,7 +127,7 @@ const Sidebar = () => {
       title: 'Communication',
       icon: MessageCircle,
       items: [
-        { label: 'Team Chat', path: '/chat', icon: MessageCircle }
+        { label: 'Team Chat', path: '/chat', icon: MessageCircle, feature: 'communication' }
       ]
     },
     {
@@ -102,8 +135,8 @@ const Sidebar = () => {
       title: 'Administration',
       icon: Shield,
       items: [
-        { label: 'Admin Dashboard', path: '/admin/dashboard', icon: Shield },
-        { label: 'User Management', path: '/user-management', icon: Users }
+        { label: 'Admin Dashboard', path: '/admin/dashboard', icon: Shield, feature: 'admin_dashboard' },
+        { label: 'User Management', path: '/user-management', icon: Users, feature: 'user_management' }
       ]
     },
     {
@@ -111,7 +144,7 @@ const Sidebar = () => {
       title: 'User Profile',
       icon: UserCheck,
       items: [
-        { label: 'User Profile', path: '/profile', icon: UserCheck }
+        { label: 'User Profile', path: '/profile', icon: UserCheck, feature: 'user_profile' }
       ]
     },
     {
@@ -119,11 +152,12 @@ const Sidebar = () => {
       title: 'HR Panel',
       icon: UserCheck,
       items: [
-        { label: 'Employees', path: '/employees', icon: Users },
-        { label: 'Attendance', path: '/attendance', icon: Calendar },
-        { label: 'Complaints', path: '/complaints', icon: AlertTriangle },
-        { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox },
-        { label: 'Suggestions', path: '/suggestions', icon: Lightbulb }
+        { label: 'Employees', path: '/employees', icon: Users, feature: 'employees' },
+        { label: 'Employee Records', path: '/employee-records', icon: Users, feature: 'employees_view_only' },
+        { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
+        { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints' },
+        { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox' },
+        { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions' }
       ]
     },
     {
@@ -131,8 +165,8 @@ const Sidebar = () => {
       title: 'Customer Service',
       icon: Headphones,
       items: [
-        { label: 'CSPA', path: '/cspa', icon: Headphones },
-        { label: 'CS Tickets', path: '/tickets', icon: FileText }
+        { label: 'CSPA', path: '/cspa', icon: Headphones, feature: 'cspa' },
+        { label: 'CS Tickets', path: '/tickets', icon: FileText, feature: 'cs_tickets' }
       ]
     },
     {
@@ -140,8 +174,8 @@ const Sidebar = () => {
       title: 'IT Services',
       icon: Cog,
       items: [
-        { label: 'IT Requests', path: '/it-requests', icon: FileText },
-        { label: 'Request Inbox', path: '/request-inbox', icon: Inbox }
+        { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests' },
+        { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox' }
       ]
     },
     {
@@ -149,10 +183,10 @@ const Sidebar = () => {
       title: 'Driver Management',
       icon: Car,
       items: [
-        { label: 'Driver Records', path: '/drivers', icon: Car },
-        { label: 'Fleet Records', path: '/driver-operations', icon: Car },
-        { label: 'Fleet Management', path: '/fleet', icon: Database },
-        { label: 'Breakdowns', path: '/breakdowns', icon: AlertTriangle }
+        { label: 'Driver Records', path: '/drivers', icon: Car, feature: 'driver_records' },
+        { label: 'Fleet Records', path: '/driver-operations', icon: Car, feature: 'fleet_records' },
+        { label: 'Fleet Management', path: '/fleet', icon: Database, feature: 'fleet_management' },
+        { label: 'Breakdowns', path: '/breakdowns', icon: AlertTriangle, feature: 'breakdowns' }
       ]
     },
     {
@@ -160,8 +194,8 @@ const Sidebar = () => {
       title: 'Asset Management',
       icon: Building,
       items: [
-        { label: 'Assets', path: '/assets', icon: Building },
-        { label: 'Sim Cards', path: '/simcards', icon: Database }
+        { label: 'Assets', path: '/assets', icon: Building, feature: 'assets' },
+        { label: 'Sim Cards', path: '/simcards', icon: Database, feature: 'simcards' }
       ]
     },
     {
@@ -169,11 +203,11 @@ const Sidebar = () => {
       title: 'Financial',
       icon: BarChart3,
       items: [
-        { label: 'Expense Tracker', path: '/expenses', icon: BarChart3 },
-        { label: 'Payment Calendar', path: '/payment-calendar', icon: Calendar },
-        { label: 'Upcoming Payments', path: '/upcoming-payments', icon: Calendar },
-        { label: 'Vouchers', path: '/vouchers', icon: FileText },
-        { label: 'Analytics', path: '/analytics', icon: BarChart3 }
+        { label: 'Expense Tracker', path: '/expenses', icon: BarChart3, feature: 'expense_tracker' },
+        { label: 'Payment Calendar', path: '/payment-calendar', icon: Calendar, feature: 'payment_calendar' },
+        { label: 'Upcoming Payments', path: '/upcoming-payments', icon: Calendar, feature: 'upcoming_payments' },
+        { label: 'Vouchers', path: '/vouchers', icon: FileText, feature: 'vouchers' },
+        { label: 'Analytics', path: '/analytics', icon: BarChart3, feature: 'analytics' }
       ]
     },
     {
@@ -181,12 +215,27 @@ const Sidebar = () => {
       title: 'To Do List',
       icon: ClipboardList,
       items: [
-        { label: 'Task Management', path: '/task-management', icon: ClipboardList },
-        { label: 'My Tasks', path: '/tasks', icon: CheckSquare },
-        { label: 'Reports', path: '/reports', icon: BarChart3 }
+        { label: 'Task Management', path: '/task-management', icon: ClipboardList, feature: 'task_management' },
+        { label: 'My Tasks', path: '/tasks', icon: CheckSquare, feature: 'my_tasks' },
+        { label: 'Reports', path: '/reports', icon: BarChart3, feature: 'reports' }
       ]
     }
   ];
+
+  // Filter panels based on user role
+  const filteredPanels = navigationPanels.filter(panel => {
+    if (!userRole) return false;
+    return canSeePanel(userRole, panel.key);
+  });
+
+  // Filter items within each panel based on user role
+  const getFilteredItems = (panel) => {
+    if (!userRole) return [];
+    return panel.items.filter(item => {
+      if (!item.feature) return true; // If no feature specified, show by default
+      return hasFeatureAccess(userRole, item.feature);
+    });
+  };
 
   const panelVariants = {
     hidden: { opacity: 0, height: 0 },
@@ -209,78 +258,76 @@ const Sidebar = () => {
   };
 
   const itemVariants = {
-    hidden: { x: -20, opacity: 0 },
+    hidden: { opacity: 0, x: -10 },
     visible: { 
-      x: 0, 
-      opacity: 1,
+      opacity: 1, 
+      x: 0,
       transition: {
-        duration: 0.2
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      x: -10,
+      transition: {
+        duration: 0.1,
+        ease: "easeIn"
       }
     }
   };
 
-  return (
-    <motion.div
-      initial={{ width: 280 }}
-      animate={{ width: isCollapsed ? 80 : 280 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-      className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}
-    >
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
-          <AnimatePresence mode="wait">
-            {!isCollapsed ? (
-              <motion.div
-                key="expanded"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center space-x-3"
+  try {
+    return (
+      <motion.div
+        initial={{ width: isCollapsed ? 80 : 280 }}
+        animate={{ width: isCollapsed ? 80 : 280 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="h-full bg-gradient-to-b from-blue-50 to-white border-r border-gray-200 shadow-lg"
+      >
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+            <div className="flex items-center justify-between">
+              <motion.button
+                onClick={toggleSidebar}
+                className="p-2 rounded-lg text-white hover:bg-blue-500 transition-colors duration-200"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">U</span>
-                </div>
-                <span className="text-xl font-bold text-white">U Drive</span>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="collapsed"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mx-auto"
-              >
-                <span className="text-white font-bold text-sm">U</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-white hover:bg-opacity-20 transition-colors duration-200"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-4 h-4 text-white" />
-            ) : (
-              <ChevronLeft className="w-4 h-4 text-white" />
-            )}
-          </button>
-        </div>
+                {isCollapsed ? (
+                  <ChevronRight className="w-5 h-5" />
+                ) : (
+                  <ChevronLeft className="w-5 h-5" />
+                )}
+              </motion.button>
+              
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-white font-semibold text-lg"
+                >
+                  UHub
+                </motion.div>
+              )}
+            </div>
+          </div>
 
-        {/* User Profile */}
-        <div className="sidebar-user-profile">
-          <AnimatePresence mode="wait">
-            {!isCollapsed ? (
-              <motion.div
-                key="expanded-profile"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-3 w-full"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="sidebar-avatar">
+          {/* User Profile Section */}
+          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+            <AnimatePresence mode="wait">
+              {!isCollapsed ? (
+                <motion.div
+                  key="expanded-profile"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center space-x-3"
+                >
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
                     <span className="text-white text-sm font-medium">
                       {userProfile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                     </span>
@@ -290,143 +337,145 @@ const Sidebar = () => {
                       {userProfile?.full_name || 'User'}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
-                      {userProfile?.position || 'Administrator'}
+                      {userProfile?.role || 'No Role'}
                     </p>
                   </div>
-                </div>
-                
-                {/* Role Indicator */}
-                <div className="sidebar-role-indicator">
-                  <RoleIndicator />
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="collapsed-profile"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center space-y-2 w-full"
-              >
-                <div className="sidebar-avatar">
-                  <span className="text-white text-sm font-medium">
-                    {userProfile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                  </span>
-                </div>
-                <div className="sidebar-role-indicator">
-                  <RoleIndicator />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Navigation Panels */}
-        <div className="flex-1 overflow-y-auto p-2">
-          <div className="space-y-2">
-            {navigationPanels.map((panel) => {
-              const Icon = panel.icon;
-              const isExpanded = expandedPanels[panel.key];
-              
-              return (
-                <div key={panel.key} className="sidebar-panel bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                  {/* Panel Header */}
-                  <button
-                    onClick={() => togglePanel(panel.key)}
-                    className={`sidebar-panel-header ${
-                      isExpanded ? 'sidebar-panel-expanded' : ''
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Icon className={`sidebar-icon w-5 h-5 text-gray-600 ${isCollapsed ? 'mx-auto' : ''}`} />
-                      {!isCollapsed && (
-                        <span className="text-sm font-medium text-gray-700 sidebar-text">{panel.title}</span>
-                      )}
-                    </div>
-                    {!isCollapsed && (
-                      <motion.div
-                        animate={{ rotate: isExpanded ? 180 : 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="sidebar-chevron"
-                      >
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      </motion.div>
-                    )}
-                  </button>
-
-                  {/* Panel Content */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        variants={panelVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                        className="sidebar-panel-content overflow-hidden"
-                      >
-                        <div className="p-2 space-y-1">
-                          {panel.items.map((item, index) => {
-                            const ItemIcon = item.icon;
-                            const active = isActive(item.path);
-                            
-                            return (
-                              <motion.div
-                                key={index}
-                                variants={itemVariants}
-                                initial="hidden"
-                                animate="visible"
-                                transition={{ delay: index * 0.05 }}
-                              >
-                                <Link
-                                  to={item.path}
-                                  className={`sidebar-nav-item ${
-                                    active 
-                                      ? 'active' 
-                                      : 'text-gray-700 hover:text-gray-900'
-                                  } ${isCollapsed ? 'justify-center' : ''}`}
-                                >
-                                  <ItemIcon className={`sidebar-icon ${isCollapsed ? 'w-6 h-6' : 'w-4 h-4 mr-3'}`} />
-                                  {!isCollapsed && (
-                                    <span className="sidebar-text">{item.label}</span>
-                                  )}
-                                </Link>
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
-          <button
-            onClick={handleSignOut}
-            className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors duration-200 w-full"
-          >
-            <Settings className="w-5 h-5" />
-            <AnimatePresence>
-              {!isCollapsed && (
-                <motion.span
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: 'auto' }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.2 }}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="collapsed-profile"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center space-y-2 w-full"
                 >
-                  Sign Out
-                </motion.span>
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {userProfile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
-          </button>
+          </div>
+
+          {/* Navigation Panels */}
+          <div className="flex-1 overflow-y-auto p-2">
+            <div className="space-y-2">
+              {filteredPanels.map((panel) => {
+                const Icon = panel.icon;
+                const isExpanded = expandedPanels[panel.key];
+                const filteredItems = getFilteredItems(panel);
+                
+                // Don't show panel if it has no visible items
+                if (filteredItems.length === 0) {
+                  return null;
+                }
+                
+                return (
+                  <div key={panel.key} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                    {/* Panel Header */}
+                    <button
+                      onClick={() => togglePanel(panel.key)}
+                      className="w-full p-3 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Icon className="w-5 h-5 text-gray-600" />
+                        {!isCollapsed && (
+                          <span className="text-sm font-medium text-gray-700">{panel.title}</span>
+                        )}
+                      </div>
+                      {!isCollapsed && (
+                        <motion.div
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        </motion.div>
+                      )}
+                    </button>
+
+                    {/* Panel Content */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          variants={panelVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                          className="overflow-hidden"
+                        >
+                          <div className="p-2 space-y-1">
+                            {filteredItems.map((item, index) => {
+                              const ItemIcon = item.icon;
+                              const active = isActive(item.path);
+                              
+                              return (
+                                <motion.div
+                                  key={index}
+                                  variants={itemVariants}
+                                  initial="hidden"
+                                  animate="visible"
+                                  transition={{ delay: index * 0.05 }}
+                                >
+                                  <Link
+                                    to={item.path}
+                                    className={`flex items-center px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
+                                      active 
+                                        ? 'bg-blue-100 text-blue-700' 
+                                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                                    } ${isCollapsed ? 'justify-center' : ''}`}
+                                  >
+                                    <ItemIcon className={`${isCollapsed ? 'w-6 h-6' : 'w-4 h-4 mr-3'}`} />
+                                    {!isCollapsed && (
+                                      <span>{item.label}</span>
+                                    )}
+                                  </Link>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+            <button
+              onClick={handleSignOut}
+              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors duration-200 w-full"
+            >
+              <Settings className="w-5 h-5" />
+              <AnimatePresence>
+                {!isCollapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 'auto' }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    Sign Out
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
+          </div>
         </div>
+      </motion.div>
+    );
+  } catch (error) {
+    console.error("Error rendering Sidebar:", error);
+    return (
+      <div className="h-full bg-gradient-to-b from-blue-50 to-white border-r border-gray-200 shadow-lg flex items-center justify-center">
+        <div className="text-gray-500">Error loading sidebar.</div>
       </div>
-    </motion.div>
-  );
+    );
+  }
 };
 
 export default Sidebar;

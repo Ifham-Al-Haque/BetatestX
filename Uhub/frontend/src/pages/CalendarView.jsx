@@ -5,9 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import EnhancedCalendar from '../components/CalendarView';
 import EventForm from '../components/EventForm';
-import DatabaseTest from '../components/DatabaseTest';
-import CalendarDebug from '../components/CalendarDebug';
-import SimpleDatabaseCheck from '../components/SimpleDatabaseCheck';
 import { calendarService } from '../services/calendarService';
 
 const CalendarViewPage = () => {
@@ -442,20 +439,6 @@ const CalendarViewPage = () => {
         onDelete={handleDeleteEvent}
         userDepartment={getUserDepartment()}
       />
-
-      {/* Database Test Component (temporary) */}
-      <DatabaseTest />
-
-      {/* Calendar Debug Component (temporary) */}
-      <CalendarDebug 
-        onAddEvent={handleAddEvent}
-        events={events}
-        loading={loading}
-        user={user}
-      />
-
-      {/* Simple Database Check Component (temporary) */}
-      <SimpleDatabaseCheck />
     </div>
   );
 };

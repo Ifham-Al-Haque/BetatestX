@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
+
 
 const AttendanceUpload = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -36,7 +36,7 @@ const AttendanceUpload = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+      
       <div className="flex-1 p-6">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

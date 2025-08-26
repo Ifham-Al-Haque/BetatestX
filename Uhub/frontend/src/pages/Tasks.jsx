@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import Sidebar from '../components/Sidebar';
+
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
@@ -122,7 +122,7 @@ const Tasks = () => {
   if (loading) {
     return (
       <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
-        <Sidebar />
+        
         <div className="ml-80 p-6">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -133,137 +133,164 @@ const Tasks = () => {
   }
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
-      <Sidebar />
-      <div className="ml-80 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">My Tasks</h1>
-            <p className="text-gray-600">View and manage tasks assigned to you</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <DarkModeToggle />
-            <UserDropdown />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      {/* Header Section */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                <CheckSquare className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
+                <p className="text-sm text-gray-600">Manage and track your assigned tasks</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <DarkModeToggle />
+              <UserDropdown />
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CheckSquare className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Tasks</p>
-                  <p className="text-2xl font-bold text-gray-900">{tasks.length}</p>
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <CheckSquare className="w-5 h-5 text-blue-600" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-gray-600">Total Tasks</p>
+                <p className="text-2xl font-bold text-gray-900">{tasks.length}</p>
+              </div>
+            </div>
+          </motion.div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Clock className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">In Progress</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tasks.filter(t => t.status === 'in_progress').length}
-                  </p>
-                </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <Clock className="w-5 h-5 text-yellow-600" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-gray-600">In Progress</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {tasks.filter(t => t.status === 'in_progress').length}
+                </p>
+              </div>
+            </div>
+          </motion.div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tasks.filter(t => t.status === 'completed').length}
-                  </p>
-                </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-gray-600">Completed</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {tasks.filter(t => t.status === 'completed').length}
+                </p>
+              </div>
+            </div>
+          </motion.div>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {tasks.filter(t => t.status === 'pending').length}
-                  </p>
-                </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600" />
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-gray-600">Pending</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {tasks.filter(t => t.status === 'pending').length}
+                </p>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-8"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
 
-              <select
-                value={filters.priority}
-                onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Priorities</option>
-                {priorities.map(priority => (
-                  <option key={priority.value} value={priority.value}>{priority.label}</option>
-                ))}
-              </select>
+            <select
+              value={filters.priority}
+              onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Priorities</option>
+              {priorities.map(priority => (
+                <option key={priority.value} value={priority.value}>{priority.label}</option>
+              ))}
+            </select>
 
-              <select
-                value={filters.department}
-                onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Departments</option>
-                <option value="IT Services">IT Services</option>
-                <option value="Customer Service">Customer Service</option>
-                <option value="Driver Management">Driver Management</option>
-                <option value="Operations">Operations</option>
-                <option value="Finance">Finance</option>
-                <option value="HR">HR</option>
-                <option value="General">General</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
+            <select
+              value={filters.department}
+              onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Departments</option>
+              <option value="IT Services">IT Services</option>
+              <option value="Customer Service">Customer Service</option>
+              <option value="Operations">Operations</option>
+              <option value="Finance">Finance</option>
+              <option value="HR">HR</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+        </motion.div>
 
         {/* Tasks List */}
-        <Card>
-          <CardHeader>
-            <CardHeader>My Tasks</CardHeader>
-          </CardHeader>
-          <CardContent>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="bg-white rounded-xl shadow-sm border border-gray-200"
+        >
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">My Tasks</h3>
             {tasks.length === 0 ? (
               <div className="text-center py-8">
                 <CheckSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -340,8 +367,8 @@ const Tasks = () => {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

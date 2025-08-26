@@ -38,6 +38,8 @@ const Chat = () => {
   const [showNewChat, setShowNewChat] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   
   // Refs
   const messagesEndRef = useRef(null);
@@ -53,6 +55,7 @@ const Chat = () => {
   useEffect(() => {
     if (user) {
       loadConversations();
+      loadAllUsers();
       setupRealTimeSubscriptions();
       updateUserStatus(true);
     }
@@ -88,6 +91,18 @@ const Chat = () => {
       showError('Error', 'Failed to load conversations');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAllUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const data = await chatService.getAllUsers();
+      setAllUsers(data);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -243,9 +258,14 @@ const Chat = () => {
   const handleNewDirectChat = async (userId) => {
     try {
       const conversationId = await chatService.createDirectConversation(userId);
-      const newConversation = conversations.find(c => c.id === conversationId);
-      if (newConversation) {
-        setSelectedConversation(newConversation);
+      if (conversationId) {
+        // Reload conversations to get the new one
+        await loadConversations();
+        // Find and select the new conversation
+        const newConversation = conversations.find(c => c.id === conversationId);
+        if (newConversation) {
+          setSelectedConversation(newConversation);
+        }
       }
       setShowNewChat(false);
       success('Success', 'New conversation started!');
@@ -519,6 +539,8 @@ const Chat = () => {
           <NewChatModal
             onClose={() => setShowNewChat(false)}
             onStartChat={handleNewDirectChat}
+            allUsers={allUsers}
+            loadingUsers={loadingUsers}
           />
         )}
       </AnimatePresence>
@@ -526,29 +548,24 @@ const Chat = () => {
   );
 };
 
-// New Chat Modal Component
-const NewChatModal = ({ onClose, onStartChat }) => {
+// New Chat Modal Component - Updated to show all users
+const NewChatModal = ({ onClose, onStartChat, allUsers, loadingUsers }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState(null);
 
-  const searchUsers = async (query) => {
-    if (!query.trim()) {
-      setUsers([]);
-      return;
+  // Filter users based on search query
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      const filtered = allUsers.filter(user => 
+        user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setUsers(filtered);
+    } else {
+      setUsers(allUsers);
     }
-
-    try {
-      setLoading(true);
-      const data = await chatService.searchUsers(query);
-      setUsers(data);
-    } catch (err) {
-      console.error('Failed to search users:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [searchQuery, allUsers]);
 
   const handleSearch = (e) => {
     const query = e.target.value;
@@ -559,7 +576,7 @@ const NewChatModal = ({ onClose, onStartChat }) => {
     }
     
     const timeout = setTimeout(() => {
-      searchUsers(query);
+      // Search is handled by useEffect above
     }, 300);
     
     setSearchTimeout(timeout);
@@ -613,10 +630,12 @@ const NewChatModal = ({ onClose, onStartChat }) => {
           </div>
           
           <div className="max-h-64 overflow-y-auto">
-            {loading ? (
-              <div className="text-center py-4 text-gray-500">Searching...</div>
-            ) : users.length === 0 && searchQuery ? (
-              <div className="text-center py-4 text-gray-500">No users found</div>
+            {loadingUsers ? (
+              <div className="text-center py-4 text-gray-500">Loading users...</div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                {searchQuery ? 'No users found' : 'No users available'}
+              </div>
             ) : (
               users.map((user) => (
                 <div
@@ -625,11 +644,15 @@ const NewChatModal = ({ onClose, onStartChat }) => {
                   onClick={() => onStartChat(user.id)}
                 >
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {user.full_name?.charAt(0)?.toUpperCase() || '?'}
+                    {user.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{user.full_name}</h3>
-                    <p className="text-sm text-gray-500">{user.role} • {user.department}</p>
+                    <h3 className="font-medium text-gray-900">
+                      {user.full_name || user.email}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {user.role} • {user.department || 'No Department'}
+                    </p>
                   </div>
                   <UserPlus className="w-5 h-5 text-gray-400" />
                 </div>

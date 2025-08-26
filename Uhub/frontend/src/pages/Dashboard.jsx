@@ -9,8 +9,6 @@ import { useAuth } from '../context/AuthContext';
 import { useExpenseStats } from '../hooks/useExpenseStats';
 import { usePaymentEvents } from '../hooks/usePaymentEvents';
 import { useQueryClient } from '@tanstack/react-query';
-import Header from '../components/Header';
-import PageLayout from '../components/PageLayout';
 import GlobalFilter from '../components/GlobalFilter';
 import UpcomingPaymentEvents from '../components/UpcomingPaymentEvents';
 import PaymentCalendar from '../components/PaymentCalendar';
@@ -650,16 +648,16 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <PageLayout className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+      <div className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
         <div className="page-content">
           <LoadingSpinner size="xl" text="Loading dashboard data..." />
         </div>
-      </PageLayout>
+      </div>
     );
   }
 
   return (
-    <PageLayout className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+    <div className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
       <div className="page-content">
         {/* Enhanced Welcome Section */}
         <div className="welcome-section">
@@ -878,6 +876,6 @@ export default function Dashboard() {
           )}
         </AnimatedCard>
       </div>
-    </PageLayout>
+    </div>
   );
 }

@@ -11,8 +11,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useExpenses } from "../hooks/useApi";
-import { useSidebar } from "../context/SidebarContext";
-import Sidebar from "../components/Sidebar";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 // Color scheme for charts
@@ -739,7 +737,6 @@ const ServiceDistributionChart = ({ expenses }) => {
 
 export default function Analytics() {
   const { user } = useAuth();
-  const { sidebarWidth } = useSidebar();
   const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
   const expenses = expensesResponse?.data || [];
   
@@ -786,9 +783,8 @@ export default function Analytics() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar />
-        <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex-1 transition-all duration-300 ease-in-out">
+          <div className="p-6">
             <LoadingSpinner size="xl" text="Loading analytics data..." />
           </div>
         </div>
@@ -799,12 +795,11 @@ export default function Analytics() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar />
-        <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex-1 transition-all duration-300 ease-in-out">
+          <div className="p-6">
             <div className="text-center">
               <p className="text-red-600 mb-2 text-lg">Error loading analytics data</p>
-              <p className="text-gray-500">{error.message}</p>
+              <p className="text-gray-600">{error.message || 'Please try again later'}</p>
             </div>
           </div>
         </div>
@@ -813,183 +808,243 @@ export default function Analytics() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      <Sidebar />
-      <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                     {/* Header */}
-           <div className="flex justify-between items-center mb-8">
-             <div>
-               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                 Analytics Dashboard
-               </h1>
-               <p className="text-gray-600 dark:text-gray-400 mt-2">
-                 Track and analyze your service spending and expenses
-               </p>
-             </div>
-           </div>
-
-          {/* Tab Navigation */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-1 mb-6">
-            <div className="flex space-x-1">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'overview'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Overview
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('breakdown')}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'breakdown'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Service Breakdown
-              </button>
-              <button
-                onClick={() => setActiveTab('distribution')}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'distribution'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Distribution
-              </button>
-              <button
-                onClick={() => setActiveTab('monthly-breakdown')}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'monthly-breakdown'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Monthly Breakdown
-              </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      {/* Header Section */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+                <p className="text-sm text-gray-600">Track and analyze your service spending and expenses</p>
+              </div>
             </div>
           </div>
-
-          {/* Content based on active tab */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                   <div className="flex items-center">
-                     <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                       <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                     </div>
-                     <div className="ml-4">
-                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Services</p>
-                       <p className="text-2xl font-semibold text-gray-900 dark:text-white">{summaryStats.totalServices}</p>
-                     </div>
-                   </div>
-                 </div>
-
-                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                   <div className="flex items-center">
-                     <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                       <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-                     </div>
-                     <div className="ml-4">
-                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Spent</p>
-                       <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                         AED {summaryStats.totalSpent.toLocaleString()}
-                       </p>
-                     </div>
-                   </div>
-                 </div>
-
-                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                   <div className="flex items-center">
-                     <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-                       <Calendar className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-                     </div>
-                     <div className="ml-4">
-                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Average Per Service</p>
-                       <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                         AED {summaryStats.averagePerService.toFixed(0)}
-                       </p>
-                     </div>
-                   </div>
-                 </div>
-
-                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                   <div className="flex items-center">
-                     <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                       <Shield className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                     </div>
-                     <div className="ml-4">
-                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Transactions</p>
-                       <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                         {expenses.length}
-                       </p>
-                     </div>
-                   </div>
-                 </div>
-              </div>
-
-                             {/* Existing Charts */}
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Service Breakdown</h3>
-                   <ServiceBreakdownChart expenses={expenses} />
-                 </div>
-
-                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Service Distribution</h3>
-                   <ServiceDistributionChart expenses={expenses} />
-                 </div>
-               </div>
-
-               {/* Individual Service Line Charts */}
-               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                 <IndividualServiceCharts expenses={expenses} />
-               </div>
-            </div>
-          )}
-
-          
-
-                     {activeTab === 'breakdown' && (
-             <div className="space-y-6">
-               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Service Breakdown</h3>
-                 <ServiceBreakdownChart expenses={expenses} />
-               </div>
-             </div>
-           )}
-
-                     {activeTab === 'distribution' && (
-             <div className="space-y-6">
-               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Service Distribution</h3>
-                 <ServiceDistributionChart expenses={expenses} />
-               </div>
-             </div>
-           )}
-
-          {activeTab === 'monthly-breakdown' && (
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Monthly Service Expense Breakdown</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">Click on any service bar to see detailed monthly breakdown with payment information</p>
-                <MonthlyBreakdownCharts expenses={expenses} />
-              </div>
-            </div>
-          )}
-
-          
-
-          
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-xl shadow-sm p-1 mb-8"
+        >
+          <div className="flex space-x-1">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'overview'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              Overview
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('breakdown')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'breakdown'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              Service Breakdown
+            </button>
+            <button
+              onClick={() => setActiveTab('distribution')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'distribution'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              Distribution
+            </button>
+            <button
+              onClick={() => setActiveTab('monthly-breakdown')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'monthly-breakdown'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              Monthly Breakdown
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Content based on active tab */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <DollarSign className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Total Services</p>
+                        <p className="text-2xl font-semibold text-gray-900">{summaryStats.totalServices}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <TrendingUp className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Total Spent</p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          AED {summaryStats.totalSpent.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Calendar className="w-6 h-6 text-yellow-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Average Per Service</p>
+                        <p className="text-2xl font-semibold text-gray-900">
+                          AED {summaryStats.averagePerService.toFixed(0)}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <div className="flex items-center">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <Shield className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Total Transactions</p>
+                        <p className="text-2xl font-semibold text-gray-900">{expenses.length}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Existing Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Breakdown</h3>
+                    <ServiceBreakdownChart expenses={expenses} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Distribution</h3>
+                    <ServiceDistributionChart expenses={expenses} />
+                  </motion.div>
+                </div>
+
+                {/* Individual Service Line Charts */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                >
+                  <IndividualServiceCharts expenses={expenses} />
+                </motion.div>
+              </div>
+            )}
+
+            {activeTab === 'breakdown' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="space-y-6"
+              >
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Breakdown</h3>
+                  <ServiceBreakdownChart expenses={expenses} />
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'distribution' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="space-y-6"
+              >
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Distribution</h3>
+                  <ServiceDistributionChart expenses={expenses} />
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'monthly-breakdown' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="space-y-6"
+              >
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Service Expense Breakdown</h3>
+                  <p className="text-gray-600 mb-6">Click on any service bar to see detailed monthly breakdown with payment information</p>
+                  <MonthlyBreakdownCharts expenses={expenses} />
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

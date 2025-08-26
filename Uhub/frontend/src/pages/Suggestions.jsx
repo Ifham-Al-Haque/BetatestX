@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import Sidebar from '../components/Sidebar';
+
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
@@ -258,7 +258,7 @@ const Suggestions = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar />
+      
       <div className="ml-64">
         {/* Header */}
         <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
-import { useSidebar } from "../context/SidebarContext";
-import Sidebar from "../components/Sidebar";
+
+
 import { motion } from "framer-motion";
 import { 
   User, Mail, Phone, MapPin, Calendar, Building, 
@@ -12,11 +12,12 @@ import {
 import { clearImageCache, forceRefreshEmployeeImages } from "../utils/imageUtils";
 
 export default function EmployeeForm() {
-  const { sidebarWidth } = useSidebar();
+  
   const [formData, setFormData] = useState({
     full_name: "",
     name: "",
     email: "",
+    phone: "",
     department: "",
     position: "",
     designation: "",
@@ -24,6 +25,8 @@ export default function EmployeeForm() {
     role: "",
     reporting_manager_id: "",
     reporting_manager: "",
+    hire_date: "",
+    location: "",
     scopes: "",
     responsibilities: "",
     duties: "",
@@ -76,7 +79,14 @@ export default function EmployeeForm() {
           .single();
 
         if (error) {
-          setError("Failed to load employee data.");
+          console.error("Error fetching employee:", error);
+          if (error.code === 'PGRST116') {
+            setError("Employee not found. Please check the URL and try again.");
+          } else if (error.message) {
+            setError(`Failed to load employee data: ${error.message}`);
+          } else {
+            setError("Failed to load employee data. Please try again.");
+          }
           setLoading(false);
           return;
         }
@@ -85,6 +95,9 @@ export default function EmployeeForm() {
           // Convert JSONB fields to strings for form display
           const processedData = {
             ...data,
+            phone: data.phone || "",
+            hire_date: data.hire_date || "",
+            location: data.location || "",
             scopes: Array.isArray(data.scopes) ? data.scopes.join('\n') : data.scopes || "",
             responsibilities: Array.isArray(data.responsibilities) ? data.responsibilities.join('\n') : data.responsibilities || "",
             duties: Array.isArray(data.duties) ? data.duties.join('\n') : data.duties || "",
@@ -105,13 +118,55 @@ export default function EmployeeForm() {
   }, [id]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+    
+    // Format phone number as user types
+    if (e.target.name === 'phone') {
+      // Remove all non-digit characters except +
+      value = value.replace(/[^\d+]/g, '');
+      
+      // Ensure it starts with +971 for UAE format
+      if (value && !value.startsWith('+971')) {
+        if (value.startsWith('971')) {
+          value = '+' + value;
+        } else if (value.startsWith('0')) {
+          value = '+971' + value.substring(1);
+        } else if (!value.startsWith('+')) {
+          value = '+971' + value;
+        }
+      }
+    }
+    
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    
+    // Basic validation
+    if (!formData.full_name?.trim()) {
+      setError("Full Name is required.");
+      return;
+    }
+    
+    if (!formData.email?.trim()) {
+      setError("Email is required.");
+      return;
+    }
+    
+    if (!formData.employee_id?.trim()) {
+      setError("Employee ID is required.");
+      return;
+    }
+    
+    // Phone number validation (if provided)
+    if (formData.phone && !formData.phone.match(/^\+971\d{9}$/)) {
+      setError("Phone number must be in UAE format: +971XXXXXXXXX");
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -135,7 +190,10 @@ export default function EmployeeForm() {
           duplicateQuery = duplicateQuery.or(conditions.join(','));
           const { data: existing, error: checkError } = await duplicateQuery;
 
-          if (checkError) throw checkError;
+          if (checkError) {
+            console.error("Duplicate check error:", checkError);
+            throw new Error(`Failed to check for duplicates: ${checkError.message}`);
+          }
 
           if (existing && existing.length > 0) {
             setError("Employee with this email or employee ID already exists.");
@@ -154,6 +212,9 @@ export default function EmployeeForm() {
       // Prepare data for submission
       const submitData = {
         ...formData,
+        phone: formData.phone || null,
+        hire_date: formData.hire_date || null,
+        location: formData.location || null,
         scopes: processJsonbField(formData.scopes),
         responsibilities: processJsonbField(formData.responsibilities),
         duties: processJsonbField(formData.duties),
@@ -209,7 +270,10 @@ export default function EmployeeForm() {
           .single();
       }
 
-      if (response.error) throw response.error;
+      if (response.error) {
+        console.error("Database response error:", response.error);
+        throw response.error;
+      }
 
       if (!response.data) {
         setError("No data returned after employee creation.");
@@ -232,8 +296,22 @@ export default function EmployeeForm() {
         setTimeout(() => navigate("/employees"), 1500);
       }
     } catch (err) {
-      console.error(err);
-      setError("Something went wrong. Please try again.");
+      console.error("Employee form error:", err);
+      
+      // Provide more specific error messages
+      if (err.code === '23505') {
+        setError("Duplicate entry: An employee with this email or employee ID already exists.");
+      } else if (err.code === '23503') {
+        setError("Reference error: The selected reporting manager does not exist.");
+      } else if (err.code === '23514') {
+        setError("Validation error: Please check that all required fields are filled correctly.");
+      } else if (err.message) {
+        setError(`Error: ${err.message}`);
+      } else if (err.details) {
+        setError(`Error: ${err.details}`);
+      } else {
+        setError("Something went wrong. Please check your input and try again.");
+      }
     }
     setLoading(false);
   };
@@ -241,8 +319,8 @@ export default function EmployeeForm() {
   if (loading && id) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-        <Sidebar />
-        <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+        
+        <div className="flex-1 transition-all duration-300 ease-in-out" >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -255,8 +333,8 @@ export default function EmployeeForm() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      <Sidebar />
-      <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+      
+      <div className="flex-1 transition-all duration-300 ease-in-out" >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
@@ -371,6 +449,20 @@ export default function EmployeeForm() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="+971 XX XXX XXXX"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Employee ID *
                     </label>
                     <input
@@ -433,6 +525,36 @@ export default function EmployeeForm() {
                       onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Hire Date
+                    </label>
+                    <input
+                      type="date"
+                      name="hire_date"
+                      value={formData.hire_date}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Location
+                    </label>
+                    <select
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Location</option>
+                      <option value="In House">In House</option>
+                      <option value="Remote">Remote</option>
+                      <option value="Hybrid">Hybrid</option>
+                    </select>
                   </div>
 
                   <div>
@@ -681,8 +803,17 @@ export default function EmployeeForm() {
                     disabled={loading}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
-                    <Save className="w-4 h-4" />
-                    {loading ? "Saving..." : (id ? "Update Employee" : "Create Employee")}
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        {id ? "Updating..." : "Creating..."}
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        {id ? "Update Employee" : "Create Employee"}
+                      </>
+                    )}
                   </button>
                   
                   <button

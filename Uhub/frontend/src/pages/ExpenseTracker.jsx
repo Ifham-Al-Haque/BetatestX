@@ -1,16 +1,16 @@
 // src/pages/ExpenseTracker.jsx
 import { useState, useCallback, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useSidebar } from "../context/SidebarContext";
+
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
-import Sidebar from "../components/Sidebar";
+
 import { motion } from "framer-motion";
 import { Plus, Edit, Trash, Save, X, Filter, Search, Calendar, DollarSign, Building } from "lucide-react";
 
 export default function ExpenseTracker() {
   const { user } = useAuth();
-  const { sidebarWidth } = useSidebar();
+  
   const { success, error: showError } = useToast();
   
   // Form state
@@ -206,8 +206,8 @@ export default function ExpenseTracker() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-        <Sidebar />
-        <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+        
+        <div className="flex-1 transition-all duration-300 ease-in-out" >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h3 className="text-red-800 font-medium">Error Loading Expenses</h3>
@@ -221,8 +221,8 @@ export default function ExpenseTracker() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      <Sidebar />
-      <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+      
+      <div className="flex-1 transition-all duration-300 ease-in-out" >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">

@@ -3,7 +3,7 @@ import PaymentCalendar from '../components/PaymentCalendar';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
-import Sidebar from '../components/Sidebar';
+
 
 const PaymentCalendarPage = () => {
   const { user } = useAuth();
@@ -72,7 +72,7 @@ const PaymentCalendarPage = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+      
       <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

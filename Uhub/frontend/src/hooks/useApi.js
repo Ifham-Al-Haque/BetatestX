@@ -6,7 +6,7 @@ export const useEmployees = (page = 1, limit = 50, search = '') => {
   return useQuery({
     queryKey: ['employees', page, limit, search],
     queryFn: () => apiService.employees.getAll(page, limit, search),
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30 * 1000, // 30 seconds - reduced for more frequent updates
     keepPreviousData: true,
   });
 };

@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { enhancedEmployeeApi } from '../services/enhancedEmployeeApi';
-import Sidebar from '../components/Sidebar';
+
 import UserDropdown from '../components/UserDropdown';
 import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
@@ -267,7 +267,7 @@ const TaskManagement = () => {
   if (loading) {
     return (
       <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
-        <Sidebar />
+        
         <div className="ml-80 p-6">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -279,7 +279,7 @@ const TaskManagement = () => {
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
-      <Sidebar />
+      
       <div className="ml-80 p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

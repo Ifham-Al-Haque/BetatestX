@@ -8,6 +8,7 @@ import { SidebarProvider } from './context/SidebarContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ChatProvider } from './context/ChatContext';
+import { NotificationProvider } from './context/NotificationContext';
 import LoadingSpinner from './components/LoadingSpinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
@@ -81,6 +82,7 @@ const UserProfile = React.lazy(() => import('./pages/UserProfile'));
 const AccessManagement = React.lazy(() => import('./pages/AccessManagement'));
 const AccessRequests = React.lazy(() => import('./pages/AccessRequests'));
 const RBACTest = React.lazy(() => import('./pages/RBACTest'));
+const RBACDebugger = React.lazy(() => import('./components/RBACDebugger'));
 const CallCenterDemo = React.lazy(() => import('./pages/CallCenterDemo'));
 const CSVDataImporter = React.lazy(() => import('./components/CSVDataImporter'));
 const InvitationAccept = React.lazy(() => import('./pages/InvitationAccept'));
@@ -103,10 +105,18 @@ function App() {
             <ToastProvider>
               <ThemeProvider>
                 <ChatProvider>
-                <Suspense fallback={<LoadingSpinner />}>
+                  <NotificationProvider>
+                  <Suspense fallback={<LoadingSpinner />}>
                   <Routes>
                     {/* Public Routes */}
-                    <Route path="/" element={<Welcome />} />
+                    <Route path="/" element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Dashboard />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/welcome" element={<Welcome />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/confirm-email" element={<ConfirmEmail />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
@@ -170,7 +180,7 @@ function App() {
                     {/* Other protected routes */}
                     <Route path="/user-management" element={
                       <ProtectedRoute requiredFeature="user_management">
-                        <Layout>
+                        <Layout pageTitle="User Management" pageDescription="Manage system users and their permissions with advanced controls">
                           <UserManagement />
                         </Layout>
                       </ProtectedRoute>
@@ -475,7 +485,7 @@ function App() {
 
                     <Route path="/calendar-view" element={
                       <ProtectedRoute requiredFeature="calendar_view">
-                        <Layout>
+                        <Layout pageTitle="Calendar Management" pageDescription="Manage all your events, meetings, and tasks">
                           <CalendarView />
                         </Layout>
                       </ProtectedRoute>
@@ -529,6 +539,14 @@ function App() {
                       </ProtectedRoute>
                     } />
 
+                    <Route path="/rbac-debug" element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <RBACDebugger />
+                        </Layout>
+                      </ProtectedRoute>
+                    } />
+
                     <Route path="/call-center-demo" element={
                       <ProtectedRoute requiredFeature="call_center_demo">
                         <Layout>
@@ -550,6 +568,7 @@ function App() {
                   </Routes>
                 </Suspense>
                 <ReactQueryDevtools initialIsOpen={false} />
+                  </NotificationProvider>
                 </ChatProvider>
               </ThemeProvider>
             </ToastProvider>

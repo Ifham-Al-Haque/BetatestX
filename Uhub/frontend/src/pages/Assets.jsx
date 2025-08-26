@@ -9,8 +9,6 @@ import {
 } from "lucide-react";
 import { useAssets, useDeleteAsset, useCreateAsset, useUpdateAsset } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
-import { useSidebar } from "../context/SidebarContext";
-import Sidebar from "../components/Sidebar";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../supabaseClient";
 
@@ -263,8 +261,7 @@ const AssetForm = ({ asset, onClose, onSubmit, isLoading }) => {
 };
 
 export default function Assets() {
-  const { sidebarWidth } = useSidebar();
-  const [search, setSearch] = useState("");
+    const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -357,8 +354,7 @@ export default function Assets() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-        <Sidebar />
-        <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+                <div className="flex-1 transition-all duration-300 ease-in-out" >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <h3 className="text-red-800 font-medium">Error Loading Assets</h3>
@@ -409,8 +405,7 @@ export default function Assets() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      <Sidebar />
-      <div className="flex-1 transition-all duration-300 ease-in-out" style={{ marginLeft: `${sidebarWidth}px` }}>
+            <div className="flex-1 transition-all duration-300 ease-in-out" >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
