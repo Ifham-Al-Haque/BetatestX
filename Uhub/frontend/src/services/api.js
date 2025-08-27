@@ -17,11 +17,11 @@ export const apiService = {
           phone,
           location,
           hire_date,
-          role,
-          status,
           profile_picture,
           photo_url,
           created_at,
+          performance_rating,
+          termination_date,
           reporting_manager:reporting_manager_id (
             full_name,
             employee_id
@@ -30,7 +30,7 @@ export const apiService = {
         .order('created_at', { ascending: false });
 
       if (search) {
-        query = query.or(`full_name.ilike.%${search}%,department.ilike.%${search}%,position.ilike.%${search}%,employee_id.ilike.%${search}%,phone.ilike.%${search}%,location.ilike.%${search}%,role.ilike.%${search}%`);
+        query = query.or(`full_name.ilike.%${search}%,department.ilike.%${search}%,position.ilike.%${search}%,employee_id.ilike.%${search}%,phone.ilike.%${search}%,location.ilike.%${search}%`);
       }
 
       const from = (page - 1) * limit;

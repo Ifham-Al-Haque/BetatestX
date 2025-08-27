@@ -65,6 +65,11 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
     }
   }, [loading, user, userRole, requiredFeature, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate]);
 
+  // Reset navigation flag when user changes
+  useEffect(() => {
+    hasNavigated.current = false;
+  }, [user]);
+
   // If still loading, show loading screen
   if (loading) {
     return (

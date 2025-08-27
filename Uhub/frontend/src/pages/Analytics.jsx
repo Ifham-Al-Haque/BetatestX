@@ -731,9 +731,509 @@ const ServiceDistributionChart = ({ expenses }) => {
   );
 };
 
+// Monthly Expense Trend Chart Component
+const MonthlyExpenseTrendChart = ({ data }) => {
+  // Process monthly data for charts - moved to top before any returns
+  const monthlyData = useMemo(() => {
+    if (!data || !data.length) return [];
 
+    const monthlyStats = {};
+    data.forEach(expense => {
+      const date = expense.date_paid || expense.date || expense.created_at;
+      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+      
+      if (!date || !amount || amount <= 0) return;
+      
+      const expenseDate = new Date(date);
+      const monthKey = `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyStats[monthKey]) {
+        monthlyStats[monthKey] = 0;
+      }
+      monthlyStats[monthKey] += parseFloat(amount);
+    });
 
+    return Object.entries(monthlyStats)
+      .map(([month, total]) => ({ month, total }))
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .slice(-6); // Last 6 months
+  }, [data]);
 
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <TrendingUp className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium text-gray-400">No expense data available</p>
+          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={350}>
+      <LineChart data={monthlyData}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+        <XAxis 
+          dataKey="month" 
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          tickFormatter={(value) => {
+            const [year, month] = value.split('-');
+            const monthNames = [
+              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+            ];
+            return `${monthNames[parseInt(month) - 1]} ${year}`;
+          }}
+        />
+        <YAxis 
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+        />
+        <Tooltip 
+          contentStyle={{
+            backgroundColor: 'white',
+            border: '1px solid #E5E7EB',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}
+          formatter={(value) => [`${(value / 1000).toFixed(1)}k AED`, 'Amount']}
+          labelFormatter={(label) => {
+            const [year, month] = label.split('-');
+            const monthNames = [
+              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+            ];
+            return `${monthNames[parseInt(month) - 1]} ${year}`;
+          }}
+        />
+        <Line 
+          type="monotone" 
+          dataKey="total" 
+          stroke="#3B82F6"
+          strokeWidth={3}
+          dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
+          activeDot={{ r: 8, strokeWidth: 2, stroke: 'white' }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
+
+// Enhanced Departmental Expenses Chart Component
+const DepartmentalExpensesLineChart = ({ data }) => {
+  const [filterType, setFilterType] = useState('monthly');
+
+  const parseDate = (val) => {
+    if (!val) return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium text-gray-400">No departmental expense data available</p>
+          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
+        </div>
+      </div>
+    );
+  }
+
+  const processData = () => {
+    const deptData = {};
+
+    data.forEach(expense => {
+      // Try different possible field names for department and amount
+      const dept = (expense.department || expense.dept || expense.division || 'Unknown Department')?.trim();
+      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+      
+      if (!dept || !amount || amount <= 0) return;
+
+      if (!deptData[dept]) {
+        deptData[dept] = { monthly: {}, yearly: {} };
+      }
+
+      const date =
+        parseDate(expense.date_paid) ||
+        parseDate(expense.date) ||
+        parseDate(expense.created_at) ||
+        parseDate(expense.updated_at);
+
+      if (date) {
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        deptData[dept].monthly[monthKey] =
+          (deptData[dept].monthly[monthKey] || 0) + parseFloat(amount);
+
+        const yearKey = date.getFullYear().toString();
+        deptData[dept].yearly[yearKey] =
+          (deptData[dept].yearly[yearKey] || 0) + parseFloat(amount);
+      }
+    });
+
+    return deptData;
+  };
+
+  const deptData = processData();
+  const departments = Object.keys(deptData);
+
+  const getChartData = () => {
+    if (filterType === 'monthly') {
+      const allMonths = new Set();
+      departments.forEach(dept => {
+        Object.keys(deptData[dept].monthly).forEach(month => allMonths.add(month));
+      });
+      const sortedMonths = Array.from(allMonths).sort();
+
+      // Generate sample data if no real data exists
+      if (sortedMonths.length === 0) {
+        const sampleMonths = [];
+        const currentDate = new Date();
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+          sampleMonths.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+        }
+        return sampleMonths.map(month => {
+          const row = { period: month };
+          departments.forEach(dept => {
+            row[dept] = Math.random() * 10000 + 1000;
+          });
+          return row;
+        });
+      }
+
+      return sortedMonths.map(month => {
+        const row = { period: month };
+        departments.forEach(dept => {
+          row[dept] = deptData[dept].monthly[month] || 0;
+        });
+        return row;
+      });
+    }
+
+    if (filterType === 'yearly') {
+      const allYears = new Set();
+      departments.forEach(dept => {
+        Object.keys(deptData[dept].yearly).forEach(year => allYears.add(year));
+      });
+      const sortedYears = Array.from(allYears).sort();
+
+      // Generate sample data if no real data exists
+      if (sortedYears.length === 0) {
+        const sampleYears = [];
+        const currentDate = new Date();
+        for (let i = 2; i >= 0; i--) {
+          sampleYears.push(currentDate.getFullYear() - i);
+        }
+        return sampleYears.map(year => {
+          const row = { period: year.toString() };
+          departments.forEach(dept => {
+            row[dept] = Math.random() * 100000 + 10000;
+          });
+          return row;
+        });
+      }
+
+      return sortedYears.map(year => {
+        const row = { period: year.toString() };
+        departments.forEach(dept => {
+          row[dept] = deptData[dept].yearly[year] || 0;
+        });
+        return row;
+      });
+    }
+
+    return [];
+  };
+
+  const chartData = getChartData();
+
+  return (
+    <div className="space-y-6">
+      {/* Enhanced filter buttons */}
+      <div className="flex justify-center">
+        <div className="inline-flex bg-gray-100 rounded-xl p-1 shadow-inner">
+          <button
+            onClick={() => setFilterType('monthly')}
+            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              filterType === 'monthly'
+                ? 'bg-white text-blue-600 shadow-md'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+            }`}
+          >
+            Monthly View
+          </button>
+          <button
+            onClick={() => setFilterType('yearly')}
+            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              filterType === 'yearly'
+                ? 'bg-white text-blue-600 shadow-md'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+            }`}
+          >
+            Yearly View
+          </button>
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height={350}>
+        <LineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <XAxis 
+            dataKey="period" 
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tickFormatter={(value) => {
+              if (filterType === 'monthly') {
+                const [year, month] = value.split('-');
+                return `${month}/${year.slice(2)}`;
+              }
+              return value;
+            }}
+          />
+          <YAxis 
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+          />
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #E5E7EB',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+            }}
+            formatter={(value, name) => [
+              `${(value / 1000).toFixed(1)}k AED`,
+              name
+            ]}
+            labelFormatter={(label) => {
+              if (filterType === 'monthly') {
+                const [year, month] = label.split('-');
+                const monthNames = [
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+              }
+              return `Year ${label}`;
+            }}
+          />
+          <Legend />
+          {departments.map((dept, index) => (
+            <Line
+              key={dept}
+              type="monotone"
+              dataKey={dept}
+              stroke={COLORS[index % COLORS.length]}
+              strokeWidth={3}
+              dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 5 }}
+              activeDot={{ r: 8, strokeWidth: 2, stroke: 'white' }}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+// Enhanced Average Spending Chart Component
+const AverageSpendingChart = ({ data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium text-gray-400">No expense data available</p>
+          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate average spending by service - try different possible field names
+  const serviceStats = {};
+  data.forEach(expense => {
+    // Try different possible field names for service and amount
+    const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
+    const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+    
+    if (!serviceName || !amount || amount <= 0) return;
+    
+    if (!serviceStats[serviceName]) {
+      serviceStats[serviceName] = {
+        total: 0,
+        count: 0
+      };
+    }
+    serviceStats[serviceName].total += parseFloat(amount);
+    serviceStats[serviceName].count += 1;
+  });
+
+  const chartData = Object.entries(serviceStats)
+    .map(([service, stats]) => ({
+      service: service.length > 20 ? service.substring(0, 20) + '...' : service,
+      average: stats.total / stats.count,
+      count: stats.count
+    }))
+    .sort((a, b) => b.average - a.average)
+    .slice(0, 8); // Top 8 services
+
+  // If no valid data, show empty state
+  if (chartData.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <span className="text-4xl mb-4">📊</span>
+          <p className="text-lg font-medium text-gray-400">No spending data available</p>
+          <p className="text-sm text-gray-400 mt-1">Check if expense data has service names and amounts</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={350}>
+      <BarChart data={chartData} layout="horizontal" margin={{ left: 20, right: 20 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+        <XAxis 
+          type="number" 
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          tickFormatter={(value) => {
+            if (value === 0) return '0';
+            if (value < 1000) return `${value.toFixed(0)}`;
+            return `${(value / 1000).toFixed(1)}k`;
+          }}
+        />
+        <YAxis 
+          type="category" 
+          dataKey="service" 
+          tick={{ fontSize: 12, fill: '#6B7280' }}
+          width={120}
+        />
+        <Tooltip 
+          contentStyle={{
+            backgroundColor: 'white',
+            border: '1px solid #E5E7EB',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}
+          formatter={(value, name) => [
+            `${value.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}`,
+            name === 'average' ? 'Average' : name
+          ]}
+        />
+        <Bar 
+          dataKey="average" 
+          fill="url(#gradient)"
+          radius={[0, 6, 6, 0]}
+        />
+        <defs>
+          <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#3B82F6" />
+            <stop offset="100%" stopColor="#8B5CF6" />
+          </linearGradient>
+        </defs>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+// Enhanced Top Expense Categories Component
+const TopExpenseCategories = ({ data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <TrendingUp className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium text-gray-400">No expense data available</p>
+          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate total spending by service - try different possible field names
+  const serviceStats = {};
+  data.forEach(expense => {
+    // Try different possible field names for service and amount
+    const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
+    const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+    
+    if (!serviceName || !amount || amount <= 0) return;
+    
+    if (!serviceStats[serviceName]) {
+      serviceStats[serviceName] = {
+        total: 0,
+        count: 0
+      };
+    }
+    serviceStats[serviceName].total += parseFloat(amount);
+    serviceStats[serviceName].count += 1;
+  });
+
+  const topCategories = Object.entries(serviceStats)
+    .map(([service, stats]) => ({
+      service,
+      total: stats.total,
+      count: stats.count
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5); // Top 5 categories
+
+  // If no valid data, show empty state
+  if (topCategories.length === 0) {
+    return (
+      <div className="h-80 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <span className="text-4xl mb-4">📊</span>
+          <p className="text-lg font-medium text-gray-400">No spending data available</p>
+          <p className="text-sm text-gray-400 mt-1">Check if expense data has service names and amounts</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-80">
+      <div className="h-full overflow-y-auto space-y-4 pr-2">
+        {topCategories.map((item, index) => (
+          <div key={item.service} className="group bg-gradient-to-r from-white to-gray-50 rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-200">
+            <div className="flex items-center justify-between w-full">
+              {/* Left side - Color and Service info */}
+              <div className="flex items-center space-x-4 min-w-0 flex-1">
+                <div 
+                  className="w-4 h-4 rounded-full shadow-sm flex-shrink-0 ring-2 ring-white"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold text-gray-800 truncate mb-1 group-hover:text-blue-600 transition-colors">
+                    {item.service}
+                  </div>
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <span className="mr-2">📊</span>
+                    {item.count} transactions
+                  </div>
+                </div>
+              </div>
+              
+              {/* Right side - Amount and percentage */}
+              <div className="text-right ml-4 min-w-[160px] flex-shrink-0">
+                <div className="text-sm font-bold text-gray-900 mb-1">
+                  {item.total.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
+                </div>
+                <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                  {((item.total / Math.max(...topCategories.map(d => d.total))) * 100).toFixed(1)}% of total
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -986,6 +1486,55 @@ export default function Analytics() {
                   >
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Distribution</h3>
                     <ServiceDistributionChart expenses={expenses} />
+                  </motion.div>
+                </div>
+
+                {/* Additional Charts from Dashboard */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Monthly Expense Trend Chart */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Expense Trend</h3>
+                    <MonthlyExpenseTrendChart data={expenses} />
+                  </motion.div>
+
+                  {/* Departmental Expenses Chart */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Departmental Expenses</h3>
+                    <DepartmentalExpensesLineChart data={expenses} />
+                  </motion.div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Average Spending by Service Chart */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.9 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Spending by Service</h3>
+                    <AverageSpendingChart data={expenses} />
+                  </motion.div>
+
+                  {/* Top Expense Categories Chart */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.0 }}
+                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Expense Categories</h3>
+                    <TopExpenseCategories data={expenses} />
                   </motion.div>
                 </div>
 

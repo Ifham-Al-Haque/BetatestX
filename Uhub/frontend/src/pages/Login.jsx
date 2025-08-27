@@ -31,42 +31,95 @@ export default function Login() {
 
   const checkUserRoleAndRedirect = async (user) => {
     try {
-      // Check if user exists in employees table
-      const { data: employeeData } = await supabase
-        .from("employees")
+      // Check if user exists in users table
+      const { data: userData } = await supabase
+        .from("users")
         .select("role, status")
-        .eq("id", user.id)
+        .eq("auth_user_id", user.id)
         .single();
 
-      if (employeeData) {
-        setUserRole(employeeData.role);
-        redirectToRolePage(employeeData.role);
+      if (userData) {
+        setUserRole(userData.role);
+        redirectToRolePage(userData.role);
       } else {
-        // User not in employees table, check if it's the admin user
+        // User not in users table, check if it's the admin user
         if (user.email === adminEmail) {
-          // Create admin user in employees table if not exists
-          await supabase.from("employees").upsert({
-            id: user.id,
-            full_name: "Ifham",
-            email: user.email,
-            role: "admin",
-            status: "active",
-            department: "IT",
-            position: "System Administrator"
-          });
+          // First check if employee already exists
+          const { data: existingEmployee } = await supabase
+            .from("employees")
+            .select("id, full_name, department, position, status")
+            .eq("email", user.email)
+            .maybeSingle();
+          
+          let employeeId;
+          if (existingEmployee) {
+            console.log("Found existing employee record:", existingEmployee);
+            employeeId = existingEmployee.id;
+          } else {
+            // Create new employee record
+            const { data: newEmployee } = await supabase.from("employees").upsert({
+              full_name: "Ifham",
+              email: user.email,
+              department: "IT",
+              position: "System Administrator",
+              employee_id: `EMP_${Date.now()}` // Generate unique employee ID
+            }).select().single();
+            
+            if (newEmployee) {
+              employeeId = newEmployee.id;
+            }
+          }
+          
+          if (employeeId) {
+            // Now create user record linking to the employee
+            await supabase.from("users").upsert({
+              auth_user_id: user.id,
+              employee_id: employeeId,
+              email: user.email,
+              role: "admin",
+              status: "active"
+            });
+          }
           setUserRole("admin");
           redirectToRolePage("admin");
         } else {
           // Regular user, create basic profile
-          await supabase.from("employees").upsert({
-            id: user.id,
-            full_name: user.email.split("@")[0],
-            email: user.email,
-            role: "employee",
-            status: "active",
-            department: "Unassigned",
-            position: "Employee"
-          });
+          // First check if employee already exists
+          const { data: existingEmployee } = await supabase
+            .from("employees")
+            .select("id, full_name, department, position, status")
+            .eq("email", user.email)
+            .maybeSingle();
+          
+          let employeeId;
+          if (existingEmployee) {
+            console.log("Found existing employee record:", existingEmployee);
+            employeeId = existingEmployee.id;
+          } else {
+            // Create new employee record
+            const { data: newEmployee } = await supabase.from("employees").upsert({
+              full_name: user.email.split("@")[0],
+              email: user.email,
+              department: "Unassigned",
+              position: "Employee",
+              employee_id: `EMP_${Date.now()}` // Generate unique employee ID
+            }).select().single();
+            
+            if (newEmployee) {
+              employeeId = newEmployee.id;
+            }
+          }
+          
+          if (employeeId) {
+            // Now create user record linking to the employee
+            await supabase.from("users").upsert({
+              auth_user_id: user.id,
+              employee_id: employeeId,
+              email: user.email,
+              role: "employee",
+              status: "active"
+            });
+          }
           setUserRole("employee");
           redirectToRolePage("employee");
         }
@@ -79,7 +132,41 @@ export default function Login() {
   };
 
   const redirectToRolePage = (role) => {
-    navigate('/', { replace: true });
+    console.log('Redirecting to role page:', role);
+    
+    switch (role) {
+      case 'admin':
+        console.log('Navigating to admin dashboard');
+        navigate('/admin/dashboard', { replace: true });
+        break;
+      case 'manager':
+        console.log('Navigating to manager dashboard');
+        navigate('/dashboard', { replace: true });
+        break;
+      case 'driver_management':
+        console.log('Navigating to drivers page');
+        navigate('/drivers', { replace: true });
+        break;
+      case 'hr_manager':
+        console.log('Navigating to attendance page');
+        navigate('/attendance', { replace: true });
+        break;
+      case 'cs_manager':
+        console.log('Navigating to CSPA page');
+        navigate('/cspa', { replace: true });
+        break;
+      case 'employee':
+        console.log('Navigating to tasks page');
+        navigate('/tasks', { replace: true });
+        break;
+      case 'viewer':
+        console.log('Navigating to dashboard');
+        navigate('/dashboard', { replace: true });
+        break;
+      default:
+        console.log('Default navigation to dashboard');
+        navigate('/dashboard', { replace: true });
+    }
   };
 
   async function handleAuth(e) {

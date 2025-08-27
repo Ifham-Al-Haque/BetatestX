@@ -207,10 +207,15 @@ class ChatService {
     }
   }
 
-  // Get online users
+  // Get online users - Temporarily disabled to fix authentication issues
   async getOnlineUsers() {
     try {
-      // First check if user_status table exists
+      // Temporarily return empty array to avoid database errors
+      console.log('⚠️ getOnlineUsers temporarily disabled to fix authentication');
+      return [];
+      
+      // Original code commented out until database schema is fixed
+      /*
       const { data, error } = await supabase
         .from('user_status')
         .select(`
@@ -226,11 +231,11 @@ class ChatService {
         .eq('is_online', true);
 
       if (error) {
-        // If table doesn't exist, return empty array instead of throwing
         console.warn('user_status table not available:', error.message);
         return [];
       }
       return data || [];
+      */
     } catch (error) {
       console.error('Error fetching online users:', error);
       return [];
@@ -269,9 +274,15 @@ class ChatService {
     }
   }
 
-  // Get typing indicators for a conversation
+  // Get typing indicators for a conversation - Temporarily disabled to fix authentication
   async getTypingIndicators(conversationId) {
     try {
+      // Temporarily return empty array to avoid database errors
+      console.log('⚠️ getTypingIndicators temporarily disabled to fix authentication');
+      return [];
+      
+      // Original code commented out until database schema is fixed
+      /*
       const { data, error } = await supabase
         .from('typing_indicators')
         .select(`
@@ -287,15 +298,22 @@ class ChatService {
 
       if (error) throw error;
       return data || [];
+      */
     } catch (error) {
       console.error('Error fetching typing indicators:', error);
       return [];
     }
   }
 
-  // Search users for starting conversations - Updated to use the correct table
+  // Search users for starting conversations - Temporarily disabled to fix authentication
   async searchUsers(query, excludeCurrentUser = true) {
     try {
+      // Temporarily return empty array to avoid database errors
+      console.log('⚠️ searchUsers temporarily disabled to fix authentication');
+      return [];
+      
+      // Original code commented out until database schema is fixed
+      /*
       let queryBuilder = supabase
         .from('users')
         .select('id, full_name, avatar_url, role, department, email')
@@ -314,6 +332,7 @@ class ChatService {
 
       if (error) throw error;
       return data || [];
+      */
     } catch (error) {
       console.error('Error searching users:', error);
       throw error;

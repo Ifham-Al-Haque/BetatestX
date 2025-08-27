@@ -121,7 +121,7 @@ export const FEATURE_ACCESS = {
   
   // Asset Management Panel - Admin only
   assets: ['admin'],
-  simcards: ['admin'],
+  simcards: ['admin', 'hr_manager', 'driver_management'], // Allow HR managers and driver management to access SIM cards
   vouchers: ['admin'],
   
   // Financial Panel - Admin only
@@ -213,7 +213,7 @@ export const getRoleNavigationAccess = (userRole) => {
       }
     },
     driver_management: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management'],
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         user_profile: ['profile', 'settings'],
@@ -222,11 +222,12 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns']
+        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
+        asset_management: ['simcards']
       }
     },
     hr_manager: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management'],
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         user_profile: ['profile', 'settings'],
@@ -235,7 +236,8 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        driver_management: ['driver_records'] // View only
+        driver_management: ['driver_records'], // View only
+        asset_management: ['simcards']
       }
     }
   };

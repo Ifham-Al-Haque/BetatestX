@@ -33,10 +33,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
+import { useTheme } from '../context/ThemeContext';
 import { canSeePanel, hasFeatureAccess } from './RoleBasedRoute';
 
 const Sidebar = () => {
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const { isDark } = useTheme();
   const location = useLocation();
   const { user, userProfile, signOut } = useAuth();
   
@@ -48,7 +50,19 @@ const Sidebar = () => {
     hasUserProfile: !!userProfile,
     userRole: userRole,
     userEmail: user?.email,
-    profileName: userProfile?.full_name
+    profileName: userProfile?.full_name,
+    userProfileDetails: userProfile,
+    userDetails: user,
+    isDark
+  });
+  
+  // Debug role detection
+  console.log('🔍 Role detection debug:', {
+    userProfileRole: userProfile?.role,
+    userRole: user?.role,
+    finalRole: userRole,
+    userProfileExists: !!userProfile,
+    userExists: !!user
   });
   
   const [expandedPanels, setExpandedPanels] = useState({
@@ -87,13 +101,13 @@ const Sidebar = () => {
   if (!user && !userProfile) {
     console.log('🔍 Sidebar: Auth not initialized yet, showing loading state');
     return (
-      <div className="h-screen bg-gradient-to-b from-blue-50 to-white border-r border-gray-200 shadow-lg flex-shrink-0 w-80">
+      <div className={`h-screen bg-gradient-to-b ${isDark ? 'from-slate-800 to-slate-900' : 'from-blue-50 to-white'} border-r ${isDark ? 'border-slate-700' : 'border-gray-200'} shadow-lg flex-shrink-0 w-80 transition-all duration-500`}>
         <div className="flex flex-col h-full">
-          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+          <div className={`p-4 border-b ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-700 to-slate-800' : 'border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700'}`}>
             <div className="text-white font-semibold text-lg">UHub</div>
           </div>
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-gray-500">Loading...</div>
+            <div className={`${isDark ? 'text-slate-400' : 'text-gray-500'} transition-colors duration-300`}>Loading...</div>
           </div>
         </div>
       </div>
@@ -104,7 +118,7 @@ const Sidebar = () => {
   const navigationPanels = [
     {
       key: 'main',
-      title: 'Main',
+      title: 'Home Panel',
       icon: Home,
       items: [
         { label: 'Home', path: '/', icon: Home, feature: 'home' },
@@ -180,7 +194,7 @@ const Sidebar = () => {
     },
     {
       key: 'driver_management',
-      title: 'Driver Management',
+      title: 'Operation Management',
       icon: Car,
       items: [
         { label: 'Driver Records', path: '/drivers', icon: Car, feature: 'driver_records' },
@@ -283,11 +297,11 @@ const Sidebar = () => {
         initial={{ width: isCollapsed ? 80 : 280 }}
         animate={{ width: isCollapsed ? 80 : 280 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="h-full bg-gradient-to-b from-blue-50 to-white border-r border-gray-200 shadow-lg"
+        className={`h-full bg-gradient-to-b ${isDark ? 'from-slate-800 to-slate-900' : 'from-blue-50 to-white'} border-r ${isDark ? 'border-slate-700' : 'border-gray-200'} shadow-lg transition-all duration-500`}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+          <div className={`p-4 border-b ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-700 to-slate-800' : 'border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700'} transition-all duration-300`}>
             <div className="flex items-center justify-between">
               <motion.button
                 onClick={toggleSidebar}
@@ -317,7 +331,7 @@ const Sidebar = () => {
           </div>
 
           {/* User Profile Section */}
-          <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+          <div className={`p-4 border-b ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-700 to-slate-600' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50'} transition-all duration-300`}>
             <AnimatePresence mode="wait">
               {!isCollapsed ? (
                 <motion.div
@@ -333,10 +347,10 @@ const Sidebar = () => {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className={`text-sm font-medium truncate transition-colors duration-300 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
                       {userProfile?.full_name || 'User'}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className={`text-xs truncate transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
                       {userProfile?.role || 'No Role'}
                     </p>
                   </div>
@@ -380,9 +394,9 @@ const Sidebar = () => {
                       className="w-full p-3 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
                     >
                       <div className="flex items-center space-x-3">
-                        <Icon className="w-5 h-5 text-gray-600" />
+                        <Icon className={`w-5 h-5 transition-colors duration-300 ${isDark ? 'text-slate-300' : 'text-gray-600'}`} />
                         {!isCollapsed && (
-                          <span className="text-sm font-medium text-gray-700">{panel.title}</span>
+                          <span className={`text-sm font-medium transition-colors duration-300 ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>{panel.title}</span>
                         )}
                       </div>
                       {!isCollapsed && (
@@ -390,7 +404,7 @@ const Sidebar = () => {
                           animate={{ rotate: isExpanded ? 180 : 0 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                          <ChevronDown className={`w-4 h-4 transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
                         </motion.div>
                       )}
                     </button>
@@ -420,10 +434,14 @@ const Sidebar = () => {
                                 >
                                   <Link
                                     to={item.path}
-                                    className={`flex items-center px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
+                                    className={`flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-300 ${
                                       active 
-                                        ? 'bg-blue-100 text-blue-700' 
-                                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                                        ? isDark 
+                                          ? 'bg-blue-900/30 text-blue-300 border border-blue-700/50' 
+                                          : 'bg-blue-100 text-blue-700'
+                                        : isDark
+                                          ? 'text-slate-300 hover:text-slate-100 hover:bg-slate-700/50'
+                                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                                     } ${isCollapsed ? 'justify-center' : ''}`}
                                   >
                                     <ItemIcon className={`${isCollapsed ? 'w-6 h-6' : 'w-4 h-4 mr-3'}`} />
@@ -445,10 +463,14 @@ const Sidebar = () => {
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+          <div className={`p-4 border-t ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-800 to-slate-700' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50'} transition-all duration-300`}>
             <button
               onClick={handleSignOut}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors duration-200 w-full"
+              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 w-full ${
+                isDark 
+                  ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300' 
+                  : 'text-red-600 hover:bg-red-50'
+              }`}
             >
               <Settings className="w-5 h-5" />
               <AnimatePresence>
@@ -471,8 +493,8 @@ const Sidebar = () => {
   } catch (error) {
     console.error("Error rendering Sidebar:", error);
     return (
-      <div className="h-full bg-gradient-to-b from-blue-50 to-white border-r border-gray-200 shadow-lg flex items-center justify-center">
-        <div className="text-gray-500">Error loading sidebar.</div>
+      <div className={`h-full bg-gradient-to-b ${isDark ? 'from-slate-800 to-slate-900' : 'from-blue-50 to-white'} border-r ${isDark ? 'border-slate-700' : 'border-gray-200'} shadow-lg flex items-center justify-center transition-all duration-500`}>
+        <div className={`transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Error loading sidebar.</div>
       </div>
     );
   }

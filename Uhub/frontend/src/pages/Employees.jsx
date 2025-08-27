@@ -195,7 +195,7 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -212,7 +212,7 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
             <div className="flex items-center">
               <div className="p-3 bg-yellow-100 rounded-lg">
@@ -231,7 +231,7 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
             <div className="flex items-center">
               <div className="p-3 bg-green-100 rounded-lg">
@@ -250,7 +250,7 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
             <div className="flex items-center">
               <div className="p-3 bg-emerald-100 rounded-lg">
@@ -259,7 +259,7 @@ export default function Employees() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Active</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {employees.filter(emp => emp.status === 'active').length}
+                  {employees.filter(emp => !emp.termination_date).length}
                 </p>
               </div>
             </div>
@@ -274,7 +274,7 @@ export default function Employees() {
           className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8"
         >
           <div className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between mb-6">
+            <div className="flex flex-col lg:flex-row gap-6 items-center justify-between mb-6">
               <div className="flex-1 w-full lg:max-w-2xl">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -283,17 +283,17 @@ export default function Employees() {
                     placeholder="Search employees by name, ID, department, skills..."
                     value={search}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                    className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200"
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-4 flex-shrink-0">
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`px-5 py-3 border-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 ${
+                  className={`px-6 py-3 border-2 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 ${
                     showFilters 
                       ? 'border-blue-500 bg-blue-50 text-blue-600'
-                      : 'border-gray-300 text-gray-700 hover:border-blue-400'
+                      : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-gray-50'
                   }`}
                 >
                   <Filter className="w-5 h-5" />
@@ -301,7 +301,7 @@ export default function Employees() {
                 </button>
                 <button
                   onClick={() => {/* Export functionality */}}
-                  className="px-5 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   <Download className="w-5 h-5" />
                   Export
@@ -324,7 +324,7 @@ export default function Employees() {
                       <select
                         value={filters.department}
                         onChange={(e) => setFilters(prev => ({ ...prev, department: e.target.value }))}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       >
                         <option value="">All Departments</option>
                         {Array.from(new Set(employees.map(emp => emp.department).filter(Boolean))).map(dept => (
@@ -334,16 +334,17 @@ export default function Employees() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Performance</label>
                       <select
                         value={filters.status}
                         onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       >
-                        <option value="">All Statuses</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="pending">Pending</option>
+                        <option value="">All Performance Levels</option>
+                        <option value="excellent">Excellent (4.5+)</option>
+                        <option value="good">Good (3.5-4.4)</option>
+                        <option value="average">Average (2.5-3.4)</option>
+                        <option value="needs_improvement">Needs Improvement (&lt;2.5)</option>
                       </select>
                     </div>
 
@@ -352,7 +353,7 @@ export default function Employees() {
                       <select
                         value={filters.location}
                         onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       >
                         <option value="">All Locations</option>
                         {Array.from(new Set(employees.map(emp => emp.location).filter(Boolean))).map(location => (
@@ -365,7 +366,7 @@ export default function Employees() {
                   <div className="mt-6 flex justify-center">
                     <button
                       onClick={clearFilters}
-                      className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all duration-200"
+                      className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200"
                     >
                       Clear All Filters
                     </button>
@@ -381,13 +382,46 @@ export default function Employees() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-6"
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-8"
         >
-          <div className="text-center lg:text-left">
-            <p className="text-gray-600">
-              Showing <span className="font-semibold">{filteredAndSortedEmployees.length}</span> of{' '}
-              <span className="font-semibold">{totalCount}</span> employees
-            </p>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Results:</span>
+                <span className="text-lg font-semibold text-gray-900">{filteredAndSortedEmployees.length}</span>
+                <span className="text-sm text-gray-500">of {totalCount} employees</span>
+              </div>
+              {filters.department || filters.status || filters.location ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">•</span>
+                  <span className="text-sm text-blue-600 font-medium">Filters applied</span>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={sortKey}
+                onChange={(e) => handleSort(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                <option value="full_name">Sort by Name</option>
+                <option value="department">Sort by Department</option>
+                <option value="position">Sort by Position</option>
+                <option value="hire_date">Sort by Hire Date</option>
+                <option value="performance_rating">Sort by Performance</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                title={`Sort ${sortOrder === "asc" ? "Descending" : "Ascending"}`}
+              >
+                {sortOrder === "asc" ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
         </motion.div>
 
@@ -496,12 +530,7 @@ export default function Employees() {
                       </div>
 
                       {/* Role */}
-                      {employee.role && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <span className="font-medium w-20 flex-shrink-0">Role:</span>
-                          <span className="truncate">{employee.role}</span>
-                        </div>
-                      )}
+                      {/* Role column removed - not available in database */}
 
                       {/* Performance Rating */}
                       {employee.performance_rating && (

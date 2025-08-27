@@ -8,11 +8,15 @@ import {
 } from "lucide-react";
 import { useSimCards, useCreateSimCard, useUpdateSimCard, useDeleteSimCard, useSimCardStats } from "../hooks/useSimCards";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { DEPARTMENTS, getDepartmentLabel, getDepartmentColor } from "../config/departments";
 import DepartmentManager from "../components/DepartmentManager";
+import { supabase } from "../supabaseClient";
+import { useQueryClient } from '@tanstack/react-query';
 
 // SIM Card Form Component
 const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
+  const { isDark } = useTheme();
   const [formData, setFormData] = useState({
     sim_number: simCard?.sim_number || "",
     package_name: simCard?.package_name || "",
@@ -47,26 +51,44 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-gray-200/20 dark:border-gray-700/50"
+        className={`rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border transition-all duration-300 ${
+          isDark 
+            ? 'bg-slate-800/90 border-slate-700/50' 
+            : 'bg-white border-gray-200/20'
+        }`}
       >
-        <div className="p-8 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-t-2xl">
+        <div className={`p-8 border-b rounded-t-2xl transition-all duration-300 ${
+          isDark 
+            ? 'border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-700' 
+            : 'border-gray-200/50 bg-gradient-to-r from-blue-50 to-indigo-50'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-xl">
-                <Phone className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className={`p-3 rounded-xl transition-all duration-300 ${
+                isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+              }`}>
+                <Phone className={`w-6 h-6 transition-colors duration-300 ${
+                  isDark ? 'text-blue-400' : 'text-blue-600'
+                }`} />
               </div>
               <div>
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   {simCard ? "Edit SIM Card" : "Add New SIM Card"}
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                <p className={`mt-1 transition-colors duration-300 ${
+                  isDark ? 'text-slate-300' : 'text-gray-600'
+                }`}>
                   {simCard ? "Update SIM card information" : "Create a new SIM card for your organization"}
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200"
+              className={`p-2 rounded-xl transition-all duration-300 ${
+                isDark 
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50' 
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              }`}
             >
               <X className="w-6 h-6" />
             </button>
@@ -77,7 +99,9 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   SIM Number *
                 </label>
                 <input
@@ -86,13 +110,19 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   value={formData.sim_number}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                   placeholder="Enter SIM number"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Package Name *
                 </label>
                 <input
@@ -101,20 +131,30 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   value={formData.package_name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                   placeholder="Enter package name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Package Type
                 </label>
                 <select
                   name="package_type"
                   value={formData.package_type}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                 >
                   <option value="Default">Default</option>
                   <option value="Custom">Custom Made</option>
@@ -125,7 +165,9 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Monthly Cost (AED)
                 </label>
                 <input
@@ -133,13 +175,19 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   name="monthly_cost"
                   value={formData.monthly_cost}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                   placeholder="0.00"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Data Limit
                 </label>
                 <input
@@ -147,13 +195,19 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   name="data_limit"
                   value={formData.data_limit}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                   placeholder="e.g., 10GB"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Voice Minutes
                 </label>
                 <input
@@ -161,7 +215,11 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   name="voice_minutes"
                   value={formData.voice_minutes}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                   placeholder="e.g., 1000"
                 />
               </div>
@@ -169,7 +227,9 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
 
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Current User
                 </label>
                 <input
@@ -177,13 +237,19 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   name="current_user"
                   value={formData.current_user}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                   placeholder="Enter current user name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Previous User
                 </label>
                 <input
@@ -191,20 +257,30 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   name="previous_user"
                   value={formData.previous_user}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                   placeholder="Enter previous user name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Department
                 </label>
                 <select
                   name="department"
                   value={formData.department}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                 >
                   <option value="">Select Department</option>
                   {DEPARTMENTS.map((dept) => (
@@ -216,14 +292,20 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Status
                 </label>
                 <select
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -234,7 +316,9 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Activation Date
                 </label>
                 <input
@@ -242,12 +326,18 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   name="activation_date"
                   value={formData.activation_date}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Expiry Date
                 </label>
                 <input
@@ -255,14 +345,20 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   name="expiry_date"
                   value={formData.expiry_date}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+              isDark ? 'text-slate-200' : 'text-gray-700'
+            }`}>
               Package Benefits
             </label>
             <textarea
@@ -270,13 +366,19 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
               value={formData.package_benefits}
               onChange={handleChange}
               rows="3"
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                isDark 
+                  ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+              }`}
               placeholder="Describe package benefits..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+              isDark ? 'text-slate-200' : 'text-gray-700'
+            }`}>
               Notes
             </label>
             <textarea
@@ -284,23 +386,35 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
               value={formData.notes}
               onChange={handleChange}
               rows="3"
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                isDark 
+                  ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+              }`}
               placeholder="Additional notes..."
             />
           </div>
 
-          <div className="flex items-center justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <div className={`flex items-center justify-end gap-4 pt-8 border-t transition-all duration-300 ${
+            isDark ? 'border-slate-700' : 'border-gray-200'
+          }`}>
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 font-medium"
+              className={`px-6 py-3 border rounded-xl transition-all duration-300 font-medium ${
+                isDark 
+                  ? 'border-slate-600 text-slate-300 hover:bg-slate-700/50' 
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-200 disabled:opacity-50 font-medium shadow-lg hover:shadow-xl"
+              className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-300 disabled:opacity-50 font-medium shadow-lg hover:shadow-xl ${
+                isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
+              }`}
             >
               <Save className="w-4 h-4" />
               {isLoading ? "Saving..." : (simCard ? "Update SIM Card" : "Create SIM Card")}
@@ -313,31 +427,35 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
 };
 
 // Enhanced SIM Card Component
-const SimCard = ({ simCard, onEdit, onDelete }) => {
+const SimCard = ({ simCard, onEdit, onDelete, isDark }) => {
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200 dark:border-green-700';
-      case 'Inactive': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200 dark:border-red-700';
-      case 'Suspended': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700';
-      case 'Pending': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-700';
-      case 'Expired': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600';
+      case 'Active': return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 border-green-200 dark:border-green-700/50';
+      case 'Inactive': return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-200 dark:border-red-700/50';
+      case 'Suspended': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700/50';
+      case 'Pending': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 border-blue-200 dark:border-blue-700/50';
+      case 'Expired': return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-200 border-gray-200 dark:border-gray-600/50';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-200 border-gray-200 dark:border-gray-600/50';
     }
   };
 
   const getPackageTypeColor = (type) => {
     switch (type) {
-      case 'Custom': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-700';
-      case 'Corporate': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700';
-      case 'Premium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700';
-      default: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-700';
+      case 'Custom': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 border-purple-200 dark:border-purple-700/50';
+      case 'Corporate': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700/50';
+      case 'Premium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700/50';
+      default: return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 border-blue-200 dark:border-blue-700/50';
     }
   };
 
   return (
     <motion.div
       whileHover={{ y: -4, scale: 1.02 }}
-      className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-6 transition-all duration-300 group cursor-pointer"
+      className={`rounded-2xl shadow-lg hover:shadow-2xl border p-6 transition-all duration-300 group cursor-pointer ${
+        isDark 
+          ? 'bg-slate-800/80 border-slate-700/50' 
+          : 'bg-white border-gray-200/50'
+      }`}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -346,10 +464,14 @@ const SimCard = ({ simCard, onEdit, onDelete }) => {
             <Phone className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+            <h3 className={`text-lg font-bold group-hover:text-blue-600 transition-colors duration-300 ${
+              isDark ? 'text-slate-100 group-hover:text-blue-400' : 'text-gray-900 group-hover:text-blue-600'
+            }`}>
               {simCard.sim_number}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+            <p className={`text-sm font-medium transition-colors duration-300 ${
+              isDark ? 'text-slate-300' : 'text-gray-600'
+            }`}>
               {simCard.package_name}
             </p>
           </div>
@@ -357,13 +479,21 @@ const SimCard = ({ simCard, onEdit, onDelete }) => {
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <button
             onClick={() => onEdit(simCard)}
-            className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-lg transition-all duration-200 hover:scale-110"
+            className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
+              isDark 
+                ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-800' 
+                : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+            }`}
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(simCard.id)}
-            className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 rounded-lg transition-all duration-200 hover:scale-110"
+            className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
+              isDark 
+                ? 'bg-red-900/50 text-red-400 hover:bg-red-800' 
+                : 'bg-red-100 text-red-600 hover:bg-red-200'
+            }`}
           >
             <Trash className="w-4 h-4" />
           </button>
@@ -382,22 +512,38 @@ const SimCard = ({ simCard, onEdit, onDelete }) => {
 
       {/* Key Information */}
       <div className="space-y-4 mb-6">
-        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Monthly Cost</span>
-          <span className="text-lg font-bold text-gray-900 dark:text-white">
+        <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
+          isDark ? 'bg-slate-700/50' : 'bg-gray-50'
+        }`}>
+          <span className={`text-sm font-medium transition-colors duration-300 ${
+            isDark ? 'text-slate-300' : 'text-gray-600'
+          }`}>Monthly Cost</span>
+          <span className={`text-lg font-bold transition-colors duration-300 ${
+            isDark ? 'text-slate-100' : 'text-gray-900'
+          }`}>
             AED {simCard.monthly_cost}
           </span>
         </div>
 
-        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Current User</span>
-          <span className="text-sm font-semibold text-gray-900 dark:text-white max-w-32 truncate">
+        <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
+          isDark ? 'bg-slate-700/50' : 'bg-gray-50'
+        }`}>
+          <span className={`text-sm font-medium transition-colors duration-300 ${
+            isDark ? 'text-slate-300' : 'text-gray-600'
+          }`}>Current User</span>
+          <span className={`text-sm font-semibold max-w-32 truncate transition-colors duration-300 ${
+            isDark ? 'text-slate-100' : 'text-gray-900'
+          }`}>
             {simCard.current_user || 'Unassigned'}
           </span>
         </div>
 
-        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Department</span>
+        <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
+          isDark ? 'bg-slate-700/50' : 'bg-gray-50'
+        }`}>
+          <span className={`text-sm font-medium transition-colors duration-300 ${
+            isDark ? 'text-slate-300' : 'text-gray-600'
+          }`}>Department</span>
           <span className={`px-3 py-1 text-xs font-bold rounded-full bg-${getDepartmentColor(simCard.department)}-100 dark:bg-${getDepartmentColor(simCard.department)}-900 text-${getDepartmentColor(simCard.department)}-800 dark:text-${getDepartmentColor(simCard.department)}-200`}>
             {simCard.department ? getDepartmentLabel(simCard.department) : 'Not specified'}
           </span>
@@ -406,20 +552,38 @@ const SimCard = ({ simCard, onEdit, onDelete }) => {
 
       {/* Additional Details */}
       {(simCard.data_limit || simCard.voice_minutes) && (
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className={`pt-4 border-t transition-all duration-300 ${
+          isDark ? 'border-slate-700' : 'border-gray-200'
+        }`}>
           <div className="grid grid-cols-2 gap-3">
             {simCard.data_limit && (
-              <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <Wifi className="w-4 h-4 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Data</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{simCard.data_limit}</p>
+              <div className={`text-center p-2 rounded-lg transition-all duration-300 ${
+                isDark ? 'bg-blue-900/20' : 'bg-blue-50'
+              }`}>
+                <Wifi className={`w-4 h-4 mx-auto mb-1 transition-colors duration-300 ${
+                  isDark ? 'text-blue-400' : 'text-blue-600'
+                }`} />
+                <p className={`text-xs font-medium transition-colors duration-300 ${
+                  isDark ? 'text-slate-300' : 'text-gray-600'
+                }`}>Data</p>
+                <p className={`text-sm font-bold transition-colors duration-300 ${
+                  isDark ? 'text-slate-100' : 'text-gray-900'
+                }`}>{simCard.data_limit}</p>
               </div>
             )}
             {simCard.voice_minutes && (
-              <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <Phone className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Voice</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{simCard.voice_minutes}</p>
+              <div className={`text-center p-2 rounded-lg transition-all duration-300 ${
+                isDark ? 'bg-green-900/20' : 'bg-green-50'
+              }`}>
+                <Phone className={`w-4 h-4 mx-auto mb-1 transition-colors duration-300 ${
+                  isDark ? 'text-green-400' : 'text-green-600'
+                }`} />
+                <p className={`text-xs font-medium transition-colors duration-300 ${
+                  isDark ? 'text-slate-300' : 'text-gray-600'
+                }`}>Voice</p>
+                <p className={`text-sm font-bold transition-colors duration-300 ${
+                  isDark ? 'text-slate-100' : 'text-gray-900'
+                }`}>{simCard.voice_minutes}</p>
               </div>
             )}
           </div>
@@ -428,16 +592,24 @@ const SimCard = ({ simCard, onEdit, onDelete }) => {
 
       {/* Notes */}
       {simCard.notes && (
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400 italic">
+        <div className={`pt-4 border-t mt-4 transition-all duration-300 ${
+          isDark ? 'border-slate-700' : 'border-gray-200'
+        }`}>
+          <p className={`text-sm italic transition-colors duration-300 ${
+            isDark ? 'text-slate-400' : 'text-gray-600'
+          }`}>
             "{simCard.notes}"
           </p>
         </div>
       )}
 
       {/* Dates */}
-      <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+      <div className={`pt-4 border-t mt-4 transition-all duration-300 ${
+        isDark ? 'border-slate-700' : 'border-gray-200'
+      }`}>
+        <div className={`flex items-center justify-between text-xs transition-colors duration-300 ${
+          isDark ? 'text-slate-400' : 'text-gray-500'
+        }`}>
           <span>Activated: {simCard.activation_date}</span>
           <span>Expires: {simCard.expiry_date}</span>
         </div>
@@ -448,6 +620,8 @@ const SimCard = ({ simCard, onEdit, onDelete }) => {
 
 export default function Simcard() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const queryClient = useQueryClient();
   
   // State management
   const [showForm, setShowForm] = useState(false);
@@ -457,13 +631,18 @@ export default function Simcard() {
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [packageTypeFilter, setPackageTypeFilter] = useState("");
   const [showDepartmentManager, setShowDepartmentManager] = useState(false);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   
   // React Query hooks for data management
-  const { data: simCards = [], isLoading, error } = useSimCards();
+  const { data: simCards = [], isLoading, error, refetch } = useSimCards();
   const { data: stats } = useSimCardStats();
   const createSimCard = useCreateSimCard();
   const updateSimCard = useUpdateSimCard();
   const deleteSimCard = useDeleteSimCard();
+
+
+
+
 
   // Filtered data
   const filteredSimCards = simCards.filter(simCard => {
@@ -535,12 +714,20 @@ export default function Simcard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
+    <div className={`min-h-screen transition-all duration-500 ${
+      isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
+        : 'bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30'
+    } flex`}>
       <div className="flex-1 transition-all duration-300 ease-in-out">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-white to-blue-50/50 dark:from-gray-800 dark:to-gray-700/50">
+            <div className={`rounded-2xl p-8 shadow-xl border transition-all duration-300 ${
+              isDark 
+                ? 'bg-slate-800/80 border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-700/50' 
+                : 'bg-white border-gray-200/50 bg-gradient-to-r from-white to-blue-50/50'
+            }`}>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-4">
                   <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
@@ -550,10 +737,14 @@ export default function Simcard() {
                     <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                       SIM Card Management
                     </h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
+                    <p className={`mt-2 text-lg transition-colors duration-300 ${
+                      isDark ? 'text-slate-300' : 'text-gray-600'
+                    }`}>
                       Manage company SIM cards, packages, and user assignments with ease
                     </p>
-                    <div className="flex items-center gap-4 mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div className={`flex items-center gap-4 mt-4 text-sm transition-colors duration-300 ${
+                      isDark ? 'text-slate-400' : 'text-gray-500'
+                    }`}>
                       <div className="flex items-center gap-2">
                         <Signal className="w-4 h-4 text-green-500" />
                         <span>Active Management</span>
@@ -572,14 +763,18 @@ export default function Simcard() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setShowDepartmentManager(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
+                    className={`px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl font-medium ${
+                      isDark ? 'shadow-gray-500/25' : 'shadow-gray-500/20'
+                    }`}
                   >
                     <Building className="w-5 h-5" />
                     Manage Departments
                   </button>
                   <button
                     onClick={handleAddSimCard}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
+                    className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl font-medium ${
+                      isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
+                    }`}
                   >
                     <Plus className="w-5 h-5" />
                     Add SIM Card
@@ -590,13 +785,23 @@ export default function Simcard() {
           </div>
 
           {/* Enhanced Filters */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 mb-8">
+          <div className={`p-6 rounded-2xl shadow-xl border mb-8 transition-all duration-300 ${
+            isDark 
+              ? 'bg-slate-800/80 border-slate-700/50' 
+              : 'bg-white border-gray-200/50'
+          }`}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                  <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className={`p-2 rounded-lg transition-all duration-300 ${
+                  isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+                }`}>
+                  <Filter className={`w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-blue-400' : 'text-blue-600'
+                  }`} />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filter & Search</h3>
+                <h3 className={`text-lg font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-slate-100' : 'text-gray-900'
+                }`}>Filter & Search</h3>
               </div>
               <button
                 onClick={() => {
@@ -605,7 +810,11 @@ export default function Simcard() {
                   setDepartmentFilter("");
                   setPackageTypeFilter("");
                 }}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200 text-sm font-medium"
+                className={`px-4 py-2 rounded-xl transition-all duration-300 text-sm font-medium ${
+                  isDark 
+                    ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                }`}
               >
                 Clear All Filters
               </button>
@@ -613,20 +822,30 @@ export default function Simcard() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="relative group">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-blue-500 transition-colors" />
+                <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                  isDark ? 'text-slate-400 group-focus-within:text-blue-400' : 'text-gray-400 group-focus-within:text-blue-500'
+                }`} />
                 <input
                   type="text"
                   placeholder="Search SIM cards..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white w-full transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                  className={`pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent w-full transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-400 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
                 />
               </div>
               
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500 cursor-pointer"
+                className={`px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 cursor-pointer ${
+                  isDark 
+                    ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                    : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                }`}
               >
                 <option value="">All Status</option>
                 <option value="Active">Active</option>
@@ -639,7 +858,11 @@ export default function Simcard() {
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500 cursor-pointer"
+                className={`px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 cursor-pointer ${
+                  isDark 
+                    ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                    : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                }`}
               >
                 <option value="">All Departments</option>
                 {DEPARTMENTS.map((dept) => (
@@ -652,7 +875,11 @@ export default function Simcard() {
               <select
                 value={packageTypeFilter}
                 onChange={(e) => setPackageTypeFilter(e.target.value)}
-                className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500 cursor-pointer"
+                className={`px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 cursor-pointer ${
+                  isDark 
+                    ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                    : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                }`}
               >
                 <option value="">All Package Types</option>
                 <option value="Default">Default</option>
@@ -666,21 +893,35 @@ export default function Simcard() {
 
           {/* Loading State */}
           {isLoading && (
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6">
+            <div className={`p-6 rounded-xl shadow-sm mb-6 transition-all duration-300 ${
+              isDark 
+                ? 'bg-slate-800/80 border border-slate-700/50' 
+                : 'bg-white border border-gray-200/50'
+            }`}>
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Loading SIM cards...</span>
+                <Loader2 className={`w-6 h-6 animate-spin transition-colors duration-300 ${
+                  isDark ? 'text-blue-400' : 'text-blue-600'
+                }`} />
+                <span className={`ml-2 transition-colors duration-300 ${
+                  isDark ? 'text-slate-300' : 'text-gray-600'
+                }`}>Loading SIM cards...</span>
               </div>
             </div>
           )}
 
           {/* Error State */}
           {error && (
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6">
+            <div className={`p-6 rounded-xl shadow-sm mb-6 transition-all duration-300 ${
+              isDark 
+                ? 'bg-slate-800/80 border border-slate-700/50' 
+                : 'bg-white border border-gray-200/50'
+            }`}>
               <div className="text-center py-8">
                 <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
                 <p className="text-lg text-red-600 font-medium">Failed to load SIM cards</p>
-                <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+                <p className={`text-sm mt-2 transition-colors duration-300 ${
+                  isDark ? 'text-slate-400' : 'text-gray-500'
+                }`}>{error.message}</p>
               </div>
             </div>
           )}
@@ -810,26 +1051,95 @@ export default function Simcard() {
             </div>
           )}
 
+
+
           {/* Enhanced SIM Cards Grid */}
           {!isLoading && !error && (
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50">
+            <div className={`p-8 rounded-2xl shadow-xl border transition-all duration-300 ${
+              isDark 
+                ? 'bg-slate-800/80 border-slate-700/50' 
+                : 'bg-white border-gray-200/50'
+            }`}>
               <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                    <Phone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className={`p-2 rounded-lg transition-all duration-300 ${
+                    isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+                  }`}>
+                    <Phone className={`w-5 h-5 transition-colors duration-300 ${
+                      isDark ? 'text-blue-400' : 'text-blue-600'
+                    }`} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <h2 className={`text-2xl font-bold transition-colors duration-300 ${
+                      isDark ? 'text-slate-100' : 'text-gray-900'
+                    }`}>
                       SIM Cards ({filteredSimCards.length})
                     </h2>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    <p className={`mt-1 transition-colors duration-300 ${
+                      isDark ? 'text-slate-300' : 'text-gray-600'
+                    }`}>
                       Manage and monitor all SIM card assets
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-xl">
-                  <Filter className="w-4 h-4" />
-                  <span>Showing {filteredSimCards.length} of {simCards.length} SIM cards</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        console.log('🔍 Manual data fetch test...');
+                        const { data, error } = await supabase
+                          .from('sim_cards')
+                          .select('*')
+                          .limit(5);
+                        
+                        if (error) {
+                          console.error('❌ Manual fetch failed:', error);
+                          alert(`Manual fetch failed: ${error.message}`);
+                        } else {
+                          console.log('✅ Manual fetch successful:', data);
+                          alert(`Manual fetch successful! Found ${data.length} SIM cards`);
+                        }
+                      } catch (err) {
+                        console.error('❌ Manual fetch error:', err);
+                        alert(`Manual fetch error: ${err.message}`);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      isDark 
+                        ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    Test Data Fetch
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        console.log('🔄 Refreshing SIM cards data...');
+                        // Invalidate and refetch
+                        await queryClient.invalidateQueries(['simCards']);
+                        await refetch();
+                        console.log('✅ Data refreshed successfully');
+                      } catch (err) {
+                        console.error('❌ Refresh error:', err);
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      isDark 
+                        ? 'bg-slate-600 text-slate-200 hover:bg-slate-500' 
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    Refresh Data
+                  </button>
+                  <div className={`flex items-center gap-3 text-sm px-4 py-2 rounded-xl transition-all duration-300 ${
+                    isDark 
+                      ? 'text-slate-400 bg-slate-700/50' 
+                      : 'text-gray-500 bg-gray-100'
+                  }`}>
+                    <Filter className="w-4 h-4" />
+                    <span>Showing {filteredSimCards.length} of {simCards.length} SIM cards</span>
+                  </div>
                 </div>
               </div>
 
@@ -839,13 +1149,21 @@ export default function Simcard() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-center py-16"
                 >
-                  <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Phone className="w-12 h-12 text-gray-400" />
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 transition-all duration-300 ${
+                    isDark ? 'bg-slate-700/50' : 'bg-gray-100'
+                  }`}>
+                    <Phone className={`w-12 h-12 transition-colors duration-300 ${
+                      isDark ? 'text-slate-400' : 'text-gray-400'
+                    }`} />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                  <h3 className={`text-xl font-semibold mb-2 transition-colors duration-300 ${
+                    isDark ? 'text-slate-300' : 'text-gray-600'
+                  }`}>
                     No SIM cards found
                   </h3>
-                  <p className="text-gray-500 dark:text-gray-500 max-w-md mx-auto">
+                  <p className={`max-w-md mx-auto transition-colors duration-300 ${
+                    isDark ? 'text-slate-400' : 'text-gray-500'
+                  }`}>
                     {searchTerm || statusFilter || departmentFilter || packageTypeFilter 
                       ? "Try adjusting your filters or search terms to find what you're looking for" 
                       : "Get started by adding your first SIM card to the system"}
@@ -853,7 +1171,7 @@ export default function Simcard() {
                   {!searchTerm && !statusFilter && !departmentFilter && !packageTypeFilter && (
                     <button
                       onClick={handleAddSimCard}
-                      className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 mx-auto transition-all duration-200 shadow-lg hover:shadow-xl"
+                      className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 mx-auto transition-all duration-300 shadow-lg hover:shadow-xl"
                     >
                       <Plus className="w-5 h-5" />
                       Add First SIM Card
@@ -875,6 +1193,7 @@ export default function Simcard() {
                           simCard={simCard}
                           onEdit={handleEditSimCard}
                           onDelete={handleDeleteSimCard}
+                          isDark={isDark}
                         />
                       </motion.div>
                     ))}

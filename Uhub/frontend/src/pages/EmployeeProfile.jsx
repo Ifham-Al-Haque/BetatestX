@@ -152,14 +152,14 @@ export default function EmployeeProfile() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200"
+          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
               <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Email</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Email</p>
               <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                 {employee.email || 'Not provided'}
               </p>
@@ -171,14 +171,14 @@ export default function EmployeeProfile() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200"
+          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
               <Phone className="w-4 h-4 text-green-600 dark:text-green-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Phone</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Phone</p>
               <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                 {employee.phone || 'Not provided'}
               </p>
@@ -190,223 +190,138 @@ export default function EmployeeProfile() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200"
+          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
               <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Join Date</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Join Date</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                 {employee.hire_date ? new Date(employee.hire_date).toLocaleDateString() : 'Not provided'}
               </p>
             </div>
           </div>
         </motion.div>
-        
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200"
+          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
         >
           <div className="flex items-center gap-3">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
-              <MapPinIcon className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+              <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Location</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Location</p>
               <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                {employee.location || 'Not specified'}
+                {employee.location || 'Not provided'}
               </p>
             </div>
           </div>
         </motion.div>
       </div>
 
-      {/* Summary Section */}
-      {employee.summary && (
+      {/* Additional Information */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Personal Details */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-          className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-2xl p-6 border border-indigo-100 dark:border-indigo-800"
+          transition={{ duration: 0.3, delay: 0.4 }}
+          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600"
         >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-              <User className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <User className="w-5 h-5 text-blue-600" />
+            Personal Details
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Full Name</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.full_name || employee.name}</span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Professional Summary</h3>
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Position</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.position || employee.designation || 'Not specified'}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Employee ID</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.employee_id}</span>
+            </div>
+            {employee.salary && (
+              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Salary</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">${employee.salary.toLocaleString()}</span>
+              </div>
+            )}
           </div>
-          <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm">{employee.summary}</p>
+        </motion.div>
+
+        {/* Work Information */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.5 }}
+          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-green-600" />
+            Work Information
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Department</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.department || 'Not assigned'}</span>
+            </div>
+            {employee.reporting_manager && (
+              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Manager</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {employee.reporting_manager.full_name || employee.reporting_manager.name}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Experience Level</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.experience_level || 'Not specified'}</span>
+            </div>
+            {employee.termination_date && (
+              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Termination Date</span>
+                <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                  {new Date(employee.termination_date).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Key Responsibilities */}
+      {employee.key_roles && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.6 }}
+          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5 text-purple-600" />
+            Key Responsibilities
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {getArrayData(employee.key_roles).map((role, i) => (
+              <div key={i} className="flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
+              </div>
+            ))}
+          </div>
         </motion.div>
       )}
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
-          {/* Key Roles */}
-          {getArrayData(employee.key_roles).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.5 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-lg">
-                  <Star className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Key Roles</h3>
-              </div>
-              <ul className="space-y-2">
-                {getArrayData(employee.key_roles).map((role, i) => (
-                  <li key={i} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-gray-700 dark:text-gray-300 text-sm">{role}</span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          )}
-
-          {/* Responsibilities */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.6 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg">
-                <Briefcase className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Responsibilities</h3>
-            </div>
-            <ul className="space-y-2">
-              {getArrayData(employee.responsibilities).length > 0 ? (
-                getArrayData(employee.responsibilities).map((res, i) => (
-                  <li key={i} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-gray-700 dark:text-gray-300 text-sm">{res}</span>
-                  </li>
-                ))
-              ) : (
-                <li className="text-gray-500 dark:text-gray-400 italic text-sm p-2">No responsibilities assigned</li>
-              )}
-            </ul>
-          </motion.div>
-
-          {/* System Access */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.7 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg">
-                <Shield className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">System Access</h3>
-            </div>
-            <div className="space-y-2">
-              {getArrayData(employee.access_list).length > 0 ? (
-                getArrayData(employee.access_list).map((access, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <span className="font-medium text-gray-800 dark:text-gray-200 text-sm">{access}</span>
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                  </div>
-                ))
-              ) : (
-                <div className="text-gray-500 dark:text-gray-400 italic text-sm p-2">No system access assigned</div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Extra Duties */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.5 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg">
-                <Star className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Extra Duties</h3>
-            </div>
-            <ul className="space-y-2">
-              {getArrayData(employee.duties).length > 0 ? (
-                getArrayData(employee.duties).map((duty, i) => (
-                  <li key={i} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span className="text-gray-700 dark:text-gray-300 text-sm">{duty}</span>
-                  </li>
-                ))
-              ) : (
-                <li className="text-gray-500 dark:text-gray-400 italic text-sm p-2">No extra duties assigned</li>
-              )}
-            </ul>
-          </motion.div>
-
-          {/* Asset List */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.6 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 rounded-lg">
-                <Monitor className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Asset Assignments</h3>
-            </div>
-            <div className="space-y-2">
-              {getArrayData(employee.asset_list).length > 0 ? (
-                getArrayData(employee.asset_list).map((asset, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <span className="font-medium text-gray-800 dark:text-gray-200 text-sm">{asset}</span>
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-gray-500 dark:text-gray-400 italic text-sm p-2">No assets assigned</div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Reporting Manager */}
-          {employee.reporting_manager && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.7 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-br from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-lg">
-                  <Users className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Reporting Manager</h3>
-              </div>
-              <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                <p className="text-gray-700 dark:text-gray-300 text-sm">
-                  <span className="font-medium">{employee.reporting_manager.full_name || employee.reporting_manager.name}</span>
-                  <span className="text-gray-500 dark:text-gray-400"> ({employee.reporting_manager.employee_id})</span>
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </div>
-      </div>
     </div>
   );
 

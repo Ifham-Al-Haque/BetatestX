@@ -1,6 +1,30 @@
 import { supabase } from '../supabaseClient';
 
 export const complaintsApi = {
+  // Test database connection and table existence
+  async testDatabaseConnection() {
+    try {
+      console.log('Testing database connection...');
+      
+      // Test basic connection
+      const { data: testData, error: testError } = await supabase
+        .from('complaints')
+        .select('count')
+        .limit(1);
+      
+      if (testError) {
+        console.error('Database connection test failed:', testError);
+        return { success: false, error: testError };
+      }
+      
+      console.log('Database connection test successful');
+      return { success: true, data: testData };
+    } catch (error) {
+      console.error('Database connection test error:', error);
+      return { success: false, error };
+    }
+  },
+
   // Create a new complaint
   async createComplaint(complaintData) {
     try {
@@ -145,6 +169,55 @@ export const complaintsApi = {
     }
   },
 
+  // Get all complaints with filters for HR managers and admins
+  async getAllComplaintsWithFilters(filters) {
+    try {
+      console.log('getAllComplaintsWithFilters called with filters:', filters);
+      
+      let query = supabase
+        .from('complaints')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // Apply status filter
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      // Apply priority filter
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      // Apply category filter
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      // Apply department filter
+      if (filters.department) {
+        query = query.eq('assigned_department', filters.department);
+      }
+
+      // Apply search filter
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+      }
+
+      console.log('Final HR query:', query);
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      console.log('HR Query result:', { data, error });
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching filtered complaints for HR:', error);
+      throw error;
+    }
+  },
+
   // Get complaints with filters
   async getComplaintsWithFilters(filters, userId, userRole) {
     try {
@@ -229,6 +302,48 @@ export const complaintsApi = {
       };
     } catch (error) {
       console.error('Error fetching complaint statistics:', error);
+      throw error;
+    }
+  },
+
+  // Update complaint priority
+  async updateComplaintPriority(complaintId, newPriority) {
+    try {
+      const { data, error } = await supabase
+        .from('complaints')
+        .update({
+          priority: newPriority,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', complaintId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating complaint priority:', error);
+      throw error;
+    }
+  },
+
+  // Assign complaint to department
+  async assignComplaintToDepartment(complaintId, department) {
+    try {
+      const { data, error } = await supabase
+        .from('complaints')
+        .update({
+          assigned_department: department,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', complaintId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error assigning complaint to department:', error);
       throw error;
     }
   }

@@ -6,18 +6,11 @@ import {
   Edit, Trash2, Eye, Calendar, Tag, Building, 
   MessageSquare, Shield, TrendingUp, Activity, Zap,
   BarChart3, Users, CreditCard, AlertCircle, Loader2,
-  ThumbsUp, ThumbsDown, Target, Globe
+  ThumbsUp, ThumbsDown, Target, Globe, Grid, List,
+  ChevronDown, X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
-import { Card, CardContent, CardHeader } from '../components/ui/card';
-import Button from '../components/ui/button';
-import Input from '../components/ui/input';
-import Label from '../components/ui/label';
-import Textarea from '../components/ui/textarea';
 import { suggestionsApi } from '../services/suggestionsApi';
 
 const Suggestions = () => {
@@ -28,6 +21,7 @@ const Suggestions = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSuggestion, setEditingSuggestion] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [filters, setFilters] = useState({
     status: '',
     priority: '',
@@ -35,6 +29,7 @@ const Suggestions = () => {
     suggestion_type: '',
     search: ''
   });
+  const [showFilters, setShowFilters] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -245,6 +240,18 @@ const Suggestions = () => {
     return statusObj ? statusObj.color : '';
   };
 
+  const clearFilters = () => {
+    setFilters({
+      status: '',
+      priority: '',
+      category: '',
+      suggestion_type: '',
+      search: ''
+    });
+  };
+
+  const hasActiveFilters = Object.values(filters).some(value => value !== '');
+
   if (!user || !userProfile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -258,21 +265,14 @@ const Suggestions = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
       <div className="ml-64">
-        {/* Header */}
+        {/* Header - Removed duplicate UserDropdown and DarkModeToggle */}
         <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Lightbulb className="w-8 h-8 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Suggestions</h1>
-                <p className="text-gray-600">Share ideas and feedback to improve our organization</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <DarkModeToggle />
-              <UserDropdown />
+          <div className="flex items-center space-x-3">
+            <Lightbulb className="w-8 h-8 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Suggestions</h1>
+              <p className="text-gray-600">Share ideas and feedback to improve our organization</p>
             </div>
           </div>
         </div>
@@ -280,73 +280,173 @@ const Suggestions = () => {
         {/* Main Content */}
         <div className="p-6">
           <div className="max-w-7xl mx-auto">
-            {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <Button
-                onClick={() => {
-                  setShowForm(true);
-                  setEditingSuggestion(null);
-                  resetForm();
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2"
-              >
-                <Plus className="w-5 h-5" />
-                <span>New Suggestion</span>
-              </Button>
+            {/* Action Bar - Improved layout similar to calendar view */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                {/* Left side - Action button */}
+                <div className="flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      setShowForm(true);
+                      setEditingSuggestion(null);
+                      resetForm();
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span>New Suggestion</span>
+                  </button>
+                </div>
 
-              {/* Filters */}
-              <div className="flex flex-wrap gap-3 flex-1">
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">All Statuses</option>
-                  {statuses.map(status => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
+                {/* Right side - View toggle and filters */}
+                <div className="flex items-center gap-4 flex-1 justify-end">
+                  {/* View Mode Toggle */}
+                  <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-md transition-all duration-200 ${
+                        viewMode === 'grid' 
+                          ? 'bg-white text-blue-600 shadow-lg' 
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <Grid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-md transition-all duration-200 ${
+                        viewMode === 'list' 
+                          ? 'bg-white text-blue-600 shadow-lg' 
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                <select
-                  value={filters.priority}
-                  onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">All Priorities</option>
-                  {priorities.map(priority => (
-                    <option key={priority.value} value={priority.value}>{priority.label}</option>
-                  ))}
-                </select>
+                  {/* Filter Toggle */}
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filters
+                    {hasActiveFilters && (
+                      <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        {Object.values(filters).filter(Boolean).length}
+                      </span>
+                    )}
+                  </button>
 
-                <select
-                  value={filters.category}
-                  onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">All Categories</option>
-                  {categories.map(category => (
-                    <option key={category.name} value={category.name}>{category.name}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={filters.suggestion_type}
-                  onChange={(e) => setFilters(prev => ({ ...prev, suggestion_type: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">All Types</option>
-                  <option value="general">General</option>
-                  <option value="user_specific">User Specific</option>
-                </select>
-
-                <Input
-                  type="text"
-                  placeholder="Search suggestions..."
-                  value={filters.search}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  className="min-w-[200px]"
-                />
+                  {/* Clear Filters */}
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Expanded Filters - Similar to calendar view layout */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-6 pt-6 border-t border-gray-200"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                      {/* Status Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Status
+                        </label>
+                        <select
+                          value={filters.status}
+                          onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">All Statuses</option>
+                          {statuses.map(status => (
+                            <option key={status.value} value={status.value}>{status.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Priority Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Priority
+                        </label>
+                        <select
+                          value={filters.priority}
+                          onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">All Priorities</option>
+                          {priorities.map(priority => (
+                            <option key={priority.value} value={priority.value}>{priority.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Category Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Category
+                        </label>
+                        <select
+                          value={filters.category}
+                          onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">All Categories</option>
+                          {categories.map(category => (
+                            <option key={category.name} value={category.name}>{category.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Type Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Type
+                        </label>
+                        <select
+                          value={filters.suggestion_type}
+                          onChange={(e) => setFilters(prev => ({ ...prev, suggestion_type: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">All Types</option>
+                          <option value="general">General</option>
+                          <option value="user_specific">User Specific</option>
+                        </select>
+                      </div>
+
+                      {/* Search */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Search
+                        </label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search suggestions..."
+                            value={filters.search}
+                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Suggestion Form Modal */}
@@ -377,37 +477,40 @@ const Suggestions = () => {
                           }}
                           className="text-gray-400 hover:text-gray-600"
                         >
-                          <XCircle className="w-6 h-6" />
+                          <X className="w-6 h-6" />
                         </button>
                       </div>
 
                       <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                          <Label htmlFor="title">Title *</Label>
-                          <Input
+                          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+                          <input
                             id="title"
+                            type="text"
                             value={formData.title}
                             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                             placeholder="Brief description of your suggestion"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             required
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor="description">Description *</Label>
-                          <Textarea
+                          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                          <textarea
                             id="description"
                             value={formData.description}
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="Detailed explanation of your suggestion"
                             rows={4}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             required
                           />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="category">Category *</Label>
+                            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
                             <select
                               id="category"
                               value={formData.category}
@@ -423,7 +526,7 @@ const Suggestions = () => {
                           </div>
 
                           <div>
-                            <Label htmlFor="priority">Priority</Label>
+                            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
                             <select
                               id="priority"
                               value={formData.priority}
@@ -438,7 +541,7 @@ const Suggestions = () => {
                         </div>
 
                         <div>
-                          <Label>Suggestion Type</Label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Suggestion Type</label>
                           <div className="flex space-x-4 mt-2">
                             <label className="flex items-center space-x-2">
                               <input
@@ -471,7 +574,7 @@ const Suggestions = () => {
 
                         {formData.suggestion_type === 'user_specific' && (
                           <div>
-                            <Label htmlFor="target_user">Target User</Label>
+                            <label htmlFor="target_user" className="block text-sm font-medium text-gray-700 mb-2">Target User</label>
                             <select
                               id="target_user"
                               value={formData.target_user_id}
@@ -497,24 +600,27 @@ const Suggestions = () => {
                             onChange={(e) => setFormData(prev => ({ ...prev, anonymous: e.target.checked }))}
                             className="text-blue-600"
                           />
-                          <Label htmlFor="anonymous">Submit anonymously</Label>
+                          <label htmlFor="anonymous" className="text-sm font-medium text-gray-700">Submit anonymously</label>
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4">
-                          <Button
+                          <button
                             type="button"
-                            variant="outline"
                             onClick={() => {
                               setShowForm(false);
                               setEditingSuggestion(null);
                               resetForm();
                             }}
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                           >
                             Cancel
-                          </Button>
-                          <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                          </button>
+                          <button 
+                            type="submit" 
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                          >
                             {editingSuggestion ? 'Update Suggestion' : 'Submit Suggestion'}
-                          </Button>
+                          </button>
                         </div>
                       </form>
                     </div>
@@ -523,8 +629,18 @@ const Suggestions = () => {
               )}
             </AnimatePresence>
 
-            {/* Suggestions List */}
-            <div className="space-y-4">
+            {/* Suggestions Display */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Suggestions ({suggestions.length})
+                </h2>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Filter className="w-4 h-4" />
+                  Showing {suggestions.length} suggestions
+                </div>
+              </div>
+
               {loading ? (
                 <div className="text-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-500" />
@@ -536,10 +652,108 @@ const Suggestions = () => {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No suggestions found</h3>
                   <p className="text-gray-600">Be the first to share an idea or adjust your filters.</p>
                 </div>
+              ) : viewMode === 'grid' ? (
+                // Grid View - Similar to calendar card layout
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {suggestions.map((suggestion) => (
+                    <motion.div
+                      key={suggestion.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 hover:border-blue-200"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{suggestion.title}</h3>
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(suggestion.priority)}`}>
+                              {suggestion.priority}
+                            </span>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(suggestion.status)}`}>
+                              {suggestion.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="text-gray-600 mb-4 line-clamp-3">{suggestion.description}</p>
+
+                      <div className="space-y-3 mb-4">
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Tag className="w-4 h-4 mr-2" />
+                          <span>{suggestion.category}</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          <span>{formatDate(suggestion.created_at)}</span>
+                        </div>
+                        {!suggestion.anonymous && (
+                          <div className="flex items-center text-sm text-gray-500">
+                            <User className="w-4 h-4 mr-2" />
+                            <span>By: {suggestion.suggester_name}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Voting */}
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <div className="flex items-center space-x-4">
+                          <button
+                            onClick={() => handleVote(suggestion.id, 'upvote')}
+                            className="flex items-center space-x-1 text-green-600 hover:text-green-700 transition-colors"
+                          >
+                            <ThumbsUp className="w-4 h-4" />
+                            <span className="text-sm font-medium">{suggestion.upvotes || 0}</span>
+                          </button>
+                          <button
+                            onClick={() => handleVote(suggestion.id, 'downvote')}
+                            className="flex items-center space-x-1 text-red-600 hover:text-red-700 transition-colors"
+                          >
+                            <ThumbsDown className="w-4 h-4" />
+                            <span className="text-sm font-medium">{suggestion.downvotes || 0}</span>
+                          </button>
+                        </div>
+
+                        {/* Action Menu */}
+                        <div className="flex items-center space-x-1">
+                          {(userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
+                            <select
+                              value={suggestion.status}
+                              onChange={(e) => handleStatusUpdate(suggestion.id, e.target.value)}
+                              className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                            >
+                              {statuses.map(status => (
+                                <option key={status.value} value={status.value}>{status.label}</option>
+                              ))}
+                            </select>
+                          )}
+
+                          {(suggestion.suggester_id === user.id || userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={() => handleEdit(suggestion)}
+                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(suggestion.id)}
+                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               ) : (
-                suggestions.map((suggestion) => (
-                  <Card key={suggestion.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
+                // List View - Traditional table layout
+                <div className="space-y-4">
+                  {suggestions.map((suggestion) => (
+                    <div key={suggestion.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-3">
@@ -633,9 +847,9 @@ const Suggestions = () => {
                           )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>

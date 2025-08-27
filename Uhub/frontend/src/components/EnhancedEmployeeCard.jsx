@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Mail, Phone, MapPin, Calendar, Building, 
   Shield, Edit, Trash2, Eye, MoreVertical, Star,
@@ -12,49 +12,58 @@ const EnhancedEmployeeCard = ({ employee, onEdit, onDelete, onView, onStatusChan
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active':
+      case 'excellent':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'inactive':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'pending':
+      case 'good':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'average':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'suspended':
+      case 'needs_improvement':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'terminated':
         return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'active':
       default:
-        return 'bg-gray-100 text-gray-600 border-gray-200';
+        return 'bg-green-100 text-green-800 border-green-200';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'active':
+      case 'excellent':
+        return <Star className="w-4 h-4" />;
+      case 'good':
         return <CheckCircle className="w-4 h-4" />;
-      case 'inactive':
-        return <XCircle className="w-4 h-4" />;
-      case 'pending':
+      case 'average':
         return <Clock className="w-4 h-4" />;
-      case 'suspended':
+      case 'needs_improvement':
         return <AlertTriangle className="w-4 h-4" />;
+      case 'terminated':
+        return <XCircle className="w-4 h-4" />;
+      case 'active':
       default:
-        return <User className="w-4 h-4" />;
+        return <CheckCircle className="w-4 h-4" />;
     }
   };
 
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'manager':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'hr_manager':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'cs_manager':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      case 'driver_management':
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+  const deriveEmployeeStatus = (emp) => {
+    if (emp.termination_date) {
+      return 'terminated';
     }
+    
+    if (emp.performance_rating) {
+      if (emp.performance_rating >= 4.5) {
+        return 'excellent';
+      } else if (emp.performance_rating >= 3.5) {
+        return 'good';
+      } else if (emp.performance_rating >= 2.5) {
+        return 'average';
+      } else {
+        return 'needs_improvement';
+      }
+    }
+    
+    return 'active';
   };
 
   const formatDate = (dateString) => {
@@ -89,8 +98,8 @@ const EnhancedEmployeeCard = ({ employee, onEdit, onDelete, onView, onStatusChan
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
     >
-      {/* Header */}
-      <div className="p-6">
+      {/* Header Section */}
+      <div className="p-6 border-b border-gray-100">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-4">
             {/* Profile Picture */}
@@ -115,8 +124,8 @@ const EnhancedEmployeeCard = ({ employee, onEdit, onDelete, onView, onStatusChan
               </div>
               
               {/* Status Indicator */}
-              <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center ${getStatusColor(employee.status)}`}>
-                {getStatusIcon(employee.status)}
+              <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center ${getStatusColor(deriveEmployeeStatus(employee))}`}>
+                {getStatusIcon(deriveEmployeeStatus(employee))}
               </div>
             </div>
 
@@ -179,12 +188,12 @@ const EnhancedEmployeeCard = ({ employee, onEdit, onDelete, onView, onStatusChan
                       <p className="px-4 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide">
                         Change Status
                       </p>
-                      {['active', 'inactive', 'pending', 'suspended'].map(status => (
+                      {['active', 'excellent', 'good', 'average', 'needs_improvement', 'terminated'].map(status => (
                         <button
                           key={status}
                           onClick={() => handleStatusChange(status)}
                           className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center space-x-2 ${
-                            employee.status === status ? 'text-blue-600 bg-blue-50' : 'text-gray-700'
+                            deriveEmployeeStatus(employee) === status ? 'text-blue-600 bg-blue-50' : 'text-gray-700'
                           }`}
                         >
                           {getStatusIcon(status)}
@@ -211,49 +220,55 @@ const EnhancedEmployeeCard = ({ employee, onEdit, onDelete, onView, onStatusChan
             </AnimatePresence>
           </div>
         </div>
+      </div>
 
-        {/* Quick Stats */}
-        <div className="mt-4 grid grid-cols-2 gap-4">
+      {/* Quick Stats Section */}
+      <div className="px-6 py-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500">Department</p>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Department</p>
+            <p className="text-sm font-semibold text-gray-900">
               {employee.department || 'Unassigned'}
             </p>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500">Role</p>
-            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(employee.role)}`}>
-              {employee.role ? employee.role.replace('_', ' ').toUpperCase() : 'EMPLOYEE'}
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Performance</p>
+            <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border bg-gray-100 text-gray-800 border-gray-200">
+              {employee.performance_rating ? `${employee.performance_rating}/5` : 'Not Rated'}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Contact Info */}
-        <div className="mt-4 space-y-2">
+      {/* Contact Info Section */}
+      <div className="px-6 py-4 border-t border-gray-100">
+        <div className="space-y-3">
           {employee.email && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Mail className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center space-x-3 text-sm text-gray-600">
+              <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <span className="truncate">{employee.email}</span>
             </div>
           )}
           {employee.phone && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center space-x-3 text-sm text-gray-600">
+              <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <span>{employee.phone}</span>
             </div>
           )}
           {employee.location && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <MapPin className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center space-x-3 text-sm text-gray-600">
+              <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <span>{employee.location}</span>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Additional Details Toggle */}
+      {/* Additional Details Toggle */}
+      <div className="px-6 py-4 border-t border-gray-100">
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="mt-4 w-full flex items-center justify-center space-x-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 py-2 rounded-lg transition-colors"
+          className="w-full flex items-center justify-center space-x-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 py-2 rounded-lg transition-colors"
         >
           <span>{showDetails ? 'Hide' : 'Show'} Details</span>
           <ChevronRight className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-90' : ''}`} />
