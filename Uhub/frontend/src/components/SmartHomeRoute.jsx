@@ -1,11 +1,22 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLocation } from 'react-router-dom';
 import Welcome from '../pages/Welcome';
 import UserWelcome from '../pages/UserWelcome';
 import Layout from './Layout';
 
 const SmartHomeRoute = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, userProfile } = useAuth();
+  const location = useLocation();
+  
+  // Debug logging
+  console.log('🔍 SmartHomeRoute:', {
+    pathname: location.pathname,
+    user: !!user,
+    userProfile: !!userProfile,
+    userRole: userProfile?.role,
+    loading
+  });
 
   // Show loading while checking auth
   if (loading) {
@@ -20,6 +31,7 @@ const SmartHomeRoute = () => {
   }
 
   // If user is authenticated, show their personalized welcome page
+  // DO NOT redirect - let the sidebar navigation handle routing
   if (user) {
     return (
       <Layout>

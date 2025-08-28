@@ -36,11 +36,17 @@ export const apiService = {
       const from = (page - 1) * limit;
       const to = from + limit - 1;
       
-      const { data, error, count } = await query.range(from, to);
+      // First get the total count
+      const { count: totalCount } = await supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true });
+
+      // Then get the paginated data
+      const { data, error } = await query.range(from, to);
       
       if (error) throw error;
       
-      return { data, count };
+      return { data, count: totalCount };
     },
 
     getById: async (id) => {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Edit, Trash, Search, Filter, Phone, User, Building,
@@ -427,7 +427,7 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
 };
 
 // Enhanced SIM Card Component
-const SimCard = ({ simCard, onEdit, onDelete, isDark }) => {
+const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 border-green-200 dark:border-green-700/50';
@@ -476,28 +476,34 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark }) => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button
-            onClick={() => onEdit(simCard)}
-            className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
-              isDark 
-                ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-800' 
-                : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-            }`}
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(simCard.id)}
-            className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
-              isDark 
-                ? 'bg-red-900/50 text-red-400 hover:bg-red-800' 
-                : 'bg-red-100 text-red-600 hover:bg-red-200'
-            }`}
-          >
-            <Trash className="w-4 h-4" />
-          </button>
-        </div>
+        {(canEdit || canDelete) && (
+          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            {canEdit && (
+              <button
+                onClick={() => onEdit(simCard)}
+                className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
+                  isDark 
+                    ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-800' 
+                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                }`}
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => onDelete(simCard.id)}
+                className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
+                  isDark 
+                    ? 'bg-red-900/50 text-red-400 hover:bg-red-800' 
+                    : 'bg-red-100 text-red-600 hover:bg-red-200'
+                }`}
+              >
+                <Trash className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Status and Package Type */}
@@ -619,7 +625,7 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark }) => {
 };
 
 export default function Simcard() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { isDark } = useTheme();
   const queryClient = useQueryClient();
   
@@ -713,6 +719,27 @@ export default function Simcard() {
     setEditingSimCard(null);
   };
 
+  // Role-based permission functions
+  const canViewSimCard = useCallback(() => {
+    const userRole = user?.user_metadata?.role || userProfile?.role;
+    return userRole === 'admin' || userRole === 'hr_manager';
+  }, [user?.user_metadata?.role, userProfile?.role]);
+
+  const canEditSimCard = useCallback(() => {
+    const userRole = user?.user_metadata?.role || userProfile?.role;
+    return userRole === 'admin';
+  }, [user?.user_metadata?.role, userProfile?.role]);
+
+  const canDeleteSimCard = useCallback(() => {
+    const userRole = user?.user_metadata?.role || userProfile?.role;
+    return userRole === 'admin';
+  }, [user?.user_metadata?.role, userProfile?.role]);
+
+  const canAddSimCard = useCallback(() => {
+    const userRole = user?.user_metadata?.role || userProfile?.role;
+    return userRole === 'admin';
+  }, [user?.user_metadata?.role, userProfile?.role]);
+
   return (
     <div className={`min-h-screen transition-all duration-500 ${
       isDark 
@@ -770,15 +797,17 @@ export default function Simcard() {
                     <Building className="w-5 h-5" />
                     Manage Departments
                   </button>
-                  <button
-                    onClick={handleAddSimCard}
-                    className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl font-medium ${
-                      isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
-                    }`}
-                  >
-                    <Plus className="w-5 h-5" />
-                    Add SIM Card
-                  </button>
+                  {canAddSimCard() && (
+                    <button
+                      onClick={handleAddSimCard}
+                      className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl font-medium ${
+                        isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
+                      }`}
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add SIM Card
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1168,7 +1197,7 @@ export default function Simcard() {
                       ? "Try adjusting your filters or search terms to find what you're looking for" 
                       : "Get started by adding your first SIM card to the system"}
                   </p>
-                  {!searchTerm && !statusFilter && !departmentFilter && !packageTypeFilter && (
+                  {!searchTerm && !statusFilter && !departmentFilter && !packageTypeFilter && canAddSimCard() && (
                     <button
                       onClick={handleAddSimCard}
                       className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 mx-auto transition-all duration-300 shadow-lg hover:shadow-xl"
@@ -1194,6 +1223,8 @@ export default function Simcard() {
                           onEdit={handleEditSimCard}
                           onDelete={handleDeleteSimCard}
                           isDark={isDark}
+                          canEdit={canEditSimCard()}
+                          canDelete={canDeleteSimCard()}
                         />
                       </motion.div>
                     ))}

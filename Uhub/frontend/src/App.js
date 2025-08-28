@@ -65,6 +65,10 @@ const PaymentCalendar = React.lazy(() => import('./pages/PaymentCalendar'));
 const Chat = React.lazy(() => import('./pages/Chat'));
 const ComplaintsInbox = React.lazy(() => import('./pages/ComplaintsInbox'));
 const Simcard = React.lazy(() => import('./pages/Simcard'));
+const Events = React.lazy(() => import('./pages/Events'));
+const Memories = React.lazy(() => import('./pages/Memories'));
+const EventPictureUpload = React.lazy(() => import('./pages/EventPictureUpload'));
+const UserWelcome = React.lazy(() => import('./pages/UserWelcome'));
 
 function App() {
   return (
@@ -165,11 +169,45 @@ function App() {
                           </ProtectedRoute>
                         } />
                         
+                        {/* Employee Create Route */}
+                        <Route path="/employee-form" element={
+                          <ProtectedRoute requiredFeature="employees">
+                            <Layout>
+                              <EmployeeForm />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        
                         {/* Employee Edit Route */}
                         <Route path="/employee/:id/edit" element={
                           <ProtectedRoute requiredFeature="employees">
                             <Layout>
                               <EmployeeForm />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Slice of Life Routes */}
+                        <Route path="/events" element={
+                          <ProtectedRoute requiredFeature="events">
+                            <Layout>
+                              <Events />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/memories" element={
+                          <ProtectedRoute requiredFeature="memories">
+                            <Layout>
+                              <Memories />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/event-picture-upload" element={
+                          <ProtectedRoute requiredFeature="events">
+                            <Layout>
+                              <EventPictureUpload />
                             </Layout>
                           </ProtectedRoute>
                         } />
@@ -340,9 +378,18 @@ function App() {
                           </ProtectedRoute>
                         } />
 
+                        {/* Expenses (alternative path for sidebar compatibility) */}
+                        <Route path="/expenses" element={
+                          <ProtectedRoute requiredFeature="expense_tracker">
+                            <Layout>
+                              <ExpenseTracker />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
                         {/* Payment Calendar */}
                         <Route path="/payment-calendar" element={
-                          <ProtectedRoute requiredFeature="upcoming_payments">
+                          <ProtectedRoute requiredFeature="payment_calendar">
                             <Layout>
                               <PaymentCalendar />
                             </Layout>
@@ -394,8 +441,14 @@ function App() {
                           </ProtectedRoute>
                         } />
 
-                        {/* Catch all route - redirect to welcome for public, dashboard for authenticated */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
+                        {/* Catch all route - redirect to home for authenticated users */}
+                        <Route path="*" element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <UserWelcome />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
                       </Routes>
                     </Suspense>
                   </Router>

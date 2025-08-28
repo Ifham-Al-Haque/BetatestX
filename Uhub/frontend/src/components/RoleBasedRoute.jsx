@@ -314,6 +314,17 @@ export const RoleBasedRoute = ({
 }) => {
   const { user, userProfile, loading } = useAuth();
   const location = useLocation();
+  
+  // Debug logging
+  console.log('🔍 ProtectedRoute:', {
+    pathname: location.pathname,
+    user: !!user,
+    userProfile: !!userProfile,
+    userRole: userProfile?.role,
+    loading,
+    requiredRole,
+    requiredFeature
+  });
 
   // Show loading while checking auth
   if (loading) {
@@ -327,9 +338,21 @@ export const RoleBasedRoute = ({
     );
   }
 
-  // Redirect to login if not authenticated
-  if (!user) {
+  // Wait for auth to be fully checked before making decisions
+  if (!user && !loading) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // If still loading auth, show loading
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   const userRole = userProfile?.role || user?.role;
@@ -369,8 +392,8 @@ export const RoleBasedRoute = ({
     return <AccessDeniedPage reason={accessReason} userRole={userRole} />;
   }
 
-  // Redirect to dashboard if access denied
-  return <Navigate to="/dashboard" replace />;
+  // Redirect to home page if access denied (not dashboard)
+  return <Navigate to="/" replace />;
 };
 
 // Access Denied Component

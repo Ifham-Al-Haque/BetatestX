@@ -1,8 +1,32 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Camera, Image, X, Check, AlertCircle, Download, Share2, Heart, Calendar } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const EventPictureUpload = () => {
+  const { userProfile } = useAuth();
+  
+  // Role-based permission functions
+  const canViewImages = () => {
+    return ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'].includes(userProfile?.role);
+  };
+  
+  const canUploadImages = () => {
+    return ['admin', 'hr_manager', 'manager'].includes(userProfile?.role);
+  };
+  
+  const canDeleteImages = () => {
+    return ['admin', 'hr_manager'].includes(userProfile?.role);
+  };
+
+  // Debug logging
+  console.log('🔍 EventPictureUpload Page - User Role:', userProfile?.role);
+  console.log('🔍 EventPictureUpload Page - Permissions:', {
+    canView: canViewImages(),
+    canUpload: canUploadImages(),
+    canDelete: canDeleteImages()
+  });
+
   const [uploadedImages, setUploadedImages] = useState([
     {
       id: 1,
@@ -166,21 +190,22 @@ const EventPictureUpload = () => {
         </div>
 
         {/* Upload Area */}
-        <div className="mb-8">
-          <motion.div
-            initial={{ scale: 0.95 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.3 }}
-            className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
-              dragActive 
-                ? 'border-blue-500 bg-blue-50 scale-105' 
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
+        {canUploadImages() && (
+          <div className="mb-8">
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.3 }}
+              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+                dragActive 
+                  ? 'border-blue-500 bg-blue-50 scale-105' 
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
             <input
               ref={(input) => input}
               type="file"
@@ -237,6 +262,7 @@ const EventPictureUpload = () => {
             )}
           </motion.div>
         </div>
+        )}
 
         {/* Uploaded Images Grid */}
         <motion.div
@@ -411,13 +437,15 @@ const EventPictureUpload = () => {
                       <Share2 className="w-4 h-4" />
                       Share Image
                     </button>
-                    <button 
-                      onClick={() => deleteImage(selectedImage.id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition-colors duration-200"
-                    >
-                      <X className="w-4 h-4" />
-                      Delete Image
-                    </button>
+                    {canDeleteImages() && (
+                      <button 
+                        onClick={() => deleteImage(selectedImage.id)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4" />
+                        Delete Image
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>

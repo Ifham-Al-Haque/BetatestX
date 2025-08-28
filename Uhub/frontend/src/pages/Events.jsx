@@ -1,8 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, Users, Plus, Edit, Trash, Eye } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Events = () => {
+  const { userProfile } = useAuth();
+  
+  // Role-based permission functions
+  const canViewEvent = () => {
+    return ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'].includes(userProfile?.role);
+  };
+  
+  const canAddEvent = () => {
+    return ['admin', 'hr_manager', 'manager'].includes(userProfile?.role);
+  };
+  
+  const canEditEvent = () => {
+    return ['admin', 'hr_manager', 'manager'].includes(userProfile?.role);
+  };
+  
+  const canDeleteEvent = () => {
+    return ['admin', 'hr_manager'].includes(userProfile?.role);
+  };
+
+  // Debug logging
+  console.log('🔍 Events Page - User Role:', userProfile?.role);
+  console.log('🔍 Events Page - Permissions:', {
+    canView: canViewEvent(),
+    canAdd: canAddEvent(),
+    canEdit: canEditEvent(),
+    canDelete: canDeleteEvent()
+  });
+
   const [events, setEvents] = useState([
     {
       id: 1,
@@ -133,10 +162,12 @@ const Events = () => {
             </button>
           </div>
 
-          <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-            <Plus className="w-5 h-5" />
-            Create Event
-          </button>
+          {canAddEvent() && (
+            <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+              <Plus className="w-5 h-5" />
+              Create Event
+            </button>
+          )}
         </div>
 
         {/* Events Grid */}
@@ -291,14 +322,18 @@ const Events = () => {
                   </div>
 
                   <div className="flex gap-3">
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200">
-                      <Edit className="w-4 h-4" />
-                      Edit Event
-                    </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition-colors duration-200">
-                      <Trash className="w-4 h-4" />
-                      Delete Event
-                    </button>
+                    {canEditEvent() && (
+                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200">
+                        <Edit className="w-4 h-4" />
+                        Edit Event
+                      </button>
+                    )}
+                    {canDeleteEvent() && (
+                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition-colors duration-200">
+                        <Trash className="w-4 h-4" />
+                        Delete Event
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>

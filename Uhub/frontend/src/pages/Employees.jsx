@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 import { useEmployees, useDeleteEmployee } from "../hooks/useApi";
 import { 
   ChevronRight, Trash2, Pencil, Plus, Search, Filter, 
@@ -26,6 +27,7 @@ export default function Employees() {
   
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
+  const { userProfile } = useAuth();
   
   // Use React Query hooks
   const { data: employeesData, isLoading, error, refetch } = useEmployees(currentPage, pageSize, search);
@@ -97,6 +99,46 @@ export default function Employees() {
       location: ""
     });
   }, []);
+
+  // Role-based permission functions
+  const canViewEmployee = useCallback(() => {
+    const userRole = userProfile?.role;
+    return userRole === 'admin' || userRole === 'hr_manager';
+  }, [userProfile?.role]);
+
+  const canEditEmployee = useCallback(() => {
+    const userRole = userProfile?.role;
+    return userRole === 'admin';
+  }, [userProfile?.role]);
+
+  const canDeleteEmployee = useCallback(() => {
+    const userRole = userProfile?.role;
+    return userRole === 'admin';
+  }, [userProfile?.role]);
+
+  const canAddEmployee = useCallback(() => {
+    const userRole = userProfile?.role;
+    return userRole === 'admin';
+  }, [userProfile?.role]);
+
+  // Debug: Log current user role and permissions
+  console.log('🔍 Employee Page - User Role Debug:', {
+    userRole: userProfile?.role,
+    canView: canViewEmployee(),
+    canEdit: canEditEmployee(),
+    canDelete: canDeleteEmployee(),
+    canAdd: canAddEmployee()
+  });
+
+  // Debug: Log data loading state
+  console.log('🔍 Employee Page - Data Debug:', {
+    isLoading,
+    error,
+    employeesData,
+    employees: employees.length,
+    totalCount,
+    hasData: !!employeesData
+  });
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -225,13 +267,15 @@ export default function Employees() {
                   </>
                 )}
               </button>
-              <button
-                onClick={() => navigate("/employee-form")}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                <Plus className="w-4 h-4" />
-                Add Employee
-              </button>
+              {canAddEmployee() && (
+                <button
+                  onClick={() => navigate("/employee-form")}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Employee
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -656,33 +700,41 @@ export default function Employees() {
                       )}
 
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                        <button
-                          onClick={() => navigate(`/employee/${employee.id}`)}
-                          className="flex-1 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                          title="View Profile"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span className="text-sm">View</span>
-                        </button>
-                        <button
-                          onClick={() => navigate(`/employee/${employee.id}/edit`)}
-                          className="flex-1 p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                          title="Edit Employee"
-                        >
-                          <Edit className="w-4 h-4" />
-                          <span className="text-sm">Edit</span>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(employee.id)}
-                          className="flex-1 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                          title="Delete Employee"
-                          disabled={deleteEmployeeMutation.isLoading}
-                        >
-                          <Trash className="w-4 h-4" />
-                          <span className="text-sm">Delete</span>
-                        </button>
-                      </div>
+                      {(canViewEmployee() || canEditEmployee() || canDeleteEmployee()) && (
+                        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                          {canViewEmployee() && (
+                            <button
+                              onClick={() => navigate(`/employee/${employee.id}`)}
+                              className="flex-1 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                              title="View Profile"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span className="text-sm">View</span>
+                            </button>
+                          )}
+                          {canEditEmployee() && (
+                            <button
+                              onClick={() => navigate(`/employee/${employee.id}/edit`)}
+                              className="flex-1 p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                              title="Edit Employee"
+                            >
+                              <Edit className="w-4 h-4" />
+                              <span className="text-sm">Edit</span>
+                            </button>
+                          )}
+                          {canDeleteEmployee() && (
+                            <button
+                              onClick={() => handleDelete(employee.id)}
+                              className="flex-1 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                              title="Delete Employee"
+                              disabled={deleteEmployeeMutation.isLoading}
+                            >
+                              <Trash className="w-4 h-4" />
+                              <span className="text-sm">Delete</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -714,9 +766,11 @@ export default function Employees() {
                         <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
                           Status
                         </th>
-                        <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
-                          Actions
-                        </th>
+                        {(canViewEmployee() || canEditEmployee() || canDeleteEmployee()) && (
+                          <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
+                            Actions
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">
@@ -777,23 +831,40 @@ export default function Employees() {
                               </div>
                             </td>
                             <td className="px-6 py-6 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => navigate(`/employee/${employee.id}/edit`)}
-                                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                                  title="Edit Employee"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(employee.id)}
-                                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
-                                  title="Delete Employee"
-                                  disabled={deleteEmployeeMutation.isLoading}
-                                >
-                                  <Trash className="w-4 h-4" />
-                                </button>
-                              </div>
+                              {(canViewEmployee() || canEditEmployee() || canDeleteEmployee()) ? (
+                                <div className="flex items-center gap-2">
+                                  {canViewEmployee() && (
+                                    <button
+                                      onClick={() => navigate(`/employee/${employee.id}`)}
+                                      className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-all duration-200"
+                                      title="View Profile"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {canEditEmployee() && (
+                                    <button
+                                      onClick={() => navigate(`/employee/${employee.id}/edit`)}
+                                      className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                                      title="Edit Employee"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {canDeleteEmployee() && (
+                                    <button
+                                      onClick={() => handleDelete(employee.id)}
+                                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                      title="Delete Employee"
+                                      disabled={deleteEmployeeMutation.isLoading}
+                                    >
+                                      <Trash className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-400">No actions available</span>
+                              )}
                             </td>
                           </motion.tr>
                         ))}

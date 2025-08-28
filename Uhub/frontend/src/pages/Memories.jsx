@@ -1,8 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Calendar, MapPin, Users, Camera, Star, Share2, Download, Trash, Edit } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Memories = () => {
+  const { userProfile } = useAuth();
+  
+  // Role-based permission functions
+  const canViewMemory = () => {
+    return ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'].includes(userProfile?.role);
+  };
+  
+  const canEditMemory = () => {
+    return ['admin', 'hr_manager', 'manager'].includes(userProfile?.role);
+  };
+  
+  const canDeleteMemory = () => {
+    return ['admin', 'hr_manager'].includes(userProfile?.role);
+  };
+
+  // Debug logging
+  console.log('🔍 Memories Page - User Role:', userProfile?.role);
+  console.log('🔍 Memories Page - Permissions:', {
+    canView: canViewMemory(),
+    canEdit: canEditMemory(),
+    canDelete: canDeleteMemory()
+  });
+
   const [memories, setMemories] = useState([
     {
       id: 1,
@@ -475,18 +499,22 @@ const Memories = () => {
                   </div>
 
                   <div className="flex gap-3">
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors duration-200">
-                      <Edit className="w-4 h-4" />
-                      Edit Memory
-                    </button>
+                    {canEditMemory() && (
+                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors duration-200">
+                        <Edit className="w-4 h-4" />
+                        Edit Memory
+                      </button>
+                    )}
                     <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-100 text-blue-700 rounded-lg font-medium hover:bg-blue-200 transition-colors duration-200">
                       <Download className="w-4 h-4" />
                       Download Image
                     </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition-colors duration-200">
-                      <Trash className="w-4 h-4" />
-                      Delete Memory
-                    </button>
+                    {canDeleteMemory() && (
+                      <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition-colors duration-200">
+                        <Trash className="w-4 h-4" />
+                        Delete Memory
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>

@@ -76,7 +76,7 @@ const Sidebar = () => {
     asset_management: true,
     financial: true,
     todo_list: true,
-    sliceOfLife: true,
+    slice_of_life: true,
     communication: true
   });
 
@@ -127,7 +127,7 @@ const Sidebar = () => {
       ]
     },
     {
-      key: 'sliceOfLife',
+      key: 'slice_of_life',
       title: 'Slice of Life',
       icon: Heart,
       items: [
