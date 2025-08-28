@@ -10,7 +10,8 @@ import {
   TrendingUp, BarChart3, PieChart, Activity, Users,
   GraduationCap, BookOpen, Clock3, AlertTriangle,
   ChevronDown, ChevronRight, Eye, EyeOff, Globe,
-  Zap, Crown, Trophy, CalendarDays, MapPinIcon
+  Zap, Crown, Trophy, CalendarDays, MapPinIcon,
+  Car, Package, CreditCard
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import UserDropdown from "../components/UserDropdown";
@@ -138,6 +139,8 @@ export default function EmployeeProfile() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
+    { id: 'system_access', label: 'System Access', icon: Shield },
+    { id: 'assets', label: 'Assets Assignments', icon: CreditCard },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'skills', label: 'Skills', icon: Award },
     { id: 'leave', label: 'Leave', icon: CalendarDays },
@@ -347,6 +350,252 @@ export default function EmployeeProfile() {
     </div>
   );
 
+  const renderSystemAccess = () => (
+    <div className="space-y-6">
+      {/* Authentication & Role Information */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-blue-600" />
+          System Access & Permissions
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* User Account Information */}
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-700 dark:text-gray-300">Account Details</h4>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400">User ID:</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {employee.auth_user_id || 'Not assigned'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Email:</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {employee.email || 'Not provided'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Role:</span>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getAccessLevelColor(employee.auth_user?.role || 'employee')}`}>
+                  {employee.auth_user?.role || 'employee'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Verification:</span>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  employee.auth_user?.is_verified ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
+                }`}>
+                  {employee.auth_user?.is_verified ? 'Verified' : 'Not Verified'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Access Permissions */}
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-700 dark:text-gray-300">Access Permissions</h4>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Access Level:</span>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getAccessLevelColor(employee.access_level || 'viewer')}`}>
+                  {employee.access_level || 'viewer'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Last Login:</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {employee.last_login ? new Date(employee.last_login).toLocaleDateString() : 'Never'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Account Status:</span>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  employee.account_status === 'active' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
+                }`}>
+                  {employee.account_status || 'active'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* System Features Access */}
+        {employee.access_list && employee.access_list.length > 0 && (
+          <div className="mt-6">
+            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">System Features Access</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {getArrayData(employee.access_list).map((access, i) => (
+                <div key={i} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <CheckCircle className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-blue-800 dark:text-blue-200">{access}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Department Access & Permissions */}
+        <div className="mt-6">
+          <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Department Access & Permissions</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center gap-2 mb-2">
+                <Building className="w-4 h-4 text-gray-600" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Primary Department</span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {employee.department || 'Not assigned'}
+              </p>
+            </div>
+            
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4 text-gray-600" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Reporting Manager</span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {employee.reporting_manager?.full_name || employee.reporting_manager?.name || 'Not assigned'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Security & Compliance */}
+        <div className="mt-6">
+          <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Security & Compliance</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <span className="text-xs font-medium text-amber-800 dark:text-amber-200">Access Level</span>
+              </div>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                {employee.access_level || 'Standard'}
+              </p>
+            </div>
+            
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-medium text-blue-800 dark:text-blue-200">Role</span>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300 capitalize">
+                {employee.auth_user?.role || 'employee'}
+              </p>
+            </div>
+            
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700">
+              <div className="flex items-center gap-2 mb-1">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-xs font-medium text-green-800 dark:text-green-200">Status</span>
+              </div>
+              <p className="text-sm text-green-700 dark:text-green-300 capitalize">
+                {employee.status || 'active'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAssetsAssignments = () => (
+    <div className="space-y-6">
+      {/* IT Assets */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <Monitor className="w-5 h-5 text-green-600" />
+          IT Assets Assigned
+        </h3>
+        
+        {employee.asset_list && employee.asset_list.length > 0 ? (
+          <div className="space-y-4">
+            {/* Asset Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
+                  {getArrayData(employee.asset_list).length}
+                </div>
+                <div className="text-sm text-green-700 dark:text-green-300">Total Assets</div>
+              </div>
+              <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/40 rounded-xl border border-blue-200 dark:border-blue-700">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                  {getArrayData(employee.asset_list).filter(asset => asset.includes('Laptop') || asset.includes('Computer')).length}
+                </div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">Computers</div>
+              </div>
+              <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/40 rounded-xl border border-purple-200 dark:border-purple-700">
+                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">
+                  {getArrayData(employee.asset_list).filter(asset => asset.includes('Phone') || asset.includes('Mobile')).length}
+                </div>
+                <div className="text-sm text-purple-700 dark:text-purple-300">Mobile Devices</div>
+              </div>
+            </div>
+
+            {/* Asset List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {getArrayData(employee.asset_list).map((asset, i) => (
+                <div key={i} className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg">
+                      <Monitor className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-800 dark:text-gray-200">Asset {i + 1}</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{asset}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <Clock className="w-3 h-3" />
+                      <span>Assigned</span>
+                    </div>
+                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                      Active
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <Monitor className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>No IT assets assigned yet</p>
+          </div>
+        )}
+      </div>
+
+      {/* Vehicle Assignments */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <Car className="w-5 h-5 text-blue-600" />
+          Vehicle Assignments
+        </h3>
+        
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <Car className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p>No vehicle assignments available</p>
+        </div>
+      </div>
+
+      {/* Other Equipment */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+          <Package className="w-5 h-5 text-purple-600" />
+          Other Equipment
+        </h3>
+        
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p>No other equipment assigned</p>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderDocuments = () => (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -401,6 +650,10 @@ export default function EmployeeProfile() {
         return renderOverview();
       case 'performance':
         return renderPerformance();
+      case 'system_access':
+        return renderSystemAccess();
+      case 'assets':
+        return renderAssetsAssignments();
       case 'documents':
         return renderDocuments();
       case 'skills':

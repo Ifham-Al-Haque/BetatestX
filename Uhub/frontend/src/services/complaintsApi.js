@@ -62,11 +62,12 @@ export const complaintsApi = {
         .order('created_at', { ascending: false });
 
       // Apply role-based filtering
-      if (userRole === 'employee') {
-        // Employees can only see their own complaints
+      if (userRole === 'admin') {
+        // Admins can see all complaints - no filtering needed
+      } else {
+        // All other roles (including HR managers, CS managers, etc.) can only see their own complaints
         query = query.eq('complainant_id', userId);
       }
-      // Admins, HR, and managers can see all complaints
 
       const { data, error } = await query;
 
@@ -153,8 +154,8 @@ export const complaintsApi = {
     }
   },
 
-  // Get all complaints for HR managers and admins (no filtering)
-  async getAllComplaintsForHR() {
+  // Get all complaints for admins only (no filtering)
+  async getAllComplaintsForAdmin() {
     try {
       const { data, error } = await supabase
         .from('complaints')
@@ -164,15 +165,115 @@ export const complaintsApi = {
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('Error fetching all complaints for HR:', error);
+      console.error('Error fetching all complaints for admin:', error);
       throw error;
     }
   },
 
-  // Get all complaints with filters for HR managers and admins
-  async getAllComplaintsWithFilters(filters) {
+  // Get all complaints with filters for admins only (excluding their own complaints)
+  async getAllComplaintsWithFiltersForAdmin(filters, currentUserId = null) {
     try {
-      console.log('getAllComplaintsWithFilters called with filters:', filters);
+      console.log('getAllComplaintsWithFiltersForAdmin called with filters:', filters, 'currentUserId:', currentUserId);
+      
+      let query = supabase
+        .from('complaints')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // Exclude complaints raised by the current admin
+      if (currentUserId) {
+        query = query.neq('complainant_id', currentUserId);
+        console.log('Excluding complaints from current admin user:', currentUserId);
+      }
+
+      // Apply status filter
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      // Apply priority filter
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      // Apply category filter
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      // Apply department filter
+      if (filters.department) {
+        query = query.eq('assigned_department', filters.department);
+      }
+
+      // Apply search filter
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+      }
+
+      console.log('Final admin query (excluding current user complaints):', query);
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      console.log('Admin Query result (excluding current user complaints):', { data, error });
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching filtered complaints for admin:', error);
+      throw error;
+    }
+  },
+
+  // Get complaints raised by the current user (for personal view)
+  async getCurrentUserComplaints(userId, filters = {}) {
+    try {
+      console.log('getCurrentUserComplaints called for user:', userId, 'with filters:', filters);
+      
+      let query = supabase
+        .from('complaints')
+        .select('*')
+        .eq('complainant_id', userId)
+        .order('created_at', { ascending: false });
+
+      // Apply status filter
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      // Apply priority filter
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      // Apply category filter
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      // Apply search filter
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+      }
+
+      console.log('Final current user complaints query:', query);
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      console.log('Current user complaints query result:', { data, error });
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching current user complaints:', error);
+      throw error;
+    }
+  },
+
+  // Get ALL complaints including current user's (for admin purposes)
+  async getAllComplaintsIncludingCurrentUser(filters) {
+    try {
+      console.log('getAllComplaintsIncludingCurrentUser called with filters:', filters);
       
       let query = supabase
         .from('complaints')
@@ -205,15 +306,109 @@ export const complaintsApi = {
         query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
       }
 
-      console.log('Final HR query:', query);
+      console.log('Final admin query (including all complaints):', query);
       const { data, error } = await query;
 
       if (error) throw error;
       
-      console.log('HR Query result:', { data, error });
+      console.log('Admin query result (including all complaints):', { data, error });
       return data || [];
     } catch (error) {
-      console.error('Error fetching filtered complaints for HR:', error);
+      console.error('Error fetching all complaints for admin:', error);
+      throw error;
+    }
+  },
+
+  // Get complaints by specific categories (for concerns view) - HR Manager and Admin access
+  async getComplaintsByCategories(filters, categories) {
+    try {
+      console.log('getComplaintsByCategories called with filters:', filters, 'categories:', categories);
+      
+      let query = supabase
+        .from('complaints')
+        .select('*')
+        .in('category', categories)
+        .order('created_at', { ascending: false });
+
+      // Apply status filter
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      // Apply priority filter
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      // Apply department filter
+      if (filters.department) {
+        query = query.eq('assigned_department', filters.department);
+      }
+
+      // Apply search filter
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+      }
+
+      console.log('Final concerns query:', query);
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      console.log('Concerns query result:', { data, error });
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching complaints by categories:', error);
+      throw error;
+    }
+  },
+
+  // Get ALL complaints for HR Manager and Admin inbox access (bypasses role restrictions)
+  async getAllComplaintsForInbox(filters = {}) {
+    try {
+      console.log('getAllComplaintsForInbox called with filters:', filters);
+      
+      let query = supabase
+        .from('complaints')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // Apply status filter
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      // Apply priority filter
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      // Apply category filter
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      // Apply department filter
+      if (filters.department) {
+        query = query.eq('assigned_department', filters.department);
+      }
+
+      // Apply search filter
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+      }
+
+      console.log('Final inbox query (all complaints):', query);
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      console.log('Inbox query result (all complaints):', { data, error });
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching all complaints for inbox:', error);
       throw error;
     }
   },
@@ -229,13 +424,14 @@ export const complaintsApi = {
         .order('created_at', { ascending: false });
 
       // Apply role-based filtering
-      if (userRole === 'employee') {
-        console.log('Applying employee filter for user:', userId);
-        query = query.eq('complainant_id', userId);
+      if (userRole === 'admin') {
+        console.log('Admin role - can see all complaints');
+        // Admins can see all complaints - no filtering needed
       } else {
-        console.log('No role filtering applied for role:', userRole);
+        console.log('Non-admin role - restricting to own complaints for user:', userId);
+        // All other roles (including HR managers, CS managers, etc.) can only see their own complaints
+        query = query.eq('complainant_id', userId);
       }
-      // HR managers, admins, and managers can see all complaints
 
       // Apply status filter
       if (filters.status) {
@@ -279,7 +475,10 @@ export const complaintsApi = {
         .select('*');
 
       // Apply role-based filtering
-      if (userRole === 'employee') {
+      if (userRole === 'admin') {
+        // Admins can see all complaints - no filtering needed
+      } else {
+        // All other roles (including HR managers, CS managers, etc.) can only see their own complaints
         query = query.eq('complainant_id', userId);
       }
 

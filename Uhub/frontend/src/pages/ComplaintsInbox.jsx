@@ -28,7 +28,10 @@ import {
   AlertCircle, 
   Loader2,
   Star,
-  Department
+  Department,
+  Info,
+  UserCheck,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -49,6 +52,7 @@ const ComplaintsInbox = () => {
     department: '',
     search: ''
   });
+  const [viewMode, setViewMode] = useState('all_complaints'); // 'all_complaints' or 'all_concerns'
 
   const categories = [
     'Work Environment',
@@ -72,9 +76,15 @@ const ComplaintsInbox = () => {
     'Customer Service', 'Engineering', 'Design', 'Unassigned'
   ];
 
+  // Check if user has HR Manager or Admin role
+  const isHRManagerOrAdmin = userProfile?.role === 'hr_manager' || userProfile?.role === 'admin';
+  
+  // Check if user is a regular employee
+  const isRegularEmployee = userProfile?.role === 'employee' || userProfile?.role === 'driver_management' || userProfile?.role === 'cs_manager' || userProfile?.role === 'manager';
+
   useEffect(() => {
     fetchData();
-  }, [filters]);
+  }, [filters, viewMode]);
 
   useEffect(() => {
     if (userProfile) {
@@ -86,16 +96,28 @@ const ComplaintsInbox = () => {
     try {
       setLoading(true);
       
-      // First, let's test if we can connect to the database
-      console.log('Testing database connection...');
-      const dbTest = await complaintsApi.testDatabaseConnection();
+      console.log('Fetching complaints for user:', user?.id, 'with role:', userProfile?.role);
       
-      if (!dbTest.success) {
-        throw new Error(`Database connection failed: ${dbTest.error.message}`);
+      let allComplaints;
+      
+      if (isHRManagerOrAdmin) {
+        // HR Managers and Admins can see all complaints based on view mode
+        if (viewMode === 'all_complaints') {
+          // Show all complaints (both complaints and concerns)
+          allComplaints = await complaintsApi.getAllComplaintsForInbox(filters);
+        } else {
+          // Show only concerns (complaints with specific categories)
+          const concernCategories = ['Work Environment', 'Harassment', 'Discrimination', 'Safety Concerns'];
+          allComplaints = await complaintsApi.getComplaintsByCategories(filters, concernCategories);
+        }
+      } else if (isRegularEmployee) {
+        // Regular employees can only see their own complaints
+        allComplaints = await complaintsApi.getCurrentUserComplaints(user?.id, filters);
+      } else {
+        // Default fallback - show user's own complaints
+        allComplaints = await complaintsApi.getCurrentUserComplaints(user?.id, filters);
       }
       
-      // HR managers and admins can see all complaints with filters
-      const allComplaints = await complaintsApi.getAllComplaintsWithFilters(filters);
       console.log('Successfully fetched complaints:', allComplaints);
       setComplaints(allComplaints);
     } catch (error) {
@@ -107,7 +129,6 @@ const ComplaintsInbox = () => {
         code: error.code
       });
       
-      // Check if it's a table not found error
       if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
         showError('Complaints table not found. Please check database setup.');
       } else if (error.message && error.message.includes('permission')) {
@@ -184,14 +205,13 @@ const ComplaintsInbox = () => {
   };
 
   // Check if user has access to complaints inbox
-  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'hr_manager')) {
+  if (!userProfile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
-          <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-600 mb-2">Access Denied</h2>
-          <p className="text-gray-500">You don't have permission to access the complaints inbox.</p>
-          <p className="text-sm text-gray-400 mt-2">Only HR managers and administrators can view this page.</p>
+          <Loader2 className="w-16 h-16 text-blue-400 mx-auto mb-4 animate-spin" />
+          <h2 className="text-xl font-semibold text-gray-600 mb-2">Loading...</h2>
+          <p className="text-gray-500">Please wait while we load your profile information.</p>
         </div>
       </div>
     );
@@ -220,7 +240,12 @@ const ComplaintsInbox = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Complaints Inbox</h1>
-                <p className="text-sm text-gray-600">Manage and monitor all employee complaints</p>
+                <p className="text-sm text-gray-600">
+                  {isHRManagerOrAdmin 
+                    ? "Manage and monitor all employee complaints and concerns"
+                    : "View and manage your own complaints and concerns"
+                  }
+                </p>
               </div>
             </div>
             
@@ -241,6 +266,44 @@ const ComplaintsInbox = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Role-based Instructions */}
+        {isHRManagerOrAdmin ? (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6 mb-8">
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                <Shield className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">HR Manager & Admin Access</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+                  <div className="space-y-2">
+                    <p className="font-medium">🔍 <strong>All Complaints:</strong></p>
+                    <p>View and manage all complaints raised by employees across the organization.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="font-medium">⚠️ <strong>All Concerns:</strong></p>
+                    <p>Focus on sensitive concerns like harassment, discrimination, and safety issues.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 mb-8">
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+                <UserCheck className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-green-900 mb-2">Employee Access</h3>
+                <p className="text-sm text-green-800">
+                  You can only view and manage complaints that you have submitted. This ensures privacy and confidentiality of your concerns.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <motion.div 
@@ -257,9 +320,16 @@ const ComplaintsInbox = () => {
                 </div>
                 <TrendingUp className="w-5 h-5 text-white/70" />
               </div>
-              <p className="text-sm font-medium text-red-100 mb-1">Total Complaints</p>
+              <p className="text-sm font-medium text-red-100 mb-1">
+                {viewMode === 'all_complaints' ? "All Complaints" : "All Concerns"}
+              </p>
               <p className="text-3xl font-bold text-white">{complaints.length}</p>
-              <p className="text-xs text-red-100 mt-2">All categories</p>
+              <p className="text-xs text-red-100 mt-2">
+                {isHRManagerOrAdmin 
+                  ? (viewMode === 'all_complaints' ? "Total complaints" : "Sensitive concerns")
+                  : "Your submissions"
+                }
+              </p>
             </div>
           </motion.div>
 
@@ -277,7 +347,7 @@ const ComplaintsInbox = () => {
                 </div>
                 <Activity className="w-5 h-5 text-white/70" />
               </div>
-              <p className="text-sm font-medium text-blue-100 mb-1">Open Complaints</p>
+              <p className="text-sm font-medium text-blue-100 mb-1">Open</p>
               <p className="text-3xl font-bold text-white">
                 {complaints.filter(c => c.status === 'open').length}
               </p>
@@ -339,12 +409,21 @@ const ComplaintsInbox = () => {
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Filter & Search</h3>
             </div>
-            <button
-              onClick={() => setFilters({ status: '', priority: '', category: '', department: '', search: '' })}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-sm font-medium"
-            >
-              Clear All Filters
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => fetchData()}
+                className="px-4 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-xl transition-all duration-200 text-sm font-medium flex items-center gap-2"
+              >
+                <Activity className="w-4 h-4" />
+                Refresh
+              </button>
+              <button
+                onClick={() => setFilters({ status: '', priority: '', category: '', department: '', search: '' })}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-sm font-medium"
+              >
+                Clear All Filters
+              </button>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -406,6 +485,51 @@ const ComplaintsInbox = () => {
           </div>
         </div>
 
+        {/* View Mode Toggle for HR Managers and Admins */}
+        {isHRManagerOrAdmin && (
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Eye className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">View Mode</h3>
+                  <p className="text-sm text-gray-600">Choose what to display in the inbox</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setViewMode('all_complaints')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    viewMode === 'all_complaints'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  All Complaints
+                </button>
+                <button
+                  onClick={() => setViewMode('all_concerns')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    viewMode === 'all_concerns'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  All Concerns
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 text-sm text-gray-500">
+              {viewMode === 'all_complaints' 
+                ? "Showing all complaints raised by employees across the organization"
+                : "Showing sensitive concerns like harassment, discrimination, and safety issues"
+              }
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Complaints List */}
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
           <div className="flex justify-between items-center mb-8">
@@ -415,18 +539,46 @@ const ComplaintsInbox = () => {
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  All Complaints ({complaints.length})
+                  {isHRManagerOrAdmin 
+                    ? (viewMode === 'all_complaints' ? "All Complaints" : "All Concerns")
+                    : "My Complaints & Concerns"
+                  } ({complaints.length})
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  Manage and monitor all employee complaints
+                  {isHRManagerOrAdmin 
+                    ? (viewMode === 'all_complaints' 
+                        ? "Manage and monitor all complaints raised by employees"
+                        : "Focus on sensitive concerns requiring immediate attention"
+                      )
+                    : "View and manage complaints you have submitted"
+                  }
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-sm text-gray-500 bg-gray-100 px-4 py-2 rounded-xl">
               <Filter className="w-4 h-4" />
-              <span>Showing {complaints.length} complaints</span>
+              <span>Showing {complaints.length} items</span>
             </div>
           </div>
+
+          {/* Context Information */}
+          {complaints.length > 0 && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <Info className="w-4 h-4 text-blue-500" />
+                <span>
+                  <strong>Current View:</strong> 
+                  {isHRManagerOrAdmin 
+                    ? (viewMode === 'all_complaints' 
+                        ? " You are viewing all complaints from all employees. You can manage status, priority, and assign departments."
+                        : " You are viewing sensitive concerns that require special attention. These include harassment, discrimination, and safety issues."
+                      )
+                    : " You are viewing only your own complaints and concerns. This ensures your privacy and confidentiality."
+                  }
+                </span>
+              </div>
+            </div>
+          )}
 
           {complaints.length === 0 ? (
             <motion.div 
@@ -443,7 +595,12 @@ const ComplaintsInbox = () => {
               <p className="text-gray-500 max-w-md mx-auto">
                 {filters.search || filters.status || filters.category || filters.priority || filters.department
                   ? "Try adjusting your filters or search terms to find what you're looking for" 
-                  : "No complaints have been submitted yet"}
+                  : isHRManagerOrAdmin
+                  ? (viewMode === 'all_complaints' 
+                      ? "No complaints have been submitted yet in the system."
+                      : "No sensitive concerns found. This could mean all employees are satisfied or no concerns have been raised."
+                    )
+                  : "You haven't submitted any complaints yet. Use the main Complaints page to submit a new concern."}
               </p>
             </motion.div>
           ) : (
@@ -482,10 +639,15 @@ const ComplaintsInbox = () => {
                             <span className="text-sm font-medium text-gray-700">{complaint.category}</span>
                           </div>
                           
-                          {!complaint.anonymous && (
+                          {!complaint.anonymous ? (
                             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
                               <User className="w-4 h-4 text-gray-500" />
                               <span className="text-sm font-medium text-gray-700">By: {complaint.complainant_name}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
+                              <EyeOff className="w-4 h-4 text-gray-500" />
+                              <span className="text-sm font-medium text-gray-700">Anonymous</span>
                             </div>
                           )}
                           
@@ -505,53 +667,56 @@ const ComplaintsInbox = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        {/* Status Change Controls */}
-                        <select
-                          value={complaint.status}
-                          onChange={(e) => handleStatusChange(complaint.id, e.target.value)}
-                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
-                        >
-                          <option value="open">Open</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="closed">Closed</option>
-                        </select>
+                      {/* Action Controls - Only show for HR Managers and Admins */}
+                      {isHRManagerOrAdmin && (
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          {/* Status Change Controls */}
+                          <select
+                            value={complaint.status}
+                            onChange={(e) => handleStatusChange(complaint.id, e.target.value)}
+                            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
+                          >
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                          </select>
 
-                        {/* Priority Change Controls */}
-                        <select
-                          value={complaint.priority}
-                          onChange={(e) => handlePriorityChange(complaint.id, e.target.value)}
-                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
-                        >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
-                        </select>
+                          {/* Priority Change Controls */}
+                          <select
+                            value={complaint.priority}
+                            onChange={(e) => handlePriorityChange(complaint.id, e.target.value)}
+                            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
+                          >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                          </select>
 
-                        {/* Department Assignment */}
-                        <select
-                          value={complaint.assigned_department || ''}
-                          onChange={(e) => handleAssignDepartment(complaint.id, e.target.value)}
-                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
-                        >
-                          <option value="">Assign Department</option>
-                          {departments.map(dept => (
-                            <option key={dept} value={dept}>{dept}</option>
-                          ))}
-                        </select>
+                          {/* Department Assignment */}
+                          <select
+                            value={complaint.assigned_department || ''}
+                            onChange={(e) => handleAssignDepartment(complaint.id, e.target.value)}
+                            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-white"
+                          >
+                            <option value="">Assign Department</option>
+                            {departments.map(dept => (
+                              <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                          </select>
 
-                        <button
-                          onClick={() => {
-                            setSelectedComplaint(complaint);
-                            setShowDetails(true);
-                          }}
-                          className="p-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-lg transition-all duration-200 hover:scale-110"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
+                          <button
+                            onClick={() => {
+                              setSelectedComplaint(complaint);
+                              setShowDetails(true);
+                            }}
+                            className="p-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-lg transition-all duration-200 hover:scale-110"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -667,12 +832,14 @@ const ComplaintsInbox = () => {
                   >
                     Close
                   </button>
-                  <button 
-                    onClick={() => handleStatusChange(selectedComplaint.id, 'resolved')}
-                    className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-                  >
-                    Mark as Resolved
-                  </button>
+                  {isHRManagerOrAdmin && (
+                    <button 
+                      onClick={() => handleStatusChange(selectedComplaint.id, 'resolved')}
+                      className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                    >
+                      Mark as Resolved
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>

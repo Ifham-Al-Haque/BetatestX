@@ -16,7 +16,10 @@ BEGIN
             anonymous BOOLEAN DEFAULT FALSE,
             complainant_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
             complainant_name VARCHAR(255) NOT NULL,
+            complainant_email VARCHAR(255),
+            complainant_department VARCHAR(100),
             assigned_to UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+            assigned_department VARCHAR(100),
             assigned_at TIMESTAMP WITH TIME ZONE,
             resolved_at TIMESTAMP WITH TIME ZONE,
             resolution_notes TEXT,
@@ -31,6 +34,7 @@ BEGIN
         CREATE INDEX idx_complaints_category ON complaints(category);
         CREATE INDEX idx_complaints_created_at ON complaints(created_at);
         CREATE INDEX idx_complaints_assigned_to ON complaints(assigned_to);
+        CREATE INDEX idx_complaints_assigned_department ON complaints(assigned_department);
 
         RAISE NOTICE 'Complaints table created successfully';
     ELSE

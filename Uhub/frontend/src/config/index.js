@@ -1,9 +1,9 @@
 // Application Configuration
 const config = {
-  // Supabase Configuration - Force use correct values
+  // Supabase Configuration - Use environment variables only
   supabase: {
-    url: 'https://qtugowosurgecytgswuo.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0dWdvd29zdXJnZWN5dGdzd3VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4MDI4OTUsImV4cCI6MjA2NTM3ODg5NX0.x4gN4YO9xalo9y506l_mf6pzK_Km-SCVf9fuJxjyMLM',
+    url: process.env.REACT_APP_SUPABASE_URL,
+    anonKey: process.env.REACT_APP_SUPABASE_ANON_KEY,
   },
 
   // Application Settings
@@ -17,7 +17,7 @@ const config = {
   // Feature Flags
   features: {
     enableAnalytics: process.env.REACT_APP_ENABLE_ANALYTICS === 'true',
-    enableDebugMode: process.env.REACT_APP_ENABLE_DEBUG_MODE === 'true',
+    enableDebugMode: process.env.REACT_APP_ENABLE_DEBUG_MODE === 'false', // Disabled for production
     enableUserRegistration: false, // Disabled for security
   },
 
@@ -50,8 +50,8 @@ const config = {
       message: 'Please enter a valid email address',
     },
     password: {
-      minLength: 6,
-      message: 'Password must be at least 6 characters long',
+      minLength: 8, // Increased for security
+      message: 'Password must be at least 8 characters long',
     },
     name: {
       minLength: 2,
@@ -162,7 +162,8 @@ const validateConfig = () => {
   });
 
   if (missing.length > 0) {
-    console.warn('⚠️ Missing required configuration:', missing);
+    console.error('❌ Missing required configuration:', missing);
+    throw new Error(`Missing required configuration: ${missing.join(', ')}`);
   }
 };
 
@@ -171,11 +172,15 @@ if (config.isDevelopment) {
   validateConfig();
 }
 
-// Debug: Log the actual config values
-console.log('🔧 Config Debug:');
-console.log('Config URL:', config.supabase.url);
-console.log('Config Key Length:', config.supabase.anonKey.length);
-console.log('Config Key Start:', config.supabase.anonKey.substring(0, 20) + '...');
-console.log('🔍 Full Config Key:', config.supabase.anonKey);
+// Security: Don't log sensitive information in production
+if (config.isDevelopment) {
+  console.log('🔧 Config Debug (Development Mode):');
+  console.log('App Name:', config.app.name);
+  console.log('Admin Email:', config.app.adminEmail);
+  console.log('Supabase URL:', config.supabase.url);
+  console.log('API Key Length:', config.supabase.anonKey ? config.supabase.anonKey.length : 'Not set');
+} else {
+  console.log('🔧 Production Mode: Configuration loaded successfully');
+}
 
 export default config; 

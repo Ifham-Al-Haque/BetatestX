@@ -11,13 +11,13 @@ import { useSidebar } from '../context/SidebarContext';
 
 // Navigation items configuration
 const NAVIGATION_ITEMS = {
-  // Dashboard - All roles except CS Manager
+  // Dashboard - Admin only (temporarily hidden for other roles)
   dashboard: {
     path: '/dashboard',
     label: 'Dashboard',
     icon: Home,
-    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'employee', 'viewer'],
-    description: 'Main dashboard and overview'
+    roles: ['admin'],
+    description: 'Main dashboard and overview (Admin only)'
   },
 
   // Home - All roles

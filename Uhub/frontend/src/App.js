@@ -43,8 +43,11 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const UserManagement = React.lazy(() => import('./pages/UserManagement'));
 const Employees = React.lazy(() => import('./pages/Employees'));
+const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
+const EmployeeForm = React.lazy(() => import('./pages/EmployeeForm'));
 const Drivers = React.lazy(() => import('./pages/Driver'));
 const Assets = React.lazy(() => import('./pages/Assets'));
+const AssetProfile = React.lazy(() => import('./pages/AssetProfile'));
 const ITAssets = React.lazy(() => import('./pages/ITAssets'));
 const ITRequests = React.lazy(() => import('./pages/ITRequests'));
 const CSPA = React.lazy(() => import('./pages/CSPA'));
@@ -84,7 +87,7 @@ function App() {
 
                         {/* Protected Routes - Role-based landing pages */}
                         <Route path="/dashboard" element={
-                          <ProtectedRoute>
+                          <ProtectedRoute requiredRole="admin">
                             <Layout>
                               <Dashboard />
                             </Layout>
@@ -149,6 +152,32 @@ function App() {
                           <ProtectedRoute requiredFeature="employees">
                             <Layout>
                               <Employees />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        
+                        {/* Employee Profile Route */}
+                        <Route path="/employee/:id" element={
+                          <ProtectedRoute requiredFeature="employees">
+                            <Layout>
+                              <EmployeeProfile />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        
+                        {/* Employee Edit Route */}
+                        <Route path="/employee/:id/edit" element={
+                          <ProtectedRoute requiredFeature="employees">
+                            <Layout>
+                              <EmployeeForm />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/assets/:id" element={
+                          <ProtectedRoute requiredFeature="assets">
+                            <Layout>
+                              <AssetProfile />
                             </Layout>
                           </ProtectedRoute>
                         } />

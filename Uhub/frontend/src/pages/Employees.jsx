@@ -6,7 +6,7 @@ import {
   ChevronRight, Trash2, Pencil, Plus, Search, Filter, 
   Users, Building, Star, Activity, Eye, Edit, Trash,
   Mail, Phone, MapPin, Calendar, Briefcase, Award,
-  ChevronDown, ChevronUp, X, Download, Upload
+  ChevronDown, ChevronUp, X, Download, Upload, Shield, UserCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -120,6 +120,56 @@ export default function Employees() {
       'Support': 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700'
     };
     return colors[department] || 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600';
+  };
+
+  const getRoleBadge = (role) => {
+    const roleConfig = {
+      'admin': {
+        color: 'bg-red-100 text-red-800 border-red-200',
+        icon: Shield,
+        label: 'Administrator'
+      },
+      'hr_manager': {
+        color: 'bg-purple-100 text-purple-800 border-purple-200',
+        icon: Users,
+        label: 'HR Manager'
+      },
+      'cs_manager': {
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: Phone,
+        label: 'CS Manager'
+      },
+      'driver_management': {
+        color: 'bg-green-100 text-green-800 border-green-200',
+        icon: MapPin,
+        label: 'Driver Management'
+      },
+      'manager': {
+        color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        icon: Briefcase,
+        label: 'Manager'
+      },
+      'employee': {
+        color: 'bg-gray-100 text-gray-800 border-gray-200',
+        icon: UserCheck,
+        label: 'Employee'
+      },
+      'viewer': {
+        color: 'bg-orange-100 text-orange-800 border-orange-200',
+        icon: Eye,
+        label: 'Viewer'
+      }
+    };
+
+    const config = roleConfig[role] || roleConfig['employee'];
+    const IconComponent = config.icon;
+
+    return (
+      <span className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-full border ${config.color}`}>
+        <IconComponent className="w-4 h-4" />
+        {config.label}
+      </span>
+    );
   };
 
   if (error) {
@@ -442,6 +492,60 @@ export default function Employees() {
         {/* Content based on view mode */}
         {!isLoading && (
           <AnimatePresence mode="wait">
+            {/* View Mode Indicator */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-6"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${viewMode === 'table' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                    {viewMode === 'table' ? <Users className="w-5 h-5" /> : <Building className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {viewMode === 'table' ? 'Table View' : 'Grid View'}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {viewMode === 'table' 
+                        ? 'Detailed employee information in a structured table format' 
+                        : 'Employee cards with key information and quick actions'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">View Mode:</span>
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                        viewMode === 'table' 
+                          ? 'bg-white text-blue-600 shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <Users className="w-4 h-4 inline mr-1" />
+                      Table
+                    </button>
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                        viewMode === 'grid' 
+                          ? 'bg-white text-green-600 shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                      <Building className="w-4 h-4 inline mr-1" />
+                      Grid
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+            
             {viewMode === "grid" ? (
               <motion.div
                 key="grid"
@@ -590,30 +694,32 @@ export default function Employees() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden relative"
               >
+                {/* Table Header Decoration */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <thead className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50 shadow-sm">
                       <tr>
-                        <th className="px-8 py-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
                           Employee
                         </th>
-                        <th className="px-8 py-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
+                          Role
+                        </th>
+                        <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
                           Department
                         </th>
-                        <th className="px-8 py-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Position
-                        </th>
-                        <th className="px-8 py-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
                           Status
                         </th>
-                        <th className="px-8 py-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-6 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider border-b-2 border-slate-200">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-slate-100">
                       <AnimatePresence>
                         {filteredAndSortedEmployees.map((employee) => (
                           <motion.tr
@@ -621,65 +727,63 @@ export default function Employees() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.3 }}
-                            className="hover:bg-gray-50 transition-colors duration-200"
+                            transition={{ duration: 0.3, delay: employee.id % 10 * 0.05 }}
+                            className="hover:bg-slate-50 transition-all duration-200 group"
                           >
-                            <td className="px-8 py-6 whitespace-nowrap">
+                            <td className="px-6 py-6 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="flex-shrink-0 h-12 w-12">
                                   {employee.profile_picture || employee.photo_url ? (
                                     <img
-                                      className="h-12 w-12 rounded-full ring-2 ring-gray-200"
+                                      className="h-12 w-12 rounded-full ring-2 ring-slate-200 shadow-sm object-cover group-hover:ring-2 group-hover:ring-blue-200 transition-all duration-300"
                                       src={employee.profile_picture || employee.photo_url}
                                       alt={employee.full_name || employee.name}
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
                                     />
-                                  ) : (
-                                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-semibold text-lg ring-2 ring-gray-200">
+                                  ) : null}
+                                  {!employee.profile_picture && !employee.photo_url && (
+                                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg ring-2 ring-slate-200 shadow-sm group-hover:ring-2 group-hover:ring-blue-200 transition-all duration-300">
                                       {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
                                     </div>
                                   )}
                                 </div>
                                 <div className="ml-4 min-w-0 flex-1">
-                                  <div className="text-sm font-medium text-gray-900 truncate">
+                                  <div className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors duration-200">
                                     {employee.full_name || employee.name || "Unknown"}
                                   </div>
-                                  <div className="text-sm text-gray-500 truncate">
-                                    {employee.employee_id || "No ID"}
-                                  </div>
-                                  <div className="text-sm text-gray-500 truncate">
+                                  <div className="text-sm text-slate-500 truncate">
                                     {employee.email || "No Email"}
                                   </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-8 py-6 whitespace-nowrap">
-                              <span className={`inline-flex px-3 py-2 text-sm font-semibold rounded-full border ${getDepartmentColor(employee.department)}`}>
+                            <td className="px-6 py-6 whitespace-nowrap">
+                              {getRoleBadge(employee.role)}
+                            </td>
+                            <td className="px-6 py-6 whitespace-nowrap">
+                              <span className={`inline-flex px-3 py-2 text-sm font-medium rounded-full border ${getDepartmentColor(employee.department)}`}>
                                 {employee.department || "Unassigned"}
                               </span>
                             </td>
-                            <td className="px-8 py-6 whitespace-nowrap text-lg font-medium text-gray-900">
-                              {employee.position || "N/A"}
+                            <td className="px-6 py-6 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-slate-900">
+                                  {employee.status || 'active'}
+                                </span>
+                              </div>
                             </td>
-                            <td className="px-8 py-6 whitespace-nowrap">
-                              <span className={`inline-flex px-4 py-2 text-sm font-semibold rounded-full border-2 ${getStatusColor(employee.status)}`}>
-                                {employee.status || 'Unknown'}
-                              </span>
-                            </td>
-                            <td className="px-8 py-6 whitespace-nowrap">
-                              <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() => navigate(`/employee/${employee.id}`)}
-                                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                                  title="View Profile"
-                                >
-                                  <Eye className="w-5 h-5" />
-                                </button>
+                            <td className="px-6 py-6 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => navigate(`/employee/${employee.id}/edit`)}
-                                  className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200"
                                   title="Edit Employee"
                                 >
-                                  <Edit className="w-5 h-5" />
+                                  <Edit className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDelete(employee.id)}
@@ -687,7 +791,7 @@ export default function Employees() {
                                   title="Delete Employee"
                                   disabled={deleteEmployeeMutation.isLoading}
                                 >
-                                  <Trash className="w-5 h-5" />
+                                  <Trash className="w-4 h-4" />
                                 </button>
                               </div>
                             </td>
@@ -700,41 +804,47 @@ export default function Employees() {
 
                 {/* Enhanced Pagination */}
                 {totalPages > 1 && (
-                  <div className="px-8 py-6 border-t border-gray-200 bg-gray-50">
-                    <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-                      <div className="text-sm text-gray-700 text-center lg:text-left">
-                        Showing <span className="font-semibold">{((currentPage - 1) * pageSize) + 1}</span> to{' '}
-                        <span className="font-semibold">{Math.min(currentPage * pageSize, totalCount)}</span> of{' '}
-                        <span className="font-semibold">{totalCount}</span> results
+                  <div className="px-8 py-8 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
+                    <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+                      <div className="text-sm text-slate-700 text-center lg:text-left">
+                        <span className="font-medium">Showing</span>{' '}
+                        <span className="font-bold text-slate-900">{((currentPage - 1) * pageSize) + 1}</span>{' '}
+                        <span className="font-medium">to</span>{' '}
+                        <span className="font-bold text-slate-900">{Math.min(currentPage * pageSize, totalCount)}</span>{' '}
+                        <span className="font-medium">of</span>{' '}
+                        <span className="font-bold text-slate-900">{totalCount}</span>{' '}
+                        <span className="font-medium">results</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <button
                           onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                          className="px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                         >
                           Previous
                         </button>
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          const page = i + 1;
-                          return (
-                            <button
-                              key={page}
-                              onClick={() => handlePageChange(page)}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                currentPage === page
-                                  ? 'bg-blue-600 text-white shadow-lg'
-                                  : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          );
-                        })}
+                        <div className="flex items-center gap-2">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const page = i + 1;
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => handlePageChange(page)}
+                                className={`px-4 py-3 rounded-xl font-medium transition-all duration-200 shadow-sm hover:shadow-md ${
+                                  currentPage === page
+                                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transform scale-105'
+                                    : 'border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          })}
+                        </div>
                         <button
                           onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
-                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                          className="px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                         >
                           Next
                         </button>

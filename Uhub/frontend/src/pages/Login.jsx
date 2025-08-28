@@ -238,6 +238,38 @@ export default function Login() {
     setLoading(false);
   }
 
+  async function handleResendConfirmation() {
+    setErrorMsg("");
+    setInfoMsg("");
+    setLoading(true);
+
+    if (!email) {
+      setErrorMsg("Please enter your email first.");
+      error("Validation Error", "Please enter your email first.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email
+      });
+
+      if (error) {
+        setErrorMsg("Failed to resend confirmation: " + error.message);
+        error("Resend Failed", error.message);
+      } else {
+        setInfoMsg("Confirmation email sent! Check your inbox and spam folder.");
+        success("Confirmation Sent", "Confirmation email sent! Check your inbox and spam folder.");
+      }
+    } catch (err) {
+      setErrorMsg("An unexpected error occurred.");
+      error("Unexpected Error", "An unexpected error occurred while resending confirmation.");
+    }
+    setLoading(false);
+  }
+
   const isAdminEmail = email === adminEmail;
 
   return (
@@ -391,12 +423,27 @@ export default function Login() {
                       initial={{ opacity: 0, y: -10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl shadow-sm"
+                      className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-xl shadow-sm"
                     >
-                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                        <AlertCircle className="w-4 h-4 text-red-600" />
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                          <AlertCircle className="w-4 h-4 text-red-600" />
+                        </div>
+                        <span className="text-red-700 text-sm font-medium">{errorMsg}</span>
                       </div>
-                      <span className="text-red-700 text-sm font-medium">{errorMsg}</span>
+                      {errorMsg.includes("Email not confirmed") && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleResendConfirmation}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Mail className="w-4 h-4" />
+                            {loading ? "Sending..." : "Resend Confirmation Email"}
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                   {infoMsg && (

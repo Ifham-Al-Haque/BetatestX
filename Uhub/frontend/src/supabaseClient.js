@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Hardcoded Supabase configuration for development
-const supabaseUrl = 'https://qtugowosurgecytgswuo.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0dWdvd29zdXJnZWN5dGdzd3VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4MDI4OTUsImV4cCI6MjA2NTM3ODg5NX0.x4gN4YO9xalo9y506l_mf6pzK_Km-SCVf9fuJxjyMLM';
+// Use environment variables for security
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-console.log('🔧 Development Mode: Using hardcoded Supabase configuration');
-console.log('URL:', supabaseUrl);
-console.log('Key length:', supabaseKey.length);
+// Security check: Ensure environment variables are set
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing Supabase environment variables');
+  throw new Error('Missing Supabase configuration. Please check your environment variables.');
+}
+
+console.log('🔧 Supabase Client: Using environment variables');
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -16,11 +20,13 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// Test the connection
-supabase.auth.getSession().then(({ data, error }) => {
-  if (error) {
-    console.error('❌ Supabase connection test failed:', error);
-  } else {
-    console.log('✅ Supabase connection test successful');
-  }
-});
+// Test the connection (only in development)
+if (process.env.NODE_ENV === 'development') {
+  supabase.auth.getSession().then(({ data, error }) => {
+    if (error) {
+      console.error('❌ Supabase connection test failed:', error);
+    } else {
+      console.log('✅ Supabase connection test successful');
+    }
+  });
+}

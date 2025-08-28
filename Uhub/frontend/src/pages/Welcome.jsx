@@ -75,27 +75,27 @@ const Welcome = () => {
     setCurrentFeature(index);
   };
 
-    return (
+  return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 overflow-hidden">
       {/* Navigation */}
       <nav className="absolute top-0 left-0 right-0 z-50 p-6">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Logo size="lg" showText={true} className="text-white" />
           <div className="flex items-center space-x-4">
-                               <button
+            <button
               onClick={() => navigate('/login')}
               className="text-white/80 hover:text-white transition-colors duration-200"
-                               >
+            >
               Sign In
-                               </button>
-                               <button
+            </button>
+            <button
               onClick={() => navigate('/login')}
               className="bg-white/10 backdrop-blur-sm border border-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all duration-200"
-                               >
+            >
               Get Started
-                               </button>
-                             </div>
-                           </div>
+            </button>
+          </div>
+        </div>
       </nav>
 
       {/* Hero Section */}
@@ -113,42 +113,42 @@ const Welcome = () => {
               The ultimate unified platform that brings all your departments together, 
               enabling seamless collaboration and efficient operations management.
             </p>
-                </div>
+          </div>
 
           {/* CTA Buttons */}
           <div className={`flex flex-col sm:flex-row gap-4 justify-center mb-16 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                     <button
+            <button
               onClick={() => navigate('/login')}
               className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-emerald-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-emerald-500/25 flex items-center justify-center gap-3"
             >
               Start Your Journey
               <ArrowRight className="w-5 h-5" />
-                     </button>
-                     <button
+            </button>
+            <button
               onClick={() => navigate('/login')}
               className="border-2 border-white/30 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/10 backdrop-blur-sm transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-3"
             >
               Learn More
-                     </button>
-              </div>
+            </button>
+          </div>
 
           {/* Trust indicators */}
           <div className={`flex flex-wrap justify-center items-center gap-8 text-white/70 transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <div className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-emerald-400" />
               <span>Enterprise Security</span>
-                        </div>
+            </div>
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-blue-400" />
               <span>Lightning Fast</span>
-                      </div>
+            </div>
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-purple-400" />
               <span>Global Access</span>
-              </div>
             </div>
           </div>
         </div>
+      </div>
 
       {/* Feature Showcase */}
       <div className="relative px-6 pb-20">
@@ -158,19 +158,19 @@ const Welcome = () => {
               Powerful Features for{' '}
               <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
                 Every Department
-                        </span>
+              </span>
             </h2>
             <p className="text-xl text-blue-100 max-w-3xl mx-auto">
               From fleet management to HR operations, we provide comprehensive tools 
               that streamline your business processes and boost productivity.
-               </p>
-             </div>
-             
+            </p>
+          </div>
+          
           {/* Feature Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-          {features.map((feature, index) => (
-            <div
-              key={index}
+            {features.map((feature, index) => (
+              <div
+                key={index}
                 className={`${feature.bgColor} rounded-2xl p-8 text-center hover:transform hover:scale-105 transition-all duration-300 cursor-pointer ${
                   index === currentFeature ? 'ring-2 ring-blue-500 shadow-xl' : ''
                 }`}
@@ -181,25 +181,25 @@ const Welcome = () => {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
 
           {/* Feature Navigation */}
           <div className="flex justify-center space-x-3">
-          {features.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => handleFeatureClick(index)}
+            {features.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => handleFeatureClick(index)}
                 className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentFeature
+                  index === currentFeature
                     ? 'bg-blue-500 scale-125'
-                  : 'bg-white/30 hover:bg-white/50'
-              }`}
-            />
-          ))}
+                    : 'bg-white/30 hover:bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
         </div>
-      </div>
       </div>
 
       {/* Benefits Section */}
@@ -216,7 +216,7 @@ const Welcome = () => {
               Experience the difference with our comprehensive, user-friendly, and 
               secure platform designed for modern businesses.
             </p>
-              </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {benefits.map((benefit, index) => (
@@ -228,11 +228,11 @@ const Welcome = () => {
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-white/90 text-lg">{benefit}</span>
-                </div>
+              </div>
             ))}
-                  </div>
-                  </div>
-                </div>
+          </div>
+        </div>
+      </div>
 
       {/* CTA Section */}
       <div className="relative px-6 py-20">
@@ -242,7 +242,7 @@ const Welcome = () => {
               Ready to Transform Your{' '}
               <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
                 Operations?
-                      </span>
+              </span>
             </h2>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
               Join thousands of organizations already using Uhub to streamline their 
@@ -256,15 +256,15 @@ const Welcome = () => {
               <ArrowRight className="w-6 h-6" />
             </button>
           </div>
-                  </div>
-                </div>
+        </div>
+      </div>
 
       {/* Footer */}
       <footer className="relative px-6 py-12 border-t border-white/10">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex justify-center items-center mb-6">
             <Logo size="md" showText={true} className="text-white" />
-                  </div>
+          </div>
           <p className="text-white/60 mb-4">
             © 2024 Uhub. All rights reserved. Your unified management platform.
           </p>
@@ -277,8 +277,8 @@ const Welcome = () => {
               <Star className="w-4 h-4" />
               Enterprise Grade
             </span>
-            </div>
           </div>
+        </div>
       </footer>
     </div>
   );

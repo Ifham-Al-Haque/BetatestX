@@ -49,6 +49,15 @@ export const ROLE_PERMISSIONS = {
     bgColor: 'bg-purple-50',
     icon: Shield,
     access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_management', 'it_requests', 'todo_list', 'driver_records_view_only']
+  },
+  manager: {
+    level: 4,
+    name: 'Manager',
+    description: 'General manager with access to assets, employees, and operational features',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    icon: Shield,
+    access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_view_only', 'it_requests', 'todo_list', 'asset_management', 'driver_records_view_only']
   }
 };
 
@@ -68,42 +77,42 @@ export const FEATURE_ACCESS = {
   csv_importer: ['admin'],
   
   // Main Panel Features - All roles have access
-  home: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
-  dashboard: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
-  calendar_view: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  home: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  dashboard: ['admin'], // Dashboard temporarily restricted to admin only
+  calendar_view: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // Slice of Life Panel - All roles have access
-  events: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
-  memories: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  events: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  memories: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // Communication Panel - All roles have access
-  communication: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  communication: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // User Profile - All roles have access
-  user_profile: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
-  profile: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  user_profile: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  profile: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // HR Panel - Different access levels
-  employees: ['admin', 'hr_manager'], // Full access for admin and HR manager
+  employees: ['admin', 'hr_manager', 'manager'], // Full access for admin, HR manager, and manager
   employees_view_only: ['employee', 'cs_manager', 'driver_management'], // View only for others
-  complaints: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  complaints: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   complaints_inbox: ['admin', 'hr_manager'], // Only admin and HR manager see inbox
-  suggestions: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  suggestions: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   attendance: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   payroll: ['admin', 'hr_manager'],
   epr: ['admin', 'hr_manager'],
   
   // IT Service Panel - All roles have access to IT requests
-  it_requests: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  it_requests: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   it_assets: ['admin'],
   it_tickets: ['admin'],
   request_inbox: ['admin'],
   
   // Todo List Panel - All roles have full access
-  todo_list: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
-  task_management: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
-  my_tasks: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager'],
+  todo_list: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  task_management: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  my_tasks: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // Customer Service Panel - CS Manager has full access
   customer_service: ['admin', 'cs_manager'],
@@ -113,15 +122,15 @@ export const FEATURE_ACCESS = {
   
   // Driver Management Panel - Different access levels
   drivers: ['admin', 'driver_management'], // Full access for admin and driver management
-  driver_records: ['admin', 'driver_management', 'hr_manager'], // HR manager can view only
+  driver_records: ['admin', 'driver_management', 'hr_manager', 'manager'], // HR manager and manager can view only
   driver_documents: ['admin', 'driver_management'],
   fleet_management: ['admin', 'driver_management'],
   fleet_records: ['admin', 'driver_management'],
   breakdowns: ['admin', 'driver_management'],
   
-  // Asset Management Panel - Admin only
-  assets: ['admin'],
-  simcards: ['admin', 'hr_manager', 'driver_management'], // Allow HR managers and driver management to access SIM cards
+  // Asset Management Panel - Admin, HR Manager, Driver Management, and Manager
+  assets: ['admin', 'hr_manager', 'driver_management', 'manager'],
+  simcards: ['admin', 'hr_manager', 'driver_management', 'manager'], // Allow HR managers, driver management, and managers to access SIM cards
   vouchers: ['admin'],
   
   // Financial Panel - Admin only
@@ -223,7 +232,7 @@ export const getRoleNavigationAccess = (userRole) => {
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
         driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
-        asset_management: ['simcards']
+        asset_management: ['assets', 'simcards']
       }
     },
     hr_manager: {
@@ -237,7 +246,21 @@ export const getRoleNavigationAccess = (userRole) => {
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
         driver_management: ['driver_records'], // View only
-        asset_management: ['simcards']
+        asset_management: ['assets', 'simcards']
+      }
+    },
+    manager: {
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management'],
+      items: {
+        main: ['home', 'dashboard', 'calendar_view'],
+        user_profile: ['profile', 'settings'],
+        hr_panel: ['employee_records', 'complaints', 'suggestions'],
+        it_services: ['it_requests'],
+        todo_list: ['todo_list', 'task_management', 'my_tasks'],
+        slice_of_life: ['events', 'memories'],
+        communication: ['communication'],
+        driver_management: ['driver_records'], // View only
+        asset_management: ['assets', 'simcards']
       }
     }
   };
