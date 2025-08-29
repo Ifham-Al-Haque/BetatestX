@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Shield, AlertTriangle, Lock } from 'lucide-react';
+import { Shield, Lock } from 'lucide-react';
 
 // Role hierarchy and permissions
 export const ROLE_PERMISSIONS = {
@@ -14,8 +14,35 @@ export const ROLE_PERMISSIONS = {
     icon: Shield,
     access: ['all']
   },
-  employee: {
+  data_operator: {
     level: 2,
+    name: 'Data Operator',
+    description: 'Data operator with access to home, slice of life, communication, HR view, IT requests, fleet records, expense tracker, and todo list',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
+    icon: Shield,
+    access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_view_only', 'it_requests', 'fleet_records', 'expense_tracker', 'todo_list']
+  },
+  finance: {
+    level: 2,
+    name: 'Finance',
+    description: 'Finance role with access to home, slice of life, communication, HR view, IT requests, sim cards, payment calendar, upcoming payments, vouchers, and todo list',
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-50',
+    icon: Shield,
+    access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_view_only', 'it_requests', 'simcards', 'payment_calendar', 'upcoming_payments', 'vouchers', 'todo_list']
+  },
+  it_management: {
+    level: 2,
+    name: 'IT Management',
+    description: 'IT management role with access to home, slice of life, communication, HR view, IT requests, request inbox, assets, sim cards, payment calendar, upcoming payments, analytics, and todo list',
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-50',
+    icon: Shield,
+    access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_view_only', 'it_requests', 'request_inbox', 'assets', 'simcards', 'payment_calendar', 'upcoming_payments', 'analytics', 'todo_list']
+  },
+  employee: {
+    level: 3,
     name: 'Employee',
     description: 'Standard user with access to main features, HR view, IT requests, and todo list',
     color: 'text-gray-600',
@@ -77,42 +104,42 @@ export const FEATURE_ACCESS = {
   csv_importer: ['admin'],
   
   // Main Panel Features - All roles have access
-  home: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   dashboard: ['admin'], // Dashboard temporarily restricted to admin only
-  calendar_view: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // Slice of Life Panel - All roles have access
-  events: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  memories: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // Communication Panel - All roles have access
-  communication: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // User Profile - All roles have access
-  user_profile: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  profile: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // HR Panel - Different access levels
   employees: ['admin', 'hr_manager', 'manager'], // Full access for admin, HR manager, and manager
-  employees_view_only: ['employee', 'cs_manager', 'driver_management'], // View only for others
-  complaints: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management'], // View only for others
+  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   complaints_inbox: ['admin', 'hr_manager'], // Only admin and HR manager see inbox
-  suggestions: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   attendance: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   payroll: ['admin', 'hr_manager'],
   epr: ['admin', 'hr_manager'],
   
   // IT Service Panel - All roles have access to IT requests
-  it_requests: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  it_assets: ['admin'],
+  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  it_assets: ['admin', 'it_management'],
   it_tickets: ['admin'],
-  request_inbox: ['admin'],
+  request_inbox: ['admin', 'it_management'],
   
   // Todo List Panel - All roles have full access
-  todo_list: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  task_management: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  my_tasks: ['admin', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
   
   // Customer Service Panel - CS Manager has full access
   customer_service: ['admin', 'cs_manager'],
@@ -125,35 +152,28 @@ export const FEATURE_ACCESS = {
   driver_records: ['admin', 'driver_management', 'hr_manager', 'manager'], // HR manager and manager can view only
   driver_documents: ['admin', 'driver_management'],
   fleet_management: ['admin', 'driver_management'],
-  fleet_records: ['admin', 'driver_management'],
+  fleet_records: ['admin', 'driver_management', 'data_operator'],
   breakdowns: ['admin', 'driver_management'],
   
   // Asset Management Panel - Admin, HR Manager, Driver Management, and Manager
-  assets: ['admin', 'hr_manager', 'driver_management', 'manager'],
-  simcards: ['admin', 'hr_manager', 'driver_management', 'manager'], // Allow HR managers, driver management, and managers to access SIM cards
-  vouchers: ['admin'],
+  assets: ['admin', 'hr_manager', 'driver_management', 'manager', 'it_management'],
+  simcards: ['admin', 'hr_manager', 'driver_management', 'manager', 'finance', 'it_management'], // Allow HR managers, driver management, managers, finance, and IT management to access SIM cards
+  vouchers: ['admin', 'finance'],
   
-  // Financial Panel - Admin only
+  // Financial Panel - Different access levels
   expenses: ['admin'],
-  expense_tracker: ['admin'],
-  payment_calendar: ['admin'],
-  upcoming_payments: ['admin'],
+  expense_tracker: ['admin', 'data_operator'],
+  payment_calendar: ['admin', 'finance', 'it_management'],
+  upcoming_payments: ['admin', 'finance', 'it_management'],
   
-  // Analytics and Reports - Admin only
-  analytics: ['admin'],
+  // Analytics and Reports - Admin and IT Management
+  analytics: ['admin', 'it_management'],
   reports: ['admin'],
   
   // Additional features
   calendar: ['admin'],
   tickets: ['admin'],
-  surveys: ['admin'],
-  invitation_manager: ['admin'],
-  test_invitations: ['admin'],
-  access_management: ['admin'],
-  access_requests: ['admin'],
-  rbac_test: ['admin'],
-  call_center_demo: ['admin'],
-  csv_importer: ['admin']
+  surveys: ['admin']
 };
 
 // Check if user has access to a specific feature
@@ -191,6 +211,48 @@ export const getRoleNavigationAccess = (userRole) => {
         driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
         asset_management: ['assets', 'simcards', 'vouchers'],
         financial: ['expenses', 'expense_tracker', 'payment_calendar', 'upcoming_payments'],
+        todo_list: ['todo_list', 'task_management', 'my_tasks'],
+        slice_of_life: ['events', 'memories'],
+        communication: ['communication']
+      }
+    },
+    data_operator: {
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'driver_management', 'financial', 'todo_list', 'slice_of_life', 'communication'],
+      items: {
+        main: ['home', 'calendar_view'],
+        user_profile: ['profile'],
+        hr_panel: ['employee_records', 'complaints', 'suggestions'],
+        it_services: ['it_requests'],
+        driver_management: ['fleet_records'],
+        financial: ['expense_tracker'],
+        todo_list: ['todo_list', 'task_management', 'my_tasks'],
+        slice_of_life: ['events', 'memories'],
+        communication: ['communication']
+      }
+    },
+    finance: {
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication'],
+      items: {
+        main: ['home', 'calendar_view'],
+        user_profile: ['profile'],
+        hr_panel: ['employee_records', 'complaints', 'suggestions'],
+        it_services: ['it_requests'],
+        asset_management: ['simcards'],
+        financial: ['payment_calendar', 'upcoming_payments', 'vouchers'],
+        todo_list: ['todo_list', 'task_management', 'my_tasks'],
+        slice_of_life: ['events', 'memories'],
+        communication: ['communication']
+      }
+    },
+    it_management: {
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication'],
+      items: {
+        main: ['home', 'calendar_view'],
+        user_profile: ['profile'],
+        hr_panel: ['employee_records', 'complaints', 'suggestions'],
+        it_services: ['it_requests', 'request_inbox'],
+        asset_management: ['assets', 'simcards'],
+        financial: ['payment_calendar', 'upcoming_payments', 'analytics'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication']
@@ -479,6 +541,9 @@ export const useRoleAccess = () => {
     hasFeatureAccess: (feature) => hasFeatureAccess(userRole, feature),
     hasRoleLevel: (level) => hasRoleLevel(userRole, level),
     isAdmin: userRole === 'admin',
+    isDataOperator: userRole === 'data_operator',
+    isFinance: userRole === 'finance',
+    isITManagement: userRole === 'it_management',
     isHRManager: userRole === 'hr_manager',
     isCSManager: userRole === 'cs_manager',
     isDriverManagement: userRole === 'driver_management',

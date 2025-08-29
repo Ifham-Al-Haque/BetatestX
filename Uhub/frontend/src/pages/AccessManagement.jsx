@@ -32,6 +32,9 @@ export default function AccessManagement() {
   const roles = [
     { value: "employee", label: "Employee" },
     { value: "viewer", label: "Viewer" },
+    { value: "data_operator", label: "Data Operator" },
+    { value: "finance", label: "Finance" },
+    { value: "it_management", label: "IT Management" },
     { value: "driver_management", label: "Driver Management" },
     { value: "hr_manager", label: "HR Manager" },
     { value: "cs_manager", label: "CS Manager" },

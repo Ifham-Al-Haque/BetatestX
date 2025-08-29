@@ -19,6 +19,27 @@ const RoleManager = ({ user, onRoleUpdate }) => {
       permissions: ['All operations', 'User management', 'System settings', 'Role management']
     },
     { 
+      value: 'data_operator', 
+      label: 'Data Operator', 
+      description: 'Data operator with access to home, slice of life, communication, HR view, IT requests, fleet records, expense tracker, and todo list',
+      color: 'bg-orange-100 text-orange-800 border-orange-200',
+      permissions: ['Home & Calendar', 'Slice of Life', 'Team Chat', 'User Profile', 'HR View', 'IT Requests', 'Fleet Records', 'Expense Tracker', 'Todo List']
+    },
+    { 
+      value: 'finance', 
+      label: 'Finance', 
+      description: 'Finance role with access to home, slice of life, communication, HR view, IT requests, sim cards, payment calendar, upcoming payments, vouchers, and todo list',
+      color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      permissions: ['Home & Calendar', 'Slice of Life', 'Team Chat', 'User Profile', 'HR View', 'IT Requests', 'Sim Cards', 'Payment Calendar', 'Upcoming Payments', 'Vouchers', 'Todo List']
+    },
+    { 
+      value: 'it_management', 
+      label: 'IT Management', 
+      description: 'IT management role with access to home, slice of life, communication, HR view, IT requests, request inbox, assets, sim cards, payment calendar, upcoming payments, analytics, and todo list',
+      color: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+      permissions: ['Home & Calendar', 'Slice of Life', 'Team Chat', 'User Profile', 'HR View', 'IT Requests', 'Request Inbox', 'Assets', 'Sim Cards', 'Payment Calendar', 'Upcoming Payments', 'Analytics', 'Todo List']
+    },
+    { 
       value: 'manager', 
       label: 'Manager', 
       description: 'Semi-admin with elevated permissions but no user management',
@@ -56,9 +77,9 @@ const RoleManager = ({ user, onRoleUpdate }) => {
     { 
       value: 'viewer', 
       label: 'Viewer', 
-      description: 'Read-only user with minimal permissions',
-      color: 'bg-orange-100 text-orange-800 border-orange-200',
-      permissions: ['View drivers', 'View employees', 'Dashboard access', 'Read-only operations']
+      description: 'Read-only access to public information and basic features',
+      color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      permissions: ['Public information', 'Basic features', 'Read-only access']
     }
   ];
 

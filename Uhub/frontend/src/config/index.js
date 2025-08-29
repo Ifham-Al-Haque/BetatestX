@@ -67,6 +67,21 @@ const config = {
       displayName: 'Administrator',
       permissions: ['all'],
     },
+    data_operator: {
+      name: 'data_operator',
+      displayName: 'Data Operator',
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'fleet_records', 'expense_tracker', 'todo_list'],
+    },
+    finance: {
+      name: 'finance',
+      displayName: 'Finance',
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'simcards', 'payment_calendar', 'upcoming_payments', 'vouchers', 'todo_list'],
+    },
+    it_management: {
+      name: 'it_management',
+      displayName: 'IT Management',
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'request_inbox', 'assets', 'simcards', 'payment_calendar', 'upcoming_payments', 'analytics', 'todo_list'],
+    },
     customer_service_manager: {
       name: 'customer_service_manager',
       displayName: 'Customer Service Manager',

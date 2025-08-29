@@ -282,9 +282,15 @@ const InvitationManager = () => {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
                 <option value="employee">Employee</option>
+                <option value="data_operator">Data Operator</option>
+                <option value="finance">Finance</option>
+                <option value="it_management">IT Management</option>
                 <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
-                <option value="view">View Only</option>
+                <option value="driver_management">Driver Management</option>
+                <option value="hr_manager">HR Manager</option>
+                <option value="cs_manager">CS Manager</option>
+                <option value="viewer">View Only</option>
               </select>
             </div>
 
