@@ -14,11 +14,17 @@ const Layout = ({ children, pageTitle = "Uhub Dashboard", pageDescription = "Uni
   console.log('🔍 Layout component rendering:', { sidebarWidth, isCollapsed, isDark });
 
   const backgroundGradient = isDark 
-    ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"
+    ? "var(--gradient-primary)"
     : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)";
 
   return (
-    <div className="min-h-screen font-sans flex transition-all duration-500" style={{ background: backgroundGradient }}>
+    <div 
+      className="min-h-screen font-sans flex transition-all duration-500" 
+      style={{ 
+        background: isDark ? 'var(--bg-primary)' : backgroundGradient,
+        color: 'var(--text-primary)'
+      }}
+    >
       {/* Sidebar */}
       <div className="flex-shrink-0" key="main-sidebar">
         <Sidebar />

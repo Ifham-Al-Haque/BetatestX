@@ -50,6 +50,7 @@ const Assets = React.lazy(() => import('./pages/Assets'));
 const AssetProfile = React.lazy(() => import('./pages/AssetProfile'));
 const ITAssets = React.lazy(() => import('./pages/ITAssets'));
 const ITRequests = React.lazy(() => import('./pages/ITRequests'));
+const RequestInbox = React.lazy(() => import('./pages/RequestInbox'));
 const CSPA = React.lazy(() => import('./pages/CSPA'));
 const Complaints = React.lazy(() => import('./pages/Complaints'));
 const Attendance = React.lazy(() => import('./pages/Attendance'));
@@ -240,6 +241,14 @@ function App() {
                           <ProtectedRoute requiredFeature="it_requests">
                             <Layout>
                               <ITRequests />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/request-inbox" element={
+                          <ProtectedRoute requiredFeature="it_requests" requiredRoles={['admin', 'it_management']}>
+                            <Layout>
+                              <RequestInbox />
                             </Layout>
                           </ProtectedRoute>
                         } />

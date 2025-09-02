@@ -4,27 +4,70 @@
 
 @tailwind utilities;
 
-/* Dark mode CSS custom properties */
+/* Import Mobile Styles */
+@import './styles/mobile.css';
+
+/* Enhanced Dark Mode CSS Custom Properties */
 :root {
+  /* Light mode colors */
   --color-bg-primary: #ffffff;
   --color-bg-secondary: #f8fafc;
   --color-bg-tertiary: #f1f5f9;
+  --color-bg-quaternary: #e2e8f0;
   --color-text-primary: #1e293b;
   --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
   --color-border: #e2e8f0;
+  --color-border-secondary: #cbd5e1;
   --color-accent: #3b82f6;
   --color-accent-hover: #2563eb;
+  --color-accent-secondary: #8b5cf6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #06b6d4;
+  
+  /* Light mode shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Light mode gradients */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --gradient-secondary: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+  --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
 }
 
 .dark {
-  --color-bg-primary: #0f172a;
-  --color-bg-secondary: #1e293b;
-  --color-bg-tertiary: #334155;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-border: #334155;
-  --color-accent: #60a5fa;
-  --color-accent-hover: #3b82f6;
+  /* Enhanced dark mode colors with better contrast */
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #111111;
+  --color-bg-tertiary: #1a1a1a;
+  --color-bg-quaternary: #222222;
+  --color-text-primary: #f0f6fc;
+  --color-text-secondary: #c9d1d9;
+  --color-text-muted: #8b949e;
+  --color-border: #30363d;
+  --color-border-secondary: #21262d;
+  --color-accent: #1f6feb;
+  --color-accent-hover: #0969da;
+  --color-accent-secondary: #a855f7;
+  --color-success: #238636;
+  --color-warning: #9a6700;
+  --color-danger: #da3633;
+  --color-info: #0969da;
+  
+  /* Enhanced dark mode shadows with better depth */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  
+  /* Enhanced dark mode gradients */
+  --gradient-primary: linear-gradient(135deg, #1f6feb 0%, #a855f7 100%);
+  --gradient-secondary: linear-gradient(135deg, #238636 0%, #1f6feb 100%);
+  --gradient-accent: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
 }
 
 /* Enhanced theme transitions */
@@ -65,17 +108,261 @@
   outline-offset: 2px;
 }
 
-/* Dark mode specific component styles */
+/* Enhanced Dark Mode Component Styles */
+
+/* Dark mode backgrounds */
+.dark .bg-white {
+  background-color: var(--color-bg-secondary) !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: var(--color-bg-quaternary) !important;
+}
+
+/* Dark mode text colors */
+.dark .text-gray-900 {
+  color: var(--color-text-primary) !important;
+}
+
+.dark .text-gray-700 {
+  color: var(--color-text-secondary) !important;
+}
+
+.dark .text-gray-600 {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .text-gray-500 {
+  color: var(--color-text-muted) !important;
+}
+
+/* Dark mode borders */
+.dark .border-gray-200 {
+  border-color: var(--color-border) !important;
+}
+
+.dark .border-gray-300 {
+  border-color: var(--color-border-secondary) !important;
+}
+
+/* Dark mode shadows */
+.dark .shadow-sm {
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.dark .shadow-md {
+  box-shadow: var(--shadow-md) !important;
+}
+
+.dark .shadow-lg {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.dark .shadow-xl {
+  box-shadow: var(--shadow-xl) !important;
+}
+
+/* Dark mode gradients */
 .dark .bg-gradient-to-r {
   background-image: linear-gradient(to right, var(--color-bg-secondary), var(--color-bg-tertiary));
 }
 
-.dark .shadow-lg {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+.dark .bg-gradient-to-br {
+  background-image: var(--gradient-primary);
 }
 
-.dark .shadow-xl {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+/* Dark mode form elements */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1) !important;
+}
+
+/* Dark mode buttons */
+.dark .btn-primary {
+  background-color: var(--color-accent) !important;
+  border-color: var(--color-accent) !important;
+  color: white !important;
+}
+
+.dark .btn-primary:hover {
+  background-color: var(--color-accent-hover) !important;
+  border-color: var(--color-accent-hover) !important;
+}
+
+.dark .btn-secondary {
+  background-color: var(--color-bg-tertiary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.dark .btn-secondary:hover {
+  background-color: var(--color-bg-quaternary) !important;
+  border-color: var(--color-border-secondary) !important;
+}
+
+/* Dark mode cards */
+.dark .card {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.dark .card:hover {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Dark mode tables */
+.dark table {
+  background-color: var(--color-bg-secondary) !important;
+}
+
+.dark th {
+  background-color: var(--color-bg-tertiary) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark td {
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
+}
+
+.dark tr:hover td {
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+/* Dark mode modals */
+.dark .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+.dark .modal-content {
+  background-color: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+/* Dark mode navigation */
+.dark .nav-item {
+  color: var(--color-text-secondary) !important;
+}
+
+.dark .nav-item:hover {
+  color: var(--color-text-primary) !important;
+  background-color: var(--color-bg-tertiary) !important;
+}
+
+.dark .nav-item.active {
+  color: var(--color-accent) !important;
+  background-color: var(--color-bg-quaternary) !important;
+}
+
+/* Dark mode status indicators */
+.dark .status-success {
+  background-color: var(--color-success) !important;
+  color: white !important;
+}
+
+.dark .status-warning {
+  background-color: var(--color-warning) !important;
+  color: white !important;
+}
+
+.dark .status-danger {
+  background-color: var(--color-danger) !important;
+  color: white !important;
+}
+
+.dark .status-info {
+  background-color: var(--color-info) !important;
+  color: white !important;
+}
+
+/* Dark mode loading states */
+.dark .loading-skeleton {
+  background: linear-gradient(90deg, var(--color-bg-tertiary) 25%, var(--color-bg-quaternary) 50%, var(--color-bg-tertiary) 75%) !important;
+  background-size: 200% 100% !important;
+  animation: loading 1.5s infinite !important;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Dark mode selection */
+.dark ::selection {
+  background-color: rgba(31, 111, 235, 0.2);
+  color: var(--color-text-primary);
+}
+
+/* Dark mode focus rings */
+.dark .focus-ring:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Dark mode glassmorphism */
+.dark .glass {
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Dark mode enhanced shadows */
+.dark .shadow-glow {
+  box-shadow: 0 0 20px rgba(31, 111, 235, 0.3);
+}
+
+.dark .shadow-glow-success {
+  box-shadow: 0 0 20px rgba(35, 134, 54, 0.3);
+}
+
+.dark .shadow-glow-warning {
+  box-shadow: 0 0 20px rgba(154, 103, 0, 0.3);
+}
+
+.dark .shadow-glow-danger {
+  box-shadow: 0 0 20px rgba(218, 54, 51, 0.3);
 }
 
 /* Line clamp utilities for text truncation */

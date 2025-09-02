@@ -251,6 +251,12 @@ export const AuthProvider = ({ children }) => {
           
         if (findError) {
           console.error("❌ Error checking existing employee:", findError);
+          console.error("❌ Error details:", {
+            message: findError.message,
+            details: findError.details,
+            hint: findError.hint,
+            code: findError.code
+          });
           return null;
         }
         
@@ -265,7 +271,7 @@ export const AuthProvider = ({ children }) => {
           console.log("🔧 Creating new employee record...");
           const { data: createdEmployee, error: createEmployeeError } = await supabase
             .from("employees")
-                        .upsert({
+            .insert({
               full_name: authUser.email.split('@')[0],
               email: authUser.email,
               department: "Unassigned",
@@ -277,6 +283,12 @@ export const AuthProvider = ({ children }) => {
           
           if (createEmployeeError) {
             console.error("❌ Error creating employee record:", createEmployeeError);
+            console.error("❌ Error details:", {
+              message: createEmployeeError.message,
+              details: createEmployeeError.details,
+              hint: createEmployeeError.hint,
+              code: createEmployeeError.code
+            });
             return null;
           }
           
@@ -306,6 +318,12 @@ export const AuthProvider = ({ children }) => {
         
         if (createUserError) {
           console.error("❌ Error creating user record:", createUserError);
+          console.error("❌ Error details:", {
+            message: createUserError.message,
+            details: createUserError.details,
+            hint: createUserError.hint,
+            code: createUserError.code
+          });
           return null;
         }
         

@@ -38,11 +38,11 @@ const Complaints = () => {
 
   const categories = [
     'Work Environment',
-    'Harassment',
+    'Misconduct',
     'Discrimination',
     'Pay & Benefits',
     'Management Issues',
-    'Safety Concerns',
+    'Concerns',
     'Other'
   ];
 

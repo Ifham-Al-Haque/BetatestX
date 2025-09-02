@@ -101,13 +101,31 @@ const Sidebar = () => {
   if (!user && !userProfile) {
     console.log('🔍 Sidebar: Auth not initialized yet, showing loading state');
     return (
-      <div className={`h-screen bg-gradient-to-b ${isDark ? 'from-slate-800 to-slate-900' : 'from-blue-50 to-white'} border-r ${isDark ? 'border-slate-700' : 'border-gray-200'} shadow-lg flex-shrink-0 w-80 transition-all duration-500`}>
+      <div 
+        className="h-screen border-r shadow-lg flex-shrink-0 w-80 transition-all duration-500"
+        style={{
+          background: 'var(--bg-sidebar)',
+          borderColor: 'var(--border-primary)',
+          color: 'var(--text-primary)'
+        }}
+      >
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-700 to-slate-800' : 'border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700'}`}>
+          <div 
+            className="p-4 border-b"
+            style={{
+              borderColor: 'var(--border-primary)',
+              background: 'var(--gradient-primary)'
+            }}
+          >
             <div className="text-white font-semibold text-lg">UHub</div>
           </div>
           <div className="flex-1 flex items-center justify-center">
-            <div className={`${isDark ? 'text-slate-400' : 'text-gray-500'} transition-colors duration-300`}>Loading...</div>
+            <div 
+              className="transition-colors duration-300"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Loading...
+            </div>
           </div>
         </div>
       </div>
@@ -297,16 +315,34 @@ const Sidebar = () => {
         initial={{ width: isCollapsed ? 80 : 280 }}
         animate={{ width: isCollapsed ? 80 : 280 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className={`h-full bg-gradient-to-b ${isDark ? 'from-slate-800 to-slate-900' : 'from-blue-50 to-white'} border-r ${isDark ? 'border-slate-700' : 'border-gray-200'} shadow-lg transition-all duration-500`}
+        className="h-full border-r shadow-lg transition-all duration-500"
+        style={{
+          background: 'var(--bg-sidebar)',
+          borderColor: 'var(--border-primary)',
+          color: 'var(--text-primary)'
+        }}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className={`p-4 border-b ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-700 to-slate-800' : 'border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700'} transition-all duration-300`}>
+          <div 
+            className="p-4 border-b transition-all duration-300"
+            style={{
+              borderColor: 'var(--border-primary)',
+              background: 'var(--gradient-primary)'
+            }}
+          >
             <div className="flex items-center justify-between">
               <motion.button
                 onClick={toggleSidebar}
-                className="p-2 rounded-lg text-white hover:bg-blue-500 transition-colors duration-200"
-                whileHover={{ scale: 1.05 }}
+                className="p-2 rounded-lg text-white transition-colors duration-200"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(10px)'
+                }}
+                whileHover={{ 
+                  scale: 1.05,
+                  background: 'rgba(255, 255, 255, 0.2)'
+                }}
                 whileTap={{ scale: 0.95 }}
               >
                 {isCollapsed ? (
@@ -331,7 +367,13 @@ const Sidebar = () => {
           </div>
 
           {/* User Profile Section */}
-          <div className={`p-4 border-b ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-700 to-slate-600' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50'} transition-all duration-300`}>
+          <div 
+            className="p-4 border-b transition-all duration-300"
+            style={{
+              borderColor: 'var(--border-primary)',
+              background: 'var(--bg-secondary)'
+            }}
+          >
             <AnimatePresence mode="wait">
               {!isCollapsed ? (
                 <motion.div
@@ -341,16 +383,28 @@ const Sidebar = () => {
                   exit={{ opacity: 0 }}
                   className="flex items-center space-x-3"
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'var(--gradient-accent)',
+                      boxShadow: 'var(--shadow-md)'
+                    }}
+                  >
                     <span className="text-white text-sm font-medium">
                       {userProfile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate transition-colors duration-300 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
+                    <p 
+                      className="text-sm font-medium truncate transition-colors duration-300"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
                       {userProfile?.full_name || 'User'}
                     </p>
-                    <p className={`text-xs truncate transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                    <p 
+                      className="text-xs truncate transition-colors duration-300"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
                       {userProfile?.role || 'No Role'}
                     </p>
                   </div>
@@ -363,7 +417,13 @@ const Sidebar = () => {
                   exit={{ opacity: 0 }}
                   className="flex flex-col items-center space-y-2 w-full"
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'var(--gradient-accent)',
+                      boxShadow: 'var(--shadow-md)'
+                    }}
+                  >
                     <span className="text-white text-sm font-medium">
                       {userProfile?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                     </span>
@@ -387,16 +447,41 @@ const Sidebar = () => {
                 }
                 
                 return (
-                  <div key={panel.key} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                  <div 
+                    key={panel.key} 
+                    className="rounded-lg shadow-sm border overflow-hidden transition-all duration-300"
+                    style={{
+                      background: 'var(--card-bg)',
+                      borderColor: 'var(--card-border)',
+                      boxShadow: 'var(--shadow-sm)'
+                    }}
+                  >
                     {/* Panel Header */}
                     <button
                       onClick={() => togglePanel(panel.key)}
-                      className="w-full p-3 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
+                      className="w-full p-3 flex items-center justify-between transition-colors duration-200"
+                      style={{
+                        background: 'transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = 'var(--card-hover)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = 'transparent';
+                      }}
                     >
                       <div className="flex items-center space-x-3">
-                        <Icon className={`w-5 h-5 transition-colors duration-300 ${isDark ? 'text-slate-300' : 'text-gray-600'}`} />
+                        <Icon 
+                          className="w-5 h-5 transition-colors duration-300"
+                          style={{ color: 'var(--text-secondary)' }}
+                        />
                         {!isCollapsed && (
-                          <span className={`text-sm font-medium transition-colors duration-300 ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>{panel.title}</span>
+                          <span 
+                            className="text-sm font-medium transition-colors duration-300"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            {panel.title}
+                          </span>
                         )}
                       </div>
                       {!isCollapsed && (
@@ -404,7 +489,10 @@ const Sidebar = () => {
                           animate={{ rotate: isExpanded ? 180 : 0 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <ChevronDown className={`w-4 h-4 transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
+                          <ChevronDown 
+                            className="w-4 h-4 transition-colors duration-300"
+                            style={{ color: 'var(--text-muted)' }}
+                          />
                         </motion.div>
                       )}
                     </button>
@@ -434,17 +522,31 @@ const Sidebar = () => {
                                 >
                                   <Link
                                     to={item.path}
-                                    className={`flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-300 ${
-                                      active 
-                                        ? isDark 
-                                          ? 'bg-blue-900/30 text-blue-300 border border-blue-700/50' 
-                                          : 'bg-blue-100 text-blue-700'
-                                        : isDark
-                                          ? 'text-slate-300 hover:text-slate-100 hover:bg-slate-700/50'
-                                          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-                                    } ${isCollapsed ? 'justify-center' : ''}`}
+                                    className={`flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-300 ${isCollapsed ? 'justify-center' : ''}`}
+                                    style={{
+                                      background: active ? 'var(--bg-sidebar-active)' : 'transparent',
+                                      color: active ? 'var(--text-accent)' : 'var(--text-secondary)',
+                                      border: active ? '1px solid var(--border-accent)' : '1px solid transparent'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!active) {
+                                        e.target.style.background = 'var(--bg-sidebar-hover)';
+                                        e.target.style.color = 'var(--text-primary)';
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!active) {
+                                        e.target.style.background = 'transparent';
+                                        e.target.style.color = 'var(--text-secondary)';
+                                      }
+                                    }}
                                   >
-                                    <ItemIcon className={`${isCollapsed ? 'w-6 h-6' : 'w-4 h-4 mr-3'}`} />
+                                    <ItemIcon 
+                                      className={`${isCollapsed ? 'w-6 h-6' : 'w-4 h-4 mr-3'}`}
+                                      style={{ 
+                                        color: active ? 'var(--text-accent)' : 'var(--text-muted)' 
+                                      }}
+                                    />
                                     {!isCollapsed && (
                                       <span>{item.label}</span>
                                     )}
@@ -463,14 +565,28 @@ const Sidebar = () => {
           </div>
 
           {/* Footer */}
-          <div className={`p-4 border-t ${isDark ? 'border-slate-700 bg-gradient-to-r from-slate-800 to-slate-700' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50'} transition-all duration-300`}>
+          <div 
+            className="p-4 border-t transition-all duration-300"
+            style={{
+              borderColor: 'var(--border-primary)',
+              background: 'var(--bg-secondary)'
+            }}
+          >
             <button
               onClick={handleSignOut}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 w-full ${
-                isDark 
-                  ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300' 
-                  : 'text-red-600 hover:bg-red-50'
-              }`}
+              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 w-full"
+              style={{
+                color: 'var(--text-danger)',
+                background: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'var(--accent-danger)';
+                e.target.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'transparent';
+                e.target.style.color = 'var(--text-danger)';
+              }}
             >
               <Settings className="w-5 h-5" />
               <AnimatePresence>
@@ -493,8 +609,20 @@ const Sidebar = () => {
   } catch (error) {
     console.error("Error rendering Sidebar:", error);
     return (
-      <div className={`h-full bg-gradient-to-b ${isDark ? 'from-slate-800 to-slate-900' : 'from-blue-50 to-white'} border-r ${isDark ? 'border-slate-700' : 'border-gray-200'} shadow-lg flex items-center justify-center transition-all duration-500`}>
-        <div className={`transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Error loading sidebar.</div>
+      <div 
+        className="h-full border-r shadow-lg flex items-center justify-center transition-all duration-500"
+        style={{
+          background: 'var(--bg-sidebar)',
+          borderColor: 'var(--border-primary)',
+          color: 'var(--text-primary)'
+        }}
+      >
+        <div 
+          className="transition-colors duration-300"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          Error loading sidebar.
+        </div>
       </div>
     );
   }

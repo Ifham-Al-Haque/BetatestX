@@ -37,7 +37,12 @@ const SummaryCard = ({ title, value, change, iconName, color = 'blue', onClick, 
   
   return (
     <div 
-      className={`summary-card group relative overflow-hidden bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${onClick ? 'cursor-pointer' : ''}`}
+      className={`summary-card group relative overflow-hidden rounded-2xl shadow-lg border p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${onClick ? 'cursor-pointer' : ''}`}
+      style={{
+        background: 'var(--card-bg)',
+        borderColor: 'var(--card-border)',
+        boxShadow: 'var(--shadow-md)'
+      }}
       onClick={onClick}
     >
       {/* Gradient background overlay */}
@@ -45,23 +50,43 @@ const SummaryCard = ({ title, value, change, iconName, color = 'blue', onClick, 
       
       <div className="summary-card-content relative z-10 flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-6">
-          <p className="text-sm font-medium text-gray-600 mb-2 opacity-80">{title}</p>
+          <p 
+            className="text-sm font-medium mb-2 opacity-80"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {title}
+          </p>
           {loading ? (
-            <div className="h-8 bg-gray-200 rounded animate-pulse mb-3"></div>
+            <div 
+              className="h-8 rounded animate-pulse mb-3"
+              style={{ background: 'var(--bg-tertiary)' }}
+            ></div>
           ) : (
-            <p className="text-3xl font-bold text-gray-900 mb-3 leading-tight">{value}</p>
+            <p 
+              className="text-3xl font-bold mb-3 leading-tight"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {value}
+            </p>
           )}
           {change !== undefined && !loading && (
             <div className="flex items-center flex-wrap gap-2">
-              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
-                change >= 0 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-              }`}>
+              <span 
+                className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold"
+                style={{
+                  background: change >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)',
+                  color: 'white'
+                }}
+              >
                 <span className="mr-1">{change >= 0 ? '↗' : '↘'}</span>
                 {change >= 0 ? '+' : ''}{change}%
               </span>
-              <span className="text-xs text-gray-500">vs last month</span>
+              <span 
+                className="text-xs"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                vs last month
+              </span>
             </div>
           )}
         </div>
@@ -71,7 +96,12 @@ const SummaryCard = ({ title, value, change, iconName, color = 'blue', onClick, 
       </div>
       
       {/* Decorative elements */}
-      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-white/20 to-transparent rounded-full -translate-y-10 translate-x-10" />
+      <div 
+        className="absolute top-0 right-0 w-20 h-20 rounded-full -translate-y-10 translate-x-10"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%)'
+        }}
+      />
     </div>
   );
 };
@@ -103,8 +133,13 @@ const QuickActionButton = ({ icon, label, onClick, color = 'blue', variant = 'pr
       className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
         variant === 'primary' 
           ? `${colorVariants[color]} shadow-md hover:shadow-lg` 
-          : `border-2 ${outlineVariants[color]} bg-white`
+          : `border-2 ${outlineVariants[color]}`
       }`}
+      style={variant === 'outline' ? {
+        background: 'var(--card-bg)',
+        borderColor: 'var(--border-primary)',
+        color: 'var(--text-primary)'
+      } : {}}
     >
       {Icon && <Icon className="w-5 h-5" />}
       <span>{label}</span>
@@ -120,15 +155,29 @@ const SectionHeader = ({ title, iconName, action, subtitle, collapsible = false,
   return (
     <div className="section-header">
       <div className="section-header-left">
-        <div className="section-header-icon">
+        <div 
+          className="section-header-icon"
+          style={{
+            background: 'var(--gradient-primary)',
+            boxShadow: 'var(--shadow-md)'
+          }}
+        >
           {Icon && <Icon className="w-6 h-6 text-white" />}
         </div>
         <div className="section-header-text">
-          <h2 className="section-header-title">
+          <h2 
+            className="section-header-title"
+            style={{ color: 'var(--text-primary)' }}
+          >
             {title}
           </h2>
           {subtitle && (
-            <p className="section-header-subtitle">{subtitle}</p>
+            <p 
+              className="section-header-subtitle"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {subtitle}
+            </p>
           )}
         </div>
       </div>
@@ -137,9 +186,21 @@ const SectionHeader = ({ title, iconName, action, subtitle, collapsible = false,
         {collapsible && (
           <button
             onClick={onToggle}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+            className="p-2 rounded-lg transition-colors duration-200"
+            style={{
+              background: 'transparent',
+              color: 'var(--text-muted)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'var(--bg-tertiary)';
+              e.target.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'transparent';
+              e.target.style.color = 'var(--text-muted)';
+            }}
           >
-            <ChevronIcon className="w-5 h-5 text-gray-600" />
+            <ChevronIcon className="w-5 h-5" />
           </button>
         )}
       </div>
@@ -149,9 +210,22 @@ const SectionHeader = ({ title, iconName, action, subtitle, collapsible = false,
 
 // Enhanced Animated Card Component
 const AnimatedCard = ({ children, className = '', delay = 0, gradient = false, collapsible = false, isCollapsed = false }) => (
-  <div className={`animated-card ${gradient ? 'gradient' : ''} ${className}`}>
+  <div 
+    className={`animated-card ${gradient ? 'gradient' : ''} ${className}`}
+    style={{
+      background: 'var(--card-bg)',
+      borderColor: 'var(--card-border)',
+      boxShadow: 'var(--shadow-md)'
+    }}
+  >
     {/* Subtle border gradient */}
-    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+    <div 
+      className="absolute inset-0 rounded-2xl opacity-0 hover:opacity-100 transition-opacity duration-300"
+      style={{
+        background: 'var(--gradient-primary)',
+        opacity: 0.1
+      }}
+    />
     
     {/* Content */}
     <div className={`relative z-10 p-8 transition-all duration-300 ${isCollapsed ? 'max-h-0 overflow-hidden p-0' : ''}`}>
@@ -164,12 +238,23 @@ const AnimatedCard = ({ children, className = '', delay = 0, gradient = false, c
 const TrendChart = ({ data, title, subtitle }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
+      <div 
+        className="flex items-center justify-center h-64 rounded-lg"
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-primary)'
+        }}
+      >
         <div className="text-center">
-          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div 
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            style={{
+              background: 'var(--bg-tertiary)'
+            }}
+          >
             <span className="text-2xl">📊</span>
           </div>
-          <p className="text-gray-500">No data available for {title}</p>
+          <p style={{ color: 'var(--text-muted)' }}>No data available for {title}</p>
         </div>
       </div>
     );
@@ -178,15 +263,39 @@ const TrendChart = ({ data, title, subtitle }) => {
   return (
     <div className="w-full">
       <div className="mb-4">
-        <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
-        {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+        <h4 
+          className="text-lg font-semibold"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {title}
+        </h4>
+        {subtitle && (
+          <p 
+            className="text-sm"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {subtitle}
+          </p>
+        )}
       </div>
-      <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+      <div 
+        className="h-64 rounded-lg flex items-center justify-center"
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-primary)'
+        }}
+      >
         <div className="text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div 
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            style={{
+              background: 'var(--accent-primary)',
+              opacity: 0.1
+            }}
+          >
             <span className="text-2xl">📈</span>
           </div>
-          <p className="text-gray-500">Chart visualization coming soon</p>
+          <p style={{ color: 'var(--text-muted)' }}>Chart visualization coming soon</p>
         </div>
       </div>
     </div>
@@ -370,7 +479,13 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+      <div 
+        className="min-h-screen transition-all duration-500"
+        style={{
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)'
+        }}
+      >
         <div className="page-content">
           <LoadingSpinner size="xl" text="Loading dashboard data..." />
         </div>
@@ -379,7 +494,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30">
+    <div 
+      className="min-h-screen transition-all duration-500"
+      style={{
+        background: 'var(--bg-primary)',
+        color: 'var(--text-primary)'
+      }}
+    >
       <div className="page-content">
         {/* Enhanced Welcome Section */}
         <div className="welcome-section">

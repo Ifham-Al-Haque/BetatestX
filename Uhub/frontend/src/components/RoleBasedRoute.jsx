@@ -155,9 +155,9 @@ export const FEATURE_ACCESS = {
   fleet_records: ['admin', 'driver_management', 'data_operator'],
   breakdowns: ['admin', 'driver_management'],
   
-  // Asset Management Panel - Admin, HR Manager, Driver Management, and Manager
-  assets: ['admin', 'hr_manager', 'driver_management', 'manager', 'it_management'],
-  simcards: ['admin', 'hr_manager', 'driver_management', 'manager', 'finance', 'it_management'], // Allow HR managers, driver management, managers, finance, and IT management to access SIM cards
+  // Asset Management Panel - Admin, HR Manager, and Manager (removed driver_management)
+  assets: ['admin', 'hr_manager', 'manager', 'it_management'],
+  simcards: ['admin', 'hr_manager', 'manager', 'finance', 'it_management'], // Allow HR managers, managers, finance, and IT management to access SIM cards
   vouchers: ['admin', 'finance'],
   
   // Financial Panel - Different access levels
@@ -284,7 +284,7 @@ export const getRoleNavigationAccess = (userRole) => {
       }
     },
     driver_management: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management'],
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         user_profile: ['profile', 'settings'],
@@ -293,8 +293,7 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
-        asset_management: ['assets', 'simcards']
+        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns']
       }
     },
     hr_manager: {

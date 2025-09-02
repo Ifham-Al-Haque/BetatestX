@@ -69,8 +69,17 @@ export const itServicesApi = {
 
       // Apply role-based filtering
       if (userRole === 'employee' || (!userRole && userId)) {
-        // Regular users can only see their own requests
-        query = query.eq('requester_id', userId);
+        // For regular users, we need to get their employee_id from the users table
+        // and then filter requests by that employee_id
+        const { data: userData } = await supabase
+          .from('users')
+          .select('employee_id')
+          .eq('id', userId)
+          .single();
+        
+        if (userData?.employee_id) {
+          query = query.eq('requester_id', userData.employee_id);
+        }
       }
       // Tech roles and admins can see all requests (no additional filtering needed)
 

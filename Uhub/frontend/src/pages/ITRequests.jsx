@@ -1,45 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Search, Filter, FileText, Clock, User, 
   AlertCircle, CheckCircle, XCircle, MoreHorizontal,
   Edit, Trash2, Eye, Calendar, Tag, Building,
-  Wrench, Settings, AlertTriangle
+  Wrench, Settings, AlertTriangle, Paperclip, MessageCircle,
+  TrendingUp, BarChart3, Download, Upload, Star,
+  ChevronDown, ChevronUp, Filter as FilterIcon, SortAsc,
+  RefreshCw, Bell, BellRing, Archive, Flag, Zap,
+  Users, Timer, Target, Award, Activity, Globe
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useTheme } from '../context/ThemeContext';
 import { itServicesApi } from '../services/itServicesApi';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
-import { AnimatePresence } from 'framer-motion';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ITAnalytics from '../components/ITAnalytics';
+import MobileOptimized from '../components/MobileOptimized';
+import { usePWA } from '../hooks/usePWA';
+import offlineStorage from '../services/offlineStorage';
+import { emailService } from '../services/emailService';
+import { workflowService } from '../services/workflowService';
+import { integrationService } from '../services/integrationService';
 
 const ITRequests = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
+  const { isDark } = useTheme();
+  const { isOnline, canInstall, install } = usePWA();
   
+  // Core state
   const [requests, setRequests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // UI state
   const [showForm, setShowForm] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // grid, list, kanban
+  
+  // Enhanced filters
   const [filters, setFilters] = useState({
     status: '',
     category_id: '',
     priority_id: '',
-    search: ''
+    search: '',
+    dateRange: '',
+    assignedTo: '',
+    sortBy: 'created_at',
+    sortOrder: 'desc'
   });
 
+  // Enhanced form data
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category_id: '',
     priority_id: '',
     request_type: 'it_service',
-    estimated_completion_date: ''
+    estimated_completion_date: '',
+    attachments: [],
+    comments: []
+  });
+
+  // File attachment state
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  // Comments state
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState({
+    totalRequests: 0,
+    openRequests: 0,
+    inProgressRequests: 0,
+    resolvedRequests: 0,
+    averageResolutionTime: 0,
+    categoryBreakdown: [],
+    priorityBreakdown: [],
+    monthlyTrends: []
   });
 
   useEffect(() => {
@@ -49,15 +100,17 @@ const ITRequests = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [categoriesData, prioritiesData, requestsData] = await Promise.all([
+      const [categoriesData, prioritiesData, requestsData, analyticsData] = await Promise.all([
         itServicesApi.categories.getAll(),
         itServicesApi.priorities.getAll(),
-        itServicesApi.requests.getAll(filters, user?.id, userProfile?.role)
+        itServicesApi.requests.getAll(filters, user?.id, userProfile?.role),
+        fetchAnalytics()
       ]);
 
       setCategories(categoriesData);
       setPriorities(prioritiesData);
       setRequests(requestsData.data || []);
+      setAnalytics(analyticsData);
     } catch (err) {
       console.error('Error fetching data:', err);
       showError('Error', 'Failed to fetch data. Please try again.');
@@ -66,22 +119,86 @@ const ITRequests = () => {
     }
   };
 
+  const fetchAnalytics = async () => {
+    try {
+      const stats = await itServicesApi.requests.getStats(user?.id, userProfile?.role);
+      return {
+        totalRequests: stats.total_requests,
+        openRequests: stats.open_requests,
+        inProgressRequests: stats.in_progress_requests,
+        resolvedRequests: stats.resolved_requests,
+        averageResolutionTime: 0, // Will be calculated
+        categoryBreakdown: [],
+        priorityBreakdown: [],
+        monthlyTrends: []
+      };
+    } catch (err) {
+      console.error('Error fetching analytics:', err);
+      return analytics;
+    }
+  };
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
       const requestData = {
         ...formData,
-        requester_id: user.id,
-        estimated_completion_date: formData.estimated_completion_date || null
+        requester_id: userProfile?.employee_id || user.id, // Use employee_id if available, fallback to user.id
+        estimated_completion_date: formData.estimated_completion_date || null,
+        attachments: attachments,
+        comments: comments
       };
 
-      if (editingRequest) {
-        await itServicesApi.requests.update(editingRequest.id, requestData);
-        success('Success', 'Request updated successfully!');
+      if (isOnline) {
+        // Online: Submit directly to server
+        if (editingRequest) {
+          await itServicesApi.requests.update(editingRequest.id, requestData);
+          success('Success', 'Request updated successfully!');
+        } else {
+          const newRequest = await itServicesApi.requests.create(requestData);
+          success('Success', 'Request submitted successfully!');
+          
+          // Send email notification
+          try {
+            await emailService.sendRequestStatusUpdate(
+              newRequest, 
+              user.email, 
+              'created', 
+              'open'
+            );
+          } catch (emailError) {
+            console.warn('Failed to send email notification:', emailError);
+          }
+        }
       } else {
-        await itServicesApi.requests.create(requestData);
-        success('Success', 'Request submitted successfully!');
+        // Offline: Save to local storage
+        if (editingRequest) {
+          await offlineStorage.saveOfflineRequest({
+            ...requestData,
+            id: editingRequest.id,
+            action: 'update'
+          });
+          success('Success', 'Request saved offline. Will sync when online.');
+        } else {
+          await offlineStorage.saveOfflineRequest({
+            ...requestData,
+            action: 'create'
+          });
+          success('Success', 'Request saved offline. Will sync when online.');
+        }
+        
+        // Add to sync queue
+        await offlineStorage.addToSyncQueue(
+          editingRequest ? 'update_request' : 'create_request',
+          requestData
+        );
       }
 
       setShowForm(false);
@@ -127,31 +244,225 @@ const ITRequests = () => {
       category_id: '',
       priority_id: '',
       request_type: 'it_service',
-      estimated_completion_date: ''
+      estimated_completion_date: '',
+      attachments: [],
+      comments: []
     });
+    setAttachments([]);
+    setComments([]);
   };
 
+  // File attachment handlers
+  const handleFileUpload = async (files) => {
+    setUploadingFiles(true);
+    try {
+      const uploadedFiles = [];
+      for (const file of files) {
+        // In a real implementation, you would upload to a file storage service
+        const fileData = {
+          id: Date.now() + Math.random(),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: URL.createObjectURL(file), // Temporary URL for demo
+          uploadedAt: new Date().toISOString()
+        };
+        uploadedFiles.push(fileData);
+      }
+      setAttachments(prev => [...prev, ...uploadedFiles]);
+      success('Success', `${uploadedFiles.length} file(s) uploaded successfully!`);
+    } catch (err) {
+      showError('Error', 'Failed to upload files. Please try again.');
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
+
+  const removeAttachment = (fileId) => {
+    setAttachments(prev => prev.filter(file => file.id !== fileId));
+  };
+
+  // Comments handlers
+  const addComment = async () => {
+    if (!newComment.trim()) return;
+    
+    const comment = {
+      id: Date.now(),
+      text: newComment,
+      author: userProfile?.full_name || user?.email,
+      authorId: user?.id,
+      createdAt: new Date().toISOString(),
+      isInternal: false
+    };
+    
+    setComments(prev => [...prev, comment]);
+    setNewComment('');
+    success('Success', 'Comment added successfully!');
+  };
+
+  const removeComment = (commentId) => {
+    setComments(prev => prev.filter(comment => comment.id !== commentId));
+  };
+
+  // Enhanced filtering and sorting
+  const filteredAndSortedRequests = useMemo(() => {
+    let filtered = requests;
+
+    // Apply search filter
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filtered = filtered.filter(request =>
+        request.title.toLowerCase().includes(searchTerm) ||
+        request.description?.toLowerCase().includes(searchTerm) ||
+        request.request_number?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Apply date range filter
+    if (filters.dateRange) {
+      const now = new Date();
+      const daysAgo = parseInt(filters.dateRange);
+      const cutoffDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+      filtered = filtered.filter(request =>
+        new Date(request.created_at) >= cutoffDate
+      );
+    }
+
+    // Sort requests
+    filtered.sort((a, b) => {
+      const aValue = a[filters.sortBy];
+      const bValue = b[filters.sortBy];
+      
+      if (filters.sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    return filtered;
+  }, [requests, filters]);
+
+  // Check if user has admin/IT management access
+  const isAdminOrITManager = useMemo(() => {
+    return userProfile?.role === 'admin' || userProfile?.role === 'it_management';
+  }, [userProfile?.role]);
+
   const getPriorityColor = (priority) => {
-    if (!priority) return 'bg-gray-100 text-gray-800 border-gray-200';
+    if (!priority) return {
+      bg: 'var(--bg-tertiary)',
+      text: 'var(--text-muted)',
+      border: 'var(--border-primary)',
+      icon: 'Flag'
+    };
     
     const level = priority.level;
-    if (level === 1) return 'bg-red-100 text-red-800 border-red-200';
-    if (level === 2) return 'bg-orange-100 text-orange-800 border-orange-200';
-    if (level === 3) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    if (level === 4) return 'bg-green-100 text-green-800 border-green-200';
-    return 'bg-gray-100 text-gray-800 border-gray-200';
+    if (level === 1) return {
+      bg: 'var(--accent-danger)',
+      text: 'white',
+      border: 'var(--accent-danger)',
+      icon: 'AlertTriangle'
+    };
+    if (level === 2) return {
+      bg: 'var(--accent-warning)',
+      text: 'white',
+      border: 'var(--accent-warning)',
+      icon: 'Zap'
+    };
+    if (level === 3) return {
+      bg: 'var(--accent-info)',
+      text: 'white',
+      border: 'var(--accent-info)',
+      icon: 'Clock'
+    };
+    if (level === 4) return {
+      bg: 'var(--accent-success)',
+      text: 'white',
+      border: 'var(--accent-success)',
+      icon: 'CheckCircle'
+    };
+    return {
+      bg: 'var(--bg-tertiary)',
+      text: 'var(--text-muted)',
+      border: 'var(--border-primary)',
+      icon: 'Flag'
+    };
   };
 
   const getStatusColor = (status) => {
     const statusColors = {
-      'open': 'bg-blue-100 text-blue-800 border-blue-200',
-      'in_progress': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'pending_user': 'bg-orange-100 text-orange-800 border-orange-200',
-      'resolved': 'bg-green-100 text-green-800 border-green-200',
-      'closed': 'bg-gray-100 text-gray-800 border-gray-200',
-      'cancelled': 'bg-red-100 text-red-800 border-red-200'
+      'open': {
+        bg: 'var(--accent-primary)',
+        text: 'white',
+        border: 'var(--accent-primary)',
+        icon: 'AlertCircle'
+      },
+      'assigned': {
+        bg: 'var(--accent-info)',
+        text: 'white',
+        border: 'var(--accent-info)',
+        icon: 'User'
+      },
+      'in_progress': {
+        bg: 'var(--accent-warning)',
+        text: 'white',
+        border: 'var(--accent-warning)',
+        icon: 'Activity'
+      },
+      'pending_user': {
+        bg: 'var(--accent-secondary)',
+        text: 'white',
+        border: 'var(--accent-secondary)',
+        icon: 'Clock'
+      },
+      'resolved': {
+        bg: 'var(--accent-success)',
+        text: 'white',
+        border: 'var(--accent-success)',
+        icon: 'CheckCircle'
+      },
+      'closed': {
+        bg: 'var(--bg-tertiary)',
+        text: 'var(--text-muted)',
+        border: 'var(--border-primary)',
+        icon: 'Archive'
+      },
+      'cancelled': {
+        bg: 'var(--accent-danger)',
+        text: 'white',
+        border: 'var(--accent-danger)',
+        icon: 'XCircle'
+      }
     };
-    return statusColors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
+    return statusColors[status] || {
+      bg: 'var(--bg-tertiary)',
+      text: 'var(--text-muted)',
+      border: 'var(--border-primary)',
+      icon: 'HelpCircle'
+    };
+  };
+
+  const getStatusIcon = (status) => {
+    const icons = {
+      'open': AlertCircle,
+      'assigned': User,
+      'in_progress': Activity,
+      'pending_user': Clock,
+      'resolved': CheckCircle,
+      'closed': Archive,
+      'cancelled': XCircle
+    };
+    return icons[status] || AlertCircle;
+  };
+
+  const getPriorityIcon = (priority) => {
+    if (!priority) return Flag;
+    const level = priority.level;
+    if (level === 1) return AlertTriangle;
+    if (level === 2) return Zap;
+    if (level === 3) return Clock;
+    if (level === 4) return CheckCircle;
+    return Flag;
   };
 
   const formatDate = (dateString) => {
@@ -186,120 +497,442 @@ const ITRequests = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading IT requests...</p>
-        </div>
+      <div 
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)'
+        }}
+      >
+        <LoadingSpinner size="xl" text="Loading IT requests..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <MobileOptimized currentPage="it-requests">
+      <div 
+        className="min-h-screen p-6 transition-all duration-500"
+        style={{
+          background: 'var(--bg-primary)',
+          color: 'var(--text-primary)'
+        }}
+      >
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+        {/* Enhanced Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+            <div className="flex-1">
+              <div className="flex items-center gap-4 mb-4">
+                <div 
+                  className="p-3 rounded-xl"
+                  style={{
+                    background: 'var(--gradient-primary)',
+                    boxShadow: 'var(--shadow-md)'
+                  }}
+                >
+                  <FileText className="w-8 h-8 text-white" />
+                </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">IT Service Requests</h1>
-              <p className="text-gray-600">Submit and manage your IT service requests</p>
+                  <h1 
+                    className="text-4xl font-bold mb-2"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    IT Service Requests
+                  </h1>
+                  <p 
+                    className="text-lg"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Submit and manage your IT service requests with enhanced tracking
+                  </p>
             </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={refreshData}
+                disabled={refreshing}
+                className="flex items-center gap-2"
+                style={{
+                  background: 'var(--card-bg)',
+                  borderColor: 'var(--card-border)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </Button>
+              
+              {isAdminOrITManager && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAnalytics(!showAnalytics)}
+                  className="flex items-center gap-2"
+                  style={{
+                    background: 'var(--card-bg)',
+                    borderColor: 'var(--card-border)',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Analytics</span>
+                </Button>
+              )}
+              
             <Button
               onClick={() => {
                 setEditingRequest(null);
                 resetForm();
                 setShowForm(true);
               }}
-              className="flex items-center space-x-2"
+                className="flex items-center gap-2"
+                style={{
+                  background: 'var(--gradient-primary)',
+                  color: 'white',
+                  boxShadow: 'var(--shadow-md)'
+                }}
             >
               <Plus className="w-4 h-4" />
               <span>New Request</span>
             </Button>
+            </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <AlertTriangle className="w-5 h-5 text-blue-600" />
+          {/* Enhanced Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card 
+                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                style={{
+                  background: 'var(--card-bg)',
+                  borderColor: 'var(--card-border)',
+                  boxShadow: 'var(--shadow-md)'
+                }}
+                onClick={() => setFilters({ ...filters, status: 'open' })}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div 
+                        className="p-3 rounded-xl"
+                        style={{
+                          background: 'var(--accent-primary)',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <AlertCircle className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {requests.filter(r => r.status === 'open').length}
-                    </p>
-                    <p className="text-sm text-gray-600">Open</p>
+                        <p 
+                          className="text-3xl font-bold mb-1"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {analytics.openRequests}
+                        </p>
+                        <p 
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Open Requests
+                        </p>
                   </div>
+                    </div>
+                    <TrendingUp className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Clock className="w-5 h-5 text-yellow-600" />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card 
+                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                style={{
+                  background: 'var(--card-bg)',
+                  borderColor: 'var(--card-border)',
+                  boxShadow: 'var(--shadow-md)'
+                }}
+                onClick={() => setFilters({ ...filters, status: 'in_progress' })}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div 
+                        className="p-3 rounded-xl"
+                        style={{
+                          background: 'var(--accent-warning)',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <Activity className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {requests.filter(r => r.status === 'in_progress').length}
-                    </p>
-                    <p className="text-sm text-gray-600">In Progress</p>
+                        <p 
+                          className="text-3xl font-bold mb-1"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {analytics.inProgressRequests}
+                        </p>
+                        <p 
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          In Progress
+                        </p>
                   </div>
+                    </div>
+                    <Timer className="w-5 h-5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card 
+                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                style={{
+                  background: 'var(--card-bg)',
+                  borderColor: 'var(--card-border)',
+                  boxShadow: 'var(--shadow-md)'
+                }}
+                onClick={() => setFilters({ ...filters, status: 'resolved' })}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div 
+                        className="p-3 rounded-xl"
+                        style={{
+                          background: 'var(--accent-success)',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <CheckCircle className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {requests.filter(r => r.status === 'resolved').length}
-                    </p>
-                    <p className="text-sm text-gray-600">Resolved</p>
+                        <p 
+                          className="text-3xl font-bold mb-1"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {analytics.resolvedRequests}
+                        </p>
+                        <p 
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Resolved
+                        </p>
                   </div>
+                    </div>
+                    <Award className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <FileText className="w-5 h-5 text-purple-600" />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Card 
+                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                style={{
+                  background: 'var(--card-bg)',
+                  borderColor: 'var(--card-border)',
+                  boxShadow: 'var(--shadow-md)'
+                }}
+                onClick={() => setFilters({ ...filters, status: '' })}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div 
+                        className="p-3 rounded-xl"
+                        style={{
+                          background: 'var(--accent-secondary)',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <FileText className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {requests.length}
-                    </p>
-                    <p className="text-sm text-gray-600">Total</p>
+                        <p 
+                          className="text-3xl font-bold mb-1"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {analytics.totalRequests}
+                        </p>
+                        <p 
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Total Requests
+                        </p>
                   </div>
+                    </div>
+                    <Target className="w-5 h-5 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Filters */}
-        <Card className="mb-6">
+        {/* Enhanced Filters & Controls */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card 
+            className="mb-6"
+            style={{
+              background: 'var(--card-bg)',
+              borderColor: 'var(--card-border)',
+              boxShadow: 'var(--shadow-md)'
+            }}
+          >
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                <div className="flex items-center gap-4">
+                  <h3 
+                    className="text-lg font-semibold"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    Filters & Controls
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="flex items-center gap-2"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        borderColor: 'var(--border-primary)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <FilterIcon className="w-4 h-4" />
+                      <span>Advanced</span>
+                      {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Label 
+                      htmlFor="view-mode"
+                      className="text-sm font-medium"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      View:
+                    </Label>
+                    <select
+                      id="view-mode"
+                      value={viewMode}
+                      onChange={(e) => setViewMode(e.target.value)}
+                      className="px-3 py-1 text-sm rounded-md border"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        borderColor: 'var(--border-primary)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <option value="grid">Grid</option>
+                      <option value="list">List</option>
+                      <option value="kanban">Kanban</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Label 
+                      htmlFor="sort-by"
+                      className="text-sm font-medium"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Sort:
+                    </Label>
+                    <select
+                      id="sort-by"
+                      value={filters.sortBy}
+                      onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+                      className="px-3 py-1 text-sm rounded-md border"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        borderColor: 'var(--border-primary)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <option value="created_at">Date Created</option>
+                      <option value="title">Title</option>
+                      <option value="status">Status</option>
+                      <option value="priority_id">Priority</option>
+                    </select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFilters({ 
+                        ...filters, 
+                        sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' 
+                      })}
+                      className="p-1"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        borderColor: 'var(--border-primary)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <SortAsc className={`w-4 h-4 ${filters.sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Basic Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor="status-filter">Status</Label>
+                  <Label 
+                    htmlFor="status-filter"
+                    className="text-sm font-medium mb-2 block"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    Status
+                  </Label>
                 <select
                   id="status-filter"
                   value={filters.status}
                   onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      borderColor: 'var(--border-primary)',
+                      color: 'var(--text-primary)'
+                    }}
                 >
                   <option value="">All Statuses</option>
                   <option value="open">Open</option>
+                    <option value="assigned">Assigned</option>
                   <option value="in_progress">In Progress</option>
                   <option value="pending_user">Pending User</option>
                   <option value="resolved">Resolved</option>
@@ -309,12 +942,23 @@ const ITRequests = () => {
               </div>
               
               <div>
-                <Label htmlFor="category-filter">Category</Label>
+                  <Label 
+                    htmlFor="category-filter"
+                    className="text-sm font-medium mb-2 block"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    Category
+                  </Label>
                 <select
                   id="category-filter"
                   value={filters.category_id}
                   onChange={(e) => setFilters({ ...filters, category_id: e.target.value })}
-                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      borderColor: 'var(--border-primary)',
+                      color: 'var(--text-primary)'
+                    }}
                 >
                   <option value="">All Categories</option>
                   {categories.map(category => (
@@ -324,12 +968,23 @@ const ITRequests = () => {
               </div>
               
               <div>
-                <Label htmlFor="priority-filter">Priority</Label>
+                  <Label 
+                    htmlFor="priority-filter"
+                    className="text-sm font-medium mb-2 block"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    Priority
+                  </Label>
                 <select
                   id="priority-filter"
                   value={filters.priority_id}
                   onChange={(e) => setFilters({ ...filters, priority_id: e.target.value })}
-                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      borderColor: 'var(--border-primary)',
+                      color: 'var(--text-primary)'
+                    }}
                 >
                   <option value="">All Priorities</option>
                   {priorities.map(priority => (
@@ -339,128 +994,464 @@ const ITRequests = () => {
               </div>
               
               <div>
-                <Label htmlFor="search-filter">Search</Label>
+                  <Label 
+                    htmlFor="search-filter"
+                    className="text-sm font-medium mb-2 block"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    Search
+                  </Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                 <Input
                   id="search-filter"
                   type="text"
                   placeholder="Search requests..."
                   value={filters.search}
                   onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                  className="mt-1"
+                      className="pl-10"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        borderColor: 'var(--border-primary)',
+                        color: 'var(--text-primary)'
+                      }}
                 />
               </div>
             </div>
+              </div>
+
+              {/* Advanced Filters */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-6 pt-6 border-t"
+                    style={{ borderColor: 'var(--border-primary)' }}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label 
+                          htmlFor="date-range"
+                          className="text-sm font-medium mb-2 block"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Date Range
+                        </Label>
+                        <select
+                          id="date-range"
+                          value={filters.dateRange}
+                          onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
+                          className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
+                        >
+                          <option value="">All Time</option>
+                          <option value="1">Last 24 hours</option>
+                          <option value="7">Last 7 days</option>
+                          <option value="30">Last 30 days</option>
+                          <option value="90">Last 3 months</option>
+                        </select>
+                      </div>
+                      
+                      {isAdminOrITManager && (
+                        <div>
+                          <Label 
+                            htmlFor="assigned-to"
+                            className="text-sm font-medium mb-2 block"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Assigned To
+                          </Label>
+                          <select
+                            id="assigned-to"
+                            value={filters.assignedTo}
+                            onChange={(e) => setFilters({ ...filters, assignedTo: e.target.value })}
+                            className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            style={{
+                              background: 'var(--bg-tertiary)',
+                              borderColor: 'var(--border-primary)',
+                              color: 'var(--text-primary)'
+                            }}
+                          >
+                            <option value="">All Assignees</option>
+                            <option value="unassigned">Unassigned</option>
+                            {/* Add user options here */}
+                          </select>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setFilters({
+                            status: '',
+                            category_id: '',
+                            priority_id: '',
+                            search: '',
+                            dateRange: '',
+                            assignedTo: '',
+                            sortBy: 'created_at',
+                            sortOrder: 'desc'
+                          })}
+                          className="w-full"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
+                        >
+                          Clear Filters
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
           </CardContent>
         </Card>
+        </motion.div>
 
-        {/* Requests List */}
-        <div className="space-y-4">
-          {requests.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No requests found</h3>
-                <p className="text-gray-600">You haven't submitted any IT service requests yet.</p>
+        {/* Enhanced Requests List */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="space-y-6"
+        >
+          {filteredAndSortedRequests.length === 0 ? (
+            <Card 
+              className="text-center py-12"
+              style={{
+                background: 'var(--card-bg)',
+                borderColor: 'var(--card-border)',
+                boxShadow: 'var(--shadow-md)'
+              }}
+            >
+              <CardContent className="p-8">
+                <div 
+                  className="w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center"
+                  style={{
+                    background: 'var(--bg-tertiary)',
+                    border: '2px solid var(--border-primary)'
+                  }}
+                >
+                  <FileText className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />
+                </div>
+                <h3 
+                  className="text-xl font-semibold mb-3"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  No requests found
+                </h3>
+                <p 
+                  className="text-lg mb-6"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {filters.search || filters.status || filters.category_id || filters.priority_id
+                    ? 'No requests match your current filters. Try adjusting your search criteria.'
+                    : 'You haven\'t submitted any IT service requests yet.'}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button
                   onClick={() => setShowForm(true)}
-                  className="mt-4"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Submit Your First Request
+                    className="flex items-center gap-2"
+                    style={{
+                      background: 'var(--gradient-primary)',
+                      color: 'white',
+                      boxShadow: 'var(--shadow-md)'
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Submit Your First Request</span>
                 </Button>
+                  {(filters.search || filters.status || filters.category_id || filters.priority_id) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setFilters({
+                        status: '',
+                        category_id: '',
+                        priority_id: '',
+                        search: '',
+                        dateRange: '',
+                        assignedTo: '',
+                        sortBy: 'created_at',
+                        sortOrder: 'desc'
+                      })}
+                      className="flex items-center gap-2"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        borderColor: 'var(--border-primary)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Clear Filters</span>
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : (
-            requests.map((request) => {
+            <div className="grid gap-6">
+              {filteredAndSortedRequests.map((request, index) => {
               const sla = getSLAStatus(request);
+                const statusColor = getStatusColor(request.status);
+                const priorityColor = getPriorityColor(request.priority);
+                const StatusIcon = getStatusIcon(request.status);
+                const PriorityIcon = getPriorityIcon(request.priority);
+                
               return (
-                <Card key={request.id} className="hover:shadow-md transition-shadow">
+                  <motion.div
+                    key={request.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card 
+                      className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                      style={{
+                        background: 'var(--card-bg)',
+                        borderColor: 'var(--card-border)',
+                        boxShadow: 'var(--shadow-md)'
+                      }}
+                      onClick={() => setSelectedRequest(request)}
+                    >
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                          {/* Main Content */}
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-3">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                            {/* Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                              <div className="flex items-center gap-3">
+                                <h3 
+                                  className="text-xl font-semibold group-hover:underline"
+                                  style={{ color: 'var(--text-primary)' }}
+                                >
                             {request.title}
                           </h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(request.priority)}`}>
-                            {request.priority?.name || 'Unknown'}
+                                {request.request_number && (
+                                  <span 
+                                    className="px-2 py-1 text-xs font-mono rounded-md"
+                                    style={{
+                                      background: 'var(--bg-tertiary)',
+                                      color: 'var(--text-muted)',
+                                      border: '1px solid var(--border-primary)'
+                                    }}
+                                  >
+                                    {request.request_number}
                           </span>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(request.status)}`}>
-                            {request.status}
+                                )}
+                              </div>
+                              
+                              {/* Status and Priority Badges */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span 
+                                  className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
+                                  style={{
+                                    background: statusColor.bg,
+                                    color: statusColor.text,
+                                    border: `1px solid ${statusColor.border}`
+                                  }}
+                                >
+                                  <StatusIcon className="w-4 h-4" />
+                                  {request.status.replace('_', ' ').toUpperCase()}
                           </span>
+                                
+                                <span 
+                                  className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
+                                  style={{
+                                    background: priorityColor.bg,
+                                    color: priorityColor.text,
+                                    border: `1px solid ${priorityColor.border}`
+                                  }}
+                                >
+                                  <PriorityIcon className="w-4 h-4" />
+                                  {request.priority?.name || 'Unknown'}
+                                </span>
+                                
                           {sla && (
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
-                              sla.status === 'overdue' ? 'bg-red-100 text-red-800 border-red-200' :
-                              sla.status === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                              'bg-green-100 text-green-800 border-green-200'
-                            }`}>
+                                  <span 
+                                    className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2 ${
+                                      sla.status === 'overdue' ? 'bg-red-500 text-white' :
+                                      sla.status === 'warning' ? 'bg-yellow-500 text-white' :
+                                      'bg-green-500 text-white'
+                                    }`}
+                                  >
+                                    <Timer className="w-4 h-4" />
                               {sla.status === 'overdue' ? `Overdue ${sla.hours}h` :
                                sla.status === 'warning' ? `${sla.hours}h left` :
                                `${sla.hours}h left`}
                             </span>
                           )}
+                              </div>
                         </div>
                         
-                        <p className="text-gray-600 mb-3">{request.description}</p>
-                        
-                        <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
-                          <span className="flex items-center space-x-1">
+                            {/* Description */}
+                            <p 
+                              className="text-base mb-4 line-clamp-2"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
+                              {request.description}
+                            </p>
+                            
+                            {/* Meta Information */}
+                            <div className="flex flex-wrap items-center gap-4 text-sm mb-4">
+                              <span 
+                                className="flex items-center gap-2"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
                             <Tag className="w-4 h-4" />
-                            {request.category?.name || 'Unknown'}
+                                {request.category?.name || 'Unknown Category'}
                           </span>
-                          <span className="flex items-center space-x-1">
+                              <span 
+                                className="flex items-center gap-2"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
                             <Calendar className="w-4 h-4" />
                             {formatDate(request.created_at)}
                           </span>
                           {request.assigned_to && (
-                            <span className="flex items-center space-x-1">
-                              <Wrench className="w-4 h-4" />
+                                <span 
+                                  className="flex items-center gap-2"
+                                  style={{ color: 'var(--text-muted)' }}
+                                >
+                                  <User className="w-4 h-4" />
                               Assigned to {request.assignee?.full_name || 'Unknown'}
+                            </span>
+                          )}
+                              {request.attachments && request.attachments.length > 0 && (
+                                <span 
+                                  className="flex items-center gap-2"
+                                  style={{ color: 'var(--text-muted)' }}
+                                >
+                                  <Paperclip className="w-4 h-4" />
+                                  {request.attachments.length} attachment(s)
+                                </span>
+                              )}
+                              {request.comments && request.comments.length > 0 && (
+                                <span 
+                                  className="flex items-center gap-2"
+                                  style={{ color: 'var(--text-muted)' }}
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                  {request.comments.length} comment(s)
                             </span>
                           )}
                         </div>
 
+                            {/* Resolution Notes */}
                         {request.resolution_notes && (
-                          <div className="bg-blue-50 p-3 rounded-md mb-3">
-                            <p className="text-sm text-blue-800">
+                              <div 
+                                className="p-4 rounded-lg mb-4"
+                                style={{
+                                  background: 'var(--bg-tertiary)',
+                                  border: '1px solid var(--border-primary)'
+                                }}
+                              >
+                                <p 
+                                  className="text-sm"
+                                  style={{ color: 'var(--text-primary)' }}
+                                >
                               <strong>Response:</strong> {request.resolution_notes}
                             </p>
                           </div>
                         )}
                       </div>
                       
-                      <div className="flex items-center space-x-2">
-                        {request.status === 'open' && (
+                          {/* Actions */}
+                          <div className="flex flex-col sm:flex-row lg:flex-col gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedRequest(request);
+                              }}
+                              className="flex items-center gap-2"
+                              style={{
+                                background: 'var(--bg-tertiary)',
+                                borderColor: 'var(--border-primary)',
+                                color: 'var(--text-primary)'
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>View</span>
+                            </Button>
+                            
+                            {request.status === 'open' && request.requester_id === user?.id && (
                           <>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEdit(request)}
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(request);
+                                  }}
+                                  className="flex items-center gap-2"
+                                  style={{
+                                    background: 'var(--bg-tertiary)',
+                                    borderColor: 'var(--border-primary)',
+                                    color: 'var(--text-primary)'
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  <span>Edit</span>
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDelete(request.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(request.id);
+                                  }}
+                                  className="flex items-center gap-2 text-red-500 hover:text-red-600"
+                                  style={{
+                                    background: 'var(--bg-tertiary)',
+                                    borderColor: 'var(--border-primary)'
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Delete</span>
                             </Button>
                           </>
+                        )}
+                            
+                            {isAdminOrITManager && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Handle admin actions
+                                }}
+                                className="flex items-center gap-2"
+                                style={{
+                                  background: 'var(--gradient-primary)',
+                                  color: 'white',
+                                  border: 'none'
+                                }}
+                              >
+                                <Settings className="w-4 h-4" />
+                                <span>Manage</span>
+                              </Button>
                         )}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
+                  </motion.div>
               );
-            })
-          )}
+              })}
         </div>
+          )}
+        </motion.div>
 
-        {/* Request Form Modal */}
+        {/* Enhanced Request Form Modal */}
         <AnimatePresence>
           {showForm && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -468,13 +1459,29 @@ const ITRequests = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                style={{
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--card-border)',
+                  boxShadow: 'var(--shadow-xl)'
+                }}
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <div>
+                      <h2 
+                        className="text-2xl font-bold"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
                       {editingRequest ? 'Edit Request' : 'New IT Service Request'}
                     </h2>
+                      <p 
+                        className="text-sm mt-1"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {editingRequest ? 'Update your request details' : 'Submit a new IT service request with optional attachments and comments'}
+                      </p>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -483,26 +1490,57 @@ const ITRequests = () => {
                         setEditingRequest(null);
                         resetForm();
                       }}
+                      className="p-2"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-muted)'
+                      }}
                     >
                       <XCircle className="w-5 h-5" />
                     </Button>
                   </div>
                   
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Basic Information */}
+                    <div className="space-y-4">
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        Basic Information
+                      </h3>
+                      
                     <div>
-                      <Label htmlFor="title">Title *</Label>
+                        <Label 
+                          htmlFor="title"
+                          className="text-sm font-medium mb-2 block"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Title *
+                        </Label>
                       <Input
                         id="title"
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         placeholder="Brief description of your request"
                         required
-                        className="mt-1"
+                          className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
                       />
                     </div>
                     
                     <div>
-                      <Label htmlFor="description">Description *</Label>
+                        <Label 
+                          htmlFor="description"
+                          className="text-sm font-medium mb-2 block"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Description *
+                        </Label>
                       <Textarea
                         id="description"
                         value={formData.description}
@@ -510,19 +1548,35 @@ const ITRequests = () => {
                         placeholder="Detailed description of your IT service request"
                         rows={4}
                         required
-                        className="mt-1"
+                          className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
                       />
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="category">Category *</Label>
+                          <Label 
+                            htmlFor="category"
+                            className="text-sm font-medium mb-2 block"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Category *
+                          </Label>
                         <select
                           id="category"
                           value={formData.category_id}
                           onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                           required
-                          className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            style={{
+                              background: 'var(--bg-tertiary)',
+                              borderColor: 'var(--border-primary)',
+                              color: 'var(--text-primary)'
+                            }}
                         >
                           <option value="">Select Category</option>
                           {categories.map(category => (
@@ -532,13 +1586,24 @@ const ITRequests = () => {
                       </div>
                       
                       <div>
-                        <Label htmlFor="priority">Priority *</Label>
+                          <Label 
+                            htmlFor="priority"
+                            className="text-sm font-medium mb-2 block"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Priority *
+                          </Label>
                         <select
                           id="priority"
                           value={formData.priority_id}
                           onChange={(e) => setFormData({ ...formData, priority_id: e.target.value })}
                           required
-                          className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            style={{
+                              background: 'var(--bg-tertiary)',
+                              borderColor: 'var(--border-primary)',
+                              color: 'var(--text-primary)'
+                            }}
                         >
                           <option value="">Select Priority</option>
                           {priorities.map(priority => (
@@ -551,17 +1616,206 @@ const ITRequests = () => {
                     </div>
                     
                     <div>
-                      <Label htmlFor="estimated_date">Estimated Completion Date (Optional)</Label>
+                        <Label 
+                          htmlFor="estimated_date"
+                          className="text-sm font-medium mb-2 block"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Estimated Completion Date (Optional)
+                        </Label>
                       <Input
                         id="estimated_date"
                         type="date"
                         value={formData.estimated_completion_date}
                         onChange={(e) => setFormData({ ...formData, estimated_completion_date: e.target.value })}
-                        className="mt-1"
-                      />
+                          className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
+                      </div>
                     </div>
                     
-                    <div className="flex justify-end space-x-3 pt-4">
+                    {/* File Attachments */}
+                    <div className="space-y-4">
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        File Attachments (Optional)
+                      </h3>
+                      
+                      <div 
+                        className="border-2 border-dashed rounded-lg p-6 text-center"
+                        style={{
+                          borderColor: 'var(--border-primary)',
+                          background: 'var(--bg-tertiary)'
+                        }}
+                      >
+                        <input
+                          type="file"
+                          multiple
+                          onChange={(e) => handleFileUpload(Array.from(e.target.files))}
+                          className="hidden"
+                          id="file-upload"
+                          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar"
+                        />
+                        <label
+                          htmlFor="file-upload"
+                          className="cursor-pointer flex flex-col items-center gap-3"
+                        >
+                          <div 
+                            className="p-3 rounded-full"
+                            style={{
+                              background: 'var(--accent-primary)',
+                              color: 'white'
+                            }}
+                          >
+                            <Upload className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p 
+                              className="text-sm font-medium"
+                              style={{ color: 'var(--text-primary)' }}
+                            >
+                              Click to upload files or drag and drop
+                            </p>
+                            <p 
+                              className="text-xs"
+                              style={{ color: 'var(--text-muted)' }}
+                            >
+                              PDF, DOC, images, or archives (max 10MB each)
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                      
+                      {/* Attached Files */}
+                      {attachments.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 
+                            className="text-sm font-medium"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Attached Files ({attachments.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {attachments.map((file) => (
+                              <div
+                                key={file.id}
+                                className="flex items-center justify-between p-3 rounded-lg"
+                                style={{
+                                  background: 'var(--bg-secondary)',
+                                  border: '1px solid var(--border-primary)'
+                                }}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Paperclip className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                                  <div>
+                                    <p 
+                                      className="text-sm font-medium"
+                                      style={{ color: 'var(--text-primary)' }}
+                                    >
+                                      {file.name}
+                                    </p>
+                                    <p 
+                                      className="text-xs"
+                                      style={{ color: 'var(--text-muted)' }}
+                                    >
+                                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeAttachment(file.id)}
+                                  className="p-1 text-red-500 hover:text-red-600"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Comments */}
+                    <div className="space-y-4">
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        Additional Comments (Optional)
+                      </h3>
+                      
+                      <div>
+                        <Textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Add any additional information or context..."
+                          rows={3}
+                          className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
+                      </div>
+                      
+                      {comments.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 
+                            className="text-sm font-medium"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Comments ({comments.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {comments.map((comment) => (
+                              <div
+                                key={comment.id}
+                                className="p-3 rounded-lg"
+                                style={{
+                                  background: 'var(--bg-secondary)',
+                                  border: '1px solid var(--border-primary)'
+                                }}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <p 
+                                    className="text-sm font-medium"
+                                    style={{ color: 'var(--text-primary)' }}
+                                  >
+                                    {comment.author}
+                                  </p>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeComment(comment.id)}
+                                    className="p-1 text-red-500 hover:text-red-600"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                                <p 
+                                  className="text-sm"
+                                  style={{ color: 'var(--text-secondary)' }}
+                                >
+                                  {comment.text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Form Actions */}
+                    <div className="flex justify-end space-x-3 pt-6 border-t" style={{ borderColor: 'var(--border-primary)' }}>
                       <Button
                         type="button"
                         variant="outline"
@@ -570,10 +1824,24 @@ const ITRequests = () => {
                           setEditingRequest(null);
                           resetForm();
                         }}
+                        className="px-6 py-3"
+                        style={{
+                          background: 'var(--bg-tertiary)',
+                          borderColor: 'var(--border-primary)',
+                          color: 'var(--text-primary)'
+                        }}
                       >
                         Cancel
                       </Button>
-                      <Button type="submit">
+                      <Button 
+                        type="submit"
+                        className="px-6 py-3"
+                        style={{
+                          background: 'var(--gradient-primary)',
+                          color: 'white',
+                          boxShadow: 'var(--shadow-md)'
+                        }}
+                      >
                         {editingRequest ? 'Update Request' : 'Submit Request'}
                       </Button>
                     </div>
@@ -583,8 +1851,199 @@ const ITRequests = () => {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Request Detail Modal */}
+        <AnimatePresence>
+          {selectedRequest && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                style={{
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--card-border)',
+                  boxShadow: 'var(--shadow-xl)'
+                }}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 
+                        className="text-2xl font-bold"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        Request Details
+                      </h2>
+                      <p 
+                        className="text-sm mt-1"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {selectedRequest.request_number || `Request #${selectedRequest.id}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedRequest(null)}
+                      className="p-2"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-muted)'
+                      }}
+                    >
+                      <XCircle className="w-5 h-5" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {/* Request Information */}
+                    <div className="space-y-4">
+                      <h3 
+                        className="text-lg font-semibold"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        {selectedRequest.title}
+                      </h3>
+                      <p 
+                        className="text-base"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {selectedRequest.description}
+                      </p>
+                    </div>
+                    
+                    {/* Status and Priority */}
+                    <div className="flex flex-wrap gap-3">
+                      <span 
+                        className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
+                        style={{
+                          background: getStatusColor(selectedRequest.status).bg,
+                          color: getStatusColor(selectedRequest.status).text,
+                          border: `1px solid ${getStatusColor(selectedRequest.status).border}`
+                        }}
+                      >
+                        {React.createElement(getStatusIcon(selectedRequest.status), { className: "w-4 h-4" })}
+                        {selectedRequest.status.replace('_', ' ').toUpperCase()}
+                      </span>
+                      
+                      <span 
+                        className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
+                        style={{
+                          background: getPriorityColor(selectedRequest.priority).bg,
+                          color: getPriorityColor(selectedRequest.priority).text,
+                          border: `1px solid ${getPriorityColor(selectedRequest.priority).border}`
+                        }}
+                      >
+                        {React.createElement(getPriorityIcon(selectedRequest.priority), { className: "w-4 h-4" })}
+                        {selectedRequest.priority?.name || 'Unknown'}
+                      </span>
+                    </div>
+                    
+                    {/* Meta Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label 
+                          className="text-sm font-medium mb-2 block"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Category
+                        </Label>
+                        <p 
+                          className="text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {selectedRequest.category?.name || 'Unknown'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label 
+                          className="text-sm font-medium mb-2 block"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Created Date
+                        </Label>
+                        <p 
+                          className="text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {formatDate(selectedRequest.created_at)}
+                        </p>
+                      </div>
+                      {selectedRequest.assigned_to && (
+                        <div>
+                          <Label 
+                            className="text-sm font-medium mb-2 block"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Assigned To
+                          </Label>
+                          <p 
+                            className="text-sm"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
+                            {selectedRequest.assignee?.full_name || 'Unknown'}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRequest.estimated_completion_date && (
+                        <div>
+                          <Label 
+                            className="text-sm font-medium mb-2 block"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            Estimated Completion
+                          </Label>
+                          <p 
+                            className="text-sm"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
+                            {new Date(selectedRequest.estimated_completion_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Resolution Notes */}
+                    {selectedRequest.resolution_notes && (
+                      <div 
+                        className="p-4 rounded-lg"
+                        style={{
+                          background: 'var(--bg-tertiary)',
+                          border: '1px solid var(--border-primary)'
+                        }}
+                      >
+                        <h4 
+                          className="text-sm font-medium mb-2"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Resolution Notes
+                        </h4>
+                        <p 
+                          className="text-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {selectedRequest.resolution_notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Analytics Modal */}
+        <AnimatePresence>
+          {showAnalytics && (
+            <ITAnalytics onClose={() => setShowAnalytics(false)} />
+          )}
+        </AnimatePresence>
       </div>
     </div>
+    </MobileOptimized>
   );
 };
 
