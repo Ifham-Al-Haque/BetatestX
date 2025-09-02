@@ -13,7 +13,9 @@ import UserDropdown from "../components/UserDropdown";
 import DarkModeToggle from "../components/DarkModeToggle";
 
 export default function DriverProfile() {
+  console.log('🔍 DriverProfile component rendered');
   const { id } = useParams();
+  console.log('🔍 DriverProfile id param:', id);
   const [driver, setDriver] = useState(null);
   const [documents, setDocuments] = useState(null);
   const [loading, setLoading] = useState(true);

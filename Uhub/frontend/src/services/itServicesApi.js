@@ -123,7 +123,7 @@ export const itServicesApi = {
           priority:it_request_priorities(name, level, color, sla_hours),
           requester:requester_id(full_name, email, department, position),
           assignee:assigned_to(full_name, email, department, position),
-          closed_by_user:closed_by(full_name)
+
         `)
         .order('created_at', { ascending: false });
       
@@ -141,7 +141,7 @@ export const itServicesApi = {
           priority:it_request_priorities(name, level, color, sla_hours),
           requester:requester_id(full_name, email, department, position),
           assignee:assigned_to(full_name, email, department, position),
-          closed_by_user:closed_by(full_name)
+
         `)
         .order('created_at', { ascending: false });
 
@@ -194,7 +194,7 @@ export const itServicesApi = {
           priority:it_request_priorities(name, level, color, sla_hours),
           requester:requester_id(full_name, email, department, position),
           assignee:assigned_to(full_name, email, department, position),
-          closed_by_user:closed_by(full_name)
+
         `)
         .eq('id', id)
         .single();
@@ -324,7 +324,16 @@ export const itServicesApi = {
 
       // Apply role-based filtering for statistics
       if (userRole === 'employee' && userId) {
-        query = query.eq('requester_id', userId);
+        // For regular users, we need to get their employee_id from the users table
+        const { data: userData } = await supabase
+          .from('users')
+          .select('employee_id')
+          .eq('id', userId)
+          .single();
+        
+        if (userData?.employee_id) {
+          query = query.eq('requester_id', userData.employee_id);
+        }
       }
 
       const { data, error } = await query;

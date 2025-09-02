@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 export default function DriverForm() {
+  console.log('🔍 DriverForm component rendered');
   
   const [formData, setFormData] = useState({
     full_name: "",

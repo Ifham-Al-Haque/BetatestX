@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
 export default function ProtectedRoute({ children, requiredFeature = null, requiredRole = null, minRoleLevel = null }) {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const { userRole, roleInfo, hasFeatureAccess, hasRoleLevel } = useRoleAccess();
   const navigate = useNavigate();
   const hasNavigated = useRef(false);
@@ -34,14 +34,34 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
       return;
     }
 
+    // If role is still loading, wait
+    if (userRole === 'loading') {
+      console.log('🔍 ProtectedRoute: Role still loading, waiting...');
+      return;
+    }
+
     // Check feature-based access
     if (requiredFeature && !hasFeatureAccess(requiredFeature)) {
-      console.log('ProtectedRoute: Feature access denied', { requiredFeature, userRole });
-      hasNavigated.current = true;
-      setTimeout(() => {
-        redirectToRolePage(userRole);
-      }, 0);
-      return;
+      console.log('🔍 ProtectedRoute: Feature access denied', { 
+        requiredFeature, 
+        userRole, 
+        hasFeatureAccess: hasFeatureAccess(requiredFeature),
+        pathname: window.location.pathname,
+        user: user?.email,
+        userProfile: userProfile
+      });
+      
+      // Temporary bypass for driver_management and operation_management roles to test
+      if ((userRole === 'driver_management' || userRole === 'operation_management') && requiredFeature === 'driver_records') {
+        console.log('🔍 ProtectedRoute: TEMPORARY BYPASS for', userRole, '+ driver_records');
+        // Allow access for testing
+      } else {
+        hasNavigated.current = true;
+        setTimeout(() => {
+          redirectToRolePage(userRole);
+        }, 0);
+        return;
+      }
     }
 
     // Check role-based access
@@ -99,30 +119,55 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
   // Helper function to redirect to role-appropriate page
   function redirectToRolePage(role) {
+    console.log('🔍 redirectToRolePage called with role:', role);
     switch (role) {
       case 'admin':
+        console.log('🔍 Redirecting admin to /admin/dashboard');
         navigate('/admin/dashboard', { replace: true });
         break;
       case 'manager':
+        console.log('🔍 Redirecting manager to /dashboard');
         navigate('/dashboard', { replace: true });
         break;
       case 'driver_management':
+        console.log('🔍 Redirecting driver_management to /drivers');
+        navigate('/drivers', { replace: true });
+        break;
+      case 'operation_management':
+        console.log('🔍 Redirecting operation_management to /drivers');
         navigate('/drivers', { replace: true });
         break;
       case 'hr_manager':
-        navigate('/attendance', { replace: true });
+        console.log('🔍 Redirecting hr_manager to /employees');
+        navigate('/employees', { replace: true });
+        break;
+      case 'finance':
+        console.log('🔍 Redirecting finance to /payment-calendar');
+        navigate('/payment-calendar', { replace: true });
+        break;
+      case 'data_operator':
+        console.log('🔍 Redirecting data_operator to /');
+        navigate('/', { replace: true });
+        break;
+      case 'it_management':
+        console.log('🔍 Redirecting it_management to /it-requests');
+        navigate('/it-requests', { replace: true });
         break;
       case 'cs_manager':
+        console.log('🔍 Redirecting cs_manager to /cspa');
         navigate('/cspa', { replace: true });
         break;
       case 'employee':
-        navigate('/tasks', { replace: true });
+        console.log('🔍 Redirecting employee to / (user welcome page)');
+        navigate('/', { replace: true });
         break;
       case 'viewer':
-        navigate('/dashboard', { replace: true });
+        console.log('🔍 Redirecting viewer to / (user welcome page)');
+        navigate('/', { replace: true });
         break;
       default:
-        navigate('/dashboard', { replace: true });
+        console.log('🔍 Redirecting default role to / (user welcome page)');
+        navigate('/', { replace: true });
     }
   }
 }

@@ -46,10 +46,12 @@ const Employees = React.lazy(() => import('./pages/Employees'));
 const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
 const EmployeeForm = React.lazy(() => import('./pages/EmployeeForm'));
 const Drivers = React.lazy(() => import('./pages/Driver'));
+const DriverForm = React.lazy(() => import('./pages/DriverForm'));
+const DriverProfile = React.lazy(() => import('./pages/DriverProfile'));
 const Assets = React.lazy(() => import('./pages/Assets'));
 const AssetProfile = React.lazy(() => import('./pages/AssetProfile'));
 const ITAssets = React.lazy(() => import('./pages/ITAssets'));
-const ITRequests = React.lazy(() => import('./pages/ITRequests'));
+const ITRequests = React.lazy(() => import('./pages/ITRequestsDebug'));
 const RequestInbox = React.lazy(() => import('./pages/RequestInbox'));
 const CSPA = React.lazy(() => import('./pages/CSPA'));
 const Complaints = React.lazy(() => import('./pages/Complaints'));
@@ -92,7 +94,7 @@ function App() {
 
                         {/* Protected Routes - Role-based landing pages */}
                         <Route path="/dashboard" element={
-                          <ProtectedRoute requiredRole="admin">
+                          <ProtectedRoute requiredFeature="dashboard">
                             <Layout>
                               <Dashboard />
                             </Layout>
@@ -124,6 +126,41 @@ function App() {
                           <ProtectedRoute requiredFeature="driver_records">
                             <Layout>
                               <Drivers />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Driver Form Routes - Order matters! More specific routes first */}
+                        <Route path="/driver/new" element={
+                          <ProtectedRoute requiredFeature="driver_records">
+                            <Layout>
+                              <DriverForm />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Temporary test route to verify routing is working */}
+                        <Route path="/driver/test" element={
+                          <Layout>
+                            <div className="p-8">
+                              <h1 className="text-2xl font-bold text-green-600">✅ Route Test Successful!</h1>
+                              <p>If you can see this, routing is working correctly.</p>
+                            </div>
+                          </Layout>
+                        } />
+
+                        <Route path="/driver/:id/edit" element={
+                          <ProtectedRoute requiredFeature="driver_records">
+                            <Layout>
+                              <DriverForm />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/driver/:id" element={
+                          <ProtectedRoute requiredFeature="driver_records">
+                            <Layout>
+                              <DriverProfile />
                             </Layout>
                           </ProtectedRoute>
                         } />

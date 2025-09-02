@@ -755,6 +755,8 @@ export const apiService = {
   // Driver APIs
   drivers: {
     getAll: async (page = 1, limit = 50, search = '') => {
+      console.log('🔍 API: drivers.getAll called with:', { page, limit, search });
+      
       let query = supabase
         .from('drivers')
         .select(`
@@ -788,7 +790,12 @@ export const apiService = {
       
       const { data, error, count } = await query.range(from, to);
       
-      if (error) throw error;
+      console.log('🔍 API: drivers.getAll result:', { data, error, count });
+      
+      if (error) {
+        console.error('🔍 API: drivers.getAll error:', error);
+        throw error;
+      }
       
       return { data, count };
     },

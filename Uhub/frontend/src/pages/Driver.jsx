@@ -29,6 +29,18 @@ export default function Driver() {
   const drivers = driversData?.data || [];
   const totalCount = driversData?.count || 0;
 
+  // Debug logging for driver data
+  console.log('🔍 Driver component data:', {
+    driversData,
+    drivers,
+    totalCount,
+    isLoading,
+    error,
+    currentPage,
+    pageSize,
+    search
+  });
+
   const handleDelete = useCallback(async (id) => {
     const confirm = window.confirm("Are you sure you want to delete this driver?");
     if (!confirm) return;
@@ -129,11 +141,25 @@ export default function Driver() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/driver/new")}
+            onClick={() => {
+              console.log('🔍 Add New Driver button clicked, navigating to /driver/new');
+              navigate("/driver/new");
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <Plus className="w-5 h-5" />
             Add New Driver
+          </button>
+          
+          {/* Temporary test button */}
+          <button
+            onClick={() => {
+              console.log('🔍 Test button clicked, navigating to /driver/test');
+              navigate("/driver/test");
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl ml-2"
+          >
+            Test Route
           </button>
         </div>
 

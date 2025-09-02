@@ -68,6 +68,15 @@ export const ROLE_PERMISSIONS = {
     icon: Shield,
     access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_view_only', 'it_requests', 'todo_list', 'driver_management_full']
   },
+  operation_management: {
+    level: 4,
+    name: 'Operation Management',
+    description: 'Operation management with full driver panel access plus employee features',
+    color: 'text-teal-600',
+    bgColor: 'bg-teal-50',
+    icon: Shield,
+    access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_view_only', 'it_requests', 'todo_list', 'driver_management_full']
+  },
   hr_manager: {
     level: 5,
     name: 'HR Manager',
@@ -104,42 +113,42 @@ export const FEATURE_ACCESS = {
   csv_importer: ['admin'],
   
   // Main Panel Features - All roles have access
-  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  dashboard: ['admin'], // Dashboard temporarily restricted to admin only
-  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
+  dashboard: ['admin', 'manager'], // Dashboard for admin and manager
+  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   
   // Slice of Life Panel - All roles have access
-  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
+  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   
   // Communication Panel - All roles have access
-  communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   
   // User Profile - All roles have access
-  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
+  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   
   // HR Panel - Different access levels
   employees: ['admin', 'hr_manager', 'manager'], // Full access for admin, HR manager, and manager
-  employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management'], // View only for others
-  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management'], // View only for others
+  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   complaints_inbox: ['admin', 'hr_manager'], // Only admin and HR manager see inbox
-  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   attendance: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   payroll: ['admin', 'hr_manager'],
   epr: ['admin', 'hr_manager'],
   
   // IT Service Panel - All roles have access to IT requests
-  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   it_assets: ['admin', 'it_management'],
   it_tickets: ['admin'],
   request_inbox: ['admin', 'it_management'],
   
   // Todo List Panel - All roles have full access
-  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
-  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'hr_manager', 'manager'],
+  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
+  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
+  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
   
   // Customer Service Panel - CS Manager has full access
   customer_service: ['admin', 'cs_manager'],
@@ -148,12 +157,12 @@ export const FEATURE_ACCESS = {
   cs_requests: ['admin', 'cs_manager'],
   
   // Driver Management Panel - Different access levels
-  drivers: ['admin', 'driver_management'], // Full access for admin and driver management
-  driver_records: ['admin', 'driver_management', 'hr_manager', 'manager'], // HR manager and manager can view only
-  driver_documents: ['admin', 'driver_management'],
-  fleet_management: ['admin', 'driver_management'],
-  fleet_records: ['admin', 'driver_management', 'data_operator'],
-  breakdowns: ['admin', 'driver_management'],
+  drivers: ['admin', 'driver_management', 'operation_management'], // Full access for admin, driver management, and operation management
+  driver_records: ['admin', 'driver_management', 'operation_management', 'hr_manager', 'manager'], // HR manager and manager can view only
+  driver_documents: ['admin', 'driver_management', 'operation_management'],
+  fleet_management: ['admin', 'driver_management', 'operation_management'],
+  fleet_records: ['admin', 'driver_management', 'operation_management', 'data_operator'],
+  breakdowns: ['admin', 'driver_management', 'operation_management'],
   
   // Asset Management Panel - Admin, HR Manager, and Manager (removed driver_management)
   assets: ['admin', 'hr_manager', 'manager', 'it_management'],
@@ -179,18 +188,28 @@ export const FEATURE_ACCESS = {
 // Check if user has access to a specific feature
 export const hasFeatureAccess = (userRole, feature) => {
   if (!userRole || !feature) {
-    console.log('hasFeatureAccess: Missing userRole or feature', { userRole, feature });
+    console.log('🔍 hasFeatureAccess: Missing userRole or feature', { userRole, feature });
     return false;
   }
   
   const allowedRoles = FEATURE_ACCESS[feature];
   if (!allowedRoles) {
-    console.log('hasFeatureAccess: Feature not found in FEATURE_ACCESS', { feature, userRole });
+    console.log('🔍 hasFeatureAccess: Feature not found in FEATURE_ACCESS', { feature, userRole });
     return false;
   }
   
   const hasAccess = allowedRoles.includes(userRole) || allowedRoles.includes('all');
-  console.log('hasFeatureAccess:', { userRole, feature, allowedRoles, hasAccess });
+  console.log('🔍 hasFeatureAccess:', { 
+    userRole, 
+    feature, 
+    allowedRoles, 
+    hasAccess,
+    userRoleType: typeof userRole,
+    userRoleLength: userRole?.length,
+    includesCheck: allowedRoles.includes(userRole),
+    allowedRolesString: allowedRoles.join(', '),
+    userRoleInAllowedRoles: allowedRoles.includes(userRole)
+  });
   return hasAccess;
 };
 
@@ -514,13 +533,26 @@ export const withRoleAccess = (WrappedComponent, accessConfig = {}) => {
 
 // Hook for checking access in components
 export const useRoleAccess = () => {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, role } = useAuth();
   
-  // Get role from userProfile first, then fallback to user
-  const userRole = userProfile?.role || user?.role;
+  // Get role from AuthContext role state first, then fallback to userProfile, then user
+  const userRole = role || userProfile?.role || user?.role;
+  
+  // Debug logging
+  console.log('🔍 useRoleAccess:', {
+    user: !!user,
+    userProfile: !!userProfile,
+    authContextRole: role,
+    userProfileRole: userProfile?.role,
+    userRole: user?.role,
+    finalUserRole: userRole,
+    userProfileDetails: userProfile,
+    userDetails: user
+  });
   
   // Add safety checks to prevent undefined errors
   if (!userRole) {
+    console.log('🔍 useRoleAccess: No userRole found');
     return {
       userRole: null,
       roleInfo: null,
@@ -546,6 +578,7 @@ export const useRoleAccess = () => {
     isHRManager: userRole === 'hr_manager',
     isCSManager: userRole === 'cs_manager',
     isDriverManagement: userRole === 'driver_management',
+    isOperationManagement: userRole === 'operation_management',
     isEmployee: userRole === 'employee'
   };
 };

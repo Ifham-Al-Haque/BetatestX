@@ -474,7 +474,7 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           console.log("✅ User authenticated:", session.user.email);
           setUser(session.user);
-          setRole('employee'); // Set default role immediately
+          setRole('loading'); // Set loading state instead of default role
           
           // Fetch profile in background (non-blocking)
           console.log("🔄 Starting profile fetch for user:", session.user.id);
@@ -489,7 +489,16 @@ export const AuthProvider = ({ children }) => {
                 profileRole: profile?.role, 
                 detectedRole, 
                 profile: profile,
-                userId: session.user.id
+                userId: session.user.id,
+                userEmail: session.user.email
+              });
+              console.log("🔍 Detailed profile data:", {
+                id: profile?.id,
+                email: profile?.email,
+                role: profile?.role,
+                status: profile?.status,
+                department: profile?.department,
+                position: profile?.position
               });
               setRole(detectedRole);
               console.log("✅ Role set to:", detectedRole);
@@ -526,7 +535,7 @@ export const AuthProvider = ({ children }) => {
         
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
-          setRole('employee'); // Set default role immediately
+          setRole('loading'); // Set loading state instead of default role
           
           // Fetch profile in background
           console.log("🔄 Auth state change - Starting profile fetch for user:", session.user.id);
@@ -540,7 +549,16 @@ export const AuthProvider = ({ children }) => {
                 profileRole: profile?.role, 
                 detectedRole, 
                 profile: profile,
-                userId: session.user.id
+                userId: session.user.id,
+                userEmail: session.user.email
+              });
+              console.log("🔄 Auth state change - Detailed profile data:", {
+                id: profile?.id,
+                email: profile?.email,
+                role: profile?.role,
+                status: profile?.status,
+                department: profile?.department,
+                position: profile?.position
               });
               setRole(detectedRole);
               console.log("✅ Auth state change - Role set to:", detectedRole);

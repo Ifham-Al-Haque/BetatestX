@@ -54,6 +54,13 @@ const RoleManager = ({ user, onRoleUpdate }) => {
       permissions: ['Driver records', 'Driver documents', 'Dashboard view', 'Basic operations']
     },
     { 
+      value: 'operation_management', 
+      label: 'Operation Management', 
+      description: 'Operation management role with same access as driver management',
+      color: 'bg-teal-100 text-teal-800 border-teal-200',
+      permissions: ['Driver records', 'Driver documents', 'Dashboard view', 'Basic operations']
+    },
+    { 
       value: 'hr_manager', 
       label: 'HR Manager', 
       description: 'Human Resources management with employee oversight',
