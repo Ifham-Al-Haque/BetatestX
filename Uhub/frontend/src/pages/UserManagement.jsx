@@ -61,11 +61,15 @@ export default function UserManagement() {
     { value: 'it_management', label: 'IT Management', color: 'bg-gradient-to-r from-cyan-500 to-blue-500', icon: Briefcase, bgColor: 'bg-cyan-50', textColor: 'text-cyan-700' },
     { value: 'manager', label: 'Manager', color: 'bg-gradient-to-r from-blue-500 to-indigo-500', icon: Briefcase, bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
     { value: 'driver_management', label: 'Driver Management', color: 'bg-gradient-to-r from-green-500 to-emerald-500', icon: MapPin, bgColor: 'bg-green-50', textColor: 'text-green-700' },
+    { value: 'operation_management', label: 'Operation Management', color: 'bg-gradient-to-r from-teal-500 to-cyan-500', icon: MapPin, bgColor: 'bg-teal-50', textColor: 'text-teal-700' },
     { value: 'hr_manager', label: 'HR Manager', color: 'bg-gradient-to-r from-purple-500 to-violet-500', icon: Users, bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
     { value: 'cs_manager', label: 'CS Manager', color: 'bg-gradient-to-r from-indigo-500 to-blue-500', icon: Phone, bgColor: 'bg-indigo-50', textColor: 'text-indigo-700' },
     { value: 'employee', label: 'Employee', color: 'bg-gradient-to-r from-gray-500 to-slate-500', icon: UserCheck, bgColor: 'bg-gray-50', textColor: 'text-gray-700' },
     { value: 'viewer', label: 'Viewer', color: 'bg-gradient-to-r from-orange-500 to-amber-500', icon: Eye, bgColor: 'bg-orange-50', textColor: 'text-orange-700' }
   ];
+
+  // Debug: Log roles array
+  console.log('🔍 UserManagement roles array:', roles.map(r => r.value));
 
   const handleCreateUser = useCallback(async (e) => {
     e.preventDefault();
@@ -294,6 +298,7 @@ export default function UserManagement() {
               <option value="admin">Administrator</option>
               <option value="manager">Manager</option>
               <option value="driver_management">Driver Management</option>
+              <option value="operation_management">Operation Management</option>
               <option value="hr_manager">HR Manager</option>
               <option value="employee">Employee</option>
               <option value="viewer">Viewer</option>
@@ -682,10 +687,19 @@ export default function UserManagement() {
                         onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
                         className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       >
-                        {roles.map(role => (
-                          <option key={role.value} value={role.value}>{role.label}</option>
-                        ))}
+                        <option value="admin">Administrator</option>
+                        <option value="data_operator">Data Operator</option>
+                        <option value="finance">Finance</option>
+                        <option value="it_management">IT Management</option>
+                        <option value="manager">Manager</option>
+                        <option value="driver_management">Driver Management</option>
+                        <option value="operation_management">Operation Management</option>
+                        <option value="hr_manager">HR Manager</option>
+                        <option value="cs_manager">CS Manager</option>
+                        <option value="employee">Employee</option>
+                        <option value="viewer">Viewer</option>
                       </select>
+
                     </div>
                     
                     <div className="space-y-2">

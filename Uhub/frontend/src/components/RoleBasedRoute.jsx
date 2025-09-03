@@ -315,6 +315,19 @@ export const getRoleNavigationAccess = (userRole) => {
         driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns']
       }
     },
+    operation_management: {
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management'],
+      items: {
+        main: ['home', 'dashboard', 'calendar_view'],
+        user_profile: ['profile', 'settings'],
+        hr_panel: ['employee_records', 'complaints', 'suggestions'],
+        it_services: ['it_requests'],
+        todo_list: ['todo_list', 'task_management', 'my_tasks'],
+        slice_of_life: ['events', 'memories'],
+        communication: ['communication'],
+        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns']
+      }
+    },
     hr_manager: {
       panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management'],
       items: {

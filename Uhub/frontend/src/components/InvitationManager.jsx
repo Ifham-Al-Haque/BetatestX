@@ -288,6 +288,7 @@ const InvitationManager = () => {
                 <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
                 <option value="driver_management">Driver Management</option>
+                <option value="operation_management">Operation Management</option>
                 <option value="hr_manager">HR Manager</option>
                 <option value="cs_manager">CS Manager</option>
                 <option value="viewer">View Only</option>

@@ -4,15 +4,17 @@ import {
   Plus, Edit, Trash, Search, Filter, Phone, User, Building,
   Wifi, Signal, Calendar, Package, CreditCard, Download,
   X, Save, Users, MapPin, Clock, AlertCircle, Loader2,
-  BarChart3, TrendingUp, Activity, Zap, Shield
+  BarChart3, TrendingUp, Activity, Zap, Shield, FileText, FileSpreadsheet
 } from "lucide-react";
 import { useSimCards, useCreateSimCard, useUpdateSimCard, useDeleteSimCard, useSimCardStats } from "../hooks/useSimCards";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { DEPARTMENTS, getDepartmentLabel, getDepartmentColor } from "../config/departments";
 import DepartmentManager from "../components/DepartmentManager";
+import ExportModal from "../components/ExportModal";
 import { supabase } from "../supabaseClient";
 import { useQueryClient } from '@tanstack/react-query';
+import { exportFilteredData } from "../utils/exportUtils";
 
 // SIM Card Form Component
 const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
@@ -637,6 +639,7 @@ export default function Simcard() {
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [packageTypeFilter, setPackageTypeFilter] = useState("");
   const [showDepartmentManager, setShowDepartmentManager] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   
   // React Query hooks for data management
@@ -740,6 +743,22 @@ export default function Simcard() {
     return userRole === 'admin';
   }, [user?.user_metadata?.role, userProfile?.role]);
 
+  // Export handlers
+  const handleExportComplete = (exportInfo) => {
+    console.log('Export completed:', exportInfo);
+    // You can add toast notification here if needed
+  };
+
+  const handleQuickExport = (format) => {
+    const filters = {
+      searchTerm,
+      statusFilter,
+      departmentFilter,
+      packageTypeFilter
+    };
+    exportFilteredData(simCards, filters, format);
+  };
+
   return (
     <div className={`min-h-screen transition-all duration-500 ${
       isDark 
@@ -748,69 +767,177 @@ export default function Simcard() {
     } flex`}>
       <div className="flex-1 transition-all duration-300 ease-in-out">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
+          {/* Enhanced Header */}
           <div className="mb-8">
-            <div className={`rounded-2xl p-8 shadow-xl border transition-all duration-300 ${
-              isDark 
-                ? 'bg-slate-800/80 border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-700/50' 
-                : 'bg-white border-gray-200/50 bg-gradient-to-r from-white to-blue-50/50'
-            }`}>
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-4">
-                  <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg">
-                    <Phone className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      SIM Card Management
-                    </h1>
-                    <p className={`mt-2 text-lg transition-colors duration-300 ${
-                      isDark ? 'text-slate-300' : 'text-gray-600'
-                    }`}>
-                      Manage company SIM cards, packages, and user assignments with ease
-                    </p>
-                    <div className={`flex items-center gap-4 mt-4 text-sm transition-colors duration-300 ${
-                      isDark ? 'text-slate-400' : 'text-gray-500'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <Signal className="w-4 h-4 text-green-500" />
-                        <span>Active Management</span>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className={`relative overflow-hidden rounded-2xl p-6 shadow-xl border transition-all duration-300 ${
+                isDark 
+                  ? 'bg-gradient-to-br from-slate-800 to-slate-700 border-slate-600/50' 
+                  : 'bg-gradient-to-br from-white to-blue-50/30 border-gray-200/50'
+              }`}
+            >
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-green-400 to-blue-500 rounded-full blur-2xl transform -translate-x-12 translate-y-12"></div>
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex flex-col xl:flex-row xl:justify-between xl:items-start gap-6">
+                  {/* Left Section */}
+                  <div className="flex items-start gap-4">
+                    <motion.div 
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ duration: 0.8, delay: 0.2, type: "spring", stiffness: 200 }}
+                      className="relative flex-shrink-0"
+                    >
+                      <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg transform hover:scale-105 transition-all duration-300">
+                        <Phone className="w-8 h-8 text-white" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-blue-500" />
-                        <span>Secure Control</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-purple-500" />
-                        <span>Real-time Analytics</span>
-                      </div>
+                      {/* Floating elements */}
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full animate-pulse"></div>
+                      <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-yellow-400 rounded-full animate-bounce"></div>
+                    </motion.div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <motion.h1 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3 }}
+                        className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-tight"
+                      >
+                        SIM Card Management
+                      </motion.h1>
+                      
+                      <motion.p 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.6, delay: 0.4 }}
+                        className={`mt-2 text-base lg:text-lg transition-colors duration-300 ${
+                          isDark ? 'text-slate-300' : 'text-gray-600'
+                        }`}
+                      >
+                        Manage company SIM cards, packages, and user assignments with ease
+                      </motion.p>
+                      
+                      {/* Feature Indicators */}
+                      <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.5 }}
+                        className="flex flex-wrap items-center gap-3 mt-4"
+                      >
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50">
+                          <Signal className="w-3 h-3 text-green-600 dark:text-green-400" />
+                          <span className="text-xs font-medium text-green-700 dark:text-green-300">Active Management</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50">
+                          <Shield className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Secure Control</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50">
+                          <BarChart3 className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                          <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Real-time Analytics</span>
+                        </div>
+                      </motion.div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowDepartmentManager(true)}
-                    className={`px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl font-medium ${
-                      isDark ? 'shadow-gray-500/25' : 'shadow-gray-500/20'
-                    }`}
+                  
+                  {/* Right Section - Action Buttons */}
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.4 }}
+                    className="flex flex-col sm:flex-row xl:flex-col gap-4"
                   >
-                    <Building className="w-5 h-5" />
-                    Manage Departments
-                  </button>
-                  {canAddSimCard() && (
-                    <button
-                      onClick={handleAddSimCard}
-                      className={`px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl font-medium ${
-                        isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
-                      }`}
-                    >
-                      <Plus className="w-5 h-5" />
-                      Add SIM Card
-                    </button>
-                  )}
+                    {/* Export Buttons */}
+                    <div className="flex flex-col gap-2">
+                      <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Export Data
+                      </div>
+                      <div className="flex gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleQuickExport('excel')}
+                          className={`px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
+                            isDark ? 'shadow-green-500/25' : 'shadow-green-500/20'
+                          }`}
+                          title="Export to Excel"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                          <span className="hidden sm:inline">Excel</span>
+                        </motion.button>
+                        
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleQuickExport('pdf')}
+                          className={`px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
+                            isDark ? 'shadow-red-500/25' : 'shadow-red-500/20'
+                          }`}
+                          title="Export to PDF"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span className="hidden sm:inline">PDF</span>
+                        </motion.button>
+                        
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowExportModal(true)}
+                          className={`px-4 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
+                            isDark ? 'shadow-purple-500/25' : 'shadow-purple-500/20'
+                          }`}
+                          title="Export Options"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span className="hidden sm:inline">Export</span>
+                        </motion.button>
+                      </div>
+                    </div>
+                    
+                    {/* Management Buttons */}
+                    <div className="flex flex-col gap-2">
+                      <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Management
+                      </div>
+                      <div className="flex gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowDepartmentManager(true)}
+                          className={`px-4 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
+                            isDark ? 'shadow-gray-500/25' : 'shadow-gray-500/20'
+                          }`}
+                        >
+                          <Building className="w-4 h-4" />
+                          <span className="hidden sm:inline">Departments</span>
+                        </motion.button>
+                        
+                        {canAddSimCard() && (
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleAddSimCard}
+                            className={`px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
+                              isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
+                            }`}
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="hidden sm:inline">Add SIM Card</span>
+                          </motion.button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Enhanced Filters */}
@@ -1255,6 +1382,20 @@ export default function Simcard() {
             // You can implement logic here to update the departments globally
             console.log('Departments updated:', updatedDepartments);
           }}
+        />
+
+        {/* Export Modal */}
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          simCards={simCards}
+          filters={{
+            searchTerm,
+            statusFilter,
+            departmentFilter,
+            packageTypeFilter
+          }}
+          onExportComplete={handleExportComplete}
         />
       </div>
     </div>

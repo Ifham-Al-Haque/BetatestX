@@ -119,55 +119,8 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
   // Helper function to redirect to role-appropriate page
   function redirectToRolePage(role) {
-    console.log('🔍 redirectToRolePage called with role:', role);
-    switch (role) {
-      case 'admin':
-        console.log('🔍 Redirecting admin to /admin/dashboard');
-        navigate('/admin/dashboard', { replace: true });
-        break;
-      case 'manager':
-        console.log('🔍 Redirecting manager to /dashboard');
-        navigate('/dashboard', { replace: true });
-        break;
-      case 'driver_management':
-        console.log('🔍 Redirecting driver_management to /drivers');
-        navigate('/drivers', { replace: true });
-        break;
-      case 'operation_management':
-        console.log('🔍 Redirecting operation_management to /drivers');
-        navigate('/drivers', { replace: true });
-        break;
-      case 'hr_manager':
-        console.log('🔍 Redirecting hr_manager to /employees');
-        navigate('/employees', { replace: true });
-        break;
-      case 'finance':
-        console.log('🔍 Redirecting finance to /payment-calendar');
-        navigate('/payment-calendar', { replace: true });
-        break;
-      case 'data_operator':
-        console.log('🔍 Redirecting data_operator to /');
-        navigate('/', { replace: true });
-        break;
-      case 'it_management':
-        console.log('🔍 Redirecting it_management to /it-requests');
-        navigate('/it-requests', { replace: true });
-        break;
-      case 'cs_manager':
-        console.log('🔍 Redirecting cs_manager to /cspa');
-        navigate('/cspa', { replace: true });
-        break;
-      case 'employee':
-        console.log('🔍 Redirecting employee to / (user welcome page)');
-        navigate('/', { replace: true });
-        break;
-      case 'viewer':
-        console.log('🔍 Redirecting viewer to / (user welcome page)');
-        navigate('/', { replace: true });
-        break;
-      default:
-        console.log('🔍 Redirecting default role to / (user welcome page)');
-        navigate('/', { replace: true });
-    }
+    console.log('🔍 Redirecting user with role:', role, 'to welcome page');
+    // All users go to welcome page first, then role-based access controls what they can see
+    navigate('/', { replace: true });
   }
 }

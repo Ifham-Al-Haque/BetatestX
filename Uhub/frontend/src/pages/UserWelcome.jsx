@@ -123,7 +123,6 @@ const UserWelcome = () => {
 
   const getQuickActions = () => {
     const actions = [
-      { label: 'Dashboard', path: '/dashboard', icon: BarChart3, color: 'from-blue-500 to-blue-600', description: 'View analytics' },
       { label: 'Profile', path: '/profile', icon: Users, color: 'from-emerald-500 to-emerald-600', description: 'Manage account' },
       { label: 'Tasks', path: '/tasks', icon: CheckSquare, color: 'from-purple-500 to-purple-600', description: 'Track progress' },
       { label: 'Calendar', path: '/calendar-view', icon: Calendar, color: 'from-orange-500 to-orange-600', description: 'Schedule view' }
@@ -131,6 +130,8 @@ const UserWelcome = () => {
 
     // Add role-specific actions
     if (role === 'admin') {
+      // Only admin users can access the dashboard
+      actions.unshift({ label: 'Dashboard', path: '/dashboard', icon: BarChart3, color: 'from-blue-500 to-blue-600', description: 'View analytics' });
       actions.push(
         { label: 'Admin Panel', path: '/admin/dashboard', icon: Shield, color: 'from-red-500 to-red-600', description: 'System control' },
         { label: 'User Management', path: '/user-management', icon: Users, color: 'from-indigo-500 to-indigo-600', description: 'Manage users' }

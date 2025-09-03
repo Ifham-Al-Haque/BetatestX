@@ -132,57 +132,9 @@ export default function Login() {
   };
 
   const redirectToRolePage = (role) => {
-    console.log('Redirecting to role page:', role);
-    
-    switch (role) {
-      case 'admin':
-        console.log('Navigating to admin dashboard');
-        navigate('/admin/dashboard', { replace: true });
-        break;
-      case 'manager':
-        console.log('Navigating to dashboard');
-        navigate('/dashboard', { replace: true });
-        break;
-      case 'driver_management':
-        console.log('Navigating to drivers page');
-        navigate('/drivers', { replace: true });
-        break;
-      case 'operation_management':
-        console.log('Navigating to drivers page');
-        navigate('/drivers', { replace: true });
-        break;
-      case 'hr_manager':
-        console.log('Navigating to employees page');
-        navigate('/employees', { replace: true });
-        break;
-      case 'finance':
-        console.log('Navigating to payment calendar');
-        navigate('/payment-calendar', { replace: true });
-        break;
-      case 'data_operator':
-        console.log('Navigating to user welcome page');
-        navigate('/', { replace: true });
-        break;
-      case 'it_management':
-        console.log('Navigating to IT requests');
-        navigate('/it-requests', { replace: true });
-        break;
-      case 'cs_manager':
-        console.log('Navigating to CSPA');
-        navigate('/cspa', { replace: true });
-        break;
-      case 'employee':
-        console.log('Navigating to user welcome page');
-        navigate('/', { replace: true });
-        break;
-      case 'viewer':
-        console.log('Navigating to user welcome page');
-        navigate('/', { replace: true });
-        break;
-      default:
-        console.log('Default navigation to user welcome page');
-        navigate('/', { replace: true });
-    }
+    console.log('🔍 Redirecting user with role:', role, 'to welcome page');
+    // All users go to welcome page first, then role-based access controls what they can see
+    navigate('/', { replace: true });
   };
 
   async function handleAuth(e) {

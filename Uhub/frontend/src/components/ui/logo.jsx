@@ -46,7 +46,7 @@ const Logo = ({
       />
       {showText && (
         <span className={textClasses}>
-          Uhub
+          hub
         </span>
       )}
     </div>

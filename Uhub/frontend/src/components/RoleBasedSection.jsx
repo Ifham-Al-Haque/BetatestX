@@ -51,7 +51,7 @@ export function ManagerAndAbove({ children, fallback = null, className = "" }) {
 export function EmployeeAndAbove({ children, fallback = null, className = "" }) {
   return (
     <RoleBasedSection 
-      allowedRoles={['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee']} 
+      allowedRoles={['admin', 'manager', 'driver_management', 'operation_management', 'hr_manager', 'cs_manager', 'employee']} 
       fallback={fallback}
       className={className}
     >

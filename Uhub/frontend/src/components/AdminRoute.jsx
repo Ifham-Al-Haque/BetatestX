@@ -57,27 +57,8 @@ export default function AdminRoute({ children }) {
 
   // Helper function to redirect to role-appropriate page
   function redirectToRolePage(role) {
-    switch (role) {
-      case 'manager':
-        navigate('/dashboard', { replace: true });
-        break;
-      case 'driver_management':
-        navigate('/drivers', { replace: true });
-        break;
-      case 'hr_manager':
-        navigate('/attendance', { replace: true });
-        break;
-      case 'cs_manager':
-        navigate('/cspa', { replace: true });
-        break;
-      case 'employee':
-        navigate('/tasks', { replace: true });
-        break;
-      case 'viewer':
-        navigate('/dashboard', { replace: true });
-        break;
-      default:
-        navigate('/dashboard', { replace: true });
-    }
+    console.log('🔍 Redirecting user with role:', role, 'to welcome page');
+    // All users go to welcome page first, then role-based access controls what they can see
+    navigate('/', { replace: true });
   }
 }

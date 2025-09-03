@@ -110,7 +110,7 @@ const Welcome = () => {
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-4xl mx-auto leading-relaxed">
-              The ultimate unified platform that brings all your departments together, 
+              The ultimate unified platform that brings all your departments together as a family, 
               enabling seamless collaboration and efficient operations management.
             </p>
           </div>
