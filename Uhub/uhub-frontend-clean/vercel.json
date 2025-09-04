@@ -1,13 +1,7 @@
 {
-  "builds": [
-    {
-      "src": "Uhub/uhub-frontend-clean/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    }
-  ],
+  "buildCommand": "cd Uhub/uhub-frontend-clean && npm ci && npm run build",
+  "outputDirectory": "Uhub/uhub-frontend-clean/build",
+  "installCommand": "cd Uhub/uhub-frontend-clean && npm ci",
   "rewrites": [
     {
       "source": "/(.*)",
