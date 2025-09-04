@@ -1,7 +1,13 @@
 {
-  "rootDirectory": "Uhub/uhub-frontend-clean",
-  "outputDirectory": "build",
-  "framework": "create-react-app",
+  "builds": [
+    {
+      "src": "Uhub/uhub-frontend-clean/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
