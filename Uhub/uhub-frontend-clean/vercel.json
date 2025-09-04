@@ -1,8 +1,7 @@
 {
-  "buildCommand": "cd Uhub/uhub-frontend-clean && npm install && npm run build",
-  "outputDirectory": "Uhub/uhub-frontend-clean/build",
+  "rootDirectory": "Uhub/uhub-frontend-clean",
+  "outputDirectory": "build",
   "framework": "create-react-app",
-  "installCommand": "cd Uhub/uhub-frontend-clean && npm install",
   "rewrites": [
     {
       "source": "/(.*)",
