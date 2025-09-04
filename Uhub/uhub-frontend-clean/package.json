@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "IT Projects Repository",
   "scripts": {
-    "build": "cd Uhub/uhub-frontend-clean && npm ci && npm run build",
-    "install": "cd Uhub/uhub-frontend-clean && npm ci"
+    "build": "powershell -Command \"cd Uhub\\uhub-frontend-clean; npm ci; npm run build\"",
+    "install": "powershell -Command \"cd Uhub\\uhub-frontend-clean; npm ci\""
   },
   "engines": {
     "node": ">=18.0.0",
