@@ -1,12 +1,11 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm ci && npm run build",
   "outputDirectory": "build",
   "framework": "create-react-app",
-  "installCommand": "npm ci",
-  "functions": {
-    "app/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
+  "installCommand": "npm ci --include=dev",
+  "env": {
+    "NODE_ENV": "production",
+    "GENERATE_SOURCEMAP": "false"
   },
   "rewrites": [
     {
