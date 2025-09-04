@@ -1,12 +1,7 @@
 {
-  "buildCommand": "npm ci && npm run build",
   "outputDirectory": "build",
   "framework": "create-react-app",
-  "installCommand": "npm ci --include=dev",
-  "env": {
-    "NODE_ENV": "production",
-    "GENERATE_SOURCEMAP": "false"
-  },
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/(.*)",
