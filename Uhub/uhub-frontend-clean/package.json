@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "IT Projects Repository",
   "scripts": {
-    "build": "cd Uhub/uhub-frontend-clean && npm install && npm run build",
+    "build": "cd Uhub/uhub-frontend-clean && npm install && npx react-scripts build",
     "install": "cd Uhub/uhub-frontend-clean && npm install"
   },
   "engines": {
