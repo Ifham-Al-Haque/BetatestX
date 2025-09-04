@@ -2,10 +2,6 @@
   "name": "it-projects",
   "version": "1.0.0",
   "description": "IT Projects Repository",
-  "scripts": {
-    "build": "cd Uhub/uhub-frontend-clean && npm install && ./node_modules/.bin/react-scripts build",
-    "install": "cd Uhub/uhub-frontend-clean && npm install"
-  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
