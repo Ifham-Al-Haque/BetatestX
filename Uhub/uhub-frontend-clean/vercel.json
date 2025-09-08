@@ -4,5 +4,3 @@
   "installCommand": "cd Uhub/uhub-frontend-clean && npm ci",
   "framework": "create-react-app"
 }
-
-
