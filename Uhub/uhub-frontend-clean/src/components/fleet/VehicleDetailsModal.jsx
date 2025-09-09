@@ -14,7 +14,7 @@ const VehicleDetailsModal = ({ isOpen, onClose, vehicleId }) => {
     if (isOpen && vehicleId) {
       loadVehicleDetails();
     }
-  }, [isOpen, vehicleId]);
+  }, [isOpen, vehicleId, loadVehicleDetails]);
 
   const loadVehicleDetails = async () => {
     try {

@@ -55,7 +55,7 @@ const RoleDebug = () => {
 
   React.useEffect(() => {
     checkUserRole();
-  }, [user]);
+  }, [user, checkUserRole]);
 
   const testProfileCreation = async () => {
     console.log('🧪 Testing profile creation...');

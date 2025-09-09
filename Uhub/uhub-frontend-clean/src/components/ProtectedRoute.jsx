@@ -83,7 +83,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
       }, 0);
       return;
     }
-  }, [loading, user, userRole, requiredFeature, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate]);
+  }, [loading, user, userRole, requiredFeature, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate, redirectToRolePage, userProfile]);
 
   // Reset navigation flag when user changes
   useEffect(() => {

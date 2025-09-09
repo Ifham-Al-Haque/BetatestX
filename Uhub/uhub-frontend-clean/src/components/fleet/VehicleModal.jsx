@@ -39,7 +39,7 @@ const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
     if (isOpen) {
       loadFormData();
     }
-  }, [isOpen, vehicle]);
+  }, [isOpen, vehicle, loadFormData]);
 
   const loadFormData = async () => {
     try {

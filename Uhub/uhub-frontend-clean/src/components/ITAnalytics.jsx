@@ -42,7 +42,7 @@ const ITAnalytics = ({ onClose }) => {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [dateRange]);
+  }, [dateRange, fetchAnalytics]);
 
   const fetchAnalytics = async () => {
     try {

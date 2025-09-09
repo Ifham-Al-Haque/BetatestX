@@ -46,7 +46,7 @@ const InvitationManager = () => {
   // Load invitations on component mount
   useEffect(() => {
     fetchInvitations();
-  }, []);
+  }, [fetchInvitations]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

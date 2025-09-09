@@ -460,7 +460,7 @@ export default function CalendarView({ events = [], onEventClick, onAddEvent }) 
 
   // Enhanced calendar messages
   const messages = {
-    allDay: 'All Day',
+    allDay: 'All Day Event',
     previous: 'Previous',
     next: 'Next',
     today: 'Today',
@@ -471,17 +471,10 @@ export default function CalendarView({ events = [], onEventClick, onAddEvent }) 
     date: 'Date',
     time: 'Time',
     event: 'Event',
-    noEventsInRange: 'No events in this range.',
+    noEventsInRange: 'No events scheduled for this period.',
     showMore: (total) => `+ Show more (${total})`,
     yesterday: 'Yesterday',
     tomorrow: 'Tomorrow',
-    noEventsInRange: 'No events scheduled for this period.',
-    allDay: 'All Day Event',
-    date: 'Date',
-    time: 'Time',
-    event: 'Event',
-    noEventsInRange: 'No events in this range.',
-    showMore: (total) => `+ Show more (${total})`,
   };
 
   // Calculate calendar statistics
