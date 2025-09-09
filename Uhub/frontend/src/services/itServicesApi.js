@@ -172,45 +172,97 @@ export const itServicesApi = {
     // Get all requests with role-based filtering
     getAll: async (filters = {}, userId = null, userRole = null) => {
       try {
+        // Try to use the view first, fallback to base table if view doesn't exist
         let query = supabase
           .from('it_request_details')
           .select('*')
           .order('created_at', { ascending: false });
 
-        // Apply role-based filtering
-        if (userRole === 'employee' || (!userRole && userId)) {
-          // For regular users, filter by their user ID
-          query = query.eq('requester_id', userId);
+        const { data, error } = await query;
+        
+        // If view doesn't exist (404, PGRST116, or 42P01), fallback to base table
+        if (error && (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01')) {
+          console.warn('it_request_details view not found, using fallback query');
+          query = supabase
+            .from('it_requests')
+            .select(`
+              *,
+              category:category_id(name, description, icon, color),
+              priority:priority_id(name, level, color, sla_hours, description)
+            `)
+            .order('created_at', { ascending: false });
+
+          // Apply role-based filtering
+          if (userRole === 'employee' || (!userRole && userId)) {
+            query = query.eq('requester_id', userId);
+          }
+
+          // Apply filters
+          if (filters.status) {
+            query = query.eq('status', filters.status);
+          }
+          if (filters.category_id) {
+            query = query.eq('category_id', filters.category_id);
+          }
+          if (filters.priority_id) {
+            query = query.eq('priority_id', filters.priority_id);
+          }
+          if (filters.requester_id) {
+            query = query.eq('requester_id', filters.requester_id);
+          }
+          if (filters.assigned_to) {
+            query = query.eq('assigned_to', filters.assigned_to);
+          }
+          if (filters.request_type) {
+            query = query.eq('request_type', filters.request_type);
+          }
+          if (filters.search) {
+            const searchTerm = filters.search.toLowerCase();
+            query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,request_number.ilike.%${searchTerm}%`);
+          }
+
+          const { data: fallbackData, error: fallbackError } = await query;
+          if (fallbackError) throw fallbackError;
+          return { data: fallbackData || [] };
         }
-        // Tech roles and admins can see all requests (no additional filtering needed)
+
+        if (error) throw error;
+
+        // Apply role-based filtering for view data
+        let filteredData = data || [];
+        if (userRole === 'employee' || (!userRole && userId)) {
+          filteredData = filteredData.filter(request => request.requester_id === userId);
+        }
 
         // Apply filters
         if (filters.status) {
-          query = query.eq('status', filters.status);
+          filteredData = filteredData.filter(request => request.status === filters.status);
         }
         if (filters.category_id) {
-          query = query.eq('category_id', filters.category_id);
+          filteredData = filteredData.filter(request => request.category_id === filters.category_id);
         }
         if (filters.priority_id) {
-          query = query.eq('priority_id', filters.priority_id);
+          filteredData = filteredData.filter(request => request.priority_id === filters.priority_id);
         }
         if (filters.requester_id) {
-          query = query.eq('requester_id', filters.requester_id);
+          filteredData = filteredData.filter(request => request.requester_id === filters.requester_id);
         }
         if (filters.assigned_to) {
-          query = query.eq('assigned_to', filters.assigned_to);
+          filteredData = filteredData.filter(request => request.assigned_to === filters.assigned_to);
         }
         if (filters.request_type) {
-          query = query.eq('request_type', filters.request_type);
+          filteredData = filteredData.filter(request => request.request_type === filters.request_type);
         }
         if (filters.search) {
           const searchTerm = filters.search.toLowerCase();
-          query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,request_number.ilike.%${searchTerm}%`);
+          filteredData = filteredData.filter(request => 
+            request.title?.toLowerCase().includes(searchTerm) ||
+            request.description?.toLowerCase().includes(searchTerm) ||
+            request.request_number?.toLowerCase().includes(searchTerm)
+          );
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
-        return { data: data || [] };
+        return { data: filteredData };
       } catch (error) {
         console.error('Error fetching requests:', error);
         throw error;
@@ -219,11 +271,30 @@ export const itServicesApi = {
 
     getById: async (id) => {
       try {
-        const { data, error } = await supabase
+        // Try view first, fallback to base table
+        let query = supabase
           .from('it_request_details')
           .select('*')
           .eq('id', id)
           .single();
+
+        const { data, error } = await query;
+        
+        if (error && (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01')) {
+          // Fallback to base table with joins
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('it_requests')
+            .select(`
+              *,
+              category:category_id(name, description, icon, color),
+              priority:priority_id(name, level, color, sla_hours, description)
+            `)
+            .eq('id', id)
+            .single();
+          
+          if (fallbackError) throw fallbackError;
+          return fallbackData;
+        }
 
         if (error) throw error;
         return data;
@@ -380,7 +451,7 @@ export const itServicesApi = {
     // Get request statistics
     getStats: async (userId = null, userRole = null) => {
       try {
-        // Use the database function for better performance
+        // Try to use the database function first
         const { data, error } = await supabase
           .rpc('get_it_request_stats', {
             user_id: userId,
@@ -390,7 +461,7 @@ export const itServicesApi = {
         if (error) throw error;
         return data;
       } catch (error) {
-        console.error('Error fetching request stats:', error);
+        console.warn('get_it_request_stats function not found, using fallback calculation');
         // Fallback to manual calculation
         try {
           let query = supabase
@@ -412,7 +483,7 @@ export const itServicesApi = {
             open_requests: requests.filter(r => r.status === 'open').length,
             assigned_requests: requests.filter(r => r.status === 'assigned').length,
             in_progress_requests: requests.filter(r => r.status === 'in_progress').length,
-            pending_user_requests: requests.filter(r => r.status === 'pending_user').length,
+            pending_user_requests: requests.filter(r => r.status === 'pending_approval').length,
             resolved_requests: requests.filter(r => r.status === 'resolved').length,
             closed_requests: requests.filter(r => r.status === 'closed').length,
             cancelled_requests: requests.filter(r => r.status === 'cancelled').length,
@@ -440,20 +511,46 @@ export const itServicesApi = {
     // Get requests by status for dashboard
     getByStatus: async (status, userId = null, userRole = null) => {
       try {
+        // Try view first, fallback to base table
         let query = supabase
           .from('it_request_details')
           .select('*')
           .eq('status', status)
           .order('created_at', { ascending: false });
 
-        // Apply role-based filtering
-        if (userRole === 'employee' && userId) {
-          query = query.eq('requester_id', userId);
+        const { data, error } = await query;
+        
+        if (error && (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01')) {
+          // Fallback to base table with joins
+          query = supabase
+            .from('it_requests')
+            .select(`
+              *,
+              category:category_id(name, description, icon, color),
+              priority:priority_id(name, level, color, sla_hours, description)
+            `)
+            .eq('status', status)
+            .order('created_at', { ascending: false });
+
+          // Apply role-based filtering
+          if (userRole === 'employee' && userId) {
+            query = query.eq('requester_id', userId);
+          }
+
+          const { data: fallbackData, error: fallbackError } = await query;
+          if (fallbackError) throw fallbackError;
+          return fallbackData || [];
         }
 
-        const { data, error } = await query;
         if (error) throw error;
-        return data || [];
+
+        // Apply role-based filtering for view data
+        let filteredData = data || [];
+        if (userRole === 'employee' && userId) {
+          filteredData = filteredData.filter(request => request.requester_id === userId);
+        }
+
+        return filteredData;
       } catch (error) {
         console.error('Error fetching requests by status:', error);
         throw error;
@@ -604,6 +701,162 @@ export const itServicesApi = {
         return true;
       } catch (error) {
         console.error('Error deleting attachment:', error);
+        throw error;
+      }
+    }
+  },
+
+  // IT Tickets
+  tickets: {
+    getAll: async (filters = {}) => {
+      try {
+        let query = supabase
+          .from('it_tickets')
+          .select(`
+            *,
+            request:request_id(title, request_number),
+            assigned:assigned_to(full_name, email, avatar_url),
+            priority:priority_id(name, level, color, sla_hours)
+          `)
+          .order('created_at', { ascending: false });
+
+        // Apply filters
+        if (filters.status) {
+          query = query.eq('status', filters.status);
+        }
+        if (filters.priority_id) {
+          query = query.eq('priority_id', filters.priority_id);
+        }
+        if (filters.assigned_to) {
+          query = query.eq('assigned_to', filters.assigned_to);
+        }
+        if (filters.request_id) {
+          query = query.eq('request_id', filters.request_id);
+        }
+        if (filters.search) {
+          const searchTerm = filters.search.toLowerCase();
+          query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,ticket_number.ilike.%${searchTerm}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return { data: data || [] };
+      } catch (error) {
+        console.error('Error fetching tickets:', error);
+        throw error;
+      }
+    },
+
+    getById: async (id) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_tickets')
+          .select(`
+            *,
+            request:request_id(title, request_number),
+            assigned:assigned_to(full_name, email, avatar_url),
+            priority:priority_id(name, level, color, sla_hours)
+          `)
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error fetching ticket:', error);
+        throw error;
+      }
+    },
+
+    create: async (ticketData) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_tickets')
+          .insert({
+            title: ticketData.title,
+            description: ticketData.description,
+            request_id: ticketData.request_id || null,
+            priority_id: ticketData.priority_id,
+            assigned_to: ticketData.assigned_to || null,
+            estimated_time_minutes: ticketData.estimated_time_minutes || null,
+            status: 'open'
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error creating ticket:', error);
+        throw error;
+      }
+    },
+
+    update: async (id, updateData) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_tickets')
+          .update({
+            ...updateData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error updating ticket:', error);
+        throw error;
+      }
+    },
+
+    updateStatus: async (id, status, notes = null) => {
+      try {
+        const updateData = {
+          status,
+          updated_at: new Date().toISOString()
+        };
+
+        if (notes) {
+          updateData.resolution_notes = notes;
+        }
+
+        if (status === 'resolved') {
+          updateData.resolved_at = new Date().toISOString();
+        }
+
+        if (status === 'closed') {
+          updateData.closed_at = new Date().toISOString();
+        }
+
+        const { data, error } = await supabase
+          .from('it_tickets')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error updating ticket status:', error);
+        throw error;
+      }
+    },
+
+    delete: async (id) => {
+      try {
+        const { error } = await supabase
+          .from('it_tickets')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+        return true;
+      } catch (error) {
+        console.error('Error deleting ticket:', error);
         throw error;
       }
     }

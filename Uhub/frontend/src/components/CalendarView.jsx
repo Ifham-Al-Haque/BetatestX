@@ -364,21 +364,41 @@ export default function CalendarView({ events = [], onEventClick, onAddEvent }) 
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
 
+  // Helper function to safely create Date objects
+  const createSafeDate = (dateValue, fallback = new Date()) => {
+    if (!dateValue) return fallback;
+    
+    const date = new Date(dateValue);
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date value:', dateValue, 'using fallback');
+      return fallback;
+    }
+    return date;
+  };
+
   // Transform events to match react-big-calendar format with enhanced data
   const transformedEvents = useMemo(() => {
-    return events.map(event => ({
-      id: event.id,
-      title: event.title || event.description || 'Event',
-      start: new Date(event.start_date || event.due_date || event.date),
-      end: new Date(event.end_date || event.due_date || event.date),
-      type: event.type || 'event',
-      priority: event.priority || 'medium',
-      description: event.description,
-      location: event.location,
-      category: event.category,
-      status: event.status,
-      resource: event
-    }));
+    return events.map(event => {
+      // Use current time as fallback for invalid dates
+      const now = new Date();
+      const startDate = createSafeDate(event.start_date || event.due_date || event.date, now);
+      const endDate = createSafeDate(event.end_date || event.due_date || event.date, new Date(now.getTime() + 60 * 60 * 1000)); // 1 hour later
+      
+      return {
+        id: event.id,
+        title: event.title || event.description || 'Event',
+        start: startDate,
+        end: endDate,
+        type: event.type || 'event',
+        priority: event.priority || 'medium',
+        description: event.description,
+        location: event.location,
+        category: event.category,
+        status: event.status,
+        resource: event
+      };
+    });
   }, [events]);
 
   // Enhanced event styling with better visual hierarchy
@@ -637,10 +657,17 @@ export default function CalendarView({ events = [], onEventClick, onAddEvent }) 
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-2">Date & Time</h4>
                   <p className="text-gray-700">
-                    {format(selectedEvent.start, 'PPP')} at {format(selectedEvent.start, 'p')}
-                    {selectedEvent.end && selectedEvent.end !== selectedEvent.start && 
-                      ` - ${format(selectedEvent.end, 'p')}`
-                    }
+                    {selectedEvent.start && !isNaN(selectedEvent.start.getTime()) ? (
+                      <>
+                        {format(selectedEvent.start, 'PPP')} at {format(selectedEvent.start, 'p')}
+                        {selectedEvent.end && selectedEvent.end !== selectedEvent.start && 
+                          !isNaN(selectedEvent.end.getTime()) && 
+                          ` - ${format(selectedEvent.end, 'p')}`
+                        }
+                      </>
+                    ) : (
+                      'Date not available'
+                    )}
                   </p>
                 </div>
 

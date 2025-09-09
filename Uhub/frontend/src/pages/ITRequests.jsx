@@ -100,20 +100,45 @@ const ITRequests = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [categoriesData, prioritiesData, requestsData, analyticsData] = await Promise.all([
-        itServicesApi.categories.getAll(),
-        itServicesApi.priorities.getAll(),
-        itServicesApi.requests.getAll(filters, user?.id, userProfile?.role),
-        fetchAnalytics()
+      
+      // Only fetch categories and priorities - no need to fetch requests for a request creation page
+      const [categoriesData, prioritiesData] = await Promise.allSettled([
+        itServicesApi.categories.getAll().catch(err => {
+          console.error('Error fetching categories:', err);
+          return [];
+        }),
+        itServicesApi.priorities.getAll().catch(err => {
+          console.error('Error fetching priorities:', err);
+          return [];
+        })
       ]);
 
-      setCategories(categoriesData);
-      setPriorities(prioritiesData);
-      setRequests(requestsData.data || []);
-      setAnalytics(analyticsData);
+      setCategories(categoriesData.status === 'fulfilled' ? categoriesData.value : []);
+      setPriorities(prioritiesData.status === 'fulfilled' ? prioritiesData.value : []);
+      
+      // Set empty requests array since this is a request creation page
+      setRequests([]);
+      setAnalytics({
+        totalRequests: 0,
+        openRequests: 0,
+        inProgressRequests: 0,
+        resolvedRequests: 0,
+        averageResolutionTime: 0,
+        categoryBreakdown: [],
+        priorityBreakdown: [],
+        monthlyTrends: []
+      });
+
+      // Show warning if categories/priorities failed to load
+      const failedCount = [categoriesData, prioritiesData]
+        .filter(result => result.status === 'rejected').length;
+      
+      if (failedCount > 0) {
+        showError('Warning', `Failed to load categories or priorities. Please check your database setup.`);
+      }
     } catch (err) {
-      console.error('Error fetching data:', err);
-      showError('Error', 'Failed to fetch data. Please try again.');
+      console.error('Error in fetchData:', err);
+      showError('Error', 'Failed to load form data. Please check your database connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -148,9 +173,27 @@ const ITRequests = () => {
     e.preventDefault();
     
     try {
+      // Validate required fields
+      if (!formData.title.trim()) {
+        showError('Validation Error', 'Title is required');
+        return;
+      }
+      if (!formData.description.trim()) {
+        showError('Validation Error', 'Description is required');
+        return;
+      }
+      if (!formData.category_id) {
+        showError('Validation Error', 'Category is required');
+        return;
+      }
+      if (!formData.priority_id) {
+        showError('Validation Error', 'Priority is required');
+        return;
+      }
+
       const requestData = {
         ...formData,
-        requester_id: userProfile?.employee_id || user.id, // Use employee_id if available, fallback to user.id
+        requester_id: user?.id, // Use user.id directly
         estimated_completion_date: formData.estimated_completion_date || null,
         attachments: attachments,
         comments: comments
@@ -542,13 +585,13 @@ const ITRequests = () => {
                     className="text-4xl font-bold mb-2"
                     style={{ color: 'var(--text-primary)' }}
                   >
-                    IT Service Requests
+                    Submit IT Request
                   </h1>
                   <p 
                     className="text-lg"
                     style={{ color: 'var(--text-muted)' }}
                   >
-                    Submit and manage your IT service requests with enhanced tracking
+                    Create a new IT service request for hardware, software, or technical support
                   </p>
             </div>
               </div>

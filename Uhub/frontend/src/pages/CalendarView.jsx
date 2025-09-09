@@ -370,33 +370,52 @@ const CalendarViewPage = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Events</h3>
             <div className="space-y-3">
               {events
-                .filter(event => new Date(event.start_date) > new Date())
-                .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
+                .filter(event => {
+                  const eventDate = new Date(event.start_date);
+                  return !isNaN(eventDate.getTime()) && eventDate > new Date();
+                })
+                .sort((a, b) => {
+                  const dateA = new Date(a.start_date);
+                  const dateB = new Date(b.start_date);
+                  return dateA - dateB;
+                })
                 .slice(0, 5)
-                .map(event => (
-                  <div 
-                    key={event.id} 
-                    className="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors duration-200"
-                    onClick={() => handleEditEvent(event)}
-                  >
-                    <div className={`w-3 h-3 rounded-full ${
-                      event.type === 'meeting' ? 'bg-blue-500' :
-                      event.type === 'deadline' ? 'bg-red-500' :
-                      event.type === 'task' ? 'bg-purple-500' :
-                      event.type === 'reminder' ? 'bg-yellow-500' : 'bg-green-500'
-                    }`} />
-                    <div className="ml-3 flex-1">
-                      <p className="text-sm font-medium text-gray-900">{event.title}</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(event.start_date).toLocaleDateString()} at {new Date(event.start_date).toLocaleTimeString()}
-                      </p>
+                .map(event => {
+                  const eventDate = new Date(event.start_date);
+                  const isValidDate = !isNaN(eventDate.getTime());
+                  
+                  return (
+                    <div 
+                      key={event.id} 
+                      className="flex items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors duration-200"
+                      onClick={() => handleEditEvent(event)}
+                    >
+                      <div className={`w-3 h-3 rounded-full ${
+                        event.type === 'meeting' ? 'bg-blue-500' :
+                        event.type === 'deadline' ? 'bg-red-500' :
+                        event.type === 'task' ? 'bg-purple-500' :
+                        event.type === 'reminder' ? 'bg-yellow-500' : 'bg-green-500'
+                      }`} />
+                      <div className="ml-3 flex-1">
+                        <p className="text-sm font-medium text-gray-900">{event.title}</p>
+                        <p className="text-xs text-gray-500">
+                          {isValidDate ? (
+                            `${eventDate.toLocaleDateString()} at ${eventDate.toLocaleTimeString()}`
+                          ) : (
+                            'Date not available'
+                          )}
+                        </p>
+                      </div>
+                      {event.priority === 'high' && (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">High</span>
+                      )}
                     </div>
-                    {event.priority === 'high' && (
-                      <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">High</span>
-                    )}
-                  </div>
-                ))}
-              {events.filter(event => new Date(event.start_date) > new Date()).length === 0 && (
+                  );
+                })}
+              {events.filter(event => {
+                const eventDate = new Date(event.start_date);
+                return !isNaN(eventDate.getTime()) && eventDate > new Date();
+              }).length === 0 && (
                 <p className="text-gray-500 text-sm text-center py-4">No upcoming events</p>
               )}
             </div>

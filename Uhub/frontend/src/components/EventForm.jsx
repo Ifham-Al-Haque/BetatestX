@@ -46,13 +46,18 @@ const EventForm = ({
       const startDate = new Date(event.start_date);
       const endDate = new Date(event.end_date);
       
+      // Check if dates are valid, use current date as fallback
+      const now = new Date();
+      const safeStartDate = isNaN(startDate.getTime()) ? now : startDate;
+      const safeEndDate = isNaN(endDate.getTime()) ? new Date(now.getTime() + 60 * 60 * 1000) : endDate;
+      
       setFormData({
         title: event.title || '',
         description: event.description || '',
-        start_date: startDate.toISOString().split('T')[0],
-        start_time: startDate.toTimeString().slice(0, 5),
-        end_date: endDate.toISOString().split('T')[0],
-        end_time: endDate.toTimeString().slice(0, 5),
+        start_date: safeStartDate.toISOString().split('T')[0],
+        start_time: safeStartDate.toTimeString().slice(0, 5),
+        end_date: safeEndDate.toISOString().split('T')[0],
+        end_time: safeEndDate.toTimeString().slice(0, 5),
         type: event.type || 'event',
         priority: event.priority || 'medium',
         location: event.location || '',
