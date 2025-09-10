@@ -60,16 +60,12 @@ const Suggestions = () => {
   ];
 
   useEffect(() => {
-    fetchData();
-    fetchCategories();
-    fetchUsers();
-  }, [filters]);
-
-  useEffect(() => {
     if (userProfile) {
       fetchData();
+      fetchCategories();
+      fetchUsers();
     }
-  }, [userProfile]);
+  }, [filters, userProfile]);
 
   const fetchData = async () => {
     try {

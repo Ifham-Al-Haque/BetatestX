@@ -83,14 +83,10 @@ const ComplaintsInbox = () => {
   const isRegularEmployee = userProfile?.role === 'employee' || userProfile?.role === 'driver_management' || userProfile?.role === 'cs_manager' || userProfile?.role === 'manager';
 
   useEffect(() => {
-    fetchData();
-  }, [filters, viewMode]);
-
-  useEffect(() => {
     if (userProfile) {
       fetchData();
     }
-  }, [userProfile]);
+  }, [filters, viewMode, userProfile]);
 
   const fetchData = async () => {
     try {

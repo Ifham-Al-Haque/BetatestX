@@ -7,30 +7,136 @@ import {
 import { 
   DollarSign, TrendingUp, TrendingDown, Calendar, 
   Shield, X,
-  BarChart3, ArrowLeft, PieChart as PieChartIcon
+  BarChart3, ArrowLeft, PieChart as PieChartIcon,
+  Filter, Download, RefreshCw, ChevronDown, ChevronUp,
+  Clock, Target, Zap, Star
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useExpenses } from "../hooks/useApi";
 import LoadingSpinner from "../components/LoadingSpinner";
 
-// Color scheme for charts
+// Enhanced color scheme for charts with gradients
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
+const GRADIENT_COLORS = [
+  'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+  'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+  'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+  'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+  'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+  'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+  'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
+];
 
-// Custom Tooltip Component
+// Filter options
+const FILTER_OPTIONS = {
+  timeRange: [
+    { value: 'current-month', label: 'Current Month', icon: Calendar },
+    { value: 'last-3-months', label: 'Last 3 Months', icon: Clock },
+    { value: 'last-6-months', label: 'Last 6 Months', icon: Target },
+    { value: 'last-year', label: 'Last Year', icon: Calendar },
+    { value: 'all-time', label: 'All Time', icon: Zap }
+  ],
+  comparison: [
+    { value: 'none', label: 'No Comparison', icon: BarChart3 },
+    { value: 'previous-period', label: 'Previous Period', icon: TrendingUp },
+    { value: 'year-over-year', label: 'Year over Year', icon: Star }
+  ]
+};
+
+// Enhanced Custom Tooltip Component
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800">{label}</p>
+      <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl backdrop-blur-sm">
+        <p className="font-bold text-gray-800 dark:text-white text-lg mb-2">{label}</p>
         {payload.map((entry, index) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name}: {entry.value?.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
-          </p>
+          <div key={index} className="flex items-center space-x-2 mb-1">
+            <div 
+              className="w-3 h-3 rounded-full" 
+              style={{ backgroundColor: entry.color }}
+            ></div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {entry.name}: <span className="font-bold text-blue-600 dark:text-blue-400">
+                {entry.value?.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
+              </span>
+            </p>
+          </div>
         ))}
       </div>
     );
   }
   return null;
+};
+
+// Enhanced Filter Component
+const AnalyticsFilter = ({ filters, onFilterChange, isExpanded, onToggle }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: isExpanded ? 'auto' : 0 }}
+      exit={{ opacity: 0, height: 0 }}
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 overflow-hidden"
+    >
+      <div className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Time Range Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              <Clock className="w-4 h-4 inline mr-2" />
+              Time Range
+            </label>
+            <div className="space-y-2">
+              {FILTER_OPTIONS.timeRange.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => onFilterChange('timeRange', option.value)}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                      filters.timeRange === option.value
+                        ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-2 border-blue-200 dark:border-blue-700'
+                        : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="text-sm font-medium">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Comparison Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              <TrendingUp className="w-4 h-4 inline mr-2" />
+              Comparison
+            </label>
+            <div className="space-y-2">
+              {FILTER_OPTIONS.comparison.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => onFilterChange('comparison', option.value)}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                      filters.comparison === option.value
+                        ? 'bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-300 border-2 border-green-200 dark:border-green-700'
+                        : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="text-sm font-medium">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 };
 
 // Monthly Breakdown Charts Component
@@ -438,10 +544,16 @@ const ServiceBreakdownChart = ({ expenses }) => {
   }
 
   return (
-    <div className="h-96 bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100">
+    <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={serviceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <defs>
+            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.6} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
           <XAxis 
             dataKey="service" 
             angle={-45}
@@ -450,18 +562,22 @@ const ServiceBreakdownChart = ({ expenses }) => {
             interval={0}
             tick={{ fontSize: 12, fill: '#6B7280' }}
             axisLine={{ stroke: '#D1D5DB' }}
+            tickLine={{ stroke: '#D1D5DB' }}
           />
           <YAxis 
             tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
             tick={{ fontSize: 12, fill: '#6B7280' }}
             axisLine={{ stroke: '#D1D5DB' }}
+            tickLine={{ stroke: '#D1D5DB' }}
           />
           <Tooltip content={<CustomTooltip />} />
-                     <Bar 
-             dataKey="total" 
-             fill="#3B82F6"
-             radius={[4, 4, 0, 0]}
-           >
+          <Bar 
+            dataKey="total" 
+            fill="url(#barGradient)"
+            radius={[8, 8, 0, 0]}
+            stroke="#1D4ED8"
+            strokeWidth={1}
+          >
             {serviceData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
@@ -474,14 +590,40 @@ const ServiceBreakdownChart = ({ expenses }) => {
 
 
 
-// Individual Service Line Charts Component
-const IndividualServiceCharts = ({ expenses }) => {
-  // Group expenses by service and month
+// Enhanced Individual Service Line Charts Component with Filtering
+const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', comparison: 'none' } }) => {
+  // Group expenses by service and month with filtering
   const serviceData = useMemo(() => {
     if (!expenses.length) return {};
 
+    const now = new Date();
+    let filteredExpenses = expenses;
+
+    // Apply time range filter
+    if (filters.timeRange !== 'all-time') {
+      const cutoffDate = new Date();
+      switch (filters.timeRange) {
+        case 'current-month':
+          cutoffDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'last-3-months':
+          cutoffDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'last-6-months':
+          cutoffDate.setMonth(now.getMonth() - 6);
+          break;
+        case 'last-year':
+          cutoffDate.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+      filteredExpenses = expenses.filter(expense => {
+        const expenseDate = new Date(expense.date_paid);
+        return expenseDate >= cutoffDate;
+      });
+    }
+
     const grouped = {};
-    expenses.forEach(expense => {
+    filteredExpenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed && expense.date_paid) {
         const service = expense.service_name.trim();
         const date = new Date(expense.date_paid);
@@ -494,8 +636,11 @@ const IndividualServiceCharts = ({ expenses }) => {
         if (!grouped[service][monthKey]) {
           grouped[service][monthKey] = {
             monthName,
+            monthKey,
             total: 0,
-            count: 0
+            count: 0,
+            year: date.getFullYear(),
+            month: date.getMonth() + 1
           };
         }
         grouped[service][monthKey].total += parseFloat(expense.amount_aed) || 0;
@@ -503,19 +648,21 @@ const IndividualServiceCharts = ({ expenses }) => {
       }
     });
 
-    // Convert to array format for charts
+    // Convert to array format for charts with proper chronological sorting
     const result = {};
     Object.keys(grouped).forEach(service => {
       const months = Object.values(grouped[service]);
       result[service] = months.sort((a, b) => {
-        const aDate = new Date(a.monthName);
-        const bDate = new Date(b.monthName);
-        return aDate - bDate;
+        // Sort by year first, then by month
+        if (a.year !== b.year) {
+          return a.year - b.year;
+        }
+        return a.month - b.month;
       });
     });
 
     return result;
-  }, [expenses]);
+  }, [expenses, filters]);
 
   if (!expenses.length) {
     return (
@@ -532,13 +679,31 @@ const IndividualServiceCharts = ({ expenses }) => {
 
   return (
     <div className="space-y-8">
-      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-        Individual Service Trends
-      </h3>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Individual Service Trends
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400">
+            Track spending patterns for each service over time
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {services.length} services tracked
+          </span>
+        </div>
+      </div>
       
       {services.map((serviceName, index) => {
         const data = serviceData[serviceName];
         if (!data || data.length === 0) return null;
+
+        const totalSpent = data.reduce((sum, item) => sum + item.total, 0);
+        const peakMonth = data.reduce((max, item) => item.total > max.total ? item : max, data[0]);
+        const averageMonthly = totalSpent / data.length;
+        const activeMonths = data.filter(item => item.total > 0).length;
 
         return (
           <motion.div
@@ -546,88 +711,123 @@ const IndividualServiceCharts = ({ expenses }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600"
+            className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {serviceName}
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {data.length} months • Total: AED {data.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
-                </p>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <div 
+                  className="w-4 h-4 rounded-full shadow-sm ring-2 ring-white dark:ring-gray-800"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                ></div>
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {serviceName}
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {data.length} months • Total: AED {totalSpent.toLocaleString()}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {data.filter(item => item.total > 0).length} active months
-                </span>
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Active Months</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {activeMonths}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
               </div>
             </div>
 
-            <div className="h-64">
+            <div className="h-80 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <defs>
+                    <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                   <XAxis 
                     dataKey="monthName" 
                     tick={{ fontSize: 12, fill: '#6B7280' }}
                     axisLine={{ stroke: '#D1D5DB' }}
+                    tickLine={{ stroke: '#D1D5DB' }}
                   />
                   <YAxis 
                     tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
                     tick={{ fontSize: 12, fill: '#6B7280' }}
                     axisLine={{ stroke: '#D1D5DB' }}
+                    tickLine={{ stroke: '#D1D5DB' }}
                   />
-                  <Tooltip 
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
-                            <p className="font-semibold text-gray-800 dark:text-white">{label}</p>
-                            <p className="text-sm text-blue-600">
-                              AED {payload[0].value?.toLocaleString()}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {payload[0].payload.count} transaction{payload[0].payload.count !== 1 ? 's' : ''}
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
                   <Line 
                     type="monotone" 
                     dataKey="total" 
                     stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={3}
-                    dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: COLORS[index % COLORS.length], strokeWidth: 2 }}
+                    strokeWidth={4}
+                    dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 5 }}
+                    activeDot={{ r: 8, stroke: COLORS[index % COLORS.length], strokeWidth: 3, fill: 'white' }}
+                    fill={`url(#gradient-${index})`}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Service Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Peak Month</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {data.reduce((max, item) => item.total > max.total ? item : max, data[0]).monthName}
-                </p>
+            {/* Enhanced Service Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 p-4 rounded-xl border border-blue-200 dark:border-blue-700">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                    <Target className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Peak Month</p>
+                    <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                      {peakMonth.monthName}
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      AED {peakMonth.total.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Average Monthly</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  AED {(data.reduce((sum, item) => sum + item.total, 0) / data.length).toFixed(0)}
-                </p>
+              
+              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900 dark:to-green-800 p-4 rounded-xl border border-green-200 dark:border-green-700">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-600 dark:text-green-400 font-medium">Average Monthly</p>
+                    <p className="text-lg font-bold text-green-900 dark:text-green-100">
+                      AED {averageMonthly.toFixed(0)}
+                    </p>
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      Per month
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total Transactions</p>
-                <p className="font-semibold text-gray-900 dark:text-white">
-                  {data.reduce((sum, item) => sum + item.count, 0)}
-                </p>
+              
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800 p-4 rounded-xl border border-purple-200 dark:border-purple-700">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Total Transactions</p>
+                    <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                      {data.reduce((sum, item) => sum + item.count, 0)}
+                    </p>
+                    <p className="text-xs text-purple-700 dark:text-purple-300">
+                      All time
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -691,21 +891,39 @@ const ServiceDistributionChart = ({ expenses }) => {
   }
 
   return (
-    <div className="h-96 bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100">
+    <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge> 
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
           <Pie
             data={pieData}
             cx="50%"
             cy="50%"
             labelLine={false}
             label={({ name, percentage }) => `${name} (${percentage}%)`}
-            outerRadius={100}
+            outerRadius={120}
+            innerRadius={40}
             fill="#8884d8"
             dataKey="value"
+            stroke="#fff"
+            strokeWidth={2}
+            filter="url(#glow)"
           >
             {pieData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
+              <Cell 
+                key={`cell-${index}`} 
+                fill={entry.color}
+                stroke={entry.color}
+                strokeWidth={2}
+              />
             ))}
           </Pie>
           <Tooltip 
@@ -713,12 +931,18 @@ const ServiceDistributionChart = ({ expenses }) => {
               if (active && payload && payload.length) {
                 const data = payload[0].payload;
                 return (
-                  <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-lg">
-                    <p className="font-bold text-gray-800 text-lg">{data.name}</p>
-                    <p className="text-lg font-semibold text-gray-600">
+                  <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl backdrop-blur-sm">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div 
+                        className="w-4 h-4 rounded-full" 
+                        style={{ backgroundColor: data.color }}
+                      ></div>
+                      <p className="font-bold text-gray-800 dark:text-white text-lg">{data.name}</p>
+                    </div>
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                       {data.value.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
                     </p>
-                    <p className="text-sm text-gray-500">{data.percentage}% of total</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{data.percentage}% of total</p>
                   </div>
                 );
               }
@@ -732,13 +956,47 @@ const ServiceDistributionChart = ({ expenses }) => {
 };
 
 // Monthly Expense Trend Chart Component
-const MonthlyExpenseTrendChart = ({ data }) => {
-  // Process monthly data for charts - moved to top before any returns
+const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } }) => {
+  const [selectedMonth, setSelectedMonth] = useState(null);
+  const [monthBreakdown, setMonthBreakdown] = useState([]);
+  const [timeFilter, setTimeFilter] = useState('all-time');
+
+  // Process monthly data for charts with filtering
   const monthlyData = useMemo(() => {
     if (!data || !data.length) return [];
 
     const monthlyStats = {};
-    data.forEach(expense => {
+    const now = new Date();
+    let filteredData = data;
+
+    // Apply time range filter
+    if (timeFilter !== 'all-time') {
+      const cutoffDate = new Date();
+      switch (timeFilter) {
+        case 'current-month':
+          cutoffDate.setMonth(now.getMonth());
+          cutoffDate.setDate(1);
+          break;
+        case 'last-3-months':
+          cutoffDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'last-6-months':
+          cutoffDate.setMonth(now.getMonth() - 6);
+          break;
+        case 'last-year':
+          cutoffDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          break;
+      }
+      
+      filteredData = data.filter(expense => {
+        const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
+        return expenseDate >= cutoffDate;
+      });
+    }
+
+    filteredData.forEach(expense => {
       const date = expense.date_paid || expense.date || expense.created_at;
       const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
       
@@ -755,9 +1013,53 @@ const MonthlyExpenseTrendChart = ({ data }) => {
 
     return Object.entries(monthlyStats)
       .map(([month, total]) => ({ month, total }))
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-6); // Last 6 months
-  }, [data]);
+      .sort((a, b) => a.month.localeCompare(b.month));
+  }, [data, timeFilter]);
+
+  // Handle bar click to show expense breakdown
+  const handleBarClick = (barData) => {
+    if (!barData || !barData.month) return;
+    
+    setSelectedMonth(barData.month);
+    
+    // Get expenses for the selected month
+    const monthExpenses = data.filter(expense => {
+      const date = expense.date_paid || expense.date || expense.created_at;
+      if (!date) return false;
+      
+      const expenseDate = new Date(date);
+      const monthKey = `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}`;
+      return monthKey === barData.month;
+    });
+
+    // Group by service for breakdown
+    const breakdown = {};
+    monthExpenses.forEach(expense => {
+      const service = expense.service_name || 'Unknown Service';
+      const amount = parseFloat(expense.amount_aed || expense.amount || expense.value || expense.cost || 0);
+      
+      if (!breakdown[service]) {
+        breakdown[service] = {
+          service,
+          total: 0,
+          count: 0,
+          expenses: []
+        };
+      }
+      
+      breakdown[service].total += amount;
+      breakdown[service].count += 1;
+      breakdown[service].expenses.push({
+        id: expense.id,
+        amount,
+        date: expense.date_paid || expense.date || expense.created_at,
+        invoice_number: expense.invoice_number || `INV-${expense.id}`,
+        description: expense.description || 'No description'
+      });
+    });
+
+    setMonthBreakdown(Object.values(breakdown).sort((a, b) => b.total - a.total));
+  };
 
   if (!data || data.length === 0) {
     return (
@@ -772,52 +1074,212 @@ const MonthlyExpenseTrendChart = ({ data }) => {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <LineChart data={monthlyData}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-        <XAxis 
-          dataKey="month" 
-          tick={{ fontSize: 12, fill: '#6B7280' }}
-          tickFormatter={(value) => {
-            const [year, month] = value.split('-');
-            const monthNames = [
-              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-            ];
-            return `${monthNames[parseInt(month) - 1]} ${year}`;
-          }}
-        />
-        <YAxis 
-          tick={{ fontSize: 12, fill: '#6B7280' }}
-          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-        />
-        <Tooltip 
-          contentStyle={{
-            backgroundColor: 'white',
-            border: '1px solid #E5E7EB',
-            borderRadius: '8px',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
-          }}
-          formatter={(value) => [`${(value / 1000).toFixed(1)}k AED`, 'Amount']}
-          labelFormatter={(label) => {
-            const [year, month] = label.split('-');
-            const monthNames = [
-              'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-            ];
-            return `${monthNames[parseInt(month) - 1]} ${year}`;
-          }}
-        />
-        <Line 
-          type="monotone" 
-          dataKey="total" 
-          stroke="#3B82F6"
-          strokeWidth={3}
-          dot={{ fill: '#3B82F6', strokeWidth: 2, r: 5 }}
-          activeDot={{ r: 8, strokeWidth: 2, stroke: 'white' }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="space-y-6">
+      {/* Chart Header with Filter and Stats */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Expense Trend</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {monthlyData.length} months of data • Total: AED {monthlyData.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
+          </p>
+        </div>
+        
+        {/* Summary Stats */}
+        <div className="flex items-center space-x-4">
+          <div className="text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">Peak Month</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              {monthlyData.length > 0 ? 
+                monthlyData.reduce((max, item) => item.total > max.total ? item : max, monthlyData[0]).month : 
+                'N/A'
+              }
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">Average</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              AED {monthlyData.length > 0 ? 
+                Math.round(monthlyData.reduce((sum, item) => sum + item.total, 0) / monthlyData.length).toLocaleString() : 
+                '0'
+              }
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <select
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all-time">All Time</option>
+              <option value="last-year">Last Year</option>
+              <option value="last-6-months">Last 6 Months</option>
+              <option value="last-3-months">Last 3 Months</option>
+              <option value="current-month">Current Month</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+        <div className="w-full overflow-x-auto">
+          <ResponsiveContainer width={Math.max(800, monthlyData.length * 80)} height="100%">
+            <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <defs>
+              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
+                <stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.6} />
+              </linearGradient>
+              <filter id="barGlow">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                <feMerge> 
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+            <XAxis 
+              dataKey="month" 
+              tick={{ fontSize: 12, fill: '#6B7280' }}
+              axisLine={{ stroke: '#D1D5DB' }}
+              tickLine={{ stroke: '#D1D5DB' }}
+              tickFormatter={(value) => {
+                const [year, month] = value.split('-');
+                const monthNames = [
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+              }}
+            />
+            <YAxis 
+              tick={{ fontSize: 12, fill: '#6B7280' }}
+              axisLine={{ stroke: '#D1D5DB' }}
+              tickLine={{ stroke: '#D1D5DB' }}
+              tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+            />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: 'white',
+                border: '1px solid #E5E7EB',
+                borderRadius: '12px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                backdropFilter: 'blur(10px)'
+              }}
+              formatter={(value) => [`${(value / 1000).toFixed(1)}k AED`, 'Amount']}
+              labelFormatter={(label) => {
+                const [year, month] = label.split('-');
+                const monthNames = [
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+              }}
+            />
+            <Bar 
+              dataKey="total" 
+              fill="url(#barGradient)"
+              radius={[8, 8, 0, 0]}
+              stroke="#1D4ED8"
+              strokeWidth={1}
+              filter="url(#barGlow)"
+              onClick={handleBarClick}
+              style={{ cursor: 'pointer' }}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Month Breakdown Modal */}
+      {selectedMonth && monthBreakdown.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900 dark:to-indigo-800 rounded-2xl p-6 border-2 border-blue-200 dark:border-blue-700 shadow-xl"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h4 className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                Expense Breakdown - {selectedMonth}
+              </h4>
+              <p className="text-blue-700 dark:text-blue-300">
+                Click on any bar above to see detailed expense breakdown
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedMonth(null);
+                setMonthBreakdown([]);
+              }}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-2 rounded-full hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Service Breakdown */}
+          <div className="space-y-4">
+            {monthBreakdown.map((service, index) => (
+              <div key={service.service} className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-blue-200 dark:border-blue-600 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    ></div>
+                    <h5 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {service.service}
+                    </h5>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      AED {service.total.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {service.count} transaction{service.count !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Individual Expenses */}
+                <div className="space-y-2">
+                  {service.expenses.map((expense, expIndex) => (
+                    <div key={expIndex} className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Invoice #</p>
+                          <p className="font-semibold text-gray-900 dark:text-white">{expense.invoice_number}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Amount</p>
+                          <p className="font-semibold text-blue-600 dark:text-blue-400">
+                            AED {expense.amount.toLocaleString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Date</p>
+                          <p className="font-semibold text-gray-900 dark:text-white">
+                            {new Date(expense.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Description</p>
+                          <p className="font-semibold text-gray-900 dark:text-white truncate">
+                            {expense.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </div>
   );
 };
 
@@ -1042,11 +1504,13 @@ const DepartmentalExpensesLineChart = ({ data }) => {
 const AverageSpendingChart = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="h-80 flex items-center justify-center text-gray-500">
+      <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
         <div className="text-center">
-          <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium text-gray-400">No expense data available</p>
-          <p className="text-sm text-gray-400 mt-1">Data will appear here once expenses are added</p>
+          <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No expense data available</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add some expenses to see average spending by service</p>
         </div>
       </div>
     );
@@ -1083,60 +1547,89 @@ const AverageSpendingChart = ({ data }) => {
   // If no valid data, show empty state
   if (chartData.length === 0) {
     return (
-      <div className="h-80 flex items-center justify-center text-gray-500">
+      <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
         <div className="text-center">
-          <span className="text-4xl mb-4">📊</span>
-          <p className="text-lg font-medium text-gray-400">No spending data available</p>
-          <p className="text-sm text-gray-400 mt-1">Check if expense data has service names and amounts</p>
+          <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No spending data available</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Check if expense data has service names and amounts</p>
         </div>
       </div>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={chartData} layout="horizontal" margin={{ left: 20, right: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-        <XAxis 
-          type="number" 
-          tick={{ fontSize: 12, fill: '#6B7280' }}
-          tickFormatter={(value) => {
-            if (value === 0) return '0';
-            if (value < 1000) return `${value.toFixed(0)}`;
-            return `${(value / 1000).toFixed(1)}k`;
-          }}
-        />
-        <YAxis 
-          type="category" 
-          dataKey="service" 
-          tick={{ fontSize: 12, fill: '#6B7280' }}
-          width={120}
-        />
-        <Tooltip 
-          contentStyle={{
-            backgroundColor: 'white',
-            border: '1px solid #E5E7EB',
-            borderRadius: '8px',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
-          }}
-          formatter={(value, name) => [
-            `${value.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}`,
-            name === 'average' ? 'Average' : name
-          ]}
-        />
-        <Bar 
-          dataKey="average" 
-          fill="url(#gradient)"
-          radius={[0, 6, 6, 0]}
-        />
-        <defs>
-          <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#3B82F6" />
-            <stop offset="100%" stopColor="#8B5CF6" />
-          </linearGradient>
-        </defs>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} layout="horizontal" margin={{ left: 20, right: 20, top: 20, bottom: 20 }}>
+          <defs>
+            <linearGradient id="averageGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
+              <stop offset="50%" stopColor="#8B5CF6" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#EC4899" stopOpacity={0.8} />
+            </linearGradient>
+            <filter id="barGlow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge> 
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+          <XAxis 
+            type="number" 
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            axisLine={{ stroke: '#D1D5DB' }}
+            tickLine={{ stroke: '#D1D5DB' }}
+            tickFormatter={(value) => {
+              if (value === 0) return '0';
+              if (value < 1000) return `${value.toFixed(0)}`;
+              return `${(value / 1000).toFixed(1)}k`;
+            }}
+          />
+          <YAxis 
+            type="category" 
+            dataKey="service" 
+            tick={{ fontSize: 12, fill: '#6B7280' }}
+            axisLine={{ stroke: '#D1D5DB' }}
+            tickLine={{ stroke: '#D1D5DB' }}
+            width={120}
+          />
+          <Tooltip 
+            content={({ active, payload, label }) => {
+              if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                return (
+                  <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl backdrop-blur-sm">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                      <p className="font-bold text-gray-800 dark:text-white text-lg">{label}</p>
+                    </div>
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                      {data.average.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Average per transaction ({data.count} transactions)
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar 
+            dataKey="average" 
+            fill="url(#averageGradient)"
+            radius={[0, 8, 8, 0]}
+            stroke="#1D4ED8"
+            strokeWidth={1}
+            filter="url(#barGlow)"
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
 
@@ -1242,6 +1735,18 @@ export default function Analytics() {
   
   // State
   const [activeTab, setActiveTab] = useState('overview');
+  const [filters, setFilters] = useState({
+    timeRange: 'all-time',
+    comparison: 'none'
+  });
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+
+  const handleFilterChange = (filterType, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
+  };
 
 
 
@@ -1309,21 +1814,45 @@ export default function Analytics() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Header Section */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      {/* Enhanced Header Section */}
+      <div className="bg-gradient-to-r from-white via-blue-50 to-indigo-50 border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
-                <BarChart3 className="w-6 h-6 text-white" />
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-lg">
+                <BarChart3 className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
-                <p className="text-sm text-gray-600">Track and analyze your service spending and expenses</p>
+                <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+                <p className="text-sm text-gray-600">Track and analyze your service spending and expenses with advanced insights</p>
               </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <Filter className="w-4 h-4" />
+                <span className="text-sm font-medium">Filters</span>
+                {isFilterExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                <Download className="w-4 h-4" />
+                <span className="text-sm font-medium">Export</span>
+              </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Filter Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <AnalyticsFilter
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          isExpanded={isFilterExpanded}
+          onToggle={() => setIsFilterExpanded(!isFilterExpanded)}
+        />
       </div>
 
       {/* Main Content */}
@@ -1391,21 +1920,26 @@ export default function Analytics() {
           >
             {activeTab === 'overview' && (
               <div className="space-y-6">
-                {/* Summary Cards */}
+                {/* Enhanced Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-lg border border-blue-200 hover:shadow-xl transition-all duration-300"
                   >
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <DollarSign className="w-6 h-6 text-blue-600" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                          <DollarSign className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-blue-600">Total Services</p>
+                          <p className="text-3xl font-bold text-blue-900">{summaryStats.totalServices}</p>
+                        </div>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Total Services</p>
-                        <p className="text-2xl font-semibold text-gray-900">{summaryStats.totalServices}</p>
+                      <div className="text-right">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
                       </div>
                     </div>
                   </motion.div>
@@ -1414,17 +1948,22 @@ export default function Analytics() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl shadow-lg border border-green-200 hover:shadow-xl transition-all duration-300"
                   >
-                    <div className="flex items-center">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <TrendingUp className="w-6 h-6 text-green-600" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
+                          <TrendingUp className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-green-600">Total Spent</p>
+                          <p className="text-3xl font-bold text-green-900">
+                            AED {summaryStats.totalSpent.toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Total Spent</p>
-                        <p className="text-2xl font-semibold text-gray-900">
-                          AED {summaryStats.totalSpent.toLocaleString()}
-                        </p>
+                      <div className="text-right">
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                       </div>
                     </div>
                   </motion.div>
@@ -1433,17 +1972,22 @@ export default function Analytics() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-2xl shadow-lg border border-yellow-200 hover:shadow-xl transition-all duration-300"
                   >
-                    <div className="flex items-center">
-                      <div className="p-2 bg-yellow-100 rounded-lg">
-                        <Calendar className="w-6 h-6 text-yellow-600" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="p-3 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg">
+                          <Calendar className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-yellow-600">Average Per Service</p>
+                          <p className="text-3xl font-bold text-yellow-900">
+                            AED {summaryStats.averagePerService.toFixed(0)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Average Per Service</p>
-                        <p className="text-2xl font-semibold text-gray-900">
-                          AED {summaryStats.averagePerService.toFixed(0)}
-                        </p>
+                      <div className="text-right">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
                       </div>
                     </div>
                   </motion.div>
@@ -1452,29 +1996,39 @@ export default function Analytics() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-300"
                   >
-                    <div className="flex items-center">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <Shield className="w-6 h-6 text-purple-600" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                          <Shield className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-purple-600">Total Transactions</p>
+                          <p className="text-3xl font-bold text-purple-900">{expenses.length}</p>
+                        </div>
                       </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500">Total Transactions</p>
-                        <p className="text-2xl font-semibold text-gray-900">{expenses.length}</p>
+                      <div className="text-right">
+                        <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
                       </div>
                     </div>
                   </motion.div>
                 </div>
 
-                {/* Existing Charts */}
+                {/* Enhanced Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Breakdown</h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Breakdown</h3>
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    </div>
                     <ServiceBreakdownChart expenses={expenses} />
                   </motion.div>
 
@@ -1482,24 +2036,34 @@ export default function Analytics() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Distribution</h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Distribution</h3>
+                      <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                        <PieChartIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      </div>
+                    </div>
                     <ServiceDistributionChart expenses={expenses} />
                   </motion.div>
                 </div>
 
-                {/* Additional Charts from Dashboard */}
+                {/* Additional Enhanced Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Monthly Expense Trend Chart */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Expense Trend</h3>
-                    <MonthlyExpenseTrendChart data={expenses} />
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Expense Trend</h3>
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                    </div>
+                    <MonthlyExpenseTrendChart data={expenses} filters={filters} />
                   </motion.div>
 
                   {/* Departmental Expenses Chart */}
@@ -1507,9 +2071,14 @@ export default function Analytics() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.8 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Departmental Expenses</h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Departmental Expenses</h3>
+                      <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                      </div>
+                    </div>
                     <DepartmentalExpensesLineChart data={expenses} />
                   </motion.div>
                 </div>
@@ -1520,9 +2089,14 @@ export default function Analytics() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.9 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Spending by Service</h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Average Spending by Service</h3>
+                      <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+                        <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                    </div>
                     <AverageSpendingChart data={expenses} />
                   </motion.div>
 
@@ -1531,9 +2105,14 @@ export default function Analytics() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 1.0 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Expense Categories</h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Top Expense Categories</h3>
+                      <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
+                        <Star className="w-4 h-4 text-pink-600 dark:text-pink-400" />
+                      </div>
+                    </div>
                     <TopExpenseCategories data={expenses} />
                   </motion.div>
                 </div>
@@ -1543,9 +2122,9 @@ export default function Analytics() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7 }}
-                  className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                  className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                 >
-                  <IndividualServiceCharts expenses={expenses} />
+                  <IndividualServiceCharts expenses={expenses} filters={filters} />
                 </motion.div>
               </div>
             )}
@@ -1557,8 +2136,13 @@ export default function Analytics() {
                 transition={{ delay: 0.2 }}
                 className="space-y-6"
               >
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Breakdown</h3>
+                <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Service Breakdown</h3>
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                      <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
                   <ServiceBreakdownChart expenses={expenses} />
                 </div>
               </motion.div>
@@ -1571,8 +2155,13 @@ export default function Analytics() {
                 transition={{ delay: 0.2 }}
                 className="space-y-6"
               >
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Distribution</h3>
+                <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Service Distribution</h3>
+                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                      <PieChartIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    </div>
+                  </div>
                   <ServiceDistributionChart expenses={expenses} />
                 </div>
               </motion.div>
@@ -1585,9 +2174,14 @@ export default function Analytics() {
                 transition={{ delay: 0.2 }}
                 className="space-y-6"
               >
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Service Expense Breakdown</h3>
-                  <p className="text-gray-600 mb-6">Click on any service bar to see detailed monthly breakdown with payment information</p>
+                <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Monthly Service Expense Breakdown</h3>
+                    <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">Click on any service bar to see detailed monthly breakdown with payment information</p>
                   <MonthlyBreakdownCharts expenses={expenses} />
                 </div>
               </motion.div>

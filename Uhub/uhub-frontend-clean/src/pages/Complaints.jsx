@@ -54,15 +54,10 @@ const Complaints = () => {
   ];
 
   useEffect(() => {
-    fetchData();
-  }, [filters]);
-
-  useEffect(() => {
     if (userProfile) {
-      console.log('UserProfile loaded:', userProfile);
       fetchData();
     }
-  }, [userProfile]);
+  }, [filters, userProfile]);
 
   useEffect(() => {
     console.log('User state:', user);

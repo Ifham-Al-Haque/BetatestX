@@ -1,3 +1,4 @@
+
 -- Update Complaints RLS Policies - Admin Only Access
 -- This script updates the RLS policies so that ONLY Admin users can see all complaints
 -- All other roles (including HR managers, CS managers, etc.) can only see their own complaints

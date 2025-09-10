@@ -264,7 +264,8 @@ class NotificationService {
 
   // Subscribe to notification updates for current user
   subscribeToUserNotifications(callback) {
-    const currentUserId = supabase.auth.user()?.id;
+    const { data: { user } } = supabase.auth.getUser();
+    const currentUserId = user?.id;
     if (!currentUserId) return null;
 
     const channel = supabase
@@ -285,6 +286,42 @@ class NotificationService {
 
     this.subscriptions.set('user-notifications', channel);
     return channel;
+  }
+
+  // Setup all notification subscriptions
+  async setupAllNotifications(addNotificationCallback) {
+    try {
+      // Subscribe to general notifications
+      const generalSub = this.subscribeToUserNotifications((payload) => {
+        if (payload.eventType === 'INSERT') {
+          addNotificationCallback({
+            type: payload.new.type,
+            title: payload.new.title,
+            message: payload.new.message,
+            priority: payload.new.priority,
+            data: payload.new.data
+          });
+        }
+      });
+
+      // Subscribe to system-wide notifications
+      const systemSub = this.subscribeToNotifications((payload) => {
+        if (payload.eventType === 'INSERT') {
+          addNotificationCallback({
+            type: payload.new.type,
+            title: payload.new.title,
+            message: payload.new.message,
+            priority: payload.new.priority,
+            data: payload.new.data
+          });
+        }
+      });
+
+      return [generalSub, systemSub].filter(Boolean);
+    } catch (error) {
+      console.error('Error setting up all notifications:', error);
+      return [];
+    }
   }
 
   // Cleanup subscriptions

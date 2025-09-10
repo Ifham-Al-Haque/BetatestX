@@ -90,7 +90,7 @@ export const ChatProvider = ({ children }) => {
       chatService.unsubscribe(sub);
     });
     setSubscriptions([]);
-  }, [subscriptions]);
+  }, []);
 
   // Update user online status
   const updateUserStatus = useCallback(async (isOnline, statusMessage = null) => {
@@ -183,7 +183,7 @@ export const ChatProvider = ({ children }) => {
         updateUserStatus(false);
       };
     }
-  }, [user?.id, cleanupSubscriptions, loadConversations, loadOnlineUsers, setupSubscriptions, updateUserStatus, user]);
+  }, [user?.id]);
 
   // Cleanup on unmount
   useEffect(() => {

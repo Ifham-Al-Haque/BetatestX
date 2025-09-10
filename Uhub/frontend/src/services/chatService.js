@@ -5,6 +5,18 @@ class ChatService {
     this.subscriptions = new Map();
   }
 
+  // Helper method to get current user
+  async getCurrentUser() {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      return null;
+    }
+  }
+
   // Get all conversations for the current user
   async getConversations() {
     try {
@@ -51,11 +63,12 @@ class ChatService {
   }
 
   // Get conversation name based on participants
-  getConversationName(conversation) {
+  async getConversationName(conversation) {
     if (conversation.name) return conversation.name;
     
     if (conversation.type === 'direct') {
-      const otherParticipant = conversation.participants?.find(p => p.user.id !== supabase.auth.user()?.id);
+      const currentUser = await this.getCurrentUser();
+      const otherParticipant = conversation.participants?.find(p => p.user.id !== currentUser?.id);
       return otherParticipant?.user?.full_name || 'Unknown User';
     }
     
@@ -110,12 +123,15 @@ class ChatService {
   // Send a message
   async sendMessage(conversationId, content, attachments = []) {
     try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           content: content.trim(),
-          sender_id: supabase.auth.user()?.id
+          sender_id: currentUser.id
         })
         .select()
         .single();
@@ -172,7 +188,7 @@ class ChatService {
           file_size: file.size,
           file_type: file.type,
           file_url: urlData.publicUrl,
-          uploaded_by: supabase.auth.user()?.id
+          uploaded_by: currentUser.id
         })
         .select()
         .single();
@@ -188,7 +204,7 @@ class ChatService {
   // Create a direct conversation
   async createDirectConversation(userId) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUserId = this.getCurrentUser()?.id;
       
       // Check if conversation already exists
       const { data: existingConv } = await supabase
@@ -243,7 +259,9 @@ class ChatService {
   // Create a group conversation
   async createGroupConversation(name, userIds) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      const currentUserId = currentUser.id;
       const allUserIds = [currentUserId, ...userIds];
 
       // Create conversation
@@ -282,7 +300,9 @@ class ChatService {
   // Mark messages as read
   async markMessagesAsRead(conversationId) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      const currentUserId = currentUser.id;
       
       // Update read receipts for unread messages
       const { error } = await supabase
@@ -303,7 +323,9 @@ class ChatService {
   // Set typing indicator
   async setTypingIndicator(conversationId, isTyping) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      const currentUserId = currentUser.id;
 
       if (isTyping) {
         // Set typing indicator
@@ -336,7 +358,7 @@ class ChatService {
   // Get typing indicators for a conversation
   async getTypingIndicators(conversationId) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUserId = this.getCurrentUser()?.id;
       
       const { data, error } = await supabase
         .from('typing_indicators')
@@ -363,7 +385,12 @@ class ChatService {
   // Update user status
   async updateUserStatus(isOnline) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        console.warn('User not authenticated, skipping status update');
+        return;
+      }
+      const currentUserId = currentUser.id;
       
       const { error } = await supabase
         .from('user_status')
@@ -463,7 +490,12 @@ class ChatService {
   // Subscribe to new conversations
   async subscribeToNewConversations(callback) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        console.warn('User not authenticated, skipping conversation subscription');
+        return null;
+      }
+      const currentUserId = currentUser.id;
       
       const channel = supabase
         .channel('new-conversations')
@@ -516,11 +548,14 @@ class ChatService {
   // Delete a message
   async deleteMessage(messageId) {
     try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      
       const { error } = await supabase
         .from('messages')
         .update({ is_deleted: true })
         .eq('id', messageId)
-        .eq('sender_id', supabase.auth.user()?.id);
+        .eq('sender_id', currentUser.id);
 
       if (error) throw error;
       return true;
@@ -533,6 +568,9 @@ class ChatService {
   // Edit a message
   async editMessage(messageId, newContent) {
     try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      
       const { data, error } = await supabase
         .from('messages')
         .update({
@@ -541,7 +579,7 @@ class ChatService {
           is_edited: true
         })
         .eq('id', messageId)
-        .eq('sender_id', supabase.auth.user()?.id)
+        .eq('sender_id', currentUser.id)
         .select()
         .single();
 
@@ -556,7 +594,9 @@ class ChatService {
   // Add reaction to message
   async addReaction(messageId, emoji) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      const currentUserId = currentUser.id;
       
       const { data, error } = await supabase
         .from('message_reactions')
@@ -579,7 +619,9 @@ class ChatService {
   // Remove reaction from message
   async removeReaction(messageId, emoji) {
     try {
-      const currentUserId = supabase.auth.user()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      const currentUserId = currentUser.id;
       
       const { error } = await supabase
         .from('message_reactions')
