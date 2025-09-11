@@ -162,6 +162,9 @@ class ChatService {
   // Upload file attachment
   async uploadAttachment(messageId, file) {
     try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      
       // Generate unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;

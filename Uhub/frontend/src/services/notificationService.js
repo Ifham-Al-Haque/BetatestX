@@ -263,10 +263,12 @@ class NotificationService {
   }
 
   // Subscribe to notification updates for current user
-  subscribeToUserNotifications(callback) {
-    const { data: { user } } = supabase.auth.getUser();
-    const currentUserId = user?.id;
-    if (!currentUserId) return null;
+  async subscribeToUserNotifications(callback) {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      const currentUserId = user?.id;
+      if (!currentUserId) return null;
 
     const channel = supabase
       .channel('user-notifications')
@@ -286,13 +288,17 @@ class NotificationService {
 
     this.subscriptions.set('user-notifications', channel);
     return channel;
+    } catch (error) {
+      console.error('Error subscribing to user notifications:', error);
+      return null;
+    }
   }
 
   // Setup all notification subscriptions
   async setupAllNotifications(addNotificationCallback) {
     try {
       // Subscribe to general notifications
-      const generalSub = this.subscribeToUserNotifications((payload) => {
+      const generalSub = await this.subscribeToUserNotifications((payload) => {
         if (payload.eventType === 'INSERT') {
           addNotificationCallback({
             type: payload.new.type,
