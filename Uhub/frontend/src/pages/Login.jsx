@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import config from "../config";
 import Logo from "../components/ui/logo";
+import activityService from "../services/activityService";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -163,6 +164,10 @@ export default function Login() {
         if (data.user) {
           setInfoMsg("Login successful! Redirecting...");
           success("Login Successful", "Welcome back!");
+          
+          // Log successful login activity
+          await activityService.logLogin('email');
+          
           await checkUserRoleAndRedirect(data.user);
         }
       }
@@ -538,8 +543,8 @@ export default function Login() {
                 </motion.div>
               </form>
 
-              {/* Role Information */}
-              <motion.div
+              {/* Role Information - Hidden for beta testing */}
+              {/* <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 1.9 }}
@@ -559,7 +564,7 @@ export default function Login() {
                     <span><strong className="text-gray-700">Employee:</strong> Limited access to assigned modules</span>
                   </div>
                 </div>
-              </motion.div>
+              </motion.div> */}
             </div>
           </motion.div>
         </div>

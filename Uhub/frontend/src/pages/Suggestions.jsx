@@ -112,16 +112,41 @@ const Suggestions = () => {
     e.preventDefault();
     
     try {
-      const suggestionData = {
+      console.log('Submitting suggestion form...');
+      console.log('User:', user);
+      console.log('UserProfile:', userProfile);
+      console.log('Editing suggestion:', editingSuggestion);
+      console.log('Form data:', formData);
+
+      // Clean up form data to handle empty strings for UUID fields
+      const cleanedFormData = {
         ...formData,
+        // Convert empty strings to null for UUID fields
+        target_user_id: formData.target_user_id && formData.target_user_id.trim() !== '' 
+          ? formData.target_user_id 
+          : null,
+        // Ensure target_user_name is null if target_user_id is null
+        target_user_name: formData.target_user_id && formData.target_user_id.trim() !== '' 
+          ? formData.target_user_name 
+          : null
+      };
+
+      const suggestionData = {
+        ...cleanedFormData,
         suggester_id: user.id,
         suggester_name: userProfile?.full_name || user.email
       };
 
+      console.log('Cleaned suggestion data:', suggestionData);
+
       if (editingSuggestion) {
+        console.log('Updating suggestion with ID:', editingSuggestion.id);
+        console.log('Update data:', suggestionData);
+        
         await suggestionsApi.updateSuggestion(editingSuggestion.id, suggestionData);
         success('Suggestion updated successfully!');
       } else {
+        console.log('Creating new suggestion...');
         await suggestionsApi.createSuggestion(suggestionData);
         success('Suggestion submitted successfully!');
       }
@@ -132,11 +157,36 @@ const Suggestions = () => {
       fetchData();
     } catch (error) {
       console.error('Error submitting suggestion:', error);
-      showError('Failed to submit suggestion');
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to submit suggestion';
+      if (error.message.includes('Suggestion not found')) {
+        errorMessage = 'Suggestion not found. It may have been deleted.';
+      } else if (error.message.includes('permission')) {
+        errorMessage = 'You do not have permission to update this suggestion.';
+      } else if (error.message.includes('RLS')) {
+        errorMessage = 'Access denied. Please check your permissions.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showError(errorMessage);
     }
   };
 
   const handleEdit = (suggestion) => {
+    console.log('Edit button clicked for suggestion:', suggestion);
+    console.log('Current user:', user);
+    console.log('Current user profile:', userProfile);
+    console.log('Suggestion suggester_id:', suggestion.suggester_id);
+    console.log('User can edit:', suggestion.suggester_id === user?.id || 
+      ['admin', 'hr_manager', 'cs_manager'].includes(userProfile?.role));
+    
     setEditingSuggestion(suggestion);
     setFormData({
       title: suggestion.title,
@@ -144,9 +194,10 @@ const Suggestions = () => {
       category: suggestion.category,
       priority: suggestion.priority,
       suggestion_type: suggestion.suggestion_type,
+      // Handle null values properly - use empty string for form display but will be cleaned on submit
       target_user_id: suggestion.target_user_id || '',
       target_user_name: suggestion.target_user_name || '',
-      anonymous: suggestion.anonymous
+      anonymous: suggestion.anonymous || false
     });
     setShowForm(true);
   };

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
+import activityService from "../services/activityService";
 
 const AuthContext = createContext();
 
@@ -379,6 +380,14 @@ export const AuthProvider = ({ children }) => {
   const signOut = useCallback(async () => {
     try {
       console.log("🔄 Starting sign out process...");
+      
+      // Log logout activity before signing out
+      try {
+        await activityService.logLogout();
+      } catch (activityError) {
+        console.warn("Failed to log logout activity:", activityError);
+      }
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("❌ Error signing out:", error);

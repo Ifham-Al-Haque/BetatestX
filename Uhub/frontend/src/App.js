@@ -45,13 +45,15 @@ const UserManagement = React.lazy(() => import('./pages/UserManagement'));
 const Employees = React.lazy(() => import('./pages/Employees'));
 const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
 const EmployeeForm = React.lazy(() => import('./pages/EmployeeForm'));
+const EmployeeOnboarding = React.lazy(() => import('./pages/EmployeeOnboarding'));
+const EmployeeOffboarding = React.lazy(() => import('./pages/EmployeeOffboarding'));
 const Drivers = React.lazy(() => import('./pages/Driver'));
 const DriverForm = React.lazy(() => import('./pages/DriverForm'));
 const DriverProfile = React.lazy(() => import('./pages/DriverProfile'));
 const Assets = React.lazy(() => import('./pages/Assets'));
 const AssetProfile = React.lazy(() => import('./pages/AssetProfile'));
 const ITAssets = React.lazy(() => import('./pages/ITAssets'));
-const ITRequests = React.lazy(() => import('./pages/ITRequestsDebug'));
+const ITRequests = React.lazy(() => import('./pages/ITRequestsEnhanced'));
 const RequestInbox = React.lazy(() => import('./pages/RequestInbox'));
 const CSPA = React.lazy(() => import('./pages/CSPA'));
 const Complaints = React.lazy(() => import('./pages/Complaints'));
@@ -221,6 +223,24 @@ function App() {
                           <ProtectedRoute requiredFeature="employees">
                             <Layout>
                               <EmployeeForm />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Employee Onboarding Routes */}
+                        <Route path="/employee-onboarding" element={
+                          <ProtectedRoute requiredFeature="employee_onboarding">
+                            <Layout>
+                              <EmployeeOnboarding />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Employee Offboarding Routes */}
+                        <Route path="/employee-offboarding" element={
+                          <ProtectedRoute requiredFeature="employee_offboarding">
+                            <Layout>
+                              <EmployeeOffboarding />
                             </Layout>
                           </ProtectedRoute>
                         } />

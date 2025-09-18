@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, MapPin, Users, Plus, Edit, Trash, Eye } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Plus, Edit, Trash, Eye, Image, Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { sliceOfLifeApi } from '../services/sliceOfLifeApi';
 
 const Events = () => {
   const { userProfile } = useAuth();
+  const { success, error: showError } = useToast();
   
   // Role-based permission functions
   const canViewEvent = () => {
@@ -23,57 +26,52 @@ const Events = () => {
     return ['admin', 'hr_manager'].includes(userProfile?.role);
   };
 
-  // Debug logging
-  console.log('🔍 Events Page - User Role:', userProfile?.role);
-  console.log('🔍 Events Page - Permissions:', {
-    canView: canViewEvent(),
-    canAdd: canAddEvent(),
-    canEdit: canEditEvent(),
-    canDelete: canDeleteEvent()
-  });
-
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: 'Team Building Workshop',
-      description: 'Annual team building event to strengthen collaboration and team spirit',
-      date: '2024-03-15',
-      time: '09:00 AM',
-      location: 'Conference Room A',
-      attendees: 25,
-      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=400&h=300&fit=crop',
-      category: 'Workshop',
-      status: 'upcoming'
-    },
-    {
-      id: 2,
-      title: 'Company Anniversary Celebration',
-      description: 'Celebrating 5 years of success and growth',
-      date: '2024-04-20',
-      time: '06:00 PM',
-      location: 'Grand Hall',
-      attendees: 100,
-      image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=400&h=300&fit=crop',
-      category: 'Celebration',
-      status: 'upcoming'
-    },
-    {
-      id: 3,
-      title: 'Tech Innovation Day',
-      description: 'Showcasing latest technological innovations and projects',
-      date: '2024-02-28',
-      time: '10:00 AM',
-      location: 'Innovation Center',
-      attendees: 50,
-      image: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=300&fit=crop',
-      category: 'Conference',
-      status: 'completed'
-    }
-  ]);
-
+  // State management
+  const [events, setEvents] = useState([]);
+  const [eventPhotos, setEventPhotos] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState('all');
+
+  // Load data on component mount
+  useEffect(() => {
+    if (userProfile) {
+      fetchData();
+    }
+  }, [userProfile]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Fetching Events data...');
+      
+      const [eventsData, photosData] = await Promise.all([
+        sliceOfLifeApi.getEvents(),
+        sliceOfLifeApi.getPhotosForEvents()
+      ]);
+      
+      console.log('📊 Events data loaded:', eventsData);
+      console.log('📸 Event photos loaded:', photosData);
+      console.log('📊 Event photos count:', photosData.length);
+      
+      setEvents(eventsData);
+      setEventPhotos(photosData);
+      
+      // Additional debugging
+      if (photosData.length === 0) {
+        console.log('⚠️ No event photos found. Checking all photos...');
+        const allPhotos = await sliceOfLifeApi.getImages();
+        console.log('📸 All photos in database:', allPhotos);
+        console.log('📊 All photos count:', allPhotos.length);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching events data:', error);
+      showError('Failed to load events data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredEvents = events.filter(event => {
     if (filter === 'all') return true;
@@ -169,6 +167,63 @@ const Events = () => {
             </button>
           )}
         </div>
+
+        {/* Debug Info */}
+        <div className="mb-4 p-4 bg-yellow-100 rounded-lg">
+          <h3 className="font-semibold text-yellow-800">Debug Info:</h3>
+          <p className="text-sm text-yellow-700">
+            Event Photos Count: {eventPhotos.length} | 
+            Events Count: {events.length} | 
+            Loading: {loading ? 'Yes' : 'No'}
+          </p>
+        </div>
+
+        {/* Event Photos Section */}
+        {eventPhotos.length > 0 ? (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Event Photos ({eventPhotos.length})</h2>
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"
+            >
+              {eventPhotos.slice(0, 12).map((photo) => (
+                <motion.div
+                  key={photo.id}
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.05 }}
+                  className="relative group cursor-pointer"
+                >
+                  <img
+                    src={photo.image_url}
+                    alt={photo.image_name}
+                    className="w-full h-24 object-cover rounded-lg shadow-md group-hover:shadow-lg transition-shadow duration-200"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all duration-200 flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
+                      <button className="p-1 bg-white rounded-full text-gray-600 hover:text-red-500">
+                        <Heart className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+            {eventPhotos.length > 12 && (
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                Showing 12 of {eventPhotos.length} event photos
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mb-8 p-6 bg-gray-100 rounded-lg text-center">
+            <h3 className="text-lg font-semibold text-gray-600 mb-2">No Event Photos Found</h3>
+            <p className="text-gray-500">
+              Upload photos with "Event" category to see them here.
+            </p>
+          </div>
+        )}
 
         {/* Events Grid */}
         <motion.div

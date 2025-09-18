@@ -179,6 +179,10 @@ export const FEATURE_ACCESS = {
   analytics: ['admin', 'it_management'],
   reports: ['admin'],
   
+  // Employee Onboarding and Offboarding - HR Manager, IT Role, and Admin only
+  employee_onboarding: ['admin', 'hr_manager', 'it_management'],
+  employee_offboarding: ['admin', 'hr_manager', 'it_management'],
+  
   // Additional features
   calendar: ['admin'],
   tickets: ['admin'],
@@ -224,7 +228,7 @@ export const getRoleNavigationAccess = (userRole) => {
         main: ['home', 'dashboard', 'calendar_view'],
         admin: ['admin_dashboard', 'user_management'],
         user_profile: ['profile', 'settings'],
-        hr_panel: ['employees', 'employee_records', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'epr'],
+        hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'epr'],
         customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
         it_services: ['it_requests', 'it_assets', 'it_tickets', 'request_inbox'],
         driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
@@ -333,7 +337,7 @@ export const getRoleNavigationAccess = (userRole) => {
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         user_profile: ['profile', 'settings'],
-        hr_panel: ['employees', 'employee_records', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'epr'],
+        hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'epr'],
         it_services: ['it_requests'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],

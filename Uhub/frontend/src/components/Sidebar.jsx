@@ -186,6 +186,8 @@ const Sidebar = () => {
       items: [
         { label: 'Employees', path: '/employees', icon: Users, feature: 'employees' },
         { label: 'Employee Records', path: '/employee-records', icon: Users, feature: 'employees_view_only' },
+        { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
+        { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },
         { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
         { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints' },
         { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox' },

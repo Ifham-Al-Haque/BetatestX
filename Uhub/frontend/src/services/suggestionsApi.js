@@ -116,17 +116,63 @@ export const suggestionsApi = {
   // Update suggestion
   async updateSuggestion(suggestionId, updateData) {
     try {
+      console.log('Updating suggestion:', suggestionId, 'with data:', updateData);
+      
+      // Clean up the update data to handle empty strings for UUID fields
+      const cleanedUpdateData = {
+        ...updateData,
+        // Convert empty strings to null for UUID fields
+        target_user_id: updateData.target_user_id && updateData.target_user_id.trim() !== '' 
+          ? updateData.target_user_id 
+          : null,
+        // Ensure target_user_name is null if target_user_id is null
+        target_user_name: updateData.target_user_id && updateData.target_user_id.trim() !== '' 
+          ? updateData.target_user_name 
+          : null
+      };
+
+      console.log('Cleaned update data:', cleanedUpdateData);
+      
+      // First check if the suggestion exists and user has permission
+      const { data: existingSuggestion, error: fetchError } = await supabase
+        .from('suggestions')
+        .select('id, suggester_id, status')
+        .eq('id', suggestionId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching suggestion for update:', fetchError);
+        throw new Error(`Suggestion not found: ${fetchError.message}`);
+      }
+
+      if (!existingSuggestion) {
+        throw new Error('Suggestion not found');
+      }
+
+      console.log('Existing suggestion found:', existingSuggestion);
+
       const { data, error } = await supabase
         .from('suggestions')
         .update({
-          ...updateData,
+          ...cleanedUpdateData,
           updated_at: new Date().toISOString()
         })
         .eq('id', suggestionId)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase update error:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw new Error(`Failed to update suggestion: ${error.message}`);
+      }
+
+      console.log('Suggestion updated successfully:', data);
       return data;
     } catch (error) {
       console.error('Error updating suggestion:', error);

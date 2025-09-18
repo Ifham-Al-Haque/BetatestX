@@ -31,3 +31,40 @@ SELECT
   'Basic query test' as test_name,
   CASE WHEN EXISTS (SELECT 1 FROM it_requests LIMIT 1) 
        THEN 'SUCCESS' ELSE 'NO DATA' END as status;
+
+-- Verify user humera@udrive.ae in Supabase
+-- Check in auth.users table (Supabase authentication)
+SELECT 
+  'User verification - auth.users' as check_type,
+  CASE 
+    WHEN EXISTS (SELECT 1 FROM auth.users WHERE email = 'humera@udrive.ae') 
+    THEN 'USER EXISTS' 
+    ELSE 'USER NOT FOUND' 
+  END as status,
+  (SELECT COUNT(*) FROM auth.users WHERE email = 'humera@udrive.ae') as user_count;
+
+-- Get detailed user information if exists
+SELECT 
+  id,
+  email,
+  email_confirmed_at,
+  created_at,
+  updated_at,
+  last_sign_in_at,
+  raw_user_meta_data
+FROM auth.users 
+WHERE email = 'humera@udrive.ae';
+
+-- Check if user exists in any custom users table (if you have one)
+SELECT 
+  'User verification - custom users table' as check_type,
+  CASE 
+    WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') 
+    THEN 
+      CASE 
+        WHEN EXISTS (SELECT 1 FROM users WHERE email = 'humera@udrive.ae') 
+        THEN 'USER EXISTS IN CUSTOM TABLE' 
+        ELSE 'USER NOT FOUND IN CUSTOM TABLE' 
+      END
+    ELSE 'CUSTOM USERS TABLE DOES NOT EXIST' 
+  END as status;

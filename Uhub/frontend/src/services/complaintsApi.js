@@ -28,6 +28,9 @@ export const complaintsApi = {
   // Create a new complaint
   async createComplaint(complaintData) {
     try {
+      // Handle anonymous complaints - if anonymous is true, set name to 'Anonymous'
+      const complainantName = complaintData.anonymous ? 'Anonymous' : complaintData.complainant_name;
+      
       const { data, error } = await supabase
         .from('complaints')
         .insert({
@@ -38,7 +41,9 @@ export const complaintsApi = {
           status: 'open',
           anonymous: complaintData.anonymous,
           complainant_id: complaintData.complainant_id,
-          complainant_name: complaintData.complainant_name,
+          complainant_name: complainantName,
+          complainant_email: complaintData.anonymous ? null : complaintData.complainant_email,
+          complainant_department: complaintData.anonymous ? null : complaintData.complainant_department,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -99,10 +104,18 @@ export const complaintsApi = {
   // Update complaint
   async updateComplaint(complaintId, updateData) {
     try {
+      // Handle anonymous complaints - if anonymous is being set to true, set name to 'Anonymous'
+      const updatedData = { ...updateData };
+      if (updateData.anonymous === true) {
+        updatedData.complainant_name = 'Anonymous';
+        updatedData.complainant_email = null;
+        updatedData.complainant_department = null;
+      }
+      
       const { data, error } = await supabase
         .from('complaints')
         .update({
-          ...updateData,
+          ...updatedData,
           updated_at: new Date().toISOString()
         })
         .eq('id', complaintId)
