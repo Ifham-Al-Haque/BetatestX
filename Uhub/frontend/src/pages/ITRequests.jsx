@@ -38,6 +38,7 @@ const ITRequests = () => {
   const [requests, setRequests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
+  const [itStaff, setItStaff] = useState([]); // Add IT staff state
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -69,6 +70,7 @@ const ITRequests = () => {
     priority_id: '',
     request_type: 'it_service',
     estimated_completion_date: '',
+    assigned_to: '', // Add assignment field
     attachments: [],
     comments: []
   });
@@ -101,8 +103,8 @@ const ITRequests = () => {
     try {
       setLoading(true);
       
-      // Only fetch categories and priorities - no need to fetch requests for a request creation page
-      const [categoriesData, prioritiesData] = await Promise.allSettled([
+      // Fetch categories, priorities, and IT staff for assignment
+      const [categoriesData, prioritiesData, itStaffData] = await Promise.allSettled([
         itServicesApi.categories.getAll().catch(err => {
           console.error('Error fetching categories:', err);
           return [];
@@ -110,11 +112,16 @@ const ITRequests = () => {
         itServicesApi.priorities.getAll().catch(err => {
           console.error('Error fetching priorities:', err);
           return [];
+        }),
+        itServicesApi.users.getITStaff().catch(err => {
+          console.error('Error fetching IT staff:', err);
+          return [];
         })
       ]);
 
       setCategories(categoriesData.status === 'fulfilled' ? categoriesData.value : []);
       setPriorities(prioritiesData.status === 'fulfilled' ? prioritiesData.value : []);
+      setItStaff(itStaffData.status === 'fulfilled' ? itStaffData.value : []);
       
       // Set empty requests array since this is a request creation page
       setRequests([]);
@@ -130,11 +137,11 @@ const ITRequests = () => {
       });
 
       // Show warning if categories/priorities failed to load
-      const failedCount = [categoriesData, prioritiesData]
+      const failedCount = [categoriesData, prioritiesData, itStaffData]
         .filter(result => result.status === 'rejected').length;
       
       if (failedCount > 0) {
-        showError('Warning', `Failed to load categories or priorities. Please check your database setup.`);
+        showError('Warning', `Failed to load some form data. Please check your database setup.`);
       }
     } catch (err) {
       console.error('Error in fetchData:', err);
@@ -195,6 +202,7 @@ const ITRequests = () => {
         ...formData,
         requester_id: user?.id, // Use user.id directly
         estimated_completion_date: formData.estimated_completion_date || null,
+        assigned_to: formData.assigned_to || null, // Include assignment
         attachments: attachments,
         comments: comments
       };
@@ -288,6 +296,7 @@ const ITRequests = () => {
       priority_id: '',
       request_type: 'it_service',
       estimated_completion_date: '',
+      assigned_to: '', // Reset assignment field
       attachments: [],
       comments: []
     });
@@ -1658,7 +1667,36 @@ const ITRequests = () => {
                       </div>
                     </div>
                     
-                    <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label 
+                          htmlFor="assigned_to"
+                          className="text-sm font-medium mb-2 block"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Assign to IT Staff (Optional)
+                        </Label>
+                        <select
+                          id="assigned_to"
+                          value={formData.assigned_to}
+                          onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                          className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
+                        >
+                          <option value="">Select IT Staff Member (Optional)</option>
+                          {itStaff.map(staff => (
+                            <option key={staff.id} value={staff.id}>
+                              {staff.full_name} ({staff.role}) - {staff.department || 'IT'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
                         <Label 
                           htmlFor="estimated_date"
                           className="text-sm font-medium mb-2 block"
@@ -1666,11 +1704,11 @@ const ITRequests = () => {
                         >
                           Estimated Completion Date (Optional)
                         </Label>
-                      <Input
-                        id="estimated_date"
-                        type="date"
-                        value={formData.estimated_completion_date}
-                        onChange={(e) => setFormData({ ...formData, estimated_completion_date: e.target.value })}
+                        <Input
+                          id="estimated_date"
+                          type="date"
+                          value={formData.estimated_completion_date}
+                          onChange={(e) => setFormData({ ...formData, estimated_completion_date: e.target.value })}
                           className="w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                           style={{
                             background: 'var(--bg-tertiary)',
@@ -1679,6 +1717,8 @@ const ITRequests = () => {
                           }}
                         />
                       </div>
+                    </div>
+                    
                     </div>
                     
                     {/* File Attachments */}

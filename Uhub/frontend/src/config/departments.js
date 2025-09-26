@@ -8,7 +8,10 @@ export const DEPARTMENTS = [
   { value: 'MARKETING', label: 'MARKETING', color: 'purple' },
   { value: 'FINANCE', label: 'FINANCE', color: 'emerald' },
   { value: 'MANAGEMENT', label: 'MANAGEMENT', color: 'indigo' },
-  { value: 'OPERATION', label: 'OPERATION', color: 'orange' },
+  { value: 'OPERATIONS', label: 'OPERATIONS', color: 'orange' },
+  { value: 'SUBSCRIBE_NOW_SALES', label: 'SUBSCRIBE NOW SALES', color: 'violet' },
+  { value: 'IOT', label: 'IOT', color: 'teal' },
+  { value: 'COLLECTION', label: 'COLLECTION', color: 'amber' },
   { value: 'OTHERS', label: 'OTHERS', color: 'gray' }
 ];
 

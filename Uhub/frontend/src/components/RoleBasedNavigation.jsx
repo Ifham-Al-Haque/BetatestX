@@ -4,7 +4,8 @@ import {
   Home, Users, Shield, Settings, BarChart3, 
   Car, Headphones, FileText, Calendar, 
   UserCheck, Building, Database, Cog, AlertTriangle,
-  CheckSquare, ClipboardList, Inbox, Lightbulb
+  CheckSquare, ClipboardList, Inbox, Lightbulb,
+  Truck, MapPin, Route
 } from 'lucide-react';
 import { useRoleAccess, ROLE_PERMISSIONS } from './RoleBasedRoute';
 import { useSidebar } from '../context/SidebarContext';
@@ -111,6 +112,31 @@ const NAVIGATION_ITEMS = {
     icon: Database,
     roles: ['admin', 'driver_management'],
     description: 'Fleet and vehicle management'
+  },
+
+  // Delivery Management features
+  delivery_management: {
+    path: '/delivery-management',
+    label: 'Delivery Management',
+    icon: Truck,
+    roles: ['admin', 'driver_management', 'manager'],
+    description: 'Manage delivery orders and shipments'
+  },
+
+  delivery_tracking: {
+    path: '/delivery-tracking',
+    label: 'Delivery Tracking',
+    icon: MapPin,
+    roles: ['admin', 'driver_management', 'manager', 'employee'],
+    description: 'Track delivery orders in real-time'
+  },
+
+  delivery_routes: {
+    path: '/delivery-routes',
+    label: 'Delivery Routes',
+    icon: Route,
+    roles: ['admin', 'driver_management', 'manager'],
+    description: 'Manage delivery routes and logistics'
   },
 
   // Employee Management features

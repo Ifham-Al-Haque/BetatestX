@@ -400,11 +400,21 @@ export default function AdminUserManager() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="employee">Employee</option>
+                  <option value="admin">Administrator</option>
+                  <option value="data_operator">Data Operator</option>
+                  <option value="finance">Finance</option>
+                  <option value="it_management">IT Management</option>
+                  <option value="manager">Manager</option>
+                  <option value="driver_management">Driver Management</option>
+                  <option value="operation_management">Operation Management</option>
                   <option value="hr_manager">HR Manager</option>
                   <option value="cs_manager">CS Manager</option>
-                  <option value="driver_management">Driver Management</option>
-                  <option value="admin">Admin</option>
+                  <option value="marketing_manager">Marketing Manager</option>
+                  <option value="marketing_specialist">Marketing Specialist</option>
+                  <option value="marketing_management">Marketing Management</option>
+                  <option value="subscribe_now">Subscribe Now</option>
+                  <option value="employee">Employee</option>
+                  <option value="viewer">Viewer</option>
                 </select>
               </div>
 

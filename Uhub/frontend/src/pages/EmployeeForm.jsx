@@ -31,7 +31,6 @@ export default function EmployeeForm() {
     position: "",
     designation: "",
     employee_id: "",
-    role: "",
     reporting_manager_id: "",
     reporting_manager: "",
     hire_date: "",
@@ -804,12 +803,16 @@ export default function EmployeeForm() {
                               <option value="">Select Department</option>
                               <option value="IT">IT</option>
                               <option value="HR">HR</option>
-                              <option value="Finance">Finance</option>
-                              <option value="Marketing">Marketing</option>
-                              <option value="Sales">Sales</option>
-                              <option value="Operations">Operations</option>
+                              <option value="FINANCE">FINANCE</option>
+                              <option value="MARKETING">MARKETING</option>
+                              <option value="SALES">SALES</option>
+                              <option value="OPERATIONS">OPERATIONS</option>
                               <option value="Customer Service">Customer Service</option>
                               <option value="Driver Management">Driver Management</option>
+                              <option value="SUBSCRIBE NOW SALES">SUBSCRIBE NOW SALES</option>
+                              <option value="TECHNOLOGY">TECHNOLOGY</option>
+                              <option value="IOT">IOT</option>
+                              <option value="COLLECTION">COLLECTION</option>
                             </select>
                             <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           </div>
@@ -843,19 +846,6 @@ export default function EmployeeForm() {
                           />
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            Role
-                          </label>
-                          <input
-                            type="text"
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            placeholder="e.g., Developer, Manager"
-                          />
-                        </div>
 
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-gray-700">

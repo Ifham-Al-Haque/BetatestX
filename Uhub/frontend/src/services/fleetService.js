@@ -113,15 +113,51 @@ class FleetService {
 
   // ===== MAINTENANCE MANAGEMENT =====
 
-  // Get maintenance records for a vehicle
-  async getMaintenanceRecords(vehicleId) {
+  // Get maintenance records for a vehicle or all records
+  async getMaintenanceRecords(vehicleId = null, filters = {}) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('fleet_maintenance')
-        .select('*')
-        .eq('vehicle_id', vehicleId)
+        .select(`
+          *,
+          fleet_vehicles!inner(
+            id,
+            vehicle_number,
+            make,
+            model,
+            license_plate,
+            status
+          ),
+          employees!fleet_maintenance_created_by_fkey(
+            full_name,
+            email
+          )
+        `)
         .order('service_date', { ascending: false });
 
+      // Filter by vehicle if specified
+      if (vehicleId) {
+        query = query.eq('vehicle_id', vehicleId);
+      }
+
+      // Apply additional filters
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters.maintenance_type) {
+        query = query.eq('maintenance_type', filters.maintenance_type);
+      }
+      if (filters.date_from) {
+        query = query.gte('service_date', filters.date_from);
+      }
+      if (filters.date_to) {
+        query = query.lte('service_date', filters.date_to);
+      }
+      if (filters.search) {
+        query = query.or(`description.ilike.%${filters.search}%,service_provider.ilike.%${filters.search}%,technician_notes.ilike.%${filters.search}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     } catch (error) {
@@ -161,6 +197,68 @@ class FleetService {
       return data;
     } catch (error) {
       console.error('Error updating maintenance record:', error);
+      throw error;
+    }
+  }
+
+  // Delete maintenance record
+  async deleteMaintenanceRecord(id) {
+    try {
+      const { error } = await supabase
+        .from('fleet_maintenance')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error deleting maintenance record:', error);
+      throw error;
+    }
+  }
+
+  // Get maintenance statistics
+  async getMaintenanceStatistics() {
+    try {
+      const { data, error } = await supabase
+        .from('fleet_maintenance')
+        .select('status, cost, maintenance_type, service_date');
+
+      if (error) throw error;
+
+      const stats = {
+        totalRecords: data.length,
+        totalCost: data.reduce((sum, record) => sum + (record.cost || 0), 0),
+        statusBreakdown: {},
+        typeBreakdown: {},
+        monthlyTrend: {},
+        avgCostByType: {}
+      };
+
+      // Calculate status breakdown
+      data.forEach(record => {
+        stats.statusBreakdown[record.status] = (stats.statusBreakdown[record.status] || 0) + 1;
+        stats.typeBreakdown[record.maintenance_type] = (stats.typeBreakdown[record.maintenance_type] || 0) + 1;
+        
+        // Monthly trend
+        const month = new Date(record.service_date).toISOString().slice(0, 7);
+        if (!stats.monthlyTrend[month]) {
+          stats.monthlyTrend[month] = { count: 0, cost: 0 };
+        }
+        stats.monthlyTrend[month].count += 1;
+        stats.monthlyTrend[month].cost += record.cost || 0;
+      });
+
+      // Calculate average cost by type
+      Object.keys(stats.typeBreakdown).forEach(type => {
+        const typeRecords = data.filter(r => r.maintenance_type === type);
+        const totalCost = typeRecords.reduce((sum, r) => sum + (r.cost || 0), 0);
+        stats.avgCostByType[type] = totalCost / typeRecords.length;
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('Error fetching maintenance statistics:', error);
       throw error;
     }
   }

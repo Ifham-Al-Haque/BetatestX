@@ -7,6 +7,9 @@
 /* Import Mobile Styles */
 @import './styles/mobile.css';
 
+/* Import Enhanced Dark Mode Styles */
+@import './styles/enhanced-dark-mode.css';
+
 /* Enhanced Dark Mode CSS Custom Properties */
 :root {
   /* Light mode colors */
@@ -40,23 +43,23 @@
 }
 
 .dark {
-  /* Enhanced dark mode colors with better contrast */
-  --color-bg-primary: #0a0a0a;
-  --color-bg-secondary: #111111;
-  --color-bg-tertiary: #1a1a1a;
-  --color-bg-quaternary: #222222;
-  --color-text-primary: #f0f6fc;
-  --color-text-secondary: #c9d1d9;
-  --color-text-muted: #8b949e;
-  --color-border: #30363d;
-  --color-border-secondary: #21262d;
-  --color-accent: #1f6feb;
-  --color-accent-hover: #0969da;
-  --color-accent-secondary: #a855f7;
-  --color-success: #238636;
-  --color-warning: #9a6700;
-  --color-danger: #da3633;
-  --color-info: #0969da;
+  /* Dark blue theme matching the dashboard screenshot */
+  --color-bg-primary: #0f1419;
+  --color-bg-secondary: #1a1f2e;
+  --color-bg-tertiary: #242938;
+  --color-bg-quaternary: #2e3442;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-border: rgba(255, 255, 255, 0.2);
+  --color-border-secondary: rgba(255, 255, 255, 0.1);
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-secondary: #6366f1;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #06b6d4;
   
   /* Enhanced dark mode shadows with better depth */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
@@ -64,10 +67,10 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
   
-  /* Enhanced dark mode gradients */
-  --gradient-primary: linear-gradient(135deg, #1f6feb 0%, #a855f7 100%);
-  --gradient-secondary: linear-gradient(135deg, #238636 0%, #1f6feb 100%);
-  --gradient-accent: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+  /* Dark blue theme gradients */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  --gradient-secondary: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+  --gradient-accent: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
 }
 
 /* Enhanced theme transitions */

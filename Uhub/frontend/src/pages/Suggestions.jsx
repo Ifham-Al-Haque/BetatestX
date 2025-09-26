@@ -7,7 +7,8 @@ import {
   MessageSquare, Shield, TrendingUp, Activity, Zap,
   BarChart3, Users, CreditCard, AlertCircle, Loader2,
   ThumbsUp, ThumbsDown, Target, Globe, Grid, List,
-  ChevronDown, X
+  ChevronDown, X, Sparkles, Award, Star, Heart,
+  RefreshCw, Download, Upload, Settings, Bell
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -317,13 +318,152 @@ const Suggestions = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="ml-64">
-        {/* Header - Removed duplicate UserDropdown and DarkModeToggle */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center space-x-3">
-            <Lightbulb className="w-8 h-8 text-blue-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Suggestions</h1>
-              <p className="text-gray-600">Share ideas and feedback to improve our organization</p>
+        {/* Enhanced Header with Glassmorphism */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
+          <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl m-6 p-8 border border-white/20 dark:border-gray-700/50 shadow-xl">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl shadow-lg">
+                  <Lightbulb className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-blue-800 dark:from-white dark:via-purple-200 dark:to-blue-200 bg-clip-text text-transparent">
+                    Suggestions
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
+                    Share ideas and feedback to improve our organization
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setShowForm(true);
+                    setEditingSuggestion(null);
+                    resetForm();
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <Plus className="w-5 h-5" />
+                  New Suggestion
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  Analytics
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={fetchData}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  Refresh
+                </motion.button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="px-6 pb-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                className="relative bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-blue-200/50 dark:border-blue-700/50 overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">Total Suggestions</p>
+                    <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">{suggestions.length}</p>
+                    <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">All submitted ideas</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                    <Lightbulb className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                className="relative bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-emerald-200/50 dark:border-emerald-700/50 overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Implemented</p>
+                    <p className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">
+                      {suggestions.filter(s => s.status === 'implemented').length}
+                    </p>
+                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">Successfully adopted</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg">
+                    <CheckCircle className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                className="relative bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-amber-200/50 dark:border-amber-700/50 overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-400/20 to-amber-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-1">In Progress</p>
+                    <p className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">
+                      {suggestions.filter(s => s.status === 'in_progress').length}
+                    </p>
+                    <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">Currently being worked on</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl shadow-lg">
+                    <Activity className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                className="relative bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-purple-200/50 dark:border-purple-700/50 overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-purple-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-1">High Priority</p>
+                    <p className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
+                      {suggestions.filter(s => s.priority === 'high' || s.priority === 'urgent').length}
+                    </p>
+                    <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">Need immediate attention</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg">
+                    <Zap className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </div>
         </div>
@@ -331,72 +471,69 @@ const Suggestions = () => {
         {/* Main Content */}
         <div className="p-6">
           <div className="max-w-7xl mx-auto">
-            {/* Action Bar - Improved layout similar to calendar view */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                {/* Left side - Action button */}
-                <div className="flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      setShowForm(true);
-                      setEditingSuggestion(null);
-                      resetForm();
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl"
-                  >
-                    <Plus className="w-5 h-5" />
-                    <span>New Suggestion</span>
-                  </button>
-                </div>
-
-                {/* Right side - View toggle and filters */}
-                <div className="flex items-center gap-4 flex-1 justify-end">
+            {/* Enhanced Action Bar */}
+            <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-white/20 dark:border-gray-700/50">
+              <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+                {/* Left side - View toggle and filters */}
+                <div className="flex items-center gap-4 flex-1">
                   {/* View Mode Toggle */}
-                  <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                    <button
+                  <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-md transition-all duration-200 ${
+                      className={`p-3 rounded-lg transition-all duration-200 ${
                         viewMode === 'grid' 
-                          ? 'bg-white text-blue-600 shadow-lg' 
-                          : 'text-gray-600 hover:text-gray-800'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                       }`}
                     >
-                      <Grid className="w-4 h-4" />
-                    </button>
-                    <button
+                      <Grid className="w-5 h-5" />
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-md transition-all duration-200 ${
+                      className={`p-3 rounded-lg transition-all duration-200 ${
                         viewMode === 'list' 
-                          ? 'bg-white text-blue-600 shadow-lg' 
-                          : 'text-gray-600 hover:text-gray-800'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                       }`}
                     >
-                      <List className="w-4 h-4" />
-                    </button>
+                      <List className="w-5 h-5" />
+                    </motion.button>
                   </div>
 
                   {/* Filter Toggle */}
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className={`flex items-center gap-3 px-6 py-4 rounded-xl transition-all duration-200 font-semibold ${
+                      showFilters 
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' 
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-2 border-gray-200 dark:border-gray-600'
+                    }`}
                   >
-                    <Filter className="w-4 h-4" />
-                    Filters
+                    <Filter className="w-5 h-5" />
+                    Advanced Filters
                     {hasActiveFilters && (
-                      <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                      <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-bold">
                         {Object.values(filters).filter(Boolean).length}
                       </span>
                     )}
-                  </button>
+                  </motion.button>
 
                   {/* Clear Filters */}
                   {hasActiveFilters && (
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={clearFilters}
-                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
                     >
-                      Clear All
-                    </button>
+                      Clear All Filters
+                    </motion.button>
                   )}
                 </div>
               </div>
@@ -513,23 +650,35 @@ const Suggestions = () => {
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                    className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/20 dark:border-gray-700/50"
                   >
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">
-                          {editingSuggestion ? 'Edit Suggestion' : 'New Suggestion'}
-                        </h2>
-                        <button
+                    <div className="p-8">
+                      <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl shadow-lg">
+                            <Lightbulb className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-blue-800 dark:from-white dark:via-purple-200 dark:to-blue-200 bg-clip-text text-transparent">
+                              {editingSuggestion ? 'Edit Suggestion' : 'New Suggestion'}
+                            </h2>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">
+                              {editingSuggestion ? 'Update your suggestion details' : 'Share your innovative ideas with the team'}
+                            </p>
+                          </div>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           onClick={() => {
                             setShowForm(false);
                             setEditingSuggestion(null);
                             resetForm();
                           }}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-all duration-200"
                         >
-                          <X className="w-6 h-6" />
-                        </button>
+                          <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                        </motion.button>
                       </div>
 
                       <form onSubmit={handleSubmit} className="space-y-6">
@@ -654,24 +803,28 @@ const Suggestions = () => {
                           <label htmlFor="anonymous" className="text-sm font-medium text-gray-700">Submit anonymously</label>
                         </div>
 
-                        <div className="flex justify-end space-x-3 pt-4">
-                          <button
+                        <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700/50">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             type="button"
                             onClick={() => {
                               setShowForm(false);
                               setEditingSuggestion(null);
                               resetForm();
                             }}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 font-semibold"
                           >
                             Cancel
-                          </button>
-                          <button 
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             type="submit" 
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
                           >
                             {editingSuggestion ? 'Update Suggestion' : 'Submit Suggestion'}
-                          </button>
+                          </motion.button>
                         </div>
                       </form>
                     </div>
@@ -680,39 +833,84 @@ const Suggestions = () => {
               )}
             </AnimatePresence>
 
-            {/* Suggestions Display */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Suggestions ({suggestions.length})
-                </h2>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Filter className="w-4 h-4" />
-                  Showing {suggestions.length} suggestions
+            {/* Enhanced Suggestions Display */}
+            <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-white/20 dark:border-gray-700/50">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                    <MessageSquare className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                      Suggestions
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                      {suggestions.length} suggestions found
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Showing {suggestions.length} suggestions</span>
                 </div>
               </div>
 
               {loading ? (
-                <div className="text-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-500" />
-                  <p className="text-gray-600">Loading suggestions...</p>
+                <div className="text-center py-16">
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 dark:border-blue-800 mx-auto mb-6"></div>
+                    <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto animate-spin"></div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Loading Suggestions</h3>
+                  <p className="text-gray-500 dark:text-gray-400">Please wait while we fetch the latest suggestions...</p>
                 </div>
               ) : suggestions.length === 0 ? (
-                <div className="text-center py-12">
-                  <Lightbulb className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No suggestions found</h3>
-                  <p className="text-gray-600">Be the first to share an idea or adjust your filters.</p>
+                <div className="text-center py-16">
+                  <div className="relative mb-8">
+                    <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 rounded-full mx-auto flex items-center justify-center shadow-lg">
+                      <Lightbulb className="w-12 h-12 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
+                      <Sparkles className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">No suggestions found</h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                    {hasActiveFilters 
+                      ? "Try adjusting your search criteria or filters to find what you're looking for" 
+                      : "Be the first to share an innovative idea with the team"
+                    }
+                  </p>
+                  {!hasActiveFilters && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setShowForm(true);
+                        setEditingSuggestion(null);
+                        resetForm();
+                      }}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3 mx-auto"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Share Your First Idea
+                    </motion.button>
+                  )}
                 </div>
               ) : viewMode === 'grid' ? (
-                // Grid View - Similar to calendar card layout
+                // Enhanced Grid View
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {suggestions.map((suggestion) => (
+                  {suggestions.map((suggestion, index) => (
                     <motion.div
                       key={suggestion.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 hover:border-blue-200"
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                      className="relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl p-6 hover:shadow-2xl transition-all duration-300 hover:border-blue-300/50 dark:hover:border-blue-600/50 overflow-hidden group"
                     >
+                      {/* Decorative gradient background */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{suggestion.title}</h3>
@@ -746,32 +944,36 @@ const Suggestions = () => {
                         )}
                       </div>
 
-                      {/* Voting */}
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      {/* Enhanced Voting and Actions */}
+                      <div className="relative flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-700/50">
                         <div className="flex items-center space-x-4">
-                          <button
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => handleVote(suggestion.id, 'upvote')}
-                            className="flex items-center space-x-1 text-green-600 hover:text-green-700 transition-colors"
+                            className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 text-emerald-600 dark:text-emerald-400 hover:from-emerald-100 hover:to-emerald-200 dark:hover:from-emerald-900/30 dark:hover:to-emerald-800/30 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
                           >
                             <ThumbsUp className="w-4 h-4" />
-                            <span className="text-sm font-medium">{suggestion.upvotes || 0}</span>
-                          </button>
-                          <button
+                            <span className="text-sm font-semibold">{suggestion.upvotes || 0}</span>
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => handleVote(suggestion.id, 'downvote')}
-                            className="flex items-center space-x-1 text-red-600 hover:text-red-700 transition-colors"
+                            className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 text-red-600 dark:text-red-400 hover:from-red-100 hover:to-red-200 dark:hover:from-red-900/30 dark:hover:to-red-800/30 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
                           >
                             <ThumbsDown className="w-4 h-4" />
-                            <span className="text-sm font-medium">{suggestion.downvotes || 0}</span>
-                          </button>
+                            <span className="text-sm font-semibold">{suggestion.downvotes || 0}</span>
+                          </motion.button>
                         </div>
 
-                        {/* Action Menu */}
-                        <div className="flex items-center space-x-1">
+                        {/* Enhanced Action Menu */}
+                        <div className="flex items-center space-x-2">
                           {(userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
                             <select
                               value={suggestion.status}
                               onChange={(e) => handleStatusUpdate(suggestion.id, e.target.value)}
-                              className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                              className="px-3 py-2 text-xs border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
                             >
                               {statuses.map(status => (
                                 <option key={status.value} value={status.value}>{status.label}</option>
@@ -781,18 +983,22 @@ const Suggestions = () => {
 
                           {(suggestion.suggester_id === user.id || userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
                             <div className="flex items-center space-x-1">
-                              <button
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => handleEdit(suggestion)}
-                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
                               >
-                                <Edit className="w-3 h-3" />
-                              </button>
-                              <button
+                                <Edit className="w-4 h-4" />
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => handleDelete(suggestion.id)}
-                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-2 bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
                               >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
+                                <Trash2 className="w-4 h-4" />
+                              </motion.button>
                             </div>
                           )}
                         </div>

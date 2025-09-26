@@ -281,17 +281,21 @@ const InvitationManager = () => {
                 onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
-                <option value="employee">Employee</option>
+                <option value="admin">Administrator</option>
                 <option value="data_operator">Data Operator</option>
                 <option value="finance">Finance</option>
                 <option value="it_management">IT Management</option>
-                <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
                 <option value="driver_management">Driver Management</option>
                 <option value="operation_management">Operation Management</option>
                 <option value="hr_manager">HR Manager</option>
                 <option value="cs_manager">CS Manager</option>
-                <option value="viewer">View Only</option>
+                <option value="marketing_manager">Marketing Manager</option>
+                <option value="marketing_specialist">Marketing Specialist</option>
+                <option value="marketing_management">Marketing Management</option>
+                <option value="subscribe_now">Subscribe Now</option>
+                <option value="employee">Employee</option>
+                <option value="viewer">Viewer</option>
               </select>
             </div>
 

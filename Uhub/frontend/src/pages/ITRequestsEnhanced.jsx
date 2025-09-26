@@ -233,14 +233,45 @@ const ITRequestsEnhanced = () => {
     if (!window.confirm('Are you sure you want to delete this request?')) return;
     
     try {
+      console.log('Deleting request with ID:', id);
       const request = requests.find(r => r.id === id);
-      await itServicesApi.requests.delete(id);
-      await activityService.logResourceDelete('it_request', id, request);
-      success('Request deleted successfully');
-      fetchData();
+      console.log('Found request to delete:', request);
+      
+      // Try to delete from database
+      const deleteResult = await itServicesApi.requests.delete(id);
+      console.log('Delete result:', deleteResult);
+      
+      if (deleteResult) {
+        // Only remove from UI state if deletion was successful
+        setRequests(prevRequests => prevRequests.filter(r => r.id !== id));
+        console.log('Request removed from UI state');
+        
+        // Log activity
+        try {
+          await activityService.logResourceDelete('it_request', id, request);
+          console.log('Activity logged');
+        } catch (activityError) {
+          console.warn('Failed to log activity:', activityError);
+          // Don't fail the deletion if activity logging fails
+        }
+        
+        success('Request deleted successfully');
+      } else {
+        throw new Error('Delete operation returned false');
+      }
+      
     } catch (error) {
       console.error('Error deleting request:', error);
-      showError('Failed to delete request', error.message);
+      
+      // Check if it's an RLS permission error
+      if (error.message?.includes('permission') || error.message?.includes('RLS') || error.code === 'PGRST301') {
+        showError('Permission denied', 'You do not have permission to delete this request. Please contact your administrator.');
+      } else {
+        showError('Failed to delete request', error.message);
+      }
+      
+      // Refresh data to show current state
+      fetchData();
     }
   };
 
@@ -679,7 +710,10 @@ const ITRequestsEnhanced = () => {
                           color: priorityConfig.color 
                         }}
                       >
-                        <priorityConfig.icon className="w-3 h-3" />
+                        {(() => {
+                          const PriorityIcon = priorityConfig.icon;
+                          return <PriorityIcon className="w-3 h-3" />;
+                        })()}
                         {priority?.name}
                       </span>
                       
@@ -955,7 +989,10 @@ const ITRequestsEnhanced = () => {
                                 color: priorityConfig.color 
                               }}
                             >
-                              <priorityConfig.icon className="w-4 h-4" />
+                              {(() => {
+                                const PriorityIcon = priorityConfig.icon;
+                                return <PriorityIcon className="w-4 h-4" />;
+                              })()}
                               {priority?.name}
                             </span>
                           );

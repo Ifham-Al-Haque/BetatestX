@@ -97,6 +97,30 @@ const config = {
       displayName: 'Employee',
       permissions: ['view_dashboard', 'view_own_profile', 'edit_own_profile'],
     },
+    subscribe_now: {
+      name: 'subscribe_now',
+      displayName: 'Subscribe Now',
+      permissions: [
+        // Home Panel
+        'home', 'calendar_view',
+        // Slice of Life (All Sections)
+        'slice_of_life', 'memories', 'events', 'collections',
+        // Communication
+        'team_chat', 'communication',
+        // User Profile
+        'user_profile',
+        // HR Panel
+        'employees', 'complaints', 'suggestions',
+        // IT Services
+        'it_requests',
+        // Operation Panel
+        'fleet_delivery_checklist', 'fleet_maintenance_record',
+        // Todo List Panel (All Sections)
+        'todo_list', 'task_management',
+        // Subscribe Now Panel (All)
+        'subscribe_now'
+      ],
+    },
   },
 
   // Departments

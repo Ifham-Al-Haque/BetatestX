@@ -224,7 +224,21 @@ export const NotificationProvider = ({ children }) => {
       subs.push(messagesSub);
 
       // Setup additional notification types using the notification service
-      await notificationService.setupAllNotifications(addNotification);
+      try {
+        await notificationService.setupAllNotifications(addNotification);
+      } catch (error) {
+        console.error('Error setting up notification service:', error);
+      }
+
+      // Subscribe to user-specific notification channels
+      const userNotificationSub = supabase
+        .channel(`user_${user.id}_notifications`)
+        .on('broadcast', { event: 'notification' }, (payload) => {
+          console.log('📨 Received user notification:', payload.payload);
+          addNotification(payload.payload);
+        })
+        .subscribe();
+      subs.push(userNotificationSub);
 
       subscriptionsRef.current = subs;
       setSubscriptions(subs);

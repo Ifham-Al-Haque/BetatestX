@@ -169,12 +169,12 @@ export const itServicesApi = {
 
   // IT Requests
   requests: {
-    // Get all requests with role-based filtering
+    // Get all requests with role-based filtering (User-based architecture)
     getAll: async (filters = {}, userId = null, userRole = null) => {
       try {
-        // Try to use the view first, fallback to base table if view doesn't exist
+        // Try to use the enhanced view first, fallback to base table if view doesn't exist
         let query = supabase
-          .from('it_request_details')
+          .from('it_requests_with_details')
           .select('*')
           .order('created_at', { ascending: false });
 
@@ -182,7 +182,7 @@ export const itServicesApi = {
         
         // If view doesn't exist (404, PGRST116, or 42P01), fallback to base table
         if (error && (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01')) {
-          console.warn('it_request_details view not found, using fallback query');
+          console.warn('it_requests_with_details view not found, using fallback query');
           query = supabase
             .from('it_requests')
             .select(`
@@ -192,8 +192,8 @@ export const itServicesApi = {
             `)
             .order('created_at', { ascending: false });
 
-          // Apply role-based filtering
-          if (userRole === 'employee' || (!userRole && userId)) {
+          // Apply role-based filtering - non-IT users see only their own requests
+          if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
             query = query.eq('requester_id', userId);
           }
 
@@ -223,14 +223,105 @@ export const itServicesApi = {
 
           const { data: fallbackData, error: fallbackError } = await query;
           if (fallbackError) throw fallbackError;
-          return { data: fallbackData || [] };
+          
+          // If requester information is missing in fallback data, fetch it separately
+          let processedData = fallbackData || [];
+          if (processedData.length > 0 && (!processedData[0].requester || !processedData[0].requester.full_name)) {
+            console.log('Fetching requester information for fallback data...');
+            const requesterIds = [...new Set(processedData.map(req => req.requester_id))];
+            
+            try {
+              // Try to fetch from employees table first
+              const { data: employeesData, error: employeesError } = await supabase
+                .from('employees')
+                .select('id, full_name, email, department, role')
+                .in('id', requesterIds);
+
+              if (!employeesError && employeesData) {
+                const requesterMap = {};
+                employeesData.forEach(emp => {
+                  requesterMap[emp.id] = {
+                    full_name: emp.full_name,
+                    email: emp.email,
+                    department: emp.department,
+                    role: emp.role
+                  };
+                });
+
+                // Merge requester information
+                processedData = processedData.map(request => ({
+                  ...request,
+                  requester: requesterMap[request.requester_id] || {
+                    full_name: 'Unknown User',
+                    email: null,
+                    department: null,
+                    role: null
+                  }
+                }));
+              } else {
+                // Try users table as fallback
+                const { data: usersData, error: usersError } = await supabase
+                  .from('users')
+                  .select('id, full_name, email, department, role')
+                  .in('id', requesterIds);
+
+                if (!usersError && usersData) {
+                  const requesterMap = {};
+                  usersData.forEach(user => {
+                    requesterMap[user.id] = {
+                      full_name: user.full_name,
+                      email: user.email,
+                      department: user.department,
+                      role: user.role
+                    };
+                  });
+
+                  // Merge requester information
+                  processedData = processedData.map(request => ({
+                    ...request,
+                    requester: requesterMap[request.requester_id] || {
+                      full_name: 'Unknown User',
+                      email: null,
+                      department: null,
+                      role: null
+                    }
+                  }));
+                } else {
+                  // If both fail, set default requester info
+                  processedData = processedData.map(request => ({
+                    ...request,
+                    requester: {
+                      full_name: 'Unknown User',
+                      email: null,
+                      department: null,
+                      role: null
+                    }
+                  }));
+                }
+              }
+            } catch (fetchError) {
+              console.error('Error fetching requester information for fallback:', fetchError);
+              // Set default requester info on error
+              processedData = processedData.map(request => ({
+                ...request,
+                requester: {
+                  full_name: 'Unknown User',
+                  email: null,
+                  department: null,
+                  role: null
+                }
+              }));
+            }
+          }
+          
+          return { data: processedData };
         }
 
         if (error) throw error;
 
-        // Apply role-based filtering for view data
+        // Apply role-based filtering for view data - non-IT users see only their own requests
         let filteredData = data || [];
-        if (userRole === 'employee' || (!userRole && userId)) {
+        if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
           filteredData = filteredData.filter(request => request.requester_id === userId);
         }
 
@@ -262,6 +353,95 @@ export const itServicesApi = {
           );
         }
 
+        // If requester information is missing, fetch it separately
+        if (filteredData.length > 0 && (!filteredData[0].requester || !filteredData[0].requester.full_name)) {
+          console.log('Fetching requester information separately...');
+          const requesterIds = [...new Set(filteredData.map(req => req.requester_id))];
+          
+          try {
+            // Try to fetch from employees table first
+            const { data: employeesData, error: employeesError } = await supabase
+              .from('employees')
+              .select('id, full_name, email, department, role')
+              .in('id', requesterIds);
+
+            if (!employeesError && employeesData) {
+              const requesterMap = {};
+              employeesData.forEach(emp => {
+                requesterMap[emp.id] = {
+                  full_name: emp.full_name,
+                  email: emp.email,
+                  department: emp.department,
+                  role: emp.role
+                };
+              });
+
+              // Merge requester information
+              filteredData = filteredData.map(request => ({
+                ...request,
+                requester: requesterMap[request.requester_id] || {
+                  full_name: 'Unknown User',
+                  email: null,
+                  department: null,
+                  role: null
+                }
+              }));
+            } else {
+              // Try users table as fallback
+              const { data: usersData, error: usersError } = await supabase
+                .from('users')
+                .select('id, full_name, email, department, role')
+                .in('id', requesterIds);
+
+              if (!usersError && usersData) {
+                const requesterMap = {};
+                usersData.forEach(user => {
+                  requesterMap[user.id] = {
+                    full_name: user.full_name,
+                    email: user.email,
+                    department: user.department,
+                    role: user.role
+                  };
+                });
+
+                // Merge requester information
+                filteredData = filteredData.map(request => ({
+                  ...request,
+                  requester: requesterMap[request.requester_id] || {
+                    full_name: 'Unknown User',
+                    email: null,
+                    department: null,
+                    role: null
+                  }
+                }));
+              } else {
+                // If both fail, set default requester info
+                filteredData = filteredData.map(request => ({
+                  ...request,
+                  requester: {
+                    full_name: 'Unknown User',
+                    email: null,
+                    department: null,
+                    role: null
+                  }
+                }));
+              }
+            }
+          } catch (fetchError) {
+            console.error('Error fetching requester information:', fetchError);
+            // Set default requester info on error
+            filteredData = filteredData.map(request => ({
+              ...request,
+              requester: {
+                full_name: 'Unknown User',
+                email: null,
+                department: null,
+                role: null
+              }
+            }));
+          }
+        }
+
         return { data: filteredData };
       } catch (error) {
         console.error('Error fetching requests:', error);
@@ -271,9 +451,9 @@ export const itServicesApi = {
 
     getById: async (id) => {
       try {
-        // Try view first, fallback to base table
+        // Try enhanced view first, fallback to base table
         let query = supabase
-          .from('it_request_details')
+          .from('it_requests_with_details')
           .select('*')
           .eq('id', id)
           .single();
@@ -287,7 +467,8 @@ export const itServicesApi = {
             .select(`
               *,
               category:category_id(name, description, icon, color),
-              priority:priority_id(name, level, color, sla_hours, description)
+              priority:priority_id(name, level, color, sla_hours, description),
+              requester:requester_id(full_name, email, role, department)
             `)
             .eq('id', id)
             .single();
@@ -322,6 +503,19 @@ export const itServicesApi = {
           .single();
 
         if (error) throw error;
+
+        // Send notifications to IT Management and Admin roles
+        try {
+          // Import the simple notification service
+          const { default: SimpleNotificationService } = await import('./simpleNotificationService');
+          const notificationService = new SimpleNotificationService();
+          await notificationService.notifyITRequestCreated(data);
+          console.log('✅ IT Request notification sent successfully');
+        } catch (notificationError) {
+          console.error('⚠️ Failed to send IT request notification:', notificationError);
+          // Don't throw error - request was created successfully
+        }
+
         return data;
       } catch (error) {
         console.error('Error creating request:', error);
@@ -331,6 +525,15 @@ export const itServicesApi = {
 
     update: async (id, updateData) => {
       try {
+        // Get current request data to check for status changes
+        const { data: currentRequest, error: fetchError } = await supabase
+          .from('it_requests')
+          .select('status')
+          .eq('id', id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
         const { data, error } = await supabase
           .from('it_requests')
           .update({
@@ -342,6 +545,20 @@ export const itServicesApi = {
           .single();
 
         if (error) throw error;
+
+        // Send notification if status changed
+        if (currentRequest && updateData.status && currentRequest.status !== updateData.status) {
+          try {
+            const { default: SimpleNotificationService } = await import('./simpleNotificationService');
+            const notificationService = new SimpleNotificationService();
+            await notificationService.notifyITRequestStatusUpdate(data, currentRequest.status, updateData.status);
+            console.log('✅ IT Request status update notification sent successfully');
+          } catch (notificationError) {
+            console.error('⚠️ Failed to send IT request status update notification:', notificationError);
+            // Don't throw error - request was updated successfully
+          }
+        }
+
         return data;
       } catch (error) {
         console.error('Error updating request:', error);
@@ -435,13 +652,46 @@ export const itServicesApi = {
 
     delete: async (id) => {
       try {
-        const { error } = await supabase
-          .from('it_requests')
-          .delete()
-          .eq('id', id);
+        console.log('Attempting to delete IT request with ID:', id);
+        
+        // Try using the custom delete function first (bypasses RLS)
+        const { data: deleteResult, error: deleteError } = await supabase
+          .rpc('delete_it_request', { request_id: id });
+        
+        if (deleteError) {
+          console.error('Custom delete function error:', deleteError);
+          
+          // Fallback to standard delete
+          console.log('Falling back to standard delete...');
+          const { data, error } = await supabase
+            .from('it_requests')
+            .delete()
+            .eq('id', id)
+            .select();
 
-        if (error) throw error;
-        return true;
+          if (error) {
+            console.error('Standard delete also failed:', error);
+            throw error;
+          }
+          
+          console.log('Standard delete successful. Rows affected:', data?.length || 0);
+          
+          if (data && data.length === 0) {
+            throw new Error('No rows were deleted. You may not have permission to delete this request or it may not exist.');
+          }
+          
+          return true;
+        }
+        
+        console.log('Custom delete function result:', deleteResult);
+        
+        if (deleteResult) {
+          console.log('Request deleted successfully using custom function');
+          return true;
+        } else {
+          throw new Error('Delete operation returned false - no rows were deleted');
+        }
+        
       } catch (error) {
         console.error('Error deleting request:', error);
         throw error;
@@ -468,9 +718,11 @@ export const itServicesApi = {
             .from('it_requests')
             .select('*');
 
-          // Apply role-based filtering for statistics
-          if (userRole === 'employee' && userId) {
-            query = query.eq('requester_id', userId);
+          // Apply role-based filtering for statistics - non-IT users see only their own requests
+          if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
+            if (userId) {
+              query = query.eq('requester_id', userId);
+            }
           }
 
           const { data, error } = await query;
@@ -488,7 +740,8 @@ export const itServicesApi = {
             closed_requests: requests.filter(r => r.status === 'closed').length,
             cancelled_requests: requests.filter(r => r.status === 'cancelled').length,
             my_requests: requests.filter(r => r.requester_id === userId).length,
-            assigned_to_me: requests.filter(r => r.assigned_to === userId).length
+            assigned_to_me: requests.filter(r => r.assigned_to === userId).length,
+            unassigned_requests: requests.filter(r => !r.assigned_to && r.status === 'open').length
           };
         } catch (fallbackError) {
           console.error('Error in fallback stats calculation:', fallbackError);
@@ -502,7 +755,8 @@ export const itServicesApi = {
             closed_requests: 0,
             cancelled_requests: 0,
             my_requests: 0,
-            assigned_to_me: 0
+            assigned_to_me: 0,
+            unassigned_requests: 0
           };
         }
       }
@@ -511,9 +765,9 @@ export const itServicesApi = {
     // Get requests by status for dashboard
     getByStatus: async (status, userId = null, userRole = null) => {
       try {
-        // Try view first, fallback to base table
+        // Try enhanced view first, fallback to base table
         let query = supabase
-          .from('it_request_details')
+          .from('it_requests_with_details')
           .select('*')
           .eq('status', status)
           .order('created_at', { ascending: false });
@@ -527,13 +781,14 @@ export const itServicesApi = {
             .select(`
               *,
               category:category_id(name, description, icon, color),
-              priority:priority_id(name, level, color, sla_hours, description)
+              priority:priority_id(name, level, color, sla_hours, description),
+              requester:requester_id(full_name, email, role, department)
             `)
             .eq('status', status)
             .order('created_at', { ascending: false });
 
-          // Apply role-based filtering
-          if (userRole === 'employee' && userId) {
+          // Apply role-based filtering - non-IT users see only their own requests
+          if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
             query = query.eq('requester_id', userId);
           }
 
@@ -544,15 +799,27 @@ export const itServicesApi = {
 
         if (error) throw error;
 
-        // Apply role-based filtering for view data
+        // Apply role-based filtering for view data - non-IT users see only their own requests
         let filteredData = data || [];
-        if (userRole === 'employee' && userId) {
+        if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
           filteredData = filteredData.filter(request => request.requester_id === userId);
         }
 
         return filteredData;
       } catch (error) {
         console.error('Error fetching requests by status:', error);
+        throw error;
+      }
+    },
+
+    // Get all requests for tech/admin roles (for RequestInbox)
+    getAllForTech: async (filters = {}) => {
+      try {
+        // This method is specifically for tech roles to see all requests
+        const result = await itServicesApi.requests.getAll(filters, null, 'admin'); // Use admin role to see all requests
+        return result.data || [];
+      } catch (error) {
+        console.error('Error fetching requests for tech:', error);
         throw error;
       }
     }
@@ -858,6 +1125,56 @@ export const itServicesApi = {
       } catch (error) {
         console.error('Error deleting ticket:', error);
         throw error;
+      }
+    }
+  },
+
+  // Users and Staff Management
+  users: {
+    // Get IT staff users for assignment
+    getITStaff: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, full_name, email, role, department')
+          .in('role', ['admin', 'it_manager', 'it_technician', 'super_admin'])
+          .eq('status', 'active')
+          .order('full_name', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching IT staff:', error);
+        // Fallback to all users if role filtering fails
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('id, full_name, email, role, department')
+            .eq('status', 'active')
+            .order('full_name', { ascending: true });
+          
+          if (error) throw error;
+          return data || [];
+        } catch (fallbackError) {
+          console.error('Error in fallback user fetch:', fallbackError);
+          return [];
+        }
+      }
+    },
+
+    // Get all users (for general purposes)
+    getAll: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, full_name, email, role, department, status')
+          .order('full_name', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        return [];
       }
     }
   }

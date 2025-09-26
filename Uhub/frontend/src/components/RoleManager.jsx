@@ -75,6 +75,34 @@ const RoleManager = ({ user, onRoleUpdate }) => {
       permissions: ['CSPA access', 'CS ticket management', 'IT requests', 'Attendance view', 'Complaints access', 'Task management', 'Reports access', 'Calendar view', 'Employee records view']
     },
     { 
+      value: 'marketing_manager', 
+      label: 'Marketing Manager', 
+      description: 'Marketing manager with full access to marketing panel and related features',
+      color: 'bg-pink-100 text-pink-800 border-pink-200',
+      permissions: ['Marketing Calendar', 'Marketing Dashboard', 'Marketing Events', 'Marketing Analytics', 'Home & Calendar', 'Slice of Life', 'Team Chat', 'HR View', 'IT Requests', 'Todo List']
+    },
+    { 
+      value: 'marketing_specialist', 
+      label: 'Marketing Specialist', 
+      description: 'Marketing specialist with limited access to marketing panel features',
+      color: 'bg-purple-100 text-purple-800 border-purple-200',
+      permissions: ['Marketing Calendar', 'Marketing Events', 'Home & Calendar', 'Slice of Life', 'Team Chat', 'HR View', 'IT Requests', 'Todo List']
+    },
+    { 
+      value: 'marketing_management', 
+      label: 'Marketing Management', 
+      description: 'Marketing management with specific access to home, slice of life, communication, HR, IT, marketing, and todo features',
+      color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      permissions: ['Marketing Calendar', 'Marketing Dashboard', 'Marketing Events', 'Marketing Analytics', 'Home & Calendar', 'Slice of Life', 'Team Chat', 'HR Panel', 'IT Requests', 'Todo List']
+    },
+    { 
+      value: 'subscribe_now', 
+      label: 'Subscribe Now', 
+      description: 'Subscribe Now role with access to home, slice of life, communication, HR, IT, fleet operations, and todo features',
+      color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      permissions: ['Home & Calendar', 'Slice of Life', 'Team Chat', 'HR Panel', 'IT Requests', 'Fleet Operations', 'Todo List', 'Subscribe Now Panel']
+    },
+    { 
       value: 'employee', 
       label: 'Employee', 
       description: 'Standard user with read-only access to main panel and personal data',
@@ -98,9 +126,9 @@ const RoleManager = ({ user, onRoleUpdate }) => {
     setLoading(true);
     try {
       const { error } = await supabase
-        .from('employees')
+        .from('users')
         .update({ role: selectedRole })
-        .eq('id', user.id);
+        .eq('auth_user_id', user.id);
 
       if (error) throw error;
 

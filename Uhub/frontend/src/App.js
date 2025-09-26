@@ -62,6 +62,9 @@ const Tasks = React.lazy(() => import('./pages/Tasks'));
 const CalendarView = React.lazy(() => import('./pages/CalendarView'));
 const Analytics = React.lazy(() => import('./pages/Analytics'));
 const FleetManagement = React.lazy(() => import('./pages/FleetManagement'));
+const DeliveryManagement = React.lazy(() => import('./pages/DeliveryManagement'));
+const DeliveryTracking = React.lazy(() => import('./pages/DeliveryTracking'));
+const DeliveryRoutes = React.lazy(() => import('./pages/DeliveryRoutes'));
 const UserProfile = React.lazy(() => import('./pages/UserProfile'));
 const Suggestions = React.lazy(() => import('./pages/Suggestions'));
 const TaskManagement = React.lazy(() => import('./pages/TaskManagement'));
@@ -74,6 +77,13 @@ const Events = React.lazy(() => import('./pages/Events'));
 const Memories = React.lazy(() => import('./pages/Memories'));
 const EventPictureUpload = React.lazy(() => import('./pages/EventPictureUpload'));
 const UserWelcome = React.lazy(() => import('./pages/UserWelcome'));
+const SubscribeNow = React.lazy(() => import('./pages/SubscribeNow'));
+const Collections = React.lazy(() => import('./pages/Collections'));
+const FleetOnboarding = React.lazy(() => import('./pages/FleetOnboarding'));
+const FleetOffboarding = React.lazy(() => import('./pages/FleetOffboarding'));
+const FleetDeliveryChecklist = React.lazy(() => import('./pages/FleetDeliveryChecklist'));
+const FleetMaintenanceRecord = React.lazy(() => import('./pages/FleetMaintenanceRecord'));
+const MarketingCalendar = React.lazy(() => import('./pages/MarketingCalendar'));
 
 function App() {
   return (
@@ -334,6 +344,31 @@ function App() {
                           </ProtectedRoute>
                         } />
 
+                        {/* Delivery Management Routes */}
+                        <Route path="/delivery-management" element={
+                          <ProtectedRoute requiredFeature="delivery_management">
+                            <Layout>
+                              <DeliveryManagement />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/delivery-tracking" element={
+                          <ProtectedRoute requiredFeature="delivery_tracking">
+                            <Layout>
+                              <DeliveryTracking />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/delivery-routes" element={
+                          <ProtectedRoute requiredFeature="delivery_routes">
+                            <Layout>
+                              <DeliveryRoutes />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
                         <Route path="/profile" element={
                           <ProtectedRoute>
                             <Layout>
@@ -503,6 +538,66 @@ function App() {
                                 <h1 className="text-2xl font-bold mb-4">Reports</h1>
                                 <p>Reports functionality coming soon...</p>
                               </div>
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Fleet Management Routes */}
+                        <Route path="/fleet-onboarding" element={
+                          <ProtectedRoute requiredFeature="fleet_onboarding">
+                            <Layout>
+                              <FleetOnboarding />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/fleet-offboarding" element={
+                          <ProtectedRoute requiredFeature="fleet_offboarding">
+                            <Layout>
+                              <FleetOffboarding />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/fleet-delivery-checklist" element={
+                          <ProtectedRoute requiredFeature="fleet_delivery_checklist">
+                            <Layout>
+                              <FleetDeliveryChecklist />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/fleet-maintenance-record" element={
+                          <ProtectedRoute requiredFeature="fleet_maintenance_record">
+                            <Layout>
+                              <FleetMaintenanceRecord />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Subscribe Now */}
+                        <Route path="/subscribe-now" element={
+                          <ProtectedRoute requiredFeature="subscribe_now">
+                            <Layout>
+                              <SubscribeNow />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Collections */}
+                        <Route path="/collections" element={
+                          <ProtectedRoute requiredFeature="collections">
+                            <Layout>
+                              <Collections />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Marketing Calendar */}
+                        <Route path="/marketing-calendar" element={
+                          <ProtectedRoute requiredFeature="marketing_calendar">
+                            <Layout>
+                              <MarketingCalendar />
                             </Layout>
                           </ProtectedRoute>
                         } />

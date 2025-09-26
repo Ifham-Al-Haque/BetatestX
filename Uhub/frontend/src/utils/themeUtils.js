@@ -43,22 +43,22 @@ export const themeColors = {
   },
   
   dark: {
-    // Backgrounds
-    bgPrimary: 'bg-slate-900',
-    bgSecondary: 'bg-slate-800',
-    bgTertiary: 'bg-slate-700',
-    bgCard: 'bg-slate-800',
-    bgModal: 'bg-slate-800',
+    // Backgrounds - Dark blue theme matching screenshot
+    bgPrimary: 'bg-[#0f1419]',
+    bgSecondary: 'bg-[#1a1f2e]',
+    bgTertiary: 'bg-[#242938]',
+    bgCard: 'bg-[rgba(26,31,46,0.7)]',
+    bgModal: 'bg-[#1a1f2e]',
     
-    // Text
-    textPrimary: 'text-slate-100',
-    textSecondary: 'text-slate-300',
-    textMuted: 'text-slate-400',
-    textInverse: 'text-slate-900',
+    // Text - Clean white matching screenshot
+    textPrimary: 'text-white',
+    textSecondary: 'text-[#e2e8f0]',
+    textMuted: 'text-[#94a3b8]',
+    textInverse: 'text-[#0f1419]',
     
-    // Borders
-    borderPrimary: 'border-slate-700',
-    borderSecondary: 'border-slate-600',
+    // Borders - Translucent white matching screenshot
+    borderPrimary: 'border-[rgba(255,255,255,0.2)]',
+    borderSecondary: 'border-[rgba(255,255,255,0.1)]',
     borderAccent: 'border-blue-400',
     
     // Shadows
@@ -67,16 +67,16 @@ export const themeColors = {
     shadowLg: 'shadow-slate-900/50',
     shadowXl: 'shadow-slate-900/60',
     
-    // Gradients
-    gradientPrimary: 'from-blue-600 to-blue-700',
-    gradientSecondary: 'from-purple-600 to-purple-700',
-    gradientAccent: 'from-green-600 to-green-700',
-    gradientBackground: 'from-slate-800 to-slate-900',
+    // Gradients - Blue theme matching screenshot
+    gradientPrimary: 'from-blue-500 to-indigo-500',
+    gradientSecondary: 'from-emerald-500 to-blue-500',
+    gradientAccent: 'from-sky-400 to-blue-500',
+    gradientBackground: 'from-[#1a1f2e] to-[#0f1419]',
     
     // Hover states
-    hoverBg: 'hover:bg-slate-700',
-    hoverBorder: 'hover:border-slate-600',
-    hoverText: 'hover:text-slate-100',
+    hoverBg: 'hover:bg-[#242938]',
+    hoverBorder: 'hover:border-[rgba(255,255,255,0.3)]',
+    hoverText: 'hover:text-white',
     
     // Focus states
     focusRing: 'focus:ring-blue-400',

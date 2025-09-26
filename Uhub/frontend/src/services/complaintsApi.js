@@ -51,6 +51,19 @@ export const complaintsApi = {
         .single();
 
       if (error) throw error;
+
+      // Send notifications to HR Manager and Admin roles
+      try {
+        // Import the simple notification service
+        const { default: SimpleNotificationService } = await import('./simpleNotificationService');
+        const notificationService = new SimpleNotificationService();
+        await notificationService.notifyComplaintCreated(data);
+        console.log('✅ Complaint notification sent successfully');
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send complaint notification:', notificationError);
+        // Don't throw error - complaint was created successfully
+      }
+
       return data;
     } catch (error) {
       console.error('Error creating complaint:', error);
@@ -104,6 +117,15 @@ export const complaintsApi = {
   // Update complaint
   async updateComplaint(complaintId, updateData) {
     try {
+      // Get current complaint data to check for status changes
+      const { data: currentComplaint, error: fetchError } = await supabase
+        .from('complaints')
+        .select('status')
+        .eq('id', complaintId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       // Handle anonymous complaints - if anonymous is being set to true, set name to 'Anonymous'
       const updatedData = { ...updateData };
       if (updateData.anonymous === true) {
@@ -123,6 +145,20 @@ export const complaintsApi = {
         .single();
 
       if (error) throw error;
+
+      // Send notification if status changed
+      if (currentComplaint && updateData.status && currentComplaint.status !== updateData.status) {
+        try {
+          const { default: SimpleNotificationService } = await import('./simpleNotificationService');
+          const notificationService = new SimpleNotificationService();
+          await notificationService.notifyComplaintStatusUpdate(data, currentComplaint.status, updateData.status);
+          console.log('✅ Complaint status update notification sent successfully');
+        } catch (notificationError) {
+          console.error('⚠️ Failed to send complaint status update notification:', notificationError);
+          // Don't throw error - complaint was updated successfully
+        }
+      }
+
       return data;
     } catch (error) {
       console.error('Error updating complaint:', error);

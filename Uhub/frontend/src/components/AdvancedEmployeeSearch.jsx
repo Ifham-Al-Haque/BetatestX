@@ -20,8 +20,9 @@ const AdvancedEmployeeSearch = ({ onSearch, onExport, totalResults }) => {
   const [showSavedSearches, setShowSavedSearches] = useState(false);
 
   const departments = [
-    'IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 
-    'Customer Service', 'Engineering', 'Design', 'Legal', 'General'
+    'IT', 'HR', 'FINANCE', 'MARKETING', 'SALES', 'OPERATIONS', 
+    'Customer Service', 'Engineering', 'Design', 'Legal', 'General',
+    'SUBSCRIBE NOW SALES', 'TECHNOLOGY', 'IOT', 'COLLECTION', 'Driver Management'
   ];
 
   const roles = [

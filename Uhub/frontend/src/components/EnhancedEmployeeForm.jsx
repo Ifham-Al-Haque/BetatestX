@@ -22,7 +22,6 @@ export default function EnhancedEmployeeForm({ employee, onSave, onCancel, mode 
     position: '',
     designation: '',
     employee_id: '',
-    role: '',
     reporting_manager_id: '',
     reporting_manager: '',
     
@@ -68,7 +67,8 @@ export default function EnhancedEmployeeForm({ employee, onSave, onCancel, mode 
   const [loading, setLoading] = useState(false);
   const [managers, setManagers] = useState([]);
   const [departments] = useState([
-    'IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Engineering', 'Design', 'Support'
+    'IT', 'HR', 'FINANCE', 'MARKETING', 'SALES', 'OPERATIONS', 'Engineering', 'Design', 'Support',
+    'SUBSCRIBE NOW SALES', 'TECHNOLOGY', 'IOT', 'COLLECTION', 'Customer Service', 'Driver Management'
   ]);
   const [experienceLevels] = useState([
     'Entry Level', 'Junior', 'Mid-Level', 'Senior', 'Lead', 'Manager', 'Director', 'Executive'
@@ -286,6 +286,7 @@ export default function EnhancedEmployeeForm({ employee, onSave, onCancel, mode 
             {renderField('employee_id', 'Employee ID', 'text', 'Enter employee ID', true)}
             {renderField('department', 'Department', 'select', '', false, departments)}
             {renderField('position', 'Position', 'text', 'Enter job position', true)}
+            {renderField('designation', 'Designation', 'text', 'e.g., Team Lead, Senior Developer')}
             {renderField('experience_level', 'Experience Level', 'select', '', false, experienceLevels)}
             {renderField('location', 'Location', 'text', 'Enter work location')}
           </div>

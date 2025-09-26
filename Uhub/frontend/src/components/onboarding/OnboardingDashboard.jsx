@@ -2,19 +2,33 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, CheckCircle, Clock, AlertTriangle, TrendingUp, 
-  ArrowRight, Plus, Calendar, Target, Award
+  ArrowRight, Plus, Calendar, Target, Award, Edit, Trash2, MoreHorizontal
 } from 'lucide-react';
 
 export default function OnboardingDashboard({ 
-  stats, 
-  recentRecords, 
+  stats = {}, 
+  recentRecords = [], 
   onViewRecord, 
-  onStartOnboarding 
+  onStartOnboarding,
+  onEditRecord,
+  onDeleteRecord
 }) {
+  // Ensure stats has default values
+  const safeStats = {
+    total: 0,
+    inProgress: 0,
+    completed: 0,
+    overdue: 0,
+    dueSoon: 0,
+    ...stats
+  };
+
+  // Ensure recentRecords is always an array
+  const safeRecentRecords = Array.isArray(recentRecords) ? recentRecords : [];
   const statCards = [
     {
       title: 'Total Onboarding',
-      value: stats.total,
+      value: safeStats.total,
       icon: Users,
       color: 'bg-blue-500',
       bgColor: 'bg-blue-50',
@@ -22,7 +36,7 @@ export default function OnboardingDashboard({
     },
     {
       title: 'In Progress',
-      value: stats.inProgress,
+      value: safeStats.inProgress,
       icon: Clock,
       color: 'bg-yellow-500',
       bgColor: 'bg-yellow-50',
@@ -30,7 +44,7 @@ export default function OnboardingDashboard({
     },
     {
       title: 'Completed',
-      value: stats.completed,
+      value: safeStats.completed,
       icon: CheckCircle,
       color: 'bg-green-500',
       bgColor: 'bg-green-50',
@@ -38,7 +52,7 @@ export default function OnboardingDashboard({
     },
     {
       title: 'Overdue',
-      value: stats.overdue,
+      value: safeStats.overdue,
       icon: AlertTriangle,
       color: 'bg-red-500',
       bgColor: 'bg-red-50',
@@ -177,7 +191,7 @@ export default function OnboardingDashboard({
         </div>
 
         <div className="p-6">
-          {recentRecords.length === 0 ? (
+          {safeRecentRecords.length === 0 ? (
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 mb-4">No onboarding records found</p>
@@ -190,13 +204,13 @@ export default function OnboardingDashboard({
             </div>
           ) : (
             <div className="space-y-4">
-              {recentRecords.map((record, index) => (
+              {safeRecentRecords.map((record, index) => (
                 <motion.div
                   key={record.record_id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+                  className="group flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
                   onClick={() => onViewRecord(record)}
                 >
                   <div className="flex items-center space-x-4">
@@ -217,14 +231,44 @@ export default function OnboardingDashboard({
 
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
-                      <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(record.status, record.status_indicator)}`}>
-                        {getStatusIcon(record.status, record.status_indicator)}
-                        <span>{record.status.replace('_', ' ').toUpperCase()}</span>
+                      <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(record.status || record.onboarding_status, record.status_indicator)}`}>
+                        {getStatusIcon(record.status || record.onboarding_status, record.status_indicator)}
+                        <span>{(record.status || record.onboarding_status || 'pending').replace('_', ' ').toUpperCase()}</span>
                       </div>
                       <p className="text-sm text-gray-500 mt-1">
-                        {record.progress_percentage}% Complete
+                        {record.progress_percentage || record.completion_percentage || 0}% Complete
                       </p>
                     </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {onEditRecord && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditRecord(record);
+                          }}
+                          className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {onDeleteRecord && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteRecord(record);
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    
                     <ArrowRight className="w-5 h-5 text-gray-400" />
                   </div>
                 </motion.div>
@@ -252,12 +296,12 @@ export default function OnboardingDashboard({
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600">Completed</span>
-                  <span className="font-medium">{stats.completed}</span>
+                  <span className="font-medium">{safeStats.completed}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${stats.total > 0 ? (stats.completed / stats.total) * 100 : 0}%` }}
+                    style={{ width: `${safeStats.total > 0 ? (safeStats.completed / safeStats.total) * 100 : 0}%` }}
                   ></div>
                 </div>
               </div>
@@ -265,12 +309,12 @@ export default function OnboardingDashboard({
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600">In Progress</span>
-                  <span className="font-medium">{stats.inProgress}</span>
+                  <span className="font-medium">{safeStats.inProgress}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${stats.total > 0 ? (stats.inProgress / stats.total) * 100 : 0}%` }}
+                    style={{ width: `${safeStats.total > 0 ? (safeStats.inProgress / safeStats.total) * 100 : 0}%` }}
                   ></div>
                 </div>
               </div>
@@ -286,7 +330,7 @@ export default function OnboardingDashboard({
                   <span className="text-sm text-green-800">On Track</span>
                 </div>
                 <span className="text-sm font-medium text-green-600">
-                  {stats.inProgress - stats.overdue - stats.dueSoon}
+                  {Math.max(0, safeStats.inProgress - safeStats.overdue - safeStats.dueSoon)}
                 </span>
               </div>
               
@@ -296,7 +340,7 @@ export default function OnboardingDashboard({
                   <span className="text-sm text-yellow-800">Due Soon</span>
                 </div>
                 <span className="text-sm font-medium text-yellow-600">
-                  {stats.dueSoon}
+                  {safeStats.dueSoon}
                 </span>
               </div>
               
@@ -306,7 +350,7 @@ export default function OnboardingDashboard({
                   <span className="text-sm text-red-800">Overdue</span>
                 </div>
                 <span className="text-sm font-medium text-red-600">
-                  {stats.overdue}
+                  {safeStats.overdue}
                 </span>
               </div>
             </div>

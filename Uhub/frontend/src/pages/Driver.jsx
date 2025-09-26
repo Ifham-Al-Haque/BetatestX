@@ -5,7 +5,9 @@ import { useDrivers, useDeleteDriver } from "../hooks/useApi";
 import { 
   ChevronRight, Trash2, Pencil, Plus, Search, Filter, Car, 
   User, MapPin, Phone, Mail, Calendar, Shield, Eye, 
-  TrendingUp, AlertCircle, CheckCircle, Clock, Star, Building
+  TrendingUp, AlertCircle, CheckCircle, Clock, Star, Building,
+  Download, Upload, MoreHorizontal, BarChart3, Activity, 
+  Users, Zap, Globe, Award, Target, RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,6 +19,9 @@ export default function Driver() {
   const [pageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [shiftFilter, setShiftFilter] = useState("");
+  const [teamTypeFilter, setTeamTypeFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   
   const navigate = useNavigate();
@@ -27,13 +32,16 @@ export default function Driver() {
   const deleteDriverMutation = useDeleteDriver();
 
   const drivers = driversData?.data || [];
-  const totalCount = driversData?.count || 0;
+  // Use the length of drivers array if count is not available or is 0
+  const totalCount = driversData?.count || drivers.length;
 
   // Debug logging for driver data
   console.log('🔍 Driver component data:', {
     driversData,
     drivers,
+    driversLength: drivers.length,
     totalCount,
+    countFromAPI: driversData?.count,
     isLoading,
     error,
     currentPage,
@@ -66,6 +74,23 @@ export default function Driver() {
       filtered = filtered.filter(driver => driver.shift_type === shiftFilter);
     }
     
+    // Apply team type filter
+    if (teamTypeFilter) {
+      filtered = filtered.filter(driver => driver.team_type === teamTypeFilter);
+    }
+    
+    // Apply designation filter
+    if (designationFilter) {
+      filtered = filtered.filter(driver => 
+        driver.designation && driver.designation.toLowerCase().includes(designationFilter.toLowerCase())
+      );
+    }
+    
+    // Apply location filter
+    if (locationFilter) {
+      filtered = filtered.filter(driver => driver.location === locationFilter);
+    }
+    
     // Apply sorting
     return filtered.sort((a, b) => {
       const valA = a[sortKey]?.toLowerCase?.() || "";
@@ -74,7 +99,7 @@ export default function Driver() {
         ? valA.localeCompare(valB)
         : valB.localeCompare(valA);
     });
-  }, [drivers, sortKey, sortOrder, statusFilter, shiftFilter]);
+  }, [drivers, sortKey, sortOrder, statusFilter, shiftFilter, teamTypeFilter, designationFilter, locationFilter]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -99,13 +124,16 @@ export default function Driver() {
   const clearFilters = useCallback(() => {
     setStatusFilter("");
     setShiftFilter("");
+    setTeamTypeFilter("");
+    setDesignationFilter("");
+    setLocationFilter("");
     setSearch("");
     setCurrentPage(1);
   }, []);
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const total = drivers.length;
+    const total = totalCount; // Use totalCount instead of drivers.length for consistency
     const active = drivers.filter(d => d.status === 'active').length;
     const inactive = drivers.filter(d => d.status === 'inactive').length;
     const suspended = drivers.filter(d => d.status === 'suspended').length;
@@ -113,7 +141,7 @@ export default function Driver() {
     const nightShift = drivers.filter(d => d.shift_type === 'Night').length;
 
     return { total, active, inactive, suspended, dayShift, nightShift };
-  }, [drivers]);
+  }, [drivers, totalCount]);
 
   if (error) {
     return (
@@ -131,53 +159,83 @@ export default function Driver() {
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="ml-64 p-6 w-full">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-              Driver Records
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Manage and monitor all driver information
-            </p>
+        {/* Enhanced Header Section */}
+        <div className="relative mb-8">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
+          <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20 dark:border-gray-700/50 shadow-xl">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
+                  <Car className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent">
+                    Driver Records
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
+                    Manage and monitor all driver information with advanced analytics
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    console.log('🔍 Add New Driver button clicked, navigating to /driver/new');
+                    navigate("/driver/new");
+                  }}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add New Driver
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <Download className="w-5 h-5" />
+                  Export Data
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    console.log('🔍 Test button clicked, navigating to /driver/test');
+                    navigate("/driver/test");
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  Analytics
+                </motion.button>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => {
-              console.log('🔍 Add New Driver button clicked, navigating to /driver/new');
-              navigate("/driver/new");
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <Plus className="w-5 h-5" />
-            Add New Driver
-          </button>
-          
-          {/* Temporary test button */}
-          <button
-            onClick={() => {
-              console.log('🔍 Test button clicked, navigating to /driver/test');
-              navigate("/driver/test");
-            }}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl ml-2"
-          >
-            Test Route
-          </button>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {/* Enhanced Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700"
+            whileHover={{ y: -5, transition: { duration: 0.2 } }}
+            className="relative bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-blue-200/50 dark:border-blue-700/50 overflow-hidden"
           >
-            <div className="flex items-center justify-between">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Drivers</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
+                <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">Total Drivers</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">{stats.total}</p>
+                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">All registered drivers</p>
               </div>
-              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                <Car className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                <Users className="w-7 h-7 text-white" />
               </div>
             </div>
           </motion.div>
@@ -186,15 +244,18 @@ export default function Driver() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700"
+            whileHover={{ y: -5, transition: { duration: 0.2 } }}
+            className="relative bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-emerald-200/50 dark:border-emerald-700/50 overflow-hidden"
           >
-            <div className="flex items-center justify-between">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Drivers</p>
-                <p className="text-3xl font-bold text-green-600">{stats.active}</p>
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Active Drivers</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">{stats.active}</p>
+                <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">Currently working</p>
               </div>
-              <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="p-4 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg">
+                <Activity className="w-7 h-7 text-white" />
               </div>
             </div>
           </motion.div>
@@ -203,15 +264,18 @@ export default function Driver() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700"
+            whileHover={{ y: -5, transition: { duration: 0.2 } }}
+            className="relative bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-amber-200/50 dark:border-amber-700/50 overflow-hidden"
           >
-            <div className="flex items-center justify-between">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-400/20 to-amber-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Day Shift</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.dayShift}</p>
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-1">Day Shift</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">{stats.dayShift}</p>
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">Morning operations</p>
               </div>
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-                <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              <div className="p-4 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl shadow-lg">
+                <Zap className="w-7 h-7 text-white" />
               </div>
             </div>
           </motion.div>
@@ -220,60 +284,81 @@ export default function Driver() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700"
+            whileHover={{ y: -5, transition: { duration: 0.2 } }}
+            className="relative bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-purple-200/50 dark:border-purple-700/50 overflow-hidden"
           >
-            <div className="flex items-center justify-between">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-purple-600/20 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Night Shift</p>
-                <p className="text-3xl font-bold text-purple-600">{stats.nightShift}</p>
+                <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-1">Night Shift</p>
+                <p className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">{stats.nightShift}</p>
+                <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">Evening operations</p>
               </div>
-              <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                <Star className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <div className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg">
+                <Globe className="w-7 h-7 text-white" />
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+        {/* Enhanced Search and Filters */}
+        <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-white/20 dark:border-gray-700/50">
+          <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
             <div className="flex-1 flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
                   <input
                     type="text"
                     placeholder="Search drivers by name, email, or ID..."
                     value={search}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200 text-lg font-medium placeholder:text-gray-400"
                   />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
                 </div>
               </div>
               
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className={`flex items-center gap-3 px-6 py-4 rounded-xl transition-all duration-200 font-semibold ${
+                  showFilters 
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' 
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-2 border-gray-200 dark:border-gray-600'
+                }`}
               >
-                <Filter className="w-4 h-4" />
-                Filters
+                <Filter className="w-5 h-5" />
+                Advanced Filters
                 {showFilters && (
-                  <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
-                    {[statusFilter, shiftFilter].filter(Boolean).length}
+                  <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-bold">
+                    {[statusFilter, shiftFilter, teamTypeFilter, designationFilter, locationFilter].filter(Boolean).length}
                   </span>
                 )}
-              </button>
+              </motion.button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {showFilters && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={clearFilters}
-                  className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
                 >
-                  Clear All
-                </button>
+                  Clear All Filters
+                </motion.button>
               )}
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-all duration-200"
+                title="Refresh Data"
+              >
+                <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </motion.button>
             </div>
           </div>
 
@@ -286,7 +371,7 @@ export default function Driver() {
                 exit={{ opacity: 0, height: 0 }}
                 className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Status
@@ -315,6 +400,59 @@ export default function Driver() {
                       <option value="">All Shifts</option>
                       <option value="Day">Day Shift</option>
                       <option value="Night">Night Shift</option>
+                      <option value="Flexible">Flexible</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Team Type
+                    </label>
+                    <select
+                      value={teamTypeFilter}
+                      onChange={(e) => setTeamTypeFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">All Team Types</option>
+                      <option value="Delivery">Delivery</option>
+                      <option value="Fleet">Fleet</option>
+                      <option value="Logistics">Logistics</option>
+                      <option value="Transport">Transport</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Designation
+                    </label>
+                    <input
+                      type="text"
+                      value={designationFilter}
+                      onChange={(e) => setDesignationFilter(e.target.value)}
+                      placeholder="e.g., Delivery Driver"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Location
+                    </label>
+                    <select
+                      value={locationFilter}
+                      onChange={(e) => setLocationFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">All Locations</option>
+                      <option value="Dubai">Dubai</option>
+                      <option value="Abu Dhabi">Abu Dhabi</option>
+                      <option value="Sharjah">Sharjah</option>
+                      <option value="Ajman">Ajman</option>
+                      <option value="Ras Al Khaimah">Ras Al Khaimah</option>
+                      <option value="Fujairah">Fujairah</option>
+                      <option value="Umm Al Quwain">Umm Al Quwain</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
 
@@ -332,50 +470,93 @@ export default function Driver() {
           </AnimatePresence>
         </div>
 
-        {/* Drivers Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Driver List ({filteredAndSortedDrivers.length} of {totalCount})
-              </h3>
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <span>Sort by:</span>
-                <button
-                  onClick={() => handleSort("full_name")}
-                  className={`px-2 py-1 rounded ${
-                    sortKey === "full_name" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  Name {sortKey === "full_name" && (sortOrder === "asc" ? "↑" : "↓")}
-                </button>
-                <button
-                  onClick={() => handleSort("status")}
-                  className={`px-2 py-1 rounded ${
-                    sortKey === "status" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  Status {sortKey === "status" && (sortOrder === "asc" ? "↑" : "↓")}
-                </button>
+        {/* Enhanced Drivers Table */}
+        <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 overflow-hidden">
+          <div className="px-8 py-6 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-gray-50/50 to-blue-50/50 dark:from-gray-700/50 dark:to-blue-900/20">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    Driver List
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    {filteredAndSortedDrivers.length} of {totalCount} drivers
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Sort by:</span>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSort("full_name")}
+                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                      sortKey === "full_name" 
+                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg" 
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Name {sortKey === "full_name" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSort("status")}
+                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                      sortKey === "status" 
+                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg" 
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    Status {sortKey === "status" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </motion.button>
+                </div>
               </div>
             </div>
           </div>
 
           {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-500 dark:text-gray-400">Loading drivers...</p>
+            <div className="p-12 text-center">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 dark:border-blue-800 mx-auto mb-6"></div>
+                <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto animate-spin"></div>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Loading Drivers</h3>
+              <p className="text-gray-500 dark:text-gray-400">Please wait while we fetch the latest driver information...</p>
             </div>
           ) : filteredAndSortedDrivers.length === 0 ? (
-            <div className="p-8 text-center">
-              <Car className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No drivers found</h3>
-              <p className="text-gray-500 dark:text-gray-400">
+            <div className="p-12 text-center">
+              <div className="relative mb-8">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full mx-auto flex items-center justify-center shadow-lg">
+                  <Car className="w-12 h-12 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
+                  <Award className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">No drivers found</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
                 {search || statusFilter || shiftFilter 
-                  ? "Try adjusting your search or filters" 
-                  : "Get started by adding your first driver"
+                  ? "Try adjusting your search criteria or filters to find what you're looking for" 
+                  : "Get started by adding your first driver to the system"
                 }
               </p>
+              {!search && !statusFilter && !shiftFilter && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate("/driver/new")}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3 mx-auto"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Your First Driver
+                </motion.button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -406,7 +587,8 @@ export default function Driver() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
+                      className="group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-purple-50/50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 transition-all duration-300 border-b border-gray-100 dark:border-gray-700/50"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -490,29 +672,37 @@ export default function Driver() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                          <button
+                      <td className="px-6 py-6 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-3">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => navigate(`/driver/${driver.id}`)}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
                             title="View Profile"
                           >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
+                            <Eye className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                          </motion.button>
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => navigate(`/driver/${driver.id}/edit`)}
-                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 p-1 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                            className="p-3 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
                             title="Edit Driver"
                           >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
+                            <Pencil className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                          </motion.button>
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => handleDelete(driver.id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="p-3 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl group"
                             title="Delete Driver"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                          </motion.button>
                         </div>
                       </td>
                     </motion.tr>
@@ -523,45 +713,61 @@ export default function Driver() {
           )}
         </div>
 
-        {/* Pagination */}
+        {/* Enhanced Pagination */}
         {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-              Showing page {currentPage} of {totalPages} ({totalCount} total drivers)
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
+          <div className="mt-8 relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-gray-700/50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <span className="ml-2">({totalCount} total drivers)</span>
+              </div>
               
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                return (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`px-3 py-2 border rounded-md text-sm font-medium ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
-              
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+              <div className="flex items-center gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                  Previous
+                </motion.button>
+                
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                    return (
+                      <motion.button
+                        key={page}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                          currentPage === page
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {page}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </motion.button>
+              </div>
             </div>
           </div>
         )}

@@ -1,31 +1,33 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Mail, Lock, Eye, EyeOff, User, Shield, 
+  Mail, Lock, Eye, EyeOff, Shield, 
   AlertCircle, CheckCircle, Loader2, ArrowRight,
-  Sparkles, Users, Building2, Zap
+  Sparkles, Users, Zap, Star, TrendingUp, 
+  Globe, ShieldCheck, Rocket, Heart
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
+import { useTheme } from "../context/ThemeContext";
 import config from "../config";
 import Logo from "../components/ui/logo";
+import DarkModeToggle from "../components/DarkModeToggle";
 import activityService from "../services/activityService";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignup, setIsSignup] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [userRole, setUserRole] = useState(null);
 
   const navigate = useNavigate();
-  const { success, error, warning } = useToast();
+  const { success, error } = useToast();
+  const { isDark } = useTheme();
 
   // Get admin email from config
   const adminEmail = config.app.adminEmail;
@@ -40,7 +42,6 @@ export default function Login() {
         .single();
 
       if (userData) {
-        setUserRole(userData.role);
         redirectToRolePage(userData.role);
       } else {
         // User not in users table, check if it's the admin user
@@ -81,7 +82,6 @@ export default function Login() {
               status: "active"
             });
           }
-          setUserRole("admin");
           redirectToRolePage("admin");
         } else {
           // Regular user, create basic profile
@@ -121,7 +121,6 @@ export default function Login() {
               status: "active"
             });
           }
-          setUserRole("employee");
           redirectToRolePage("employee");
         }
       }
@@ -145,31 +144,26 @@ export default function Login() {
     setLoading(true);
 
     try {
-      if (isSignup) {
-        setErrorMsg("User registration is disabled. Please contact your administrator.");
+      // User registration is disabled - only login is allowed
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+
+      if (error) {
+        setErrorMsg("Login failed: " + error.message);
         setLoading(false);
         return;
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ 
-          email, 
-          password 
-        });
+      }
 
-        if (error) {
-          setErrorMsg("Login failed: " + error.message);
-          setLoading(false);
-          return;
-        }
-
-        if (data.user) {
-          setInfoMsg("Login successful! Redirecting...");
-          success("Login Successful", "Welcome back!");
-          
-          // Log successful login activity
-          await activityService.logLogin('email');
-          
-          await checkUserRoleAndRedirect(data.user);
-        }
+      if (data.user) {
+        setInfoMsg("Login successful! Redirecting...");
+        success("Login Successful", "Welcome back!");
+        
+        // Log successful login activity
+        await activityService.logLogin('email');
+        
+        await checkUserRoleAndRedirect(data.user);
       }
     } catch (err) {
       setErrorMsg(err.message || "Authentication failed.");
@@ -246,34 +240,125 @@ export default function Login() {
   const isAdminEmail = email === adminEmail;
 
   return (
-    <div className="min-h-screen flex">
+    <div className={`min-h-screen flex ${isDark ? 'bg-[#0f1419]' : 'bg-gradient-to-br from-gray-50 to-blue-50'}`}>
+      {/* Theme Toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <DarkModeToggle />
+      </div>
+      
+      {/* Mobile Hero Section - Hidden on desktop */}
+      <div className="lg:hidden absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 opacity-20" />
+      
+      {/* Mobile Hero Content */}
+      <div className="lg:hidden absolute top-20 left-4 right-4 z-20 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="mb-4"
+        >
+          <Logo size="lg" showText={true} />
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="text-2xl font-bold text-white mb-2"
+        >
+          Welcome to Uhub
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="text-white/80 text-sm"
+        >
+          Unified platform for all departments
+        </motion.p>
+      </div>
       {/* Left Side - Hero Section */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
+      <div className={`hidden lg:flex lg:w-1/2 ${isDark ? 'bg-gradient-to-br from-[#0f1419] via-[#1a1f2e] to-[#242938]' : 'bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700'} relative overflow-hidden`}>
+        {/* Enhanced Background Pattern */}
+        <div className="absolute inset-0 opacity-15">
           <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255,255,255,0.3) 0%, transparent 50%),
-                             radial-gradient(circle at 75% 75%, rgba(255,255,255,0.3) 0%, transparent 50%)`,
-            backgroundSize: '400px 400px'
+            backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255,255,255,0.4) 0%, transparent 50%),
+                             radial-gradient(circle at 75% 75%, rgba(255,255,255,0.4) 0%, transparent 50%),
+                             radial-gradient(circle at 50% 10%, rgba(59,130,246,0.3) 0%, transparent 50%)`,
+            backgroundSize: '400px 400px, 600px 600px, 800px 800px'
           }} />
         </div>
         
-        {/* Floating Elements */}
+        {/* Enhanced Floating Elements */}
         <motion.div
-          animate={{ y: [0, -20, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-20 left-20 w-16 h-16 bg-white/10 rounded-full backdrop-blur-sm"
-        />
+          animate={{ 
+            y: [0, -30, 0],
+            rotate: [0, 180, 360],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-20 left-20 w-16 h-16 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full backdrop-blur-sm border border-white/20"
+        >
+          <div className="flex items-center justify-center h-full">
+            <Star className="w-6 h-6 text-white/80" />
+          </div>
+        </motion.div>
+        
         <motion.div
-          animate={{ y: [0, 20, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute top-40 right-32 w-12 h-12 bg-white/10 rounded-full backdrop-blur-sm"
-        />
+          animate={{ 
+            y: [0, 25, 0],
+            x: [0, 10, 0],
+            rotate: [0, -90, 0]
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute top-40 right-32 w-12 h-12 bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 rounded-full backdrop-blur-sm border border-white/20"
+        >
+          <div className="flex items-center justify-center h-full">
+            <TrendingUp className="w-5 h-5 text-white/80" />
+          </div>
+        </motion.div>
+        
         <motion.div
-          animate={{ y: [0, -15, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-32 left-32 w-20 h-20 bg-white/10 rounded-full backdrop-blur-sm"
-        />
+          animate={{ 
+            y: [0, -20, 0],
+            rotate: [0, 90, 0],
+            scale: [1, 0.9, 1]
+          }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-32 left-32 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full backdrop-blur-sm border border-white/20"
+        >
+          <div className="flex items-center justify-center h-full">
+            <Rocket className="w-8 h-8 text-white/80" />
+          </div>
+        </motion.div>
+
+        {/* Additional floating elements */}
+        <motion.div
+          animate={{ 
+            y: [0, 15, 0],
+            x: [0, -10, 0],
+            rotate: [0, -45, 0]
+          }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+          className="absolute top-60 left-1/4 w-8 h-8 bg-gradient-to-br from-yellow-400/20 to-orange-400/20 rounded-full backdrop-blur-sm border border-white/20"
+        >
+          <div className="flex items-center justify-center h-full">
+            <Globe className="w-4 h-4 text-white/80" />
+          </div>
+        </motion.div>
+
+        <motion.div
+          animate={{ 
+            y: [0, -25, 0],
+            x: [0, 15, 0],
+            rotate: [0, 45, 0]
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          className="absolute bottom-60 right-1/4 w-10 h-10 bg-gradient-to-br from-red-400/20 to-pink-400/20 rounded-full backdrop-blur-sm border border-white/20"
+        >
+          <div className="flex items-center justify-center h-full">
+            <Heart className="w-5 h-5 text-white/80" />
+          </div>
+        </motion.div>
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
@@ -290,11 +375,11 @@ export default function Login() {
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-5xl font-bold mb-6 leading-tight"
+            className="text-6xl font-bold mb-6 leading-tight"
           >
-            Welcome to the Future of
-            <span className="block bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
-              Unified Management
+            Welcome to the
+            <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-pulse">
+              Future of Innovation
             </span>
           </motion.h1>
           
@@ -302,67 +387,91 @@ export default function Login() {
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="text-xl text-blue-100 mb-8 leading-relaxed"
+            className="text-xl text-[#e2e8f0] mb-8 leading-relaxed max-w-lg"
           >
-            Connect, collaborate, and manage operations across all departments with our integrated platform. 
-            From Fleet Management to HR, IT to Customer Service, Marketing to Sales and Finance to Management - 
-            everything you need in one place.
+            Experience the power of unified management across all departments. 
+            <span className="text-white font-semibold">Seamlessly connect</span> your teams, 
+            <span className="text-white font-semibold">streamline operations</span>, and 
+            <span className="text-white font-semibold">accelerate growth</span> with our cutting-edge platform.
           </motion.p>
 
-          {/* Feature Highlights */}
+          {/* Enhanced Feature Highlights */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
             className="space-y-4"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                <Users className="w-5 h-5 text-white" />
+            <motion.div 
+              whileHover={{ scale: 1.05, x: 10 }}
+              className="flex items-center gap-4 p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-400/30 to-purple-400/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20">
+                <Users className="w-6 h-6 text-white" />
               </div>
-              <span className="text-blue-100">Unified Team Collaboration</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                <Building2 className="w-5 h-5 text-white" />
+              <div>
+                <span className="text-white font-semibold block">Unified Team Collaboration</span>
+                <span className="text-[#e2e8f0] text-sm">Connect your entire organization</span>
               </div>
-              <span className="text-blue-100">Cross-Department Integration</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                <Zap className="w-5 h-5 text-white" />
+            </motion.div>
+            
+            <motion.div 
+              whileHover={{ scale: 1.05, x: 10 }}
+              className="flex items-center gap-4 p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-400/30 to-cyan-400/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20">
+                <ShieldCheck className="w-6 h-6 text-white" />
               </div>
-              <span className="text-blue-100">Real-time Operations Management</span>
-            </div>
+              <div>
+                <span className="text-white font-semibold block">Enterprise Security</span>
+                <span className="text-[#e2e8f0] text-sm">Bank-grade security & compliance</span>
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              whileHover={{ scale: 1.05, x: 10 }}
+              className="flex items-center gap-4 p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-400/30 to-pink-400/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <span className="text-white font-semibold block">Real-time Analytics</span>
+                <span className="text-[#e2e8f0] text-sm">Instant insights & reporting</span>
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-blue-50">
+      <div className={`flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 relative z-10 ${isDark ? 'bg-[#0f1419]' : 'bg-gradient-to-br from-gray-50 to-blue-50'}`}>
         <div className="w-full max-w-md">
           <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden"
+            className={`backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border-2 ${isDark ? 'bg-[rgba(26,31,46,0.8)] border-[rgba(255,255,255,0.3)] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]' : 'bg-white/90 border-white/30 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.2)]'}`}
           >
-            {/* Header */}
-            <div className="text-center p-8 pb-6">
+            {/* Enhanced Header */}
+            <div className="text-center p-8 pb-6 relative">
+              {/* Decorative gradient background */}
+              <div className={`absolute inset-0 rounded-t-3xl ${isDark ? 'bg-gradient-to-b from-blue-500/10 to-transparent' : 'bg-gradient-to-b from-blue-100/50 to-transparent'}`} />
+              
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.5 }}
-                className="flex justify-center items-center mb-6"
+                className="flex justify-center items-center mb-6 relative z-10"
               >
                 <div className="relative">
                   <Logo size="xl" showText={true} />
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center"
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg"
                   >
-                    <Sparkles className="w-3 h-3 text-white" />
+                    <Sparkles className="w-4 h-4 text-white" />
                   </motion.div>
                 </div>
               </motion.div>
@@ -371,18 +480,24 @@ export default function Login() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.7 }}
-                className="text-3xl font-bold text-gray-900 mb-3"
+                className={`text-4xl font-bold mb-3 relative z-10 ${isDark ? 'text-white' : 'text-gray-900'}`}
               >
                 Welcome Back
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 0.8, delay: 1 }}
+                  className={`h-1 mt-2 mx-auto rounded-full bg-gradient-to-r from-blue-400 to-purple-500`}
+                />
               </motion.h2>
               
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.9 }}
-                className="text-gray-600"
+                className={`text-lg relative z-10 ${isDark ? 'text-[#e2e8f0]' : 'text-gray-600'}`}
               >
-                Sign in to your Uhub account
+                Sign in to continue your journey
               </motion.p>
             </div>
 
@@ -396,13 +511,13 @@ export default function Login() {
                       initial={{ opacity: 0, y: -10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-xl shadow-sm"
+                      className="flex flex-col gap-3 p-4 bg-red-900/20 border border-red-500/30 rounded-xl shadow-sm"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                          <AlertCircle className="w-4 h-4 text-red-600" />
+                        <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center">
+                          <AlertCircle className="w-4 h-4 text-red-400" />
                         </div>
-                        <span className="text-red-700 text-sm font-medium">{errorMsg}</span>
+                        <span className="text-red-300 text-sm font-medium">{errorMsg}</span>
                       </div>
                       {errorMsg.includes("Email not confirmed") && (
                         <div className="flex items-center gap-2">
@@ -410,7 +525,7 @@ export default function Login() {
                             type="button"
                             onClick={handleResendConfirmation}
                             disabled={loading}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-blue-300 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Mail className="w-4 h-4" />
                             {loading ? "Sending..." : "Resend Confirmation Email"}
@@ -424,12 +539,60 @@ export default function Login() {
                       initial={{ opacity: 0, y: -10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl shadow-sm"
+                      className={`flex items-center gap-4 p-5 rounded-2xl border-2 shadow-lg backdrop-blur-sm ${isDark 
+                        ? 'bg-gradient-to-r from-emerald-500/20 via-green-500/20 to-teal-500/20 border-emerald-400/50 shadow-emerald-500/25' 
+                        : 'bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border-emerald-200 shadow-emerald-500/15'
+                      }`}
                     >
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark 
+                          ? 'bg-gradient-to-r from-emerald-400 to-green-400 shadow-lg shadow-emerald-500/30' 
+                          : 'bg-gradient-to-r from-emerald-500 to-green-500 shadow-md shadow-emerald-500/20'
+                        }`}
+                      >
+                        <motion.div
+                          initial={{ rotate: -180, scale: 0 }}
+                          animate={{ rotate: 0, scale: 1 }}
+                          transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+                        >
+                          <CheckCircle className={`w-5 h-5 ${isDark ? 'text-white' : 'text-white'}`} />
+                        </motion.div>
+                      </motion.div>
+                      <div className="flex-1">
+                        <motion.div
+                          initial={{ x: -20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: 0.4 }}
+                          className={`font-semibold ${isDark ? 'text-emerald-200' : 'text-emerald-700'}`}
+                        >
+                          🎉 Login Successful!
+                        </motion.div>
+                        <motion.div
+                          initial={{ x: -20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: 0.5 }}
+                          className={`text-sm ${isDark ? 'text-emerald-300/80' : 'text-emerald-600'}`}
+                        >
+                          Welcome back! Redirecting you now...
+                        </motion.div>
                       </div>
-                      <span className="text-green-700 text-sm font-medium">{infoMsg}</span>
+                      <motion.div
+                        animate={{ 
+                          scale: [1, 1.1, 1],
+                          rotate: [0, 5, 0]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                        className="text-2xl"
+                      >
+                        ✨
+                      </motion.div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -440,18 +603,24 @@ export default function Login() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 1.1 }}
                 >
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  <label className={`block text-sm font-semibold mb-3 ${isDark 
+                    ? 'text-white bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent' 
+                    : 'text-gray-700 bg-gradient-to-r from-gray-700 to-blue-600 bg-clip-text text-transparent'
+                  }`}>
                     Email Address
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-xl opacity-0 group-focus-within:opacity-20 transition-all duration-500 blur-sm scale-105"></div>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-blue-500 transition-colors duration-300" />
+                      <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 group-focus-within:text-blue-400 group-hover:scale-110 transition-all duration-300 ${isDark ? 'text-[#94a3b8]' : 'text-gray-400'}`} />
                       <input
                         type="email"
                         required
                         placeholder="Enter your email"
-                        className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder-gray-400 focus:placeholder-gray-300"
+                        className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 focus:ring-4 focus:ring-blue-400/30 focus:border-blue-400 transition-all duration-300 hover:border-blue-300/50 ${isDark 
+                          ? 'bg-gradient-to-r from-[#1a1f2e] to-[#242938] border-[rgba(255,255,255,0.2)] text-white placeholder-[#94a3b8] focus:placeholder-[#e2e8f0] hover:bg-gradient-to-r hover:from-[#242938] hover:to-[#2e3442] shadow-lg shadow-black/20' 
+                          : 'bg-gradient-to-r from-white to-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:placeholder-gray-300 hover:border-blue-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 shadow-md shadow-gray-200/50'
+                        }`}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
@@ -461,10 +630,15 @@ export default function Login() {
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="flex items-center gap-2 mt-3 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg"
+                      className={`flex items-center gap-3 mt-3 text-sm px-4 py-3 rounded-xl border-2 ${isDark 
+                        ? 'text-blue-200 bg-gradient-to-r from-blue-500/30 to-indigo-500/30 border-blue-400/40 shadow-lg shadow-blue-500/20' 
+                        : 'text-blue-700 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-md shadow-blue-500/10'
+                      }`}
                     >
-                      <Shield className="w-4 h-4" />
-                      <span className="font-medium">Administrator Account</span>
+                      <div className={`p-1.5 rounded-lg ${isDark ? 'bg-blue-400/20' : 'bg-blue-100'}`}>
+                        <Shield className={`w-4 h-4 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+                      </div>
+                      <span className="font-semibold">Administrator Account</span>
                     </motion.div>
                   )}
                 </motion.div>
@@ -475,28 +649,36 @@ export default function Login() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 1.3 }}
                 >
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  <label className={`block text-sm font-semibold mb-3 ${isDark 
+                    ? 'text-white bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent' 
+                    : 'text-gray-700 bg-gradient-to-r from-gray-700 to-blue-600 bg-clip-text text-transparent'
+                  }`}>
                     Password
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 rounded-xl opacity-0 group-focus-within:opacity-20 transition-all duration-500 blur-sm scale-105"></div>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-blue-500 transition-colors duration-300" />
+                      <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 group-focus-within:text-blue-400 group-hover:scale-110 transition-all duration-300 ${isDark ? 'text-[#94a3b8]' : 'text-gray-400'}`} />
                       <input
                         type={showPassword ? "text" : "password"}
                         required
                         placeholder="Enter your password"
-                        className="w-full pl-12 pr-12 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 placeholder-gray-400 focus:placeholder-gray-300"
+                        className={`w-full pl-12 pr-12 py-4 rounded-xl border-2 focus:ring-4 focus:ring-blue-400/30 focus:border-blue-400 transition-all duration-300 hover:border-blue-300/50 ${isDark 
+                          ? 'bg-gradient-to-r from-[#1a1f2e] to-[#242938] border-[rgba(255,255,255,0.2)] text-white placeholder-[#94a3b8] focus:placeholder-[#e2e8f0] hover:bg-gradient-to-r hover:from-[#242938] hover:to-[#2e3442] shadow-lg shadow-black/20' 
+                          : 'bg-gradient-to-r from-white to-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:placeholder-gray-300 hover:border-blue-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 shadow-md shadow-gray-200/50'
+                        }`}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                       />
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-1 rounded-lg transition-all duration-200 ${isDark ? 'text-[#94a3b8] hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                       >
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                      </motion.button>
                     </div>
                   </div>
                 </motion.div>
@@ -508,13 +690,15 @@ export default function Login() {
                   transition={{ duration: 0.6, delay: 1.5 }}
                   className="text-right"
                 >
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200 hover:underline"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`text-sm font-medium transition-all duration-200 hover:underline ${isDark ? 'text-blue-300 hover:text-blue-200' : 'text-blue-600 hover:text-blue-700'}`}
                   >
                     Forgot your password?
-                  </button>
+                  </motion.button>
                 </motion.div>
 
                 {/* Login Button */}
@@ -523,23 +707,33 @@ export default function Login() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 1.7 }}
                 >
-                  <button
+                  <motion.button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white py-4 rounded-xl font-semibold hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`w-full py-4 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-2xl border-2 ${isDark 
+                      ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 hover:from-blue-600 hover:via-purple-600 hover:to-indigo-600 border-transparent' 
+                      : 'bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 border-transparent'
+                    } text-white`}
                   >
                     {loading ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Signing in...
+                        <span>Signing in...</span>
                       </>
                     ) : (
                       <>
                         <span>Sign In</span>
-                        <ArrowRight className="w-5 h-5" />
+                        <motion.div
+                          animate={{ x: [0, 4, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        >
+                          <ArrowRight className="w-5 h-5" />
+                        </motion.div>
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </motion.div>
               </form>
 

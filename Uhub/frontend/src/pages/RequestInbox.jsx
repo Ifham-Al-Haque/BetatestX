@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
 import { itServicesApi } from '../services/itServicesApi';
+import { supabase } from '../supabaseClient';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
@@ -31,6 +32,7 @@ const RequestInbox = () => {
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [users, setUsers] = useState([]);
+  const [itStaff, setItStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -74,11 +76,12 @@ const RequestInbox = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [categoriesData, prioritiesData, requestsData, usersData, analyticsData] = await Promise.all([
+      const [categoriesData, prioritiesData, requestsData, usersData, itStaffData, analyticsData] = await Promise.all([
         itServicesApi.categories.getAll(),
         itServicesApi.priorities.getAll(),
         itServicesApi.requests.getAllForTech(), // Get all requests for tech roles
         fetchUsers(),
+        itServicesApi.users.getITStaff(), // Get IT staff for assignments
         fetchAnalytics()
       ]);
 
@@ -86,6 +89,7 @@ const RequestInbox = () => {
       setPriorities(prioritiesData);
       setRequests(requestsData);
       setUsers(usersData);
+      setItStaff(itStaffData);
       setAnalytics(analyticsData);
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -97,9 +101,14 @@ const RequestInbox = () => {
 
   const fetchUsers = async () => {
     try {
-      // This would typically fetch from your users API
-      // For now, return empty array
-      return [];
+      // Fetch users from the employees table or users table
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, full_name, email, department, role')
+        .order('full_name');
+      
+      if (error) throw error;
+      return data || [];
     } catch (err) {
       console.error('Error fetching users:', err);
       return [];
@@ -144,7 +153,9 @@ const RequestInbox = () => {
         request.title.toLowerCase().includes(searchTerm) ||
         request.description?.toLowerCase().includes(searchTerm) ||
         request.request_number?.toLowerCase().includes(searchTerm) ||
-        request.requester?.full_name?.toLowerCase().includes(searchTerm)
+        request.requester?.full_name?.toLowerCase().includes(searchTerm) ||
+        request.requester?.email?.toLowerCase().includes(searchTerm) ||
+        request.requester?.department?.toLowerCase().includes(searchTerm)
       );
     }
 
@@ -874,7 +885,9 @@ const RequestInbox = () => {
                   >
                     <option value="">All Requesters</option>
                     {users.map(user => (
-                      <option key={user.id} value={user.id}>{user.full_name || user.email}</option>
+                      <option key={user.id} value={user.id}>
+                        {user.full_name} {user.department ? `(${user.department})` : ''}
+                      </option>
                   ))}
                 </select>
               </div>
@@ -1163,6 +1176,39 @@ const RequestInbox = () => {
                               </div>
                         </div>
                         
+                            {/* Requester Info */}
+                            <div className="flex items-center gap-2 mb-3">
+                              <User className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                              <span 
+                                className="text-sm font-medium"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
+                                Requested by: {request.requester?.full_name || request.requester_name || 'Unknown User'}
+                              </span>
+                              {(request.requester?.email || request.requester_email) && (
+                                <span 
+                                  className="text-xs px-2 py-1 rounded-md"
+                                  style={{
+                                    background: 'var(--bg-tertiary)',
+                                    color: 'var(--text-muted)'
+                                  }}
+                                >
+                                  {request.requester?.email || request.requester_email}
+                                </span>
+                              )}
+                              {(request.requester?.department || request.requester_department) && (
+                                <span 
+                                  className="text-xs px-2 py-1 rounded-md"
+                                  style={{
+                                    background: 'var(--accent-primary)',
+                                    color: 'white'
+                                  }}
+                                >
+                                  {request.requester?.department || request.requester_department}
+                                </span>
+                              )}
+                            </div>
+                            
                             {/* Description */}
                             <p 
                               className="text-base mb-4 line-clamp-2"
@@ -1192,7 +1238,7 @@ const RequestInbox = () => {
                                 style={{ color: 'var(--text-muted)' }}
                               >
                             <User className="w-4 h-4" />
-                                {request.requester?.full_name || request.requester?.email || 'Unknown'}
+                                {request.requester?.full_name || request.requester?.email || 'Unknown User'}
                           </span>
                           {request.assigned_to && (
                                 <span 
@@ -1271,6 +1317,340 @@ const RequestInbox = () => {
         </div>
                     )}
         </motion.div>
+
+        {/* Request Detail Management Modal */}
+        <AnimatePresence>
+          {selectedRequest && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                style={{
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--card-border)',
+                  boxShadow: 'var(--shadow-xl)'
+                }}
+              >
+                <div className="p-6">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div 
+                        className="p-3 rounded-xl"
+                        style={{
+                          background: 'var(--gradient-primary)',
+                          boxShadow: 'var(--shadow-md)'
+                        }}
+                      >
+                        <Eye className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 
+                          className="text-2xl font-bold"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Request Details
+                        </h2>
+                        <p 
+                          className="text-sm"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {selectedRequest.request_number} • View and manage this request
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedRequest(null)}
+                      className="p-2"
+                      style={{
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-muted)'
+                      }}
+                    >
+                      <XCircle className="w-5 h-5" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Content */}
+                    <div className="lg:col-span-2 space-y-6">
+                      {/* Request Info */}
+                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+                        <CardHeader>
+                          <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            Request Information
+                          </h3>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                              Title
+                            </Label>
+                            <p className="text-base font-medium" style={{ color: 'var(--text-primary)' }}>
+                              {selectedRequest.title}
+                            </p>
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                              Description
+                            </Label>
+                            <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+                              {selectedRequest.description}
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                                Category
+                              </Label>
+                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
+                                {selectedRequest.category_name || selectedRequest.category?.name || 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                                Priority
+                              </Label>
+                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
+                                {selectedRequest.priority_name || selectedRequest.priority?.name || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Requester Details */}
+                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+                        <CardHeader>
+                          <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                            <User className="w-5 h-5" />
+                            Requester Details
+                          </h3>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                                Name
+                              </Label>
+                              <p className="text-base font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {selectedRequest.requester?.full_name || selectedRequest.requester_name || 'Unknown User'}
+                              </p>
+                            </div>
+                            <div>
+                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                                Email
+                              </Label>
+                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
+                                {selectedRequest.requester?.email || selectedRequest.requester_email || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                                Department
+                              </Label>
+                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
+                                {selectedRequest.requester?.department || selectedRequest.requester_department || 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                                Role
+                              </Label>
+                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
+                                {selectedRequest.requester?.role || selectedRequest.requester_role || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Management Actions */}
+                    <div className="space-y-6">
+                      {/* Status & Assignment */}
+                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+                        <CardHeader>
+                          <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            Management
+                          </h3>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-muted)' }}>
+                              Status
+                            </Label>
+                            <select
+                              value={selectedRequest.status}
+                              onChange={(e) => {
+                                // Handle status change
+                                const newStatus = e.target.value;
+                                setSelectedRequest(prev => ({ ...prev, status: newStatus }));
+                              }}
+                              className="w-full p-2 rounded-lg border"
+                              style={{
+                                background: 'var(--bg-tertiary)',
+                                borderColor: 'var(--border-primary)',
+                                color: 'var(--text-primary)'
+                              }}
+                            >
+                              <option value="open">Open</option>
+                              <option value="assigned">Assigned</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="pending_approval">Pending Approval</option>
+                              <option value="resolved">Resolved</option>
+                              <option value="closed">Closed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-muted)' }}>
+                              Assign to IT Staff
+                            </Label>
+                            <select
+                              value={selectedRequest.assigned_to || ''}
+                              onChange={(e) => {
+                                // Handle assignment change
+                                const assignedTo = e.target.value;
+                                setSelectedRequest(prev => ({ ...prev, assigned_to: assignedTo }));
+                              }}
+                              className="w-full p-2 rounded-lg border"
+                              style={{
+                                background: 'var(--bg-tertiary)',
+                                borderColor: 'var(--border-primary)',
+                                color: 'var(--text-primary)'
+                              }}
+                            >
+                              <option value="">Unassigned</option>
+                              {itStaff.map(staff => (
+                                <option key={staff.id} value={staff.id}>
+                                  {staff.full_name} ({staff.role})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-muted)' }}>
+                              Resolution Notes
+                            </Label>
+                            <Textarea
+                              placeholder="Add resolution notes..."
+                              rows={3}
+                              className="w-full p-2 rounded-lg border"
+                              style={{
+                                background: 'var(--bg-tertiary)',
+                                borderColor: 'var(--border-primary)',
+                                color: 'var(--text-primary)'
+                              }}
+                            />
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              onClick={async () => {
+                                try {
+                                  await itServicesApi.requests.update(selectedRequest.id, {
+                                    status: selectedRequest.status,
+                                    assigned_to: selectedRequest.assigned_to
+                                  });
+                                  success('Request updated successfully!');
+                                  setSelectedRequest(null);
+                                  fetchData();
+                                } catch (error) {
+                                  showError('Failed to update request');
+                                }
+                              }}
+                              className="w-full"
+                              style={{
+                                background: 'var(--gradient-primary)',
+                                color: 'white',
+                                border: 'none'
+                              }}
+                            >
+                              <Settings className="w-4 h-4 mr-2" />
+                              Save Changes
+                            </Button>
+                            
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                // Handle ticket creation from request
+                                console.log('Create ticket for request:', selectedRequest.id);
+                              }}
+                              className="w-full"
+                              style={{
+                                background: 'var(--bg-tertiary)',
+                                borderColor: 'var(--border-primary)',
+                                color: 'var(--text-primary)'
+                              }}
+                            >
+                              <Wrench className="w-4 h-4 mr-2" />
+                              Create Ticket
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Request Timeline */}
+                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+                        <CardHeader>
+                          <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                            <Clock className="w-5 h-5" />
+                            Timeline
+                          </h3>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="text-sm">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              <span style={{ color: 'var(--text-muted)' }}>Created</span>
+                            </div>
+                            <p className="text-xs ml-4" style={{ color: 'var(--text-secondary)' }}>
+                              {new Date(selectedRequest.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          
+                          {selectedRequest.assigned_at && (
+                            <div className="text-sm">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                <span style={{ color: 'var(--text-muted)' }}>Assigned</span>
+                              </div>
+                              <p className="text-xs ml-4" style={{ color: 'var(--text-secondary)' }}>
+                                {new Date(selectedRequest.assigned_at).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {selectedRequest.actual_completion_date && (
+                            <div className="text-sm">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span style={{ color: 'var(--text-muted)' }}>Completed</span>
+                              </div>
+                              <p className="text-xs ml-4" style={{ color: 'var(--text-secondary)' }}>
+                                {new Date(selectedRequest.actual_completion_date).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Analytics Modal */}
         <AnimatePresence>

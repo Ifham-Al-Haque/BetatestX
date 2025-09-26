@@ -64,6 +64,10 @@ export default function UserManagement() {
     { value: 'operation_management', label: 'Operation Management', color: 'bg-gradient-to-r from-teal-500 to-cyan-500', icon: MapPin, bgColor: 'bg-teal-50', textColor: 'text-teal-700' },
     { value: 'hr_manager', label: 'HR Manager', color: 'bg-gradient-to-r from-purple-500 to-violet-500', icon: Users, bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
     { value: 'cs_manager', label: 'CS Manager', color: 'bg-gradient-to-r from-indigo-500 to-blue-500', icon: Phone, bgColor: 'bg-indigo-50', textColor: 'text-indigo-700' },
+    { value: 'marketing_manager', label: 'Marketing Manager', color: 'bg-gradient-to-r from-pink-500 to-rose-500', icon: Star, bgColor: 'bg-pink-50', textColor: 'text-pink-700' },
+    { value: 'marketing_specialist', label: 'Marketing Specialist', color: 'bg-gradient-to-r from-purple-500 to-pink-500', icon: Star, bgColor: 'bg-purple-50', textColor: 'text-purple-700' },
+    { value: 'marketing_management', label: 'Marketing Management', color: 'bg-gradient-to-r from-indigo-500 to-purple-500', icon: Star, bgColor: 'bg-indigo-50', textColor: 'text-indigo-700' },
+    { value: 'subscribe_now', label: 'Subscribe Now', color: 'bg-gradient-to-r from-emerald-500 to-teal-500', icon: Users, bgColor: 'bg-emerald-50', textColor: 'text-emerald-700' },
     { value: 'employee', label: 'Employee', color: 'bg-gradient-to-r from-gray-500 to-slate-500', icon: UserCheck, bgColor: 'bg-gray-50', textColor: 'text-gray-700' },
     { value: 'viewer', label: 'Viewer', color: 'bg-gradient-to-r from-orange-500 to-amber-500', icon: Eye, bgColor: 'bg-orange-50', textColor: 'text-orange-700' }
   ];
@@ -295,13 +299,11 @@ export default function UserManagement() {
               className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/50 backdrop-blur-sm transition-all duration-200 hover:bg-white/80"
             >
               <option value="all">All Roles</option>
-              <option value="admin">Administrator</option>
-              <option value="manager">Manager</option>
-              <option value="driver_management">Driver Management</option>
-              <option value="operation_management">Operation Management</option>
-              <option value="hr_manager">HR Manager</option>
-              <option value="employee">Employee</option>
-              <option value="viewer">Viewer</option>
+              {roles.map(role => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="flex items-center gap-3">
@@ -687,17 +689,11 @@ export default function UserManagement() {
                         onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
                         className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       >
-                        <option value="admin">Administrator</option>
-                        <option value="data_operator">Data Operator</option>
-                        <option value="finance">Finance</option>
-                        <option value="it_management">IT Management</option>
-                        <option value="manager">Manager</option>
-                        <option value="driver_management">Driver Management</option>
-                        <option value="operation_management">Operation Management</option>
-                        <option value="hr_manager">HR Manager</option>
-                        <option value="cs_manager">CS Manager</option>
-                        <option value="employee">Employee</option>
-                        <option value="viewer">Viewer</option>
+                        {roles.map(role => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
                       </select>
 
                     </div>

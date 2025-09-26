@@ -2,19 +2,23 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, Filter, Calendar, Clock, CheckCircle, AlertTriangle, 
-  ArrowRight, Eye, User, Building, Mail, Phone, Plus
+  ArrowRight, Eye, User, Building, Mail, Phone, Plus, Edit, Trash2
 } from 'lucide-react';
 
 export default function OnboardingList({ 
-  records, 
+  records = [], 
   onViewRecord, 
   onStartOnboarding,
-  searchTerm,
+  onEditRecord,
+  onDeleteRecord,
+  searchTerm = '',
   setSearchTerm,
-  statusFilter,
+  statusFilter = 'all',
   setStatusFilter,
-  loading
+  loading = false
 }) {
+  // Ensure records is always an array
+  const safeRecords = Array.isArray(records) ? records : [];
   const statusOptions = [
     { value: 'all', label: 'All Status' },
     { value: 'not_started', label: 'Not Started' },
@@ -133,7 +137,7 @@ export default function OnboardingList({
 
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-600">
-              {records.length} record{records.length !== 1 ? 's' : ''}
+              {safeRecords.length} record{safeRecords.length !== 1 ? 's' : ''}
             </span>
             <motion.button
               onClick={onStartOnboarding}
@@ -154,7 +158,7 @@ export default function OnboardingList({
         animate={{ opacity: 1 }}
         className="bg-white rounded-xl border border-gray-200 shadow-sm"
       >
-        {records.length === 0 ? (
+        {safeRecords.length === 0 ? (
           <div className="p-12 text-center">
             <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -175,12 +179,12 @@ export default function OnboardingList({
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {records.map((record, index) => {
+            {safeRecords.map((record, index) => {
               const daysUntilDue = getDaysUntilDue(record.expected_completion_date);
               
               return (
                 <motion.div
-                  key={record.record_id}
+                  key={record.record_id || record.id || index}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -202,9 +206,9 @@ export default function OnboardingList({
                           <h3 className="text-lg font-semibold text-gray-900">
                             {record.full_name || 'Unknown Employee'}
                           </h3>
-                          <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(record.status, record.status_indicator)}`}>
-                            {getStatusIcon(record.status, record.status_indicator)}
-                            <span>{record.status.replace('_', ' ').toUpperCase()}</span>
+                          <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(record.status || record.onboarding_status, record.status_indicator)}`}>
+                            {getStatusIcon(record.status || record.onboarding_status, record.status_indicator)}
+                            <span>{(record.status || record.onboarding_status || 'pending').replace('_', ' ').toUpperCase()}</span>
                           </div>
                         </div>
                         
@@ -227,9 +231,9 @@ export default function OnboardingList({
                       <div className="text-right">
                         <div className="flex items-center space-x-2 mb-1">
                           <span className="text-sm font-medium text-gray-900">
-                            {record.progress_percentage}% Complete
+                            {record.progress_percentage || record.completion_percentage || 0}% Complete
                           </span>
-                          {daysUntilDue !== null && record.status === 'in_progress' && (
+                          {daysUntilDue !== null && (record.status === 'in_progress' || record.onboarding_status === 'in_progress') && (
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               daysUntilDue < 0 
                                 ? 'bg-red-100 text-red-800' 
@@ -247,7 +251,7 @@ export default function OnboardingList({
                         <div className="w-32 bg-gray-200 rounded-full h-2">
                           <div 
                             className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${record.progress_percentage}%` }}
+                            style={{ width: `${record.progress_percentage || record.completion_percentage || 0}%` }}
                           ></div>
                         </div>
                       </div>
@@ -273,6 +277,33 @@ export default function OnboardingList({
                         >
                           <Eye className="w-5 h-5" />
                         </button>
+                        
+                        {onEditRecord && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditRecord(record);
+                            }}
+                            className="p-2 text-gray-400 hover:text-green-600 transition-colors duration-200"
+                            title="Edit Onboarding"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                        )}
+                        
+                        {onDeleteRecord && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteRecord(record);
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors duration-200"
+                            title="Delete Onboarding"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
+                        
                         <ArrowRight className="w-5 h-5 text-gray-400" />
                       </div>
                     </div>

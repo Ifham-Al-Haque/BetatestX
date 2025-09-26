@@ -3,14 +3,19 @@ import { motion } from 'framer-motion';
 import { 
   ArrowLeft, User, Calendar, Clock, CheckCircle, AlertTriangle, 
   FileText, MessageSquare, Upload, Download, Edit, Plus,
-  Building, Mail, Phone, Target, Award, GraduationCap
+  Building, Mail, Phone, Target, Award, GraduationCap, Trash2,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import onboardingOffboardingApi from '../../services/onboardingOffboardingApi';
 import OnboardingChecklist from './OnboardingChecklist';
+import StatusManager from './StatusManager';
+import { debugOnboardingTable, testStatusUpdate } from './StatusUpdateDebug';
+import { updateOnboardingStatus } from './StatusUpdateFallback';
+import StatusUpdateTest from './StatusUpdateTest';
 
-export default function OnboardingDetail({ record, onBack, onRefresh }) {
+export default function OnboardingDetail({ record, onBack, onRefresh, onEdit, onDelete }) {
   const { userProfile } = useAuth();
   const { success, error: showError } = useToast();
   
@@ -19,9 +24,11 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
   const [comments, setComments] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddComment, setShowAddComment] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [showStatusManager, setShowStatusManager] = useState(false);
 
   useEffect(() => {
     if (record) {
@@ -32,20 +39,43 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
   const loadOnboardingDetails = async () => {
     try {
       setLoading(true);
-      const [detailData, checklistData, commentsData, documentsData] = await Promise.all([
-        onboardingOffboardingApi.onboarding.getById(record.record_id),
-        onboardingOffboardingApi.onboardingChecklist.getByEmployeeId(record.employee_id),
-        onboardingOffboardingApi.comments.getByEmployeeId(record.employee_id, 'onboarding'),
-        onboardingOffboardingApi.documents.getByEmployeeId(record.employee_id, 'onboarding')
-      ]);
       
+      // Check if we have a valid record ID
+      const recordId = record?.record_id || record?.id;
+      if (!recordId) {
+        console.error('No valid record ID found:', record);
+        setError('Invalid onboarding record');
+        return;
+      }
+      
+      console.log('Loading onboarding details for record:', recordId);
+      console.log('Full record object:', record);
+      
+      // Only fetch data that we know exists
+      const detailData = await onboardingOffboardingApi.onboardingRecords.getById(recordId);
       setOnboardingData(detailData);
-      setChecklistItems(checklistData);
-      setComments(commentsData);
-      setDocuments(documentsData);
+      
+      // Set default empty arrays for missing data
+      setChecklistItems([]);
+      setComments([]);
+      setDocuments([]);
+      
+      console.log('Onboarding details loaded successfully');
+      
     } catch (err) {
-      showError('Error', 'Failed to load onboarding details');
       console.error('Error loading onboarding details:', err);
+      
+      // Don't show error for missing tables/views
+      if (err.message?.includes('does not exist') || err.message?.includes('404')) {
+        console.log('Some onboarding features not available (tables not set up)');
+        // Set safe default values
+        setOnboardingData(record);
+        setChecklistItems([]);
+        setComments([]);
+        setDocuments([]);
+      } else {
+        showError('Error', 'Failed to load onboarding details');
+      }
     } finally {
       setLoading(false);
     }
@@ -95,6 +125,62 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
       success('Success', 'Comment added successfully');
     } catch (err) {
       showError('Error', 'Failed to add comment');
+    }
+  };
+
+  const handleStatusChange = async (newStatus, notes) => {
+    try {
+      console.log('🔄 Starting status update process...');
+      
+      const recordId = record.id || record.record_id;
+      console.log('📋 Record details:', {
+        recordId,
+        newStatus,
+        notes,
+        currentRecord: record
+      });
+
+      // Use the fallback approach that tries different column names
+      const result = await updateOnboardingStatus(recordId, newStatus, notes);
+      
+      if (result.success) {
+        // Update local record
+        record.onboarding_status = newStatus;
+        record.status = newStatus;
+        
+        let successMessage = `Status updated to ${newStatus.replace('_', ' ')}`;
+        if (result.warning) {
+          successMessage += ` (${result.warning})`;
+        }
+        
+        success('Success', successMessage);
+        onRefresh();
+        
+        // Close the modal after successful update
+        setShowStatusManager(false);
+      } else {
+        showError('Error', 'Failed to update status');
+        // Don't close modal on error so user can see the error
+      }
+      
+    } catch (err) {
+      console.error('❌ Status update error:', err);
+      showError('Error', `Failed to update status: ${err.message}`);
+      // Don't close modal on error so user can see the error
+    }
+  };
+
+  const handleAddChecklistItem = async (itemData) => {
+    try {
+      await onboardingOffboardingApi.onboardingChecklist.addCustomItem(itemData);
+      
+      // Refresh checklist
+      const updatedChecklist = await onboardingOffboardingApi.onboardingChecklist.getByEmployeeId(record.employee_id);
+      setChecklistItems(updatedChecklist);
+      
+      success('Success', 'Checklist item added successfully');
+    } catch (err) {
+      showError('Error', 'Failed to add checklist item');
     }
   };
 
@@ -159,6 +245,24 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
     );
   }
 
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Onboarding Details</h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <button
+            onClick={onBack}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!onboardingData) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -207,9 +311,40 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(record.status, record.status_indicator)}`}>
-                {getStatusIcon(record.status, record.status_indicator)}
-                <span>{record.status.replace('_', ' ').toUpperCase()}</span>
+              <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(record.status || record.onboarding_status, record.status_indicator)}`}>
+                {getStatusIcon(record.status || record.onboarding_status, record.status_indicator)}
+                <span>{(record.status || record.onboarding_status || 'pending').replace('_', ' ').toUpperCase()}</span>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowStatusManager(true)}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-200"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Change Status</span>
+                </button>
+                
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(record)}
+                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors duration-200"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+                )}
+                
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(record)}
+                    className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </button>
+                )}
               </div>
               {daysUntilDue !== null && record.status === 'in_progress' && (
                 <div className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -233,12 +368,22 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
         <div className="p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">Progress</span>
-            <span className="text-sm font-bold text-blue-600">{record.progress_percentage}%</span>
+            <span className="text-sm font-bold text-blue-600">
+              {checklistItems.length > 0 
+                ? Math.round((checklistItems.filter(item => item.is_completed).length / checklistItems.length) * 100)
+                : 0
+              }%
+            </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div 
               className="bg-blue-500 h-3 rounded-full transition-all duration-500"
-              style={{ width: `${record.progress_percentage}%` }}
+              style={{ 
+                width: `${checklistItems.length > 0 
+                  ? (checklistItems.filter(item => item.is_completed).length / checklistItems.length) * 100
+                  : 0
+                }%` 
+              }}
             ></div>
           </div>
           <div className="flex justify-between text-xs text-gray-500 mt-1">
@@ -378,6 +523,11 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
                   </div>
                 </div>
               </div>
+
+              {/* Debug Test Component - Remove this after fixing the issue */}
+              <div className="mt-6">
+                <StatusUpdateTest recordId={record.id || record.record_id} />
+              </div>
             </motion.div>
           )}
 
@@ -390,6 +540,7 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
               <OnboardingChecklist
                 items={checklistItems}
                 onUpdate={handleChecklistUpdate}
+                onAddItem={handleAddChecklistItem}
                 employeeId={record.employee_id}
               />
             </motion.div>
@@ -528,6 +679,15 @@ export default function OnboardingDetail({ record, onBack, onRefresh }) {
           )}
         </div>
       </motion.div>
+
+      {/* Status Manager Modal */}
+      <StatusManager
+        isOpen={showStatusManager}
+        onClose={() => setShowStatusManager(false)}
+        onStatusChange={handleStatusChange}
+        currentStatus={record.status || record.onboarding_status || 'pending'}
+        employeeName={record.full_name}
+      />
     </div>
   );
 }

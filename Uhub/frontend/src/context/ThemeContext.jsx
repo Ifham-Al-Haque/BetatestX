@@ -81,37 +81,37 @@ export const ThemeProvider = ({ children }) => {
   const getThemeCSSVariables = (currentTheme) => {
     if (currentTheme === 'dark') {
       return {
-        // Enhanced dark mode color palette with better contrast
-        '--bg-primary': '#0a0a0a',           // Deeper black for main background
-        '--bg-secondary': '#111111',         // Slightly lighter for cards/sections
-        '--bg-tertiary': '#1a1a1a',          // Even lighter for nested elements
-        '--bg-quaternary': '#222222',        // Lightest for hover states
-        '--bg-sidebar': '#0d1117',           // GitHub-style sidebar background
-        '--bg-sidebar-hover': '#161b22',     // Sidebar hover state
-        '--bg-sidebar-active': '#21262d',    // Active sidebar item
+        // Dark blue theme matching the dashboard screenshot
+        '--bg-primary': '#0f1419',           // Dark navy blue for main background
+        '--bg-secondary': '#1a1f2e',         // Slightly lighter blue for cards/sections
+        '--bg-tertiary': '#242938',          // Even lighter blue for nested elements
+        '--bg-quaternary': '#2e3442',        // Lightest blue for hover states
+        '--bg-sidebar': '#0f1419',           // Dark navy sidebar background
+        '--bg-sidebar-hover': '#1a1f2e',     // Sidebar hover state
+        '--bg-sidebar-active': '#242938',    // Active sidebar item
         
-        // Enhanced text colors with better contrast ratios
-        '--text-primary': '#f0f6fc',         // High contrast white
-        '--text-secondary': '#c9d1d9',       // Secondary text
-        '--text-muted': '#8b949e',           // Muted text
-        '--text-accent': '#58a6ff',          // Accent text (blue)
-        '--text-success': '#3fb950',         // Success text (green)
-        '--text-warning': '#d29922',         // Warning text (yellow)
-        '--text-danger': '#f85149',          // Danger text (red)
+        // Clean white text colors matching the screenshot
+        '--text-primary': '#ffffff',         // Pure white for main text
+        '--text-secondary': '#e2e8f0',       // Light gray for secondary text
+        '--text-muted': '#94a3b8',           // Muted gray text
+        '--text-accent': '#60a5fa',          // Light blue accent text
+        '--text-success': '#34d399',         // Success text (green)
+        '--text-warning': '#fbbf24',         // Warning text (yellow)
+        '--text-danger': '#f87171',          // Danger text (red)
         
-        // Enhanced border colors
-        '--border-primary': '#30363d',       // Primary borders
-        '--border-secondary': '#21262d',     // Secondary borders
-        '--border-accent': '#58a6ff',        // Accent borders
-        '--border-focus': '#1f6feb',         // Focus borders
+        // Translucent white borders matching the screenshot cards
+        '--border-primary': 'rgba(255, 255, 255, 0.2)',       // Translucent white borders
+        '--border-secondary': 'rgba(255, 255, 255, 0.1)',     // Lighter translucent borders
+        '--border-accent': '#60a5fa',        // Blue accent borders
+        '--border-focus': '#3b82f6',         // Focus borders
         
-        // Enhanced accent colors
-        '--accent-primary': '#1f6feb',       // Primary blue
-        '--accent-secondary': '#a855f7',     // Secondary purple
-        '--accent-success': '#238636',       // Success green
-        '--accent-warning': '#9a6700',       // Warning orange
-        '--accent-danger': '#da3633',        // Danger red
-        '--accent-info': '#0969da',          // Info blue
+        // Blue accent colors matching the dashboard theme
+        '--accent-primary': '#3b82f6',       // Primary blue
+        '--accent-secondary': '#6366f1',     // Secondary indigo
+        '--accent-success': '#10b981',       // Success emerald
+        '--accent-warning': '#f59e0b',       // Warning amber
+        '--accent-danger': '#ef4444',        // Danger red
+        '--accent-info': '#06b6d4',          // Info cyan
         
         // Enhanced shadows with better depth
         '--shadow-sm': '0 1px 2px 0 rgba(0, 0, 0, 0.4)',
@@ -127,10 +127,10 @@ export const ThemeProvider = ({ children }) => {
         '--gradient-warm': 'linear-gradient(135deg, #f85149 0%, #d29922 100%)',
         '--gradient-cool': 'linear-gradient(135deg, #1f6feb 0%, #238636 100%)',
         
-        // Card and surface colors
-        '--card-bg': '#161b22',
-        '--card-border': '#30363d',
-        '--card-hover': '#21262d',
+        // Card and surface colors - translucent effect matching screenshot
+        '--card-bg': 'rgba(26, 31, 46, 0.7)',        // Translucent dark blue for cards
+        '--card-border': 'rgba(255, 255, 255, 0.2)',  // Translucent white borders
+        '--card-hover': 'rgba(36, 41, 56, 0.8)',     // Slightly more opaque on hover
         '--input-bg': '#0d1117',
         '--input-border': '#30363d',
         '--input-focus': '#1f6feb',

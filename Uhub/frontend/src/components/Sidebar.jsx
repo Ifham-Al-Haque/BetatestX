@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
   Home,
   Users,
   Shield,
@@ -27,9 +26,10 @@ import {
   Lightbulb,
   Heart,
   Camera,
-  ImageIcon,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  Bell,
+  Folder
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -73,11 +73,15 @@ const Sidebar = () => {
     customer_service: true,
     it_services: true,
     driver_management: true,
+    operation_panel: true,
     asset_management: true,
     financial: true,
     todo_list: true,
     slice_of_life: true,
-    communication: true
+    communication: true,
+    subscribe_panel: true,
+    collections_panel: true,
+    marketing_panel: true
   });
 
   const handleSignOut = async () => {
@@ -214,13 +218,24 @@ const Sidebar = () => {
     },
     {
       key: 'driver_management',
-      title: 'Operation Management',
+      title: 'Driver Management',
       icon: Car,
       items: [
         { label: 'Driver Records', path: '/drivers', icon: Car, feature: 'driver_records' },
         { label: 'Fleet Records', path: '/driver-operations', icon: Car, feature: 'fleet_records' },
         { label: 'Fleet Management', path: '/fleet', icon: Database, feature: 'fleet_management' },
         { label: 'Breakdowns', path: '/breakdowns', icon: AlertTriangle, feature: 'breakdowns' }
+      ]
+    },
+    {
+      key: 'operation_panel',
+      title: 'Operation Panel',
+      icon: Cog,
+      items: [
+        { label: 'Fleet Onboarding', path: '/fleet-onboarding', icon: CheckSquare, feature: 'fleet_onboarding' },
+        { label: 'Fleet Offboarding', path: '/fleet-offboarding', icon: AlertTriangle, feature: 'fleet_offboarding' },
+        { label: 'Fleet Delivery Checklist', path: '/fleet-delivery-checklist', icon: ClipboardList, feature: 'fleet_delivery_checklist' },
+        { label: 'Fleet Maintenance Record', path: '/fleet-maintenance-record', icon: FileText, feature: 'fleet_maintenance_record' }
       ]
     },
     {
@@ -252,6 +267,33 @@ const Sidebar = () => {
         { label: 'Task Management', path: '/task-management', icon: ClipboardList, feature: 'task_management' },
         { label: 'My Tasks', path: '/tasks', icon: CheckSquare, feature: 'my_tasks' },
         { label: 'Reports', path: '/reports', icon: BarChart3, feature: 'reports' }
+      ]
+    },
+    {
+      key: 'subscribe_panel',
+      title: 'Subscribe Now',
+      icon: Bell,
+      items: [
+        { label: 'Subscribe Now', path: '/subscribe-now', icon: Bell, feature: 'subscribe_now' }
+      ]
+    },
+    {
+      key: 'collections_panel',
+      title: 'Collections',
+      icon: Folder,
+      items: [
+        { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections' }
+      ]
+    },
+    {
+      key: 'marketing_panel',
+      title: 'Marketing',
+      icon: Sparkles,
+      items: [
+        { label: 'Marketing Calendar', path: '/marketing-calendar', icon: Calendar, feature: 'marketing_calendar' },
+        { label: 'Marketing Dashboard', path: '/marketing-dashboard', icon: BarChart3, feature: 'marketing_dashboard' },
+        { label: 'Marketing Events', path: '/marketing-events', icon: Calendar, feature: 'marketing_events' },
+        { label: 'Marketing Analytics', path: '/marketing-analytics', icon: BarChart3, feature: 'marketing_analytics' }
       ]
     }
   ];

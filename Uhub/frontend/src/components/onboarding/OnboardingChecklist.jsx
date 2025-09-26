@@ -5,11 +5,13 @@ import {
   Award, GraduationCap, Building, Shield, Monitor, Briefcase,
   Plus, Edit, Trash, User, Calendar
 } from 'lucide-react';
+import AddChecklistItemModal from './AddChecklistItemModal';
 
-export default function OnboardingChecklist({ items, onUpdate, employeeId }) {
+export default function OnboardingChecklist({ items, onUpdate, onAddItem, employeeId }) {
   const [expandedCategories, setExpandedCategories] = useState({});
   const [editingItem, setEditingItem] = useState(null);
   const [showAddItem, setShowAddItem] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   const categories = {
     documentation: {
@@ -83,6 +85,17 @@ export default function OnboardingChecklist({ items, onUpdate, employeeId }) {
 
   const handleItemToggle = async (item) => {
     await onUpdate(item.id, !item.is_completed);
+  };
+
+  const handleAddItem = (category) => {
+    setSelectedCategory(category);
+    setShowAddItem(true);
+  };
+
+  const handleSaveItem = async (itemData) => {
+    if (onAddItem) {
+      await onAddItem(itemData);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -173,43 +186,54 @@ export default function OnboardingChecklist({ items, onUpdate, employeeId }) {
           return (
             <div key={categoryKey} className="bg-white border border-gray-200 rounded-lg">
               {/* Category Header */}
-              <button
-                onClick={() => toggleCategory(categoryKey)}
-                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${categoryInfo.color}`}>
-                    <Icon className={`w-5 h-5 ${categoryInfo.iconColor}`} />
-                  </div>
-                  <div className="text-left">
-                    <h4 className="font-semibold text-gray-900">{categoryInfo.title}</h4>
-                    <p className="text-sm text-gray-600">
-                      {stats.completed}/{stats.total} completed
-                      {stats.overdue > 0 && (
-                        <span className="text-red-600 ml-2">• {stats.overdue} overdue</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">
-                      {Math.round((stats.completed / stats.total) * 100)}%
+              <div className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200">
+                <button
+                  onClick={() => toggleCategory(categoryKey)}
+                  className="flex-1 flex items-center justify-between"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${categoryInfo.color}`}>
+                      <Icon className={`w-5 h-5 ${categoryInfo.iconColor}`} />
                     </div>
-                    <div className="w-16 bg-gray-200 rounded-full h-1">
-                      <div 
-                        className="bg-blue-500 h-1 rounded-full transition-all duration-300"
-                        style={{ width: `${(stats.completed / stats.total) * 100}%` }}
-                      ></div>
+                    <div className="text-left">
+                      <h4 className="font-semibold text-gray-900">{categoryInfo.title}</h4>
+                      <p className="text-sm text-gray-600">
+                        {stats.completed}/{stats.total} completed
+                        {stats.overdue > 0 && (
+                          <span className="text-red-600 ml-2">• {stats.overdue} overdue</span>
+                        )}
+                      </p>
                     </div>
                   </div>
-                  <div className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                  <div className="flex items-center space-x-2">
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-gray-900">
+                        {Math.round((stats.completed / stats.total) * 100)}%
+                      </div>
+                      <div className="w-16 bg-gray-200 rounded-full h-1">
+                        <div 
+                          className="bg-blue-500 h-1 rounded-full transition-all duration-300"
+                          style={{ width: `${(stats.completed / stats.total) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+                
+                {/* Add Item Button */}
+                <button
+                  onClick={() => handleAddItem(categoryKey)}
+                  className="ml-3 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                  title={`Add item to ${categoryInfo.title}`}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
 
               {/* Category Items */}
               {isExpanded && (
@@ -381,6 +405,18 @@ export default function OnboardingChecklist({ items, onUpdate, employeeId }) {
           </div>
         </div>
       </div>
+
+      {/* Add Item Modal */}
+      <AddChecklistItemModal
+        isOpen={showAddItem}
+        onClose={() => {
+          setShowAddItem(false);
+          setSelectedCategory(null);
+        }}
+        onSave={handleSaveItem}
+        category={selectedCategory}
+        employeeId={employeeId}
+      />
     </div>
   );
 }

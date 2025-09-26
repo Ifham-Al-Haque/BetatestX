@@ -11,16 +11,18 @@ import { useToast } from '../context/ToastContext';
 import onboardingOffboardingApi from '../services/onboardingOffboardingApi';
 import OnboardingDashboard from '../components/onboarding/OnboardingDashboard';
 import OnboardingList from '../components/onboarding/OnboardingList';
-import StartOnboardingModal from '../components/onboarding/StartOnboardingModal';
+import NewEmployeeOnboardingModal from '../components/onboarding/NewEmployeeOnboardingModal';
 import OnboardingDetail from '../components/onboarding/OnboardingDetail';
 
 export default function EmployeeOnboarding() {
   const { userProfile } = useAuth();
   const { success, error: showError } = useToast();
   
-  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard', 'list', 'detail'
+  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard', 'list', 'detail', 'edit'
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showStartModal, setShowStartModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Data states
@@ -43,40 +45,122 @@ export default function EmployeeOnboarding() {
   const loadOnboardingData = async () => {
     try {
       setLoading(true);
-      const [recordsData, statsData] = await Promise.all([
-        onboardingOffboardingApi.onboarding.getAll(),
-        onboardingOffboardingApi.utils.getOnboardingStats()
-      ]);
+      console.log('Loading onboarding data...');
       
-      setOnboardingRecords(recordsData);
+      const recordsData = await onboardingOffboardingApi.onboardingRecords.getAll();
+      console.log('Onboarding records loaded:', recordsData?.length || 0);
+      
+      // Ensure we always have an array
+      const safeRecordsData = Array.isArray(recordsData) ? recordsData : [];
+      setOnboardingRecords(safeRecordsData);
+      
+      // Calculate stats from the records data with safe array operations
+      const statsData = {
+        total: safeRecordsData.length,
+        completed: safeRecordsData.filter(r => r?.onboarding_status === 'completed').length,
+        inProgress: safeRecordsData.filter(r => r?.onboarding_status === 'in_progress').length,
+        overdue: safeRecordsData.filter(r => {
+          if (!r?.onboarding_status || !r?.expected_completion_date) return false;
+          return ['pending', 'in_progress'].includes(r.onboarding_status) && 
+                 new Date(r.expected_completion_date) < new Date();
+        }).length,
+        dueSoon: safeRecordsData.filter(r => {
+          if (!r?.onboarding_status || !r?.expected_completion_date) return false;
+          return ['pending', 'in_progress'].includes(r.onboarding_status) && 
+                 new Date(r.expected_completion_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        }).length
+      };
+      
+      console.log('Stats calculated:', statsData);
       setStats(statsData);
+      
     } catch (err) {
-      showError('Error', 'Failed to load onboarding data');
       console.error('Error loading onboarding data:', err);
+      
+      // Set safe default values instead of showing error
+      setOnboardingRecords([]);
+      setStats({
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        overdue: 0,
+        dueSoon: 0
+      });
+      
+      // Only show error if it's not a "table doesn't exist" error
+      if (!err.message?.includes('does not exist') && !err.message?.includes('42P01')) {
+        showError('Error', 'Failed to load onboarding data');
+      } else {
+        console.log('ℹ️ Onboarding tables not set up yet - showing empty state');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStartOnboarding = async (onboardingData) => {
+  const handleStartOnboarding = async (completeData) => {
     try {
-      await onboardingOffboardingApi.onboarding.startOnboarding(
-        onboardingData.employee_id,
-        onboardingData.template_id,
-        onboardingData
+      // Create onboarding record (this stores all the employee data for the onboarding process)
+      const onboardingRecord = await onboardingOffboardingApi.onboardingRecords.create(
+        completeData.employeeData,
+        completeData.onboardingData
       );
       
-      success('Success', 'Onboarding process started successfully');
+      success('Success', `Onboarding process started for ${completeData.employeeData.full_name}. Employee record will be created upon completion.`);
       setShowStartModal(false);
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       showError('Error', err.message || 'Failed to start onboarding process');
+      console.error('Error in handleStartOnboarding:', err);
     }
   };
 
   const handleViewRecord = (record) => {
     setSelectedRecord(record);
     setActiveView('detail');
+  };
+
+  const handleEditRecord = (record) => {
+    setEditingRecord(record);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteRecord = async (record) => {
+    if (!window.confirm(`Are you sure you want to delete the onboarding record for ${record.full_name}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const recordId = record.id || record.record_id;
+      await onboardingOffboardingApi.onboardingRecords.delete(recordId);
+      
+      success('Success', `Onboarding record for ${record.full_name} has been deleted successfully`);
+      setRefreshKey(prev => prev + 1); // Refresh the data
+      
+      // If we're viewing the deleted record, go back to list
+      if (selectedRecord && (selectedRecord.id === recordId || selectedRecord.record_id === recordId)) {
+        setActiveView('list');
+        setSelectedRecord(null);
+      }
+    } catch (err) {
+      showError('Error', err.message || 'Failed to delete onboarding record');
+      console.error('Error deleting onboarding record:', err);
+    }
+  };
+
+  const handleUpdateRecord = async (updatedData) => {
+    try {
+      const recordId = editingRecord.id || editingRecord.record_id;
+      await onboardingOffboardingApi.onboardingRecords.update(recordId, updatedData);
+      
+      success('Success', `Onboarding record for ${editingRecord.full_name} has been updated successfully`);
+      setShowEditModal(false);
+      setEditingRecord(null);
+      setRefreshKey(prev => prev + 1); // Refresh the data
+    } catch (err) {
+      showError('Error', err.message || 'Failed to update onboarding record');
+      console.error('Error updating onboarding record:', err);
+    }
   };
 
   const handleBackToList = () => {
@@ -228,6 +312,8 @@ export default function EmployeeOnboarding() {
                 stats={stats}
                 recentRecords={onboardingRecords.slice(0, 5)}
                 onViewRecord={handleViewRecord}
+                onEditRecord={handleEditRecord}
+                onDeleteRecord={handleDeleteRecord}
                 onStartOnboarding={() => setShowStartModal(true)}
               />
             </motion.div>
@@ -244,6 +330,8 @@ export default function EmployeeOnboarding() {
               <OnboardingList 
                 records={filteredRecords}
                 onViewRecord={handleViewRecord}
+                onEditRecord={handleEditRecord}
+                onDeleteRecord={handleDeleteRecord}
                 onStartOnboarding={() => setShowStartModal(true)}
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
@@ -266,6 +354,8 @@ export default function EmployeeOnboarding() {
                 record={selectedRecord}
                 onBack={handleBackToList}
                 onRefresh={() => setRefreshKey(prev => prev + 1)}
+                onEdit={handleEditRecord}
+                onDelete={handleDeleteRecord}
               />
             </motion.div>
           )}
@@ -273,9 +363,22 @@ export default function EmployeeOnboarding() {
 
         {/* Start Onboarding Modal */}
         {showStartModal && (
-          <StartOnboardingModal
+          <NewEmployeeOnboardingModal
             onClose={() => setShowStartModal(false)}
             onStart={handleStartOnboarding}
+          />
+        )}
+
+        {/* Edit Onboarding Modal */}
+        {showEditModal && editingRecord && (
+          <NewEmployeeOnboardingModal
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingRecord(null);
+            }}
+            onStart={handleUpdateRecord}
+            editingRecord={editingRecord}
+            mode="edit"
           />
         )}
       </div>

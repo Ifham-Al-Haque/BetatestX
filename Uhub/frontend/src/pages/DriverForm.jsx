@@ -28,6 +28,7 @@ export default function DriverForm() {
     team_name: "",
     team_members: "",
     shift_type: "Day",
+    location: "",
     profile_picture: "",
     status: "active",
     employee_id: "",
@@ -544,6 +545,28 @@ export default function DriverForm() {
                       <option value="Day">Day Shift</option>
                       <option value="Night">Night Shift</option>
                       <option value="Flexible">Flexible</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Location
+                    </label>
+                    <select
+                      id="location"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">Select Location</option>
+                      <option value="Dubai">Dubai</option>
+                      <option value="Abu Dhabi">Abu Dhabi</option>
+                      <option value="Sharjah">Sharjah</option>
+                      <option value="Ajman">Ajman</option>
+                      <option value="Ras Al Khaimah">Ras Al Khaimah</option>
+                      <option value="Fujairah">Fujairah</option>
+                      <option value="Umm Al Quwain">Umm Al Quwain</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
                   

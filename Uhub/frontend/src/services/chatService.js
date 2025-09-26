@@ -43,7 +43,14 @@ class ChatService {
         .eq('is_active', true)
         .order('last_message_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        // If it's a missing table error, return empty array
+        if (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.warn('Conversations table not found, returning empty array');
+          return [];
+        }
+        throw error;
+      }
 
       // Transform the data to include participant count and unread count
       const transformedData = data.map(conv => ({
@@ -57,8 +64,11 @@ class ChatService {
 
       return transformedData;
     } catch (error) {
-      console.error('Error fetching conversations:', error);
-      throw error;
+      // Only log actual errors, not missing table errors
+      if (!error.message?.includes('does not exist') && !error.message?.includes('42P01') && !error.code?.includes('PGRST200')) {
+        console.error('Error fetching conversations:', error);
+      }
+      return [];
     }
   }
 
@@ -390,10 +400,11 @@ class ChatService {
     try {
       const currentUser = await this.getCurrentUser();
       if (!currentUser) {
-        console.warn('User not authenticated, skipping status update');
-        return;
+        return false;
       }
-      const currentUserId = currentUser.id;
+      
+      // Use auth_user_id since that's what the users table uses
+      const currentUserId = currentUser.auth_user_id || currentUser.id;
       
       const { error } = await supabase
         .from('user_status')
@@ -403,10 +414,14 @@ class ChatService {
           last_seen: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Error updating user status:', error);
+        return false;
+      }
+      return true;
     } catch (error) {
       console.error('Error updating user status:', error);
-      throw error;
+      return false;
     }
   }
 
@@ -417,11 +432,10 @@ class ChatService {
         .from('user_status')
         .select(`
           *,
-          user:user_id(
-            id,
+          users!user_status_user_id_fkey(
+            auth_user_id,
             full_name,
             email,
-            avatar_url,
             department,
             role
           )
@@ -429,11 +443,15 @@ class ChatService {
         .eq('is_online', true)
         .order('last_seen', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Error fetching online users:', error);
+        return [];
+      }
+
       return data || [];
     } catch (error) {
       console.error('Error fetching online users:', error);
-      throw error;
+      return [];
     }
   }
 
