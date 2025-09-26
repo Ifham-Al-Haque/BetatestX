@@ -118,17 +118,6 @@ const ITRequestsEnhanced = () => {
 
   const isAdminOrManager = userProfile?.role === 'admin' || userProfile?.role === 'hr_manager';
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Fetch data when user or userProfile changes
-  useEffect(() => {
-    if (user && userProfile) {
-      fetchData();
-    }
-  }, [user, userProfile, fetchData]);
-
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -191,6 +180,17 @@ const ITRequestsEnhanced = () => {
       setLoading(false);
     }
   }, [filters, userProfile?.role, showError]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Fetch data when user or userProfile changes
+  useEffect(() => {
+    if (user && userProfile) {
+      fetchData();
+    }
+  }, [user, userProfile, fetchData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

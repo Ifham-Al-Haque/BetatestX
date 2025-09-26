@@ -1688,7 +1688,6 @@ const TaskManagement = () => {
                             </div>
                           )}
                         </div>
-                      </div>
                     </div>
                   </motion.div>
                 );

@@ -171,7 +171,7 @@ export const FEATURE_ACCESS = {
   employees: ['admin', 'hr_manager', 'manager', 'subscribe_now'], // Subscribe Now can access employee section
   employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management'], // View only for others
   complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  complaints_inbox: ['admin', 'hr_manager'], // Only admin and HR manager see inbox
+  complaints_inbox: ['admin', 'hr_manager', 'employee'], // Admin, HR manager, and employees see inbox
   suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
   attendance: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
@@ -351,7 +351,7 @@ export const getRoleNavigationAccess = (userRole) => {
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         user_profile: ['profile', 'settings'],
-        hr_panel: ['employee_records', 'complaints', 'suggestions'],
+        hr_panel: ['employee_records', 'complaints', 'complaints_inbox', 'suggestions'],
         it_services: ['it_requests'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
