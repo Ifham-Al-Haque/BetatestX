@@ -20,47 +20,96 @@ class ChatService {
   // Get all conversations for the current user
   async getConversations() {
     try {
-      const { data, error } = await supabase
+      // First get conversations
+      const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
-        .select(`
-          *,
-          participants:conversation_participants(
-            user:user_id(
-              id,
-              full_name,
-              email,
-              avatar_url,
-              department,
-              role
-            )
-          ),
-          last_message:messages(
-            content,
-            created_at,
-            sender:user_id(full_name)
-          )
-        `)
+        .select('*')
         .eq('is_active', true)
         .order('last_message_at', { ascending: false });
 
-      if (error) {
+      if (conversationsError) {
         // If it's a missing table error, return empty array
-        if (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01' || error.message?.includes('does not exist')) {
+        if (conversationsError.code === 'PGRST116' || conversationsError.status === 404 || conversationsError.code === '42P01' || conversationsError.message?.includes('does not exist')) {
           console.warn('Conversations table not found, returning empty array');
           return [];
         }
-        throw error;
+        throw conversationsError;
       }
 
-      // Transform the data to include participant count and unread count
-      const transformedData = data.map(conv => ({
-        ...conv,
-        participants_count: conv.participants?.length || 0,
-        conversation_name: conv.name || this.getConversationName(conv),
-        conversation_type: conv.type,
-        unread_count: 0, // This would be calculated based on read receipts
-        last_message: conv.last_message?.[0] || null
-      }));
+      if (!conversationsData || conversationsData.length === 0) {
+        return [];
+      }
+
+      // Get participants for each conversation
+      const conversationIds = conversationsData.map(conv => conv.id);
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, user_id')
+        .in('conversation_id', conversationIds);
+
+      if (participantsError) {
+        console.warn('Error fetching participants:', participantsError);
+      }
+
+      // Get user details for participants
+      const participantUserIds = participantsData?.map(p => p.user_id) || [];
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, auth_user_id, full_name, email, avatar_url, department, role')
+        .in('auth_user_id', participantUserIds);
+
+      if (usersError) {
+        console.warn('Error fetching user details:', usersError);
+      }
+
+      // Get last messages for each conversation
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('conversation_id, content, created_at, sender_id')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false });
+
+      if (messagesError) {
+        console.warn('Error fetching messages:', messagesError);
+      }
+
+      // Merge the data
+      const transformedData = conversationsData.map(conv => {
+        const participants = participantsData?.filter(p => p.conversation_id === conv.id) || [];
+        const participantsWithDetails = participants.map(p => {
+          const user = usersData?.find(u => u.auth_user_id === p.user_id);
+          return {
+            user_id: p.user_id,
+            user: user || {
+              id: p.user_id,
+              auth_user_id: p.user_id,
+              full_name: 'Unknown User',
+              email: null,
+              avatar_url: null,
+              department: null,
+              role: null
+            }
+          };
+        });
+
+        const lastMessage = messagesData?.find(m => m.conversation_id === conv.id);
+        const lastMessageWithSender = lastMessage ? {
+          ...lastMessage,
+          sender: usersData?.find(u => u.auth_user_id === lastMessage.sender_id) || {
+            full_name: 'Unknown User'
+          }
+        } : null;
+
+        return {
+          ...conv,
+          participants: participantsWithDetails,
+          participants_count: participantsWithDetails.length,
+          conversation_name: conv.name || this.getConversationName(conv),
+          conversation_type: conv.type,
+          unread_count: 0, // This would be calculated based on read receipts
+          last_message: lastMessageWithSender
+        };
+      });
 
       return transformedData;
     } catch (error) {
@@ -181,7 +230,7 @@ class ChatService {
       const filePath = `chat-attachments/${fileName}`;
 
       // Upload file to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('chat-files')
         .upload(filePath, file);
 
@@ -428,27 +477,59 @@ class ChatService {
   // Get online users
   async getOnlineUsers() {
     try {
-      const { data, error } = await supabase
+      // First get user_status records
+      const { data: statusData, error: statusError } = await supabase
         .from('user_status')
-        .select(`
-          *,
-          users!user_status_user_id_fkey(
-            auth_user_id,
-            full_name,
-            email,
-            department,
-            role
-          )
-        `)
+        .select('*')
         .eq('is_online', true)
         .order('last_seen', { ascending: false });
 
-      if (error) {
-        console.warn('Error fetching online users:', error);
+      if (statusError) {
+        console.warn('Error fetching user status:', statusError);
         return [];
       }
 
-      return data || [];
+      if (!statusData || statusData.length === 0) {
+        return [];
+      }
+
+      // Get user details from users table
+      const userIds = statusData.map(status => status.user_id);
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, auth_user_id, full_name, email, department, role')
+        .in('auth_user_id', userIds);
+
+      if (usersError) {
+        console.warn('Error fetching user details:', usersError);
+        return statusData.map(status => ({
+          ...status,
+          users: {
+            auth_user_id: status.user_id,
+            full_name: 'Unknown User',
+            email: null,
+            department: null,
+            role: null
+          }
+        }));
+      }
+
+      // Merge the data
+      const mergedData = statusData.map(status => {
+        const user = usersData.find(u => u.auth_user_id === status.user_id);
+        return {
+          ...status,
+          users: user || {
+            auth_user_id: status.user_id,
+            full_name: 'Unknown User',
+            email: null,
+            department: null,
+            role: null
+          }
+        };
+      });
+
+      return mergedData;
     } catch (error) {
       console.error('Error fetching online users:', error);
       return [];

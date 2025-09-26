@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Search, Filter, FileText, Clock, User, 
@@ -7,7 +7,7 @@ import {
   Wrench, Settings, AlertTriangle, Paperclip, MessageCircle,
   TrendingUp, BarChart3, Download, Upload, Star,
   ChevronDown, ChevronUp, Filter as FilterIcon, SortAsc,
-  RefreshCw, Bell, BellRing, Archive, Flag, Zap,
+  RefreshCw, BellRing, Archive, Flag, Zap,
   Users, Timer, Target, Award, Activity, Globe,
   Monitor, Wifi, Key, Mail, Phone, Printer, Shield,
   HardDrive, HelpCircle, Laptop, Code, Database
@@ -120,16 +120,16 @@ const ITRequestsEnhanced = () => {
 
   useEffect(() => {
     fetchData();
-  }, [filters]);
+  }, [fetchData]);
 
   // Fetch data when user or userProfile changes
   useEffect(() => {
     if (user && userProfile) {
       fetchData();
     }
-  }, [user, userProfile]);
+  }, [user, userProfile, fetchData]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -139,8 +139,10 @@ const ITRequestsEnhanced = () => {
       
       console.log('Fetching data with filters:', filters);
       
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = Date.now();
       const [requestsData, categoriesData, prioritiesData] = await Promise.all([
-        itServicesApi.requests.getAll(filters, authUser?.id, userProfile?.role),
+        itServicesApi.requests.getAll({ ...filters, _t: cacheBuster }, authUser?.id, userProfile?.role),
         itServicesApi.categories.getAll(),
         itServicesApi.priorities.getAll()
       ]);
@@ -188,13 +190,20 @@ const ITRequestsEnhanced = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, userProfile?.role, showError]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
-    success('Data refreshed successfully');
+    try {
+      // Force refresh by clearing any potential caches
+      await fetchData();
+      success('Data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      showError('Failed to refresh data', error.message);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -242,11 +251,7 @@ const ITRequestsEnhanced = () => {
       console.log('Delete result:', deleteResult);
       
       if (deleteResult) {
-        // Only remove from UI state if deletion was successful
-        setRequests(prevRequests => prevRequests.filter(r => r.id !== id));
-        console.log('Request removed from UI state');
-        
-        // Log activity
+        // Log activity first
         try {
           await activityService.logResourceDelete('it_request', id, request);
           console.log('Activity logged');
@@ -254,6 +259,14 @@ const ITRequestsEnhanced = () => {
           console.warn('Failed to log activity:', activityError);
           // Don't fail the deletion if activity logging fails
         }
+        
+        // Remove from UI state immediately for better UX
+        setRequests(prevRequests => prevRequests.filter(r => r.id !== id));
+        console.log('Request removed from UI state');
+        
+        // Refresh data from server to ensure consistency
+        await fetchData();
+        console.log('Data refreshed from server');
         
         success('Request deleted successfully');
       } else {
@@ -270,8 +283,8 @@ const ITRequestsEnhanced = () => {
         showError('Failed to delete request', error.message);
       }
       
-      // Refresh data to show current state
-      fetchData();
+      // Always refresh data to show current state, even on error
+      await fetchData();
     }
   };
 
