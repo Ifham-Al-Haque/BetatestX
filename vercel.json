@@ -1,8 +1,8 @@
 ﻿{
-  "buildCommand": "cd frontend && npm ci && npm run build",
-  "outputDirectory": "frontend/build",
+  "buildCommand": "cd Uhub/frontend && npm ci && npm run build",
+  "outputDirectory": "Uhub/frontend/build",
   "framework": "create-react-app",
-  "installCommand": "cd frontend && npm ci",
+  "installCommand": "cd Uhub/frontend && npm ci",
   "rewrites": [
     {
       "source": "/(.*)",
