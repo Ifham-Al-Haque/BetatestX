@@ -1,4 +1,3 @@
-import { CSVLink } from 'react-csv';
 import { getDepartmentLabel } from '../config/departments';
 
 // Format date for display
@@ -34,6 +33,7 @@ export const prepareSimCardDataForExport = (simCards) => {
     'Current User': simCard.current_user || 'Unassigned',
     'Previous User': simCard.previous_user || 'N/A',
     'Department': simCard.department ? getDepartmentLabel(simCard.department) : 'Not specified',
+    'Designation': simCard.designation || 'N/A',
     'Status': simCard.status || 'N/A',
     'Activation Date': formatDate(simCard.activation_date),
     'Expiry Date': formatDate(simCard.expiry_date),
@@ -218,6 +218,7 @@ export const exportToPDF = (simCards, filename = 'sim_cards_export') => {
             <th>Monthly Cost</th>
             <th>Current User</th>
             <th>Department</th>
+            <th>Designation</th>
             <th>Status</th>
             <th>Activation Date</th>
             <th>Expiry Date</th>
@@ -232,6 +233,7 @@ export const exportToPDF = (simCards, filename = 'sim_cards_export') => {
               <td>${row['Monthly Cost']}</td>
               <td>${row['Current User']}</td>
               <td>${row['Department']}</td>
+              <td>${row['Designation']}</td>
               <td>${row['Status']}</td>
               <td>${row['Activation Date']}</td>
               <td>${row['Expiry Date']}</td>
@@ -269,9 +271,16 @@ export const exportFilteredData = (simCards, filters, format) => {
   
   // Apply the same filtering logic as in the component
   const filteredData = simCards.filter(simCard => {
-    const matchesSearch = simCard.sim_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         simCard.package_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (simCard.current_user && simCard.current_user.toLowerCase().includes(searchTerm.toLowerCase()));
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      simCard.sim_number.toLowerCase().includes(searchLower) ||
+      simCard.package_name.toLowerCase().includes(searchLower) ||
+      (simCard.current_user && simCard.current_user.toLowerCase().includes(searchLower)) ||
+      (simCard.previous_user && simCard.previous_user.toLowerCase().includes(searchLower)) ||
+      (simCard.department && simCard.department.toLowerCase().includes(searchLower)) ||
+      (simCard.designation && simCard.designation.toLowerCase().includes(searchLower)) ||
+      (simCard.package_type && simCard.package_type.toLowerCase().includes(searchLower)) ||
+      (simCard.status && simCard.status.toLowerCase().includes(searchLower));
     const matchesStatus = !statusFilter || simCard.status === statusFilter;
     const matchesDepartment = !departmentFilter || simCard.department === departmentFilter;
     const matchesPackageType = !packageTypeFilter || simCard.package_type === packageTypeFilter;

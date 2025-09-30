@@ -2,8 +2,8 @@ import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Edit, Trash, Search, Filter, Phone, User, Building,
-  Wifi, Signal, Calendar, Package, CreditCard, Download,
-  X, Save, Users, MapPin, Clock, AlertCircle, Loader2,
+  Wifi, Signal, CreditCard, Download,
+  X, Save, Users, AlertCircle, Loader2,
   BarChart3, TrendingUp, Activity, Zap, Shield, FileText, FileSpreadsheet
 } from "lucide-react";
 import { useSimCards, useCreateSimCard, useUpdateSimCard, useDeleteSimCard, useSimCardStats } from "../hooks/useSimCards";
@@ -31,6 +31,7 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
     current_user: simCard?.current_user || "",
     previous_user: simCard?.previous_user || "",
     department: simCard?.department || "",
+    designation: simCard?.designation || "",
     status: simCard?.status || "Active",
     activation_date: simCard?.activation_date || "",
     expiry_date: simCard?.expiry_date || "",
@@ -297,6 +298,26 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                 <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
                   isDark ? 'text-slate-200' : 'text-gray-700'
                 }`}>
+                  Designation
+                </label>
+                <input
+                  type="text"
+                  name="designation"
+                  value={formData.designation}
+                  onChange={handleChange}
+                  placeholder="Enter job title or position"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-400 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
                   Status
                 </label>
                 <select
@@ -556,6 +577,22 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
             {simCard.department ? getDepartmentLabel(simCard.department) : 'Not specified'}
           </span>
         </div>
+        
+        {/* Designation Field */}
+        {simCard.designation && (
+          <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
+            isDark ? 'bg-slate-700/50' : 'bg-gray-50'
+          }`}>
+            <span className={`text-sm font-medium transition-colors duration-300 ${
+              isDark ? 'text-slate-300' : 'text-gray-600'
+            }`}>Designation</span>
+            <span className={`text-sm font-semibold max-w-32 truncate transition-colors duration-300 ${
+              isDark ? 'text-slate-100' : 'text-gray-900'
+            }`}>
+              {simCard.designation}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Additional Details */}
@@ -640,7 +677,6 @@ export default function Simcard() {
   const [packageTypeFilter, setPackageTypeFilter] = useState("");
   const [showDepartmentManager, setShowDepartmentManager] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   
   // React Query hooks for data management
   const { data: simCards = [], isLoading, error, refetch } = useSimCards();
@@ -653,11 +689,20 @@ export default function Simcard() {
 
 
 
-  // Filtered data
+  // Enhanced filtering with designation support and improved search
   const filteredSimCards = simCards.filter(simCard => {
-    const matchesSearch = simCard.sim_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         simCard.package_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (simCard.current_user && simCard.current_user.toLowerCase().includes(searchTerm.toLowerCase()));
+    // Enhanced search that includes designation, department, and all relevant fields
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      simCard.sim_number.toLowerCase().includes(searchLower) ||
+      simCard.package_name.toLowerCase().includes(searchLower) ||
+      (simCard.current_user && simCard.current_user.toLowerCase().includes(searchLower)) ||
+      (simCard.previous_user && simCard.previous_user.toLowerCase().includes(searchLower)) ||
+      (simCard.department && simCard.department.toLowerCase().includes(searchLower)) ||
+      (simCard.designation && simCard.designation.toLowerCase().includes(searchLower)) ||
+      (simCard.package_type && simCard.package_type.toLowerCase().includes(searchLower)) ||
+      (simCard.status && simCard.status.toLowerCase().includes(searchLower));
+    
     const matchesStatus = !statusFilter || simCard.status === statusFilter;
     const matchesDepartment = !departmentFilter || simCard.department === departmentFilter;
     const matchesPackageType = !packageTypeFilter || simCard.package_type === packageTypeFilter;
@@ -723,11 +768,6 @@ export default function Simcard() {
   };
 
   // Role-based permission functions
-  const canViewSimCard = useCallback(() => {
-    const userRole = user?.user_metadata?.role || userProfile?.role;
-    return userRole === 'admin' || userRole === 'hr_manager';
-  }, [user?.user_metadata?.role, userProfile?.role]);
-
   const canEditSimCard = useCallback(() => {
     const userRole = user?.user_metadata?.role || userProfile?.role;
     return userRole === 'admin';

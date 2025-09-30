@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import chatService from '../services/chatService';
+import chatService from '../services/chatServiceImproved';
 import { formatDistanceToNow } from 'date-fns';
 
 const Chat = () => {

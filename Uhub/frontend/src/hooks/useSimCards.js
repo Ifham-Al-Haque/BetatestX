@@ -236,7 +236,7 @@ export const useSearchSimCards = (searchTerm) => {
         const { data, error } = await supabase
           .from('sim_cards')
           .select('*')
-          .or(`sim_number.ilike.%${searchTerm}%,package_name.ilike.%${searchTerm}%,current_user.ilike.%${searchTerm}%`)
+          .or(`sim_number.ilike.%${searchTerm}%,package_name.ilike.%${searchTerm}%,current_user.ilike.%${searchTerm}%,previous_user.ilike.%${searchTerm}%,department.ilike.%${searchTerm}%,designation.ilike.%${searchTerm}%,package_type.ilike.%${searchTerm}%,status.ilike.%${searchTerm}%`)
           .order('created_at', { ascending: false });
 
         if (error) {

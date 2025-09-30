@@ -8,9 +8,20 @@ class ChatService {
   // Helper method to get current user
   async getCurrentUser() {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return user;
+      // First try to get the current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        return null;
+      }
+      
+      if (!session || !session.user) {
+        console.warn('No active session found');
+        return null;
+      }
+      
+      return session.user;
     } catch (error) {
       console.error('Error getting current user:', error);
       return null;
