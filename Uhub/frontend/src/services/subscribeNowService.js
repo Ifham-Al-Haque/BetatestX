@@ -93,6 +93,34 @@ class SubscribeNowService {
     }
   }
 
+  // Delete customer
+  async deleteCustomer(customerId) {
+    try {
+      // First check if customer has any rental agreements
+      const { data: rentals, error: checkError } = await supabase
+        .from('fleet_rental_agreements')
+        .select('id')
+        .eq('customer_id', customerId);
+
+      if (checkError) throw checkError;
+
+      if (rentals && rentals.length > 0) {
+        throw new Error('Cannot delete customer with existing rental agreements. Please cancel or complete all rentals first.');
+      }
+
+      const { error } = await supabase
+        .from('subscribe_now_customers')
+        .delete()
+        .eq('id', customerId);
+
+      if (error) throw error;
+      return { success: true, message: 'Customer deleted successfully' };
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      throw error;
+    }
+  }
+
   // ===== RENTAL AGREEMENT MANAGEMENT =====
 
   // Get all rental agreements with delivery overview
@@ -218,6 +246,120 @@ class SubscribeNowService {
       return data;
     } catch (error) {
       console.error('Error updating rental agreement:', error);
+      throw error;
+    }
+  }
+
+  // Update rental agreement status
+  async updateRentalAgreementStatus(rentalId, status, updatedBy, notes = '') {
+    try {
+      const validStatuses = ['Draft', 'Pending Approval', 'Approved', 'Active', 'Completed', 'Cancelled'];
+      if (!validStatuses.includes(status)) {
+        throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+      }
+
+      const { data, error } = await supabase
+        .from('fleet_rental_agreements')
+        .update({
+          agreement_status: status,
+          updated_at: new Date().toISOString(),
+          updated_by: updatedBy
+        })
+        .eq('id', rentalId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add history entry
+      await this.addDeliveryHistory(
+        rentalId,
+        'Status Update',
+        'Updated',
+        `Agreement status changed to: ${status}${notes ? ` - ${notes}` : ''}`,
+        updatedBy
+      );
+
+      return data;
+    } catch (error) {
+      console.error('Error updating rental agreement status:', error);
+      throw error;
+    }
+  }
+
+  // Update delivery status
+  async updateDeliveryStatus(rentalId, status, updatedBy, notes = '') {
+    try {
+      const validStatuses = ['Pending', 'In Progress', 'Completed', 'Failed'];
+      if (!validStatuses.includes(status)) {
+        throw new Error(`Invalid delivery status. Must be one of: ${validStatuses.join(', ')}`);
+      }
+
+      const { data, error } = await supabase
+        .from('fleet_rental_agreements')
+        .update({
+          delivery_status: status,
+          updated_at: new Date().toISOString(),
+          updated_by: updatedBy
+        })
+        .eq('id', rentalId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add history entry
+      await this.addDeliveryHistory(
+        rentalId,
+        'Delivery Status',
+        'Updated',
+        `Delivery status changed to: ${status}${notes ? ` - ${notes}` : ''}`,
+        updatedBy
+      );
+
+      return data;
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+      throw error;
+    }
+  }
+
+  // Delete rental agreement
+  async deleteRentalAgreement(rentalId) {
+    try {
+      // Check if rental has any completed delivery items
+      const { data: checklist, error: checkError } = await supabase
+        .from('fleet_delivery_checklists')
+        .select('all_items_completed')
+        .eq('rental_agreement_id', rentalId)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') throw checkError;
+
+      if (checklist && checklist.all_items_completed) {
+        throw new Error('Cannot delete rental agreement with completed delivery. Please contact administrator.');
+      }
+
+      // Delete in order: history -> checklist -> rental agreement
+      await supabase
+        .from('fleet_delivery_history')
+        .delete()
+        .eq('rental_agreement_id', rentalId);
+
+      await supabase
+        .from('fleet_delivery_checklists')
+        .delete()
+        .eq('rental_agreement_id', rentalId);
+
+      const { error } = await supabase
+        .from('fleet_rental_agreements')
+        .delete()
+        .eq('id', rentalId);
+
+      if (error) throw error;
+      return { success: true, message: 'Rental agreement deleted successfully' };
+    } catch (error) {
+      console.error('Error deleting rental agreement:', error);
       throw error;
     }
   }
@@ -708,6 +850,118 @@ class SubscribeNowService {
       console.error('Error exporting delivery data:', error);
       throw error;
     }
+  }
+
+  // Export customers data
+  async exportCustomersData(customerIds = []) {
+    try {
+      let query = supabase.from('subscribe_now_customers').select('*');
+      
+      if (customerIds.length > 0) {
+        query = query.in('id', customerIds);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error exporting customers data:', error);
+      throw error;
+    }
+  }
+
+  // Export delivery history
+  async exportDeliveryHistory(rentalIds = []) {
+    try {
+      let query = supabase
+        .from('fleet_delivery_history')
+        .select(`
+          *,
+          rental_agreement:rental_agreement_id(rental_agreement_id),
+          performed_by_employee:employees(full_name, email)
+        `);
+      
+      if (rentalIds.length > 0) {
+        query = query.in('rental_agreement_id', rentalIds);
+      }
+
+      const { data, error } = await query.order('performed_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error exporting delivery history:', error);
+      throw error;
+    }
+  }
+
+  // Export comprehensive report
+  async exportComprehensiveReport(filters = {}) {
+    try {
+      const [rentals, customers, history] = await Promise.all([
+        this.exportDeliveryData(filters.rentalIds || []),
+        this.exportCustomersData(filters.customerIds || []),
+        this.exportDeliveryHistory(filters.rentalIds || [])
+      ]);
+
+      return {
+        rentals,
+        customers,
+        history,
+        exportDate: new Date().toISOString(),
+        filters: filters
+      };
+    } catch (error) {
+      console.error('Error exporting comprehensive report:', error);
+      throw error;
+    }
+  }
+
+  // Generate CSV data for export
+  generateCSVData(data, type = 'rentals') {
+    if (!data || data.length === 0) return '';
+
+    const headers = this.getCSVHeaders(type);
+    const csvRows = [headers.join(',')];
+
+    data.forEach(item => {
+      const values = headers.map(header => {
+        const value = this.getNestedValue(item, header);
+        // Escape commas and quotes in CSV
+        return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value || '';
+      });
+      csvRows.push(values.join(','));
+    });
+
+    return csvRows.join('\n');
+  }
+
+  // Get CSV headers based on data type
+  getCSVHeaders(type) {
+    const headerMap = {
+      'rentals': [
+        'rental_id', 'rental_agreement_id', 'customer_name', 'customer_code', 'email', 'phone',
+        'customer_type', 'desired_fleet_type', 'vehicle_number', 'vehicle_make', 'vehicle_model',
+        'original_rental_amount', 'confirmed_amount', 'security_deposit', 'rental_duration_months',
+        'rental_start_date', 'rental_end_date', 'agreement_status', 'delivery_status',
+        'delivery_progress', 'rental_created_at'
+      ],
+      'customers': [
+        'customer_id', 'customer_name', 'email', 'phone', 'address', 'emirates_id',
+        'driving_license', 'passport_number', 'company_name', 'designation',
+        'customer_type', 'status', 'created_at'
+      ],
+      'history': [
+        'rental_agreement_id', 'checklist_item', 'action', 'description',
+        'performed_by_name', 'performed_at'
+      ]
+    };
+
+    return headerMap[type] || [];
+  }
+
+  // Get nested value from object using dot notation
+  getNestedValue(obj, path) {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
   }
 
   // Calculate delivery progress

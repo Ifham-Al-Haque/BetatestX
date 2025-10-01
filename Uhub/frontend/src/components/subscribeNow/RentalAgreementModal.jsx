@@ -158,32 +158,7 @@ const RentalAgreementModal = ({ isOpen, onClose, rental = null, onSuccess }) => 
       }
     }
     
-    // Validate Customer ID format and check availability
-    if (name === 'customer_id' && value && !isEditMode) {
-      // Clear previous customer ID errors
-      if (errors.customer_id) {
-        setErrors(prev => ({ ...prev, customer_id: '' }));
-      }
-      
-      // Check availability after user stops typing
-      const checkAvailability = setTimeout(async () => {
-        if (value.trim().length >= 3) {
-          setCustomerIdChecking(true);
-          try {
-            const isAvailable = await subscribeNowService.isCustomerIdAvailable(value.trim());
-            setCustomerIdAvailable(isAvailable);
-          } catch (error) {
-            console.error('Error checking customer ID availability:', error);
-            setCustomerIdAvailable(null);
-          } finally {
-            setCustomerIdChecking(false);
-          }
-        }
-      }, 500);
-
-      // Cleanup timeout on component unmount or value change
-      return () => clearTimeout(checkAvailability);
-    }
+    // Customer ID validation removed - user has their own customer ID data
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -218,7 +193,6 @@ const RentalAgreementModal = ({ isOpen, onClose, rental = null, onSuccess }) => 
     switch (step) {
       case 1:
         if (!formData.customer_id.trim()) newErrors.customer_id = 'Customer ID is required';
-        if (customerIdAvailable === false && !isEditMode) newErrors.customer_id = 'Customer ID already exists. Please choose a different ID.';
         if (!formData.customer_name.trim()) newErrors.customer_name = 'Customer name is required';
         if (!formData.email.trim()) newErrors.email = 'Email is required';
         if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
@@ -384,88 +358,27 @@ const RentalAgreementModal = ({ isOpen, onClose, rental = null, onSuccess }) => 
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                {/* Customer ID Field - Simple manual entry */}
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Customer ID *
                   </label>
-                  <div className="flex items-center space-x-2">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        name="customer_id"
-                        value={formData.customer_id}
-                        onChange={handleInputChange}
-                        placeholder="e.g., SN-CUST-001 or enter custom ID"
-                        className={`w-full px-4 py-3 pr-10 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
-                          errors.customer_id ? 'border-red-300 bg-red-50' : 
-                          customerIdAvailable === false ? 'border-red-300 bg-red-50' :
-                          customerIdAvailable === true ? 'border-green-300 bg-green-50' :
-                          'border-gray-300'
-                        }`}
-                      />
-                      {/* Availability indicator */}
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        {customerIdChecking ? (
-                          <Loader className="w-4 h-4 text-gray-400 animate-spin" />
-                        ) : customerIdAvailable === true ? (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        ) : customerIdAvailable === false ? (
-                          <XCircle className="w-4 h-4 text-red-600" />
-                        ) : null}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const newCustomerId = await subscribeNowService.generateCustomerId();
-                          setFormData(prev => ({ ...prev, customer_id: newCustomerId }));
-                          setCustomerIdAvailable(true);
-                        } catch (error) {
-                          console.error('Error generating customer ID:', error);
-                        }
-                      }}
-                      className="px-3 py-3 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-all text-sm font-medium"
-                    >
-                      Auto-Generate
-                    </button>
-                  </div>
+                  <input
+                    type="text"
+                    name="customer_id"
+                    value={formData.customer_id}
+                    onChange={handleInputChange}
+                    placeholder="Enter Customer ID"
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                      errors.customer_id ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                  />
                   {errors.customer_id && (
-                    <p className="text-red-600 text-sm mt-1">{errors.customer_id}</p>
+                    <p className="text-red-600 text-sm mt-1 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {errors.customer_id}
+                    </p>
                   )}
-                  <div className="mt-1">
-                    <p className="text-xs text-gray-500">Enter custom ID or click Auto-Generate for system format</p>
-                    <div className="text-xs mt-1 space-y-1">
-                      <p className="text-blue-600">
-                        <strong>Format Examples:</strong>
-                      </p>
-                      <div className="grid grid-cols-1 gap-1">
-                        <span className="text-blue-600">• SN-CUST-001 (Standard format)</span>
-                        <span className="text-blue-600">• CORP-ABC-001 (Corporate)</span>
-                        <span className="text-blue-600">• IND-XYZ-001 (Individual)</span>
-                        <span className="text-blue-600">• VIP-GOLD-001 (VIP customer)</span>
-                      </div>
-                    </div>
-                    {/* Availability feedback */}
-                    {customerIdChecking && (
-                      <p className="text-xs text-blue-600 mt-1 flex items-center">
-                        <Loader className="w-3 h-3 mr-1 animate-spin" />
-                        Checking availability...
-                      </p>
-                    )}
-                    {customerIdAvailable === true && !customerIdChecking && (
-                      <p className="text-xs text-green-600 mt-1 flex items-center">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Customer ID is available
-                      </p>
-                    )}
-                    {customerIdAvailable === false && !customerIdChecking && (
-                      <p className="text-xs text-red-600 mt-1 flex items-center">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Customer ID already exists
-                      </p>
-                    )}
-                  </div>
                 </div>
 
                 <div>
@@ -972,12 +885,12 @@ const RentalAgreementModal = ({ isOpen, onClose, rental = null, onSuccess }) => 
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden"
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col my-auto"
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
@@ -1025,23 +938,26 @@ const RentalAgreementModal = ({ isOpen, onClose, rental = null, onSuccess }) => 
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-200px)]">
-            {errors.submit && (
-              <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <div className="flex items-center space-x-2">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <p className="text-red-800 text-sm">{errors.submit}</p>
+          {/* Form Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleSubmit}>
+              {errors.submit && (
+                <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                    <p className="text-red-800 text-sm">{errors.submit}</p>
+                  </div>
                 </div>
+              )}
+
+              <div className="p-6">
+                {renderStepContent()}
               </div>
-            )}
+            </form>
+          </div>
 
-            <div className="p-6">
-              {renderStepContent()}
-            </div>
-          </form>
-
-          {/* Footer */}
-          <div className="px-6 py-4 bg-gray-50 border-t flex justify-between">
+          {/* Footer - Fixed at bottom */}
+          <div className="flex-shrink-0 px-6 py-4 bg-gray-50 border-t flex justify-between items-center">
             <div className="flex space-x-3">
               {currentStep > 1 && (
                 <button
@@ -1076,6 +992,7 @@ const RentalAgreementModal = ({ isOpen, onClose, rental = null, onSuccess }) => 
               ) : (
                 <button
                   type="submit"
+                  onClick={handleSubmit}
                   disabled={loading}
                   className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-xl transition-all flex items-center"
                 >

@@ -149,45 +149,46 @@ export const FEATURE_ACCESS = {
   csv_importer: ['admin'],
   
   // Main Panel Features - Subscribe Now has access to Home and Calendar View
-  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  dashboard: ['admin', 'manager'], // Dashboard for admin and manager
-  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  dashboard: ['admin', 'manager', 'marketing_manager', 'marketing_management'], // Dashboard for admin and manager
+  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // Slice of Life Panel - Subscribe Now has access to ALL sections
-  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  slice_of_life: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  collections: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  slice_of_life: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  collections: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // Communication Panel - Subscribe Now has access to Team Chat
-  communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  team_chat: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  team_chat: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // User Profile - Subscribe Now has access
-  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // HR Panel - Subscribe Now has access to Employees, Complaints, and Suggestions
   employees: ['admin', 'hr_manager', 'manager', 'subscribe_now'], // Subscribe Now can access employee section
-  employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management'], // View only for others
-  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only for others
+  employee_records: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only employee records
+  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   complaints_inbox: ['admin', 'hr_manager', 'employee'], // Admin, HR manager, and employees see inbox
-  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   attendance: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   payroll: ['admin', 'hr_manager'],
   epr: ['admin', 'hr_manager'],
   
   // IT Service Panel - Subscribe Now has access to IT Request Section
-  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   it_assets: ['admin', 'it_management'],
   it_tickets: ['admin'],
   request_inbox: ['admin', 'it_management'],
   
   // Todo List Panel - Subscribe Now has access to ALL sections
-  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
+  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // Customer Service Panel - CS Manager has full access
   customer_service: ['admin', 'cs_manager'],
@@ -229,8 +230,7 @@ export const FEATURE_ACCESS = {
   fleet_maintenance_record: ['admin', 'operation_management', 'subscribe_now'],
   
   // Subscribe Now Panel - Subscribe Now role has full access, others have limited access
-  subscribe_now: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now'],
-  collections: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager'],
+  subscribe_now: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // Marketing Panel Features
   marketing_calendar: ['admin', 'marketing_manager', 'marketing_specialist', 'marketing_management'],

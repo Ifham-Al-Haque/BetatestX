@@ -157,85 +157,78 @@ export default function Driver() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="ml-64 p-6 w-full">
-        {/* Enhanced Header Section */}
-        <div className="relative mb-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
-          <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 border border-white/20 dark:border-gray-700/50 shadow-xl">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
-                  <Car className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent">
-                    Driver Records
-                  </h1>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-                    Manage and monitor all driver information with advanced analytics
-                  </p>
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      {/* Header Section */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
+                <Car className="w-6 h-6 text-white" />
               </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Driver Records</h1>
+                <p className="text-sm text-gray-600">Manage and monitor all driver information with advanced analytics</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  console.log('🔍 Add New Driver button clicked, navigating to /driver/new');
+                  navigate("/driver/new");
+                }}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Plus className="w-4 h-4" />
+                Add New Driver
+              </motion.button>
               
-              <div className="flex flex-wrap items-center gap-3">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    console.log('🔍 Add New Driver button clicked, navigating to /driver/new');
-                    navigate("/driver/new");
-                  }}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add New Driver
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
-                >
-                  <Download className="w-5 h-5" />
-                  Export Data
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    console.log('🔍 Test button clicked, navigating to /driver/test');
-                    navigate("/driver/test");
-                  }}
-                  className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  Analytics
-                </motion.button>
-              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Export Data
+              </motion.button>
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  console.log('🔍 Test button clicked, navigating to /driver/test');
+                  navigate("/driver/test");
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </motion.button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Enhanced Statistics Cards */}
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            whileHover={{ y: -5, transition: { duration: 0.2 } }}
-            className="relative bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-blue-200/50 dark:border-blue-700/50 overflow-hidden"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/20 to-blue-600/20 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">Total Drivers</p>
-                <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">{stats.total}</p>
-                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">All registered drivers</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="w-6 h-6 text-blue-600" />
               </div>
-              <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
-                <Users className="w-7 h-7 text-white" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Drivers</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
             </div>
           </motion.div>
@@ -244,18 +237,15 @@ export default function Driver() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            whileHover={{ y: -5, transition: { duration: 0.2 } }}
-            className="relative bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-emerald-200/50 dark:border-emerald-700/50 overflow-hidden"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Active Drivers</p>
-                <p className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-800 dark:from-emerald-400 dark:to-emerald-600 bg-clip-text text-transparent">{stats.active}</p>
-                <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">Currently working</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-emerald-100 rounded-lg">
+                <Activity className="w-6 h-6 text-emerald-600" />
               </div>
-              <div className="p-4 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg">
-                <Activity className="w-7 h-7 text-white" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Active Drivers</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
               </div>
             </div>
           </motion.div>
@@ -264,18 +254,15 @@ export default function Driver() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            whileHover={{ y: -5, transition: { duration: 0.2 } }}
-            className="relative bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-amber-200/50 dark:border-amber-700/50 overflow-hidden"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-400/20 to-amber-600/20 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-1">Day Shift</p>
-                <p className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent">{stats.dayShift}</p>
-                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">Morning operations</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-amber-100 rounded-lg">
+                <Zap className="w-6 h-6 text-amber-600" />
               </div>
-              <div className="p-4 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl shadow-lg">
-                <Zap className="w-7 h-7 text-white" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Day Shift</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.dayShift}</p>
               </div>
             </div>
           </motion.div>
@@ -284,38 +271,34 @@ export default function Driver() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            whileHover={{ y: -5, transition: { duration: 0.2 } }}
-            className="relative bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-purple-200/50 dark:border-purple-700/50 overflow-hidden"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
           >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400/20 to-purple-600/20 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-1">Night Shift</p>
-                <p className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">{stats.nightShift}</p>
-                <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">Evening operations</p>
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Globe className="w-6 h-6 text-purple-600" />
               </div>
-              <div className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg">
-                <Globe className="w-7 h-7 text-white" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Night Shift</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.nightShift}</p>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Enhanced Search and Filters */}
-        <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-white/20 dark:border-gray-700/50">
-          <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+        {/* Search and Filters */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
             <div className="flex-1 flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <div className="relative group">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search drivers by name, email, or ID..."
                     value={search}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200 text-lg font-medium placeholder:text-gray-400"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
                 </div>
               </div>
               
@@ -323,16 +306,16 @@ export default function Driver() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-3 px-6 py-4 rounded-xl transition-all duration-200 font-semibold ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-200 font-medium ${
                   showFilters 
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' 
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-2 border-gray-200 dark:border-gray-600'
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                <Filter className="w-5 h-5" />
+                <Filter className="w-4 h-4" />
                 Advanced Filters
                 {showFilters && (
-                  <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-bold">
+                  <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">
                     {[statusFilter, shiftFilter, teamTypeFilter, designationFilter, locationFilter].filter(Boolean).length}
                   </span>
                 )}
@@ -345,7 +328,7 @@ export default function Driver() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={clearFilters}
-                  className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
+                  className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
                 >
                   Clear All Filters
                 </motion.button>
@@ -354,10 +337,10 @@ export default function Driver() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-all duration-200"
+                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200"
                 title="Refresh Data"
               >
-                <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <RefreshCw className="w-5 h-5 text-gray-600" />
               </motion.button>
             </div>
           </div>
