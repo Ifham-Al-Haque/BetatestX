@@ -389,39 +389,39 @@ const FleetDeliveryChecklist = () => {
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
                   </div>
             <div>
-                    <h1 className="text-5xl font-black bg-gradient-to-r from-slate-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-2">
-                Fleet Delivery Checklist
+                    <h1 className="text-5xl font-black bg-gradient-to-r from-red-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                🚀 Fleet Delivery Checklist - LIVE UPDATE 🚀
               </h1>
                     <p className="text-slate-600 text-xl font-medium">
-                      Advanced delivery management and tracking system
+                      Advanced delivery management and tracking system - UPDATED
               </p>
             </div>
                 </div>
                 
-                {/* Enhanced Quick Stats with Animations */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8">
+                {/* Enhanced Quick Stats with Improved Alignment */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-8">
                   <motion.div 
                     whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-emerald-50 to-green-100 p-6 rounded-2xl border border-emerald-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-gradient-to-br from-emerald-50 to-green-100 p-8 rounded-2xl border border-emerald-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-emerald-700 font-semibold mb-1">Completed</p>
+                      <div className="flex-1">
+                        <p className="text-sm text-emerald-700 font-semibold mb-3">Completed</p>
                         <motion.p 
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="text-3xl font-black text-emerald-800"
+                          className="text-4xl font-black text-emerald-800"
                         >
                           {quickStats.completed}
                         </motion.p>
-            </div>
-                      <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
-                        <CheckCircle className="w-6 h-6 text-white" />
-          </div>
-        </div>
-                    <div className="mt-3 w-full bg-emerald-200 rounded-full h-1">
+                      </div>
+                      <div className="p-4 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg ml-4">
+                        <CheckCircle className="w-7 h-7 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-6 w-full bg-emerald-200 rounded-full h-3">
                       <motion.div 
-                        className="bg-gradient-to-r from-emerald-500 to-green-600 h-1 rounded-full"
+                        className="bg-gradient-to-r from-emerald-500 to-green-600 h-3 rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${(quickStats.completed / Math.max(quickStats.total, 1)) * 100}%` }}
                         transition={{ duration: 1, delay: 0.5 }}
@@ -431,91 +431,91 @@ const FleetDeliveryChecklist = () => {
                   
                   <motion.div 
                     whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-blue-50 to-cyan-100 p-6 rounded-2xl border border-blue-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-gradient-to-br from-blue-50 to-cyan-100 p-8 rounded-2xl border border-blue-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-blue-700 font-semibold mb-1">In Progress</p>
+                      <div className="flex-1">
+                        <p className="text-sm text-blue-700 font-semibold mb-3">In Progress</p>
                         <motion.p 
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="text-3xl font-black text-blue-800"
+                          className="text-4xl font-black text-blue-800"
                         >
                           {quickStats.inProgress}
                         </motion.p>
-              </div>
-                      <div className="p-3 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl shadow-lg">
-                        <Activity className="w-6 h-6 text-white" />
-              </div>
-            </div>
-                    <div className="mt-3 w-full bg-blue-200 rounded-full h-1">
+                      </div>
+                      <div className="p-4 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl shadow-lg ml-4">
+                        <Activity className="w-7 h-7 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-6 w-full bg-blue-200 rounded-full h-3">
                       <motion.div 
-                        className="bg-gradient-to-r from-blue-500 to-cyan-600 h-1 rounded-full"
+                        className="bg-gradient-to-r from-blue-500 to-cyan-600 h-3 rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${(quickStats.inProgress / Math.max(quickStats.total, 1)) * 100}%` }}
                         transition={{ duration: 1, delay: 0.7 }}
                       />
-          </div>
+                    </div>
                   </motion.div>
                   
                   <motion.div 
                     whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-amber-50 to-yellow-100 p-6 rounded-2xl border border-amber-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-gradient-to-br from-amber-50 to-yellow-100 p-8 rounded-2xl border border-amber-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-amber-700 font-semibold mb-1">Pending</p>
+                      <div className="flex-1">
+                        <p className="text-sm text-amber-700 font-semibold mb-3">Pending</p>
                         <motion.p 
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="text-3xl font-black text-amber-800"
+                          className="text-4xl font-black text-amber-800"
                         >
                           {quickStats.pending}
                         </motion.p>
-              </div>
-                      <div className="p-3 bg-gradient-to-r from-amber-500 to-yellow-600 rounded-xl shadow-lg">
-                        <Clock className="w-6 h-6 text-white" />
-              </div>
-            </div>
-                    <div className="mt-3 w-full bg-amber-200 rounded-full h-1">
+                      </div>
+                      <div className="p-4 bg-gradient-to-r from-amber-500 to-yellow-600 rounded-xl shadow-lg ml-4">
+                        <Clock className="w-7 h-7 text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-6 w-full bg-amber-200 rounded-full h-3">
                       <motion.div 
-                        className="bg-gradient-to-r from-amber-500 to-yellow-600 h-1 rounded-full"
+                        className="bg-gradient-to-r from-amber-500 to-yellow-600 h-3 rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${(quickStats.pending / Math.max(quickStats.total, 1)) * 100}%` }}
                         transition={{ duration: 1, delay: 0.9 }}
                       />
-          </div>
+                    </div>
                   </motion.div>
                   
                   <motion.div 
                     whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-rose-50 to-red-100 p-6 rounded-2xl border border-rose-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-gradient-to-br from-rose-50 to-red-100 p-8 rounded-2xl border border-rose-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-rose-700 font-semibold mb-1">Overdue</p>
+                      <div className="flex-1">
+                        <p className="text-sm text-rose-700 font-semibold mb-3">Overdue</p>
                         <motion.p 
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="text-3xl font-black text-rose-800"
+                          className="text-4xl font-black text-rose-800"
                         >
                           {quickStats.overdue}
                         </motion.p>
-              </div>
-                      <div className="p-3 bg-gradient-to-r from-rose-500 to-red-600 rounded-xl shadow-lg">
-                        <AlertTriangle className="w-6 h-6 text-white" />
-              </div>
+                      </div>
+                      <div className="p-4 bg-gradient-to-r from-rose-500 to-red-600 rounded-xl shadow-lg ml-4">
+                        <AlertTriangle className="w-7 h-7 text-white" />
+                      </div>
                     </div>
-                    <div className="mt-3 w-full bg-rose-200 rounded-full h-1">
+                    <div className="mt-6 w-full bg-rose-200 rounded-full h-3">
                       <motion.div 
-                        className="bg-gradient-to-r from-rose-500 to-red-600 h-1 rounded-full"
+                        className="bg-gradient-to-r from-rose-500 to-red-600 h-3 rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${(quickStats.overdue / Math.max(quickStats.total, 1)) * 100}%` }}
                         transition={{ duration: 1, delay: 1.1 }}
                       />
                     </div>
                   </motion.div>
-            </div>
+                </div>
           </div>
           
               <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 mt-8 lg:mt-0 lg:ml-8">
