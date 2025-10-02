@@ -191,7 +191,11 @@ const FleetDeliveryChecklist = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Generate unique order number
+      const orderNumber = `DEL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      
       const orderData = {
+        order_number: orderNumber,
         customer_name: formData.customer_name,
         customer_phone: formData.customer_phone,
         customer_email: formData.customer_email,
@@ -202,6 +206,7 @@ const FleetDeliveryChecklist = () => {
         special_instructions: formData.special_notes,
         delivery_fee: parseFloat(formData.rental_amount) || 0,
         payment_status: 'Pending',
+        status: 'Pending',
         created_by: user.id,
         // Rental duration information
         rental_duration: formData.rental_duration,
@@ -361,191 +366,158 @@ const FleetDeliveryChecklist = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
       {/* Background Pattern */}
       <div 
-        className="absolute inset-0 opacity-40"
+        className="absolute inset-0 opacity-30"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e0e7ff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }}
       ></div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      {/* Decorative corner shapes */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full -translate-y-32 translate-x-32"></div>
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-200/30 to-indigo-200/30 rounded-full translate-y-24 -translate-x-24"></div>
+      
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 relative z-10">
         {/* Enhanced Header with Glassmorphism */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-12"
         >
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 relative overflow-hidden">
+          {/* Title Section */}
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 p-6 relative overflow-hidden mb-6">
             {/* Decorative Elements */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-indigo-600/20 rounded-full -translate-y-16 translate-x-16"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-purple-400/20 to-pink-600/20 rounded-full translate-y-12 -translate-x-12"></div>
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-400/10 to-indigo-600/10 rounded-full -translate-y-12 translate-x-12"></div>
+            <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-purple-400/10 to-pink-600/10 rounded-full translate-y-10 -translate-x-10"></div>
             
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between relative z-10">
-              <div className="flex-1">
-                <div className="flex items-center mb-6">
-                  <div className="relative">
-                    <div className="p-4 bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 rounded-2xl mr-6 shadow-lg">
-                      <ClipboardList className="w-8 h-8 text-white" />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-center mb-5">
+                <div className="relative mr-4">
+                  <div className="p-3 bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 rounded-xl shadow-lg">
+                    <ClipboardList className="w-6 h-6 text-white" />
                   </div>
-            <div>
-                    <h1 className="text-5xl font-black bg-gradient-to-r from-red-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-                🚀 Fleet Delivery Checklist - LIVE UPDATE 🚀
-              </h1>
-                    <p className="text-slate-600 text-xl font-medium">
-                      Advanced delivery management and tracking system - UPDATED
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                </div>
+                
+                <div className="text-4xl mr-3">🚀</div>
+              </div>
+              
+              <div className="text-center mb-4">
+                <h1 className="text-4xl font-black leading-tight mb-2">
+                  <span className="text-purple-600">Fleet</span>
+                  <br />
+                  <span className="text-red-600">Delivery</span>
+                  <br />
+                  <span className="text-purple-600">Checklist</span>
+                </h1>
+                <div className="flex items-center justify-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                  <span className="text-slate-700 font-semibold text-sm">- LIVE UPDATE</span>
+                </div>
+              </div>
+              
+              <p className="text-slate-600 text-base font-medium text-center leading-relaxed">
+                Advanced delivery management and tracking system - UPDATED
               </p>
             </div>
-                </div>
-                
-                {/* Enhanced Quick Stats with Improved Alignment */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-8">
-                  <motion.div 
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-emerald-50 to-green-100 p-8 rounded-2xl border border-emerald-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm text-emerald-700 font-semibold mb-3">Completed</p>
-                        <motion.p 
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="text-4xl font-black text-emerald-800"
-                        >
-                          {quickStats.completed}
-                        </motion.p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg ml-4">
-                        <CheckCircle className="w-7 h-7 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-6 w-full bg-emerald-200 rounded-full h-3">
-                      <motion.div 
-                        className="bg-gradient-to-r from-emerald-500 to-green-600 h-3 rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(quickStats.completed / Math.max(quickStats.total, 1)) * 100}%` }}
-                        transition={{ duration: 1, delay: 0.5 }}
-                      />
-                    </div>
-                  </motion.div>
-                  
-                  <motion.div 
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-blue-50 to-cyan-100 p-8 rounded-2xl border border-blue-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm text-blue-700 font-semibold mb-3">In Progress</p>
-                        <motion.p 
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="text-4xl font-black text-blue-800"
-                        >
-                          {quickStats.inProgress}
-                        </motion.p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl shadow-lg ml-4">
-                        <Activity className="w-7 h-7 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-6 w-full bg-blue-200 rounded-full h-3">
-                      <motion.div 
-                        className="bg-gradient-to-r from-blue-500 to-cyan-600 h-3 rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(quickStats.inProgress / Math.max(quickStats.total, 1)) * 100}%` }}
-                        transition={{ duration: 1, delay: 0.7 }}
-                      />
-                    </div>
-                  </motion.div>
-                  
-                  <motion.div 
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-amber-50 to-yellow-100 p-8 rounded-2xl border border-amber-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm text-amber-700 font-semibold mb-3">Pending</p>
-                        <motion.p 
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="text-4xl font-black text-amber-800"
-                        >
-                          {quickStats.pending}
-                        </motion.p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-r from-amber-500 to-yellow-600 rounded-xl shadow-lg ml-4">
-                        <Clock className="w-7 h-7 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-6 w-full bg-amber-200 rounded-full h-3">
-                      <motion.div 
-                        className="bg-gradient-to-r from-amber-500 to-yellow-600 h-3 rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(quickStats.pending / Math.max(quickStats.total, 1)) * 100}%` }}
-                        transition={{ duration: 1, delay: 0.9 }}
-                      />
-                    </div>
-                  </motion.div>
-                  
-                  <motion.div 
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    className="bg-gradient-to-br from-rose-50 to-red-100 p-8 rounded-2xl border border-rose-200/50 shadow-lg hover:shadow-xl transition-all duration-300 h-40 flex flex-col justify-between"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm text-rose-700 font-semibold mb-3">Overdue</p>
-                        <motion.p 
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="text-4xl font-black text-rose-800"
-                        >
-                          {quickStats.overdue}
-                        </motion.p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-r from-rose-500 to-red-600 rounded-xl shadow-lg ml-4">
-                        <AlertTriangle className="w-7 h-7 text-white" />
-                      </div>
-                    </div>
-                    <div className="mt-6 w-full bg-rose-200 rounded-full h-3">
-                      <motion.div 
-                        className="bg-gradient-to-r from-rose-500 to-red-600 h-3 rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(quickStats.overdue / Math.max(quickStats.total, 1)) * 100}%` }}
-                        transition={{ duration: 1, delay: 1.1 }}
-                      />
-                    </div>
-                  </motion.div>
-                </div>
           </div>
-          
-              <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 mt-8 lg:mt-0 lg:ml-8">
-                <div className="flex items-center space-x-3">
-                  <DarkModeToggle />
-                  <UserDropdown />
-              </div>
-                
-                <div className="flex items-center space-x-3">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowAnalytics(!showAnalytics)}
-                    className="px-6 py-3 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-700 rounded-xl flex items-center transition-all duration-200 shadow-lg hover:shadow-xl border border-slate-200/50"
+
+          {/* Stats and Controls Section */}
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/40 p-6 relative overflow-hidden">
+            {/* Decorative Elements */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-400/10 to-indigo-600/10 rounded-full -translate-y-12 translate-x-12"></div>
+            <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-purple-400/10 to-pink-600/10 rounded-full translate-y-10 -translate-x-10"></div>
+            
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between relative z-10 gap-6">
+              <div className="flex-1">
+                {/* Enhanced Quick Stats with Improved Alignment */}
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                  <motion.div 
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 h-24 flex flex-col justify-center text-center text-white"
                   >
-                    <BarChart3 className="w-5 h-5 mr-2" />
-                    Analytics
-                  </motion.button>
+                    <p className="text-green-100 font-semibold text-xs mb-1">Complete</p>
+                    <motion.p 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="text-3xl font-bold text-white"
+                    >
+                      {quickStats.completed}
+                    </motion.p>
+                  </motion.div>
                   
-                  <motion.button
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleCreateChecklist}
-                    className="px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white rounded-xl flex items-center transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 font-semibold"
+                  <motion.div 
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    className="bg-gradient-to-br from-blue-500 to-cyan-600 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 h-24 flex flex-col justify-center text-center text-white"
                   >
-                    <Plus className="w-5 h-5 mr-2" />
-                    Create Order
-                  </motion.button>
+                    <p className="text-blue-100 font-semibold text-xs mb-1">In Progress</p>
+                    <motion.p 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="text-3xl font-bold text-white"
+                    >
+                      {quickStats.inProgress}
+                    </motion.p>
+                  </motion.div>
+                  
+                  <motion.div 
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    className="bg-gradient-to-br from-yellow-500 to-amber-600 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 h-24 flex flex-col justify-center text-center text-white"
+                  >
+                    <p className="text-yellow-100 font-semibold text-xs mb-1">Pending</p>
+                    <motion.p 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="text-3xl font-bold text-white"
+                    >
+                      {quickStats.pending}
+                    </motion.p>
+                  </motion.div>
+                  
+                  <motion.div 
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    className="bg-gradient-to-br from-pink-500 to-rose-600 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 h-24 flex flex-col justify-center text-center text-white"
+                  >
+                    <p className="text-pink-100 font-semibold text-xs mb-1">Overdue</p>
+                    <motion.p 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="text-3xl font-bold text-white"
+                    >
+                      {quickStats.overdue}
+                    </motion.p>
+                  </motion.div>
+
+                  {/* Alert Card */}
+                  <motion.div 
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    className="bg-gradient-to-br from-red-500 to-red-600 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 h-24 flex items-center justify-center"
+                  >
+                    <AlertTriangle className="w-6 h-6 text-white" />
+                  </motion.div>
+                </div>
               </div>
-            </div>
+          
+              <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowAnalytics(!showAnalytics)}
+                  className="px-5 py-2.5 bg-white/95 backdrop-blur-sm hover:bg-white text-slate-700 rounded-lg flex items-center transition-all duration-300 shadow-md hover:shadow-lg border border-slate-200/60 font-semibold text-sm min-w-[120px] justify-center"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Analytics
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleCreateChecklist}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white rounded-lg flex items-center transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm min-w-[150px] justify-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Order
+                </motion.button>
+              </div>
           </div>
         </div>
         </motion.div>
@@ -555,7 +527,7 @@ const FleetDeliveryChecklist = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/30 mb-8 relative overflow-hidden"
+          className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/30 mb-12 relative overflow-hidden"
         >
           {/* Decorative Background */}
           <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/10 to-indigo-600/10 rounded-full -translate-y-10 translate-x-10"></div>
@@ -570,7 +542,7 @@ const FleetDeliveryChecklist = () => {
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                   <input
                     type="text"
-                      placeholder="Search orders, customers, vehicles..."
+                      placeholder="Search orders, customers, vehicle IDs..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-12 pr-4 py-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 w-full bg-white/80 backdrop-blur-sm focus:bg-white transition-all duration-300 shadow-lg focus:shadow-xl"
@@ -916,7 +888,7 @@ const FleetDeliveryChecklist = () => {
                             </h4>
                             <div className="space-y-2">
                               <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">Number:</span>
+                                <span className="text-sm text-gray-600">ID:</span>
                                 <span className="text-sm font-medium">{delivery.vehicle_number || 'Unassigned'}</span>
                               </div>
                         {delivery.vehicle_make && delivery.vehicle_model && (
@@ -1199,19 +1171,20 @@ const FleetDeliveryChecklist = () => {
                           <option value="">Select Fleet Type</option>
                           <option value="sedan">Sedan</option>
                           <option value="suv">SUV</option>
-                          <option value="truck">Truck</option>
-                          <option value="van">Van</option>
+                          <option value="hatchback">Hatchback</option>
+                          <option value="hybrid">Hybrid</option>
+                          <option value="ev">EV</option>
                           <option value="luxury">Luxury</option>
                         </select>
                       </div>
                       <div>
-                        <Label htmlFor="vehicle_number">Vehicle Number *</Label>
+                        <Label htmlFor="vehicle_number">Vehicle ID *</Label>
                         <Input
                           id="vehicle_number"
                           value={formData.vehicle_number}
                           onChange={(e) => setFormData({...formData, vehicle_number: e.target.value})}
                           required
-                          placeholder="Enter vehicle number"
+                          placeholder="Enter vehicle ID"
                         />
                       </div>
                       <div>
@@ -1235,11 +1208,12 @@ const FleetDeliveryChecklist = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="vehicle_plate">License Plate</Label>
+                        <Label htmlFor="vehicle_plate">License Plate *</Label>
                         <Input
                           id="vehicle_plate"
                           value={formData.vehicle_plate}
                           onChange={(e) => setFormData({...formData, vehicle_plate: e.target.value})}
+                          required
                           placeholder="Enter license plate number"
                         />
                       </div>

@@ -583,104 +583,21 @@ const TaskManagement = () => {
   const filteredTasks = getFilteredTasks();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f1f5f9' fill-opacity='0.4'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat'
-        }}></div>
-      </div>
-      
-      <div className="ml-80 p-6 relative z-10">
-        {/* Enhanced Header with Modern Design */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-white via-blue-50 to-indigo-50 rounded-3xl shadow-2xl p-8 mb-8 border border-gray-100 relative overflow-hidden"
-        >
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000' fill-opacity='0.1'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20s-20 8.954-20 20 8.954 20 20 20 20-8.954 20-20zm-20 18c-9.925 0-18-8.075-18-18s8.075-18 18-18 18 8.075 18 18-8.075 18-18 18z'/%3E%3C/g%3E%3C/svg%3E")`,
-              backgroundRepeat: 'repeat'
-            }}></div>
-          </div>
-          
-          <div className="flex items-center justify-between relative z-10">
-            <div className="flex items-center space-x-6">
-              <div className="relative group">
-                <motion.div 
-                  className="p-5 bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 rounded-3xl shadow-2xl"
-                  whileHover={{ scale: 1.05, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  <CheckSquare className="w-12 h-12 text-white" />
-                </motion.div>
-                <motion.div 
-                  className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg"
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Star className="w-4 h-4 text-white" />
-                </motion.div>
-                <div className="absolute -bottom-1 -left-1 w-6 h-6 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-3 h-3 text-white" />
-                </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      {/* Header Section */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
+                <CheckSquare className="w-6 h-6 text-white" />
               </div>
-              
               <div>
-                <motion.h1 
-                  className="text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-3"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  Task Management
-                </motion.h1>
-                <motion.p 
-                  className="text-xl text-gray-600 mb-4"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  Create, assign, and track tasks efficiently across your team
-                </motion.p>
-                
-                <div className="flex items-center space-x-6">
-                  <motion.div 
-                    className="flex items-center space-x-3 px-4 py-2 bg-green-100 rounded-full"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-green-700">System Online</span>
-                  </motion.div>
-                  
-                  <motion.div 
-                    className="flex items-center space-x-3 px-4 py-2 bg-blue-100 rounded-full"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    <Users className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-700">{allUsers.length} Team Members</span>
-                  </motion.div>
-                  
-                  <motion.div 
-                    className="flex items-center space-x-3 px-4 py-2 bg-purple-100 rounded-full"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.6 }}
-                  >
-                    <Rocket className="w-4 h-4 text-purple-600" />
-                    <span className="text-sm font-medium text-purple-700">High Performance</span>
-                  </motion.div>
-                </div>
+                <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
+                <p className="text-sm text-gray-600">Create, assign, and track tasks efficiently across your team</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-3">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -689,7 +606,7 @@ const TaskManagement = () => {
                   onClick={handleRefresh}
                   disabled={refreshing}
                   variant="outline"
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300"
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                   Refresh
@@ -701,9 +618,9 @@ const TaskManagement = () => {
               >
                 <Button
                   onClick={() => setShowForm(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                   New Task
                 </Button>
               </motion.div>
@@ -711,120 +628,77 @@ const TaskManagement = () => {
               <UserDropdown />
             </div>
           </div>
-        </motion.div>
+        </div>
+      </div>
 
-        {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            className="group bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-blue-100"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Total Tasks</p>
-                <p className="text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{stats.total}</p>
-                <p className="text-xs text-gray-500 mt-1">All tasks in system</p>
-              </div>
-              <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl group-hover:from-blue-600 group-hover:to-blue-700 transition-all duration-300 shadow-lg">
-                <ClipboardList className="w-6 h-6 text-white" />
-              </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Enhanced Header with Stats */}
+        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl p-8 text-white shadow-xl mb-8">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Task Management</h1>
+              <p className="text-blue-100 text-lg">
+                Manage and monitor your team's tasks with comprehensive analytics
+              </p>
             </div>
-            <div className="mt-4 h-1 bg-blue-100 rounded-full overflow-hidden">
+            <div className="flex items-center gap-3">
               <motion.div 
-                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min((stats.total / 10) * 100, 100)}%` }}
-                transition={{ delay: 0.5, duration: 1 }}
-              />
+                className="flex items-center space-x-3 px-4 py-2 bg-white/20 rounded-full"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">System Online</span>
+              </motion.div>
             </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            className="group bg-gradient-to-br from-white to-green-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-green-100"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">My Tasks</p>
-                <p className="text-3xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">{stats.myTasks}</p>
-                <p className="text-xs text-gray-500 mt-1">Assigned to you</p>
-              </div>
-              <div className="p-4 bg-gradient-to-r from-green-500 to-green-600 rounded-xl group-hover:from-green-600 group-hover:to-green-700 transition-all duration-300 shadow-lg">
-                <Target className="w-6 h-6 text-white" />
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Total Tasks</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                </div>
+                <ClipboardList className="w-6 h-6 text-blue-200" />
               </div>
             </div>
-            <div className="mt-4 h-1 bg-green-100 rounded-full overflow-hidden">
-              <motion.div 
-                className="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min((stats.myTasks / 5) * 100, 100)}%` }}
-                transition={{ delay: 0.6, duration: 1 }}
-              />
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            className="group bg-gradient-to-br from-white to-purple-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-purple-100"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Assigned by Me</p>
-                <p className="text-3xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">{stats.assignedByMe}</p>
-                <p className="text-xs text-gray-500 mt-1">Created by you</p>
-              </div>
-              <div className="p-4 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl group-hover:from-purple-600 group-hover:to-purple-700 transition-all duration-300 shadow-lg">
-                <Users className="w-6 h-6 text-white" />
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">My Tasks</p>
+                  <p className="text-2xl font-bold">{stats.myTasks}</p>
+                </div>
+                <Target className="w-6 h-6 text-green-200" />
               </div>
             </div>
-            <div className="mt-4 h-1 bg-purple-100 rounded-full overflow-hidden">
-              <motion.div 
-                className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min((stats.assignedByMe / 5) * 100, 100)}%` }}
-                transition={{ delay: 0.7, duration: 1 }}
-              />
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            className="group bg-gradient-to-br from-white to-orange-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-orange-100"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">In Progress</p>
-                <p className="text-3xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">{stats.inProgress}</p>
-                <p className="text-xs text-gray-500 mt-1">Currently active</p>
-              </div>
-              <div className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl group-hover:from-orange-600 group-hover:to-orange-700 transition-all duration-300 shadow-lg">
-                <Timer className="w-6 h-6 text-white" />
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Assigned by Me</p>
+                  <p className="text-2xl font-bold">{stats.assignedByMe}</p>
+                </div>
+                <Users className="w-6 h-6 text-purple-200" />
               </div>
             </div>
-            <div className="mt-4 h-1 bg-orange-100 rounded-full overflow-hidden">
-              <motion.div 
-                className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min((stats.inProgress / 3) * 100, 100)}%` }}
-                transition={{ delay: 0.8, duration: 1 }}
-              />
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">In Progress</p>
+                  <p className="text-2xl font-bold">{stats.inProgress}</p>
+                </div>
+                <Timer className="w-6 h-6 text-orange-200" />
+              </div>
             </div>
-          </motion.div>
+          </div>
         </div>
 
+
         {/* Tab Navigation */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
             {[
               { id: 'all', label: 'All Tasks', icon: ClipboardList, count: stats.total },
@@ -858,14 +732,10 @@ const TaskManagement = () => {
         </div>
 
         {/* Enhanced Filters */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-white to-gray-50 rounded-2xl shadow-lg p-8 mb-8 border border-gray-100"
-        >
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
                 <Filter className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -876,7 +746,7 @@ const TaskManagement = () => {
             <Button
               onClick={() => setFilters({ status: '', priority: '', assigned_to: '', department: '', search: '' })}
               variant="outline"
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Clear All</span>
@@ -891,7 +761,7 @@ const TaskManagement = () => {
                 placeholder="Search tasks, users..."
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-all duration-300"
+                className="pl-10 w-full rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-300"
               />
             </div>
             
@@ -900,7 +770,7 @@ const TaskManagement = () => {
               <select
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 bg-white transition-all duration-300 appearance-none cursor-pointer"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all duration-300 appearance-none cursor-pointer"
               >
                 <option value="">All Status</option>
                 {statuses.map(status => (
@@ -917,7 +787,7 @@ const TaskManagement = () => {
               <select
                 value={filters.department}
                 onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 bg-white transition-all duration-300 appearance-none cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all duration-300 appearance-none cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
                 disabled={userProfile?.role !== 'admin' && userProfile?.role !== 'manager'}
               >
                 <option value="">All Departments</option>
@@ -938,7 +808,7 @@ const TaskManagement = () => {
               <select
                 value={filters.priority}
                 onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 bg-white transition-all duration-300 appearance-none cursor-pointer"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all duration-300 appearance-none cursor-pointer"
               >
                 <option value="">All Priorities</option>
                 {priorities.map(priority => (
@@ -1011,7 +881,7 @@ const TaskManagement = () => {
               </div>
             </motion.div>
           )}
-        </motion.div>
+        </div>
 
         {/* Task Form Modal */}
         {showForm && (

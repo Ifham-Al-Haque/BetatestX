@@ -55,7 +55,7 @@ class DeliveryService {
   async getDeliveryOverview(filters = {}) {
     try {
       let query = supabase
-        .from('delivery_overview')
+        .from('delivery_orders')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -554,7 +554,7 @@ class DeliveryService {
       const today = new Date().toISOString().split('T')[0];
       
       const { data, error } = await supabase
-        .from('delivery_overview')
+        .from('delivery_orders')
         .select('*')
         .gte('created_at', today)
         .order('created_at', { ascending: false });
@@ -574,7 +574,7 @@ class DeliveryService {
       const future = new Date(now.getTime() + (hours * 60 * 60 * 1000));
       
       const { data, error } = await supabase
-        .from('delivery_overview')
+        .from('delivery_orders')
         .select('*')
         .gte('estimated_delivery_time', now.toISOString())
         .lte('estimated_delivery_time', future.toISOString())
