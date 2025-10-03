@@ -71,6 +71,8 @@ const FleetDeliveryChecklist = () => {
   const [deliveryChecklists, setDeliveryChecklists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingDelivery, setEditingDelivery] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -104,7 +106,7 @@ const FleetDeliveryChecklist = () => {
     custom_duration: '',
     location: '',
     special_notes: '',
-    priority: 'medium',
+    priority: 'Medium',
     delivery_date: '',
     driver_name: '',
     driver_phone: '',
@@ -188,43 +190,105 @@ const FleetDeliveryChecklist = () => {
     setShowCreateModal(true);
   };
 
+  const handleEdit = (delivery) => {
+    setEditingDelivery(delivery);
+    setFormData({
+      customer_name: delivery.customer_name || '',
+      customer_phone: delivery.customer_phone || '',
+      customer_email: delivery.customer_email || '',
+      location: delivery.pickup_address || '',
+      special_notes: delivery.special_instructions || '',
+      priority: delivery.priority || 'Medium',
+      delivery_date: delivery.estimated_delivery_time ? new Date(delivery.estimated_delivery_time).toISOString().split('T')[0] : '',
+      driver_name: delivery.driver_name || '',
+      driver_phone: delivery.driver_phone || '',
+      driver_license: delivery.driver_license || '',
+      vehicle_number: delivery.vehicle_number || '',
+      vehicle_make: delivery.vehicle_make || '',
+      vehicle_model: delivery.vehicle_model || '',
+      vehicle_plate: delivery.vehicle_plate || '',
+      rental_amount: delivery.delivery_fee || '',
+      confirm_amount: delivery.delivery_fee || '',
+      rental_duration: delivery.rental_duration || '',
+      custom_duration: delivery.custom_duration || '',
+      desired_fleet: delivery.order_type || 'Standard'
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleDelete = (delivery) => {
+    setDeleteConfirm(delivery);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await deliveryService.deleteOrder(deleteConfirm.id);
+      success('Delivery order deleted successfully');
+      setDeleteConfirm(null);
+      loadDeliveryChecklistData();
+    } catch (error) {
+      console.error('Error deleting delivery order:', error);
+      showError('Failed to delete delivery order');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Generate unique order number
-      const orderNumber = `DEL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      // Generate unique order number only for new orders
+      const orderNumber = editingDelivery ? editingDelivery.order_number : `DEL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
       
+      // Create order data with only required fields
       const orderData = {
         order_number: orderNumber,
-        customer_name: formData.customer_name,
-        customer_phone: formData.customer_phone,
-        customer_email: formData.customer_email,
-        pickup_address: formData.location,
-        delivery_address: formData.location, // Same as pickup for now
+        customer_name: formData.customer_name || 'Unknown Customer',
+        customer_phone: formData.customer_phone || null,
+        customer_email: formData.customer_email || null,
+        pickup_address: formData.location || 'No address provided',
+        delivery_address: formData.location || 'No address provided',
         order_type: 'Standard',
-        priority: formData.priority,
-        special_instructions: formData.special_notes,
-        delivery_fee: parseFloat(formData.rental_amount) || 0,
+        priority: ['Low', 'Medium', 'High', 'Urgent'].includes(formData.priority) ? 
+          formData.priority : 'Medium',
+        special_instructions: formData.special_notes || null,
+        delivery_fee: parseFloat(formData.confirm_amount || formData.rental_amount) || 0,
         payment_status: 'Pending',
         status: 'Pending',
-        created_by: user.id,
-        // Rental duration information
-        rental_duration: formData.rental_duration,
-        custom_duration: formData.custom_duration,
+        created_by: user?.id || null,
         // Driver information (manually entered)
-        driver_name: formData.driver_name,
-        driver_phone: formData.driver_phone,
-        driver_license: formData.driver_license,
+        driver_name: formData.driver_name || null,
+        driver_phone: formData.driver_phone || null,
+        driver_license: formData.driver_license || null,
         // Vehicle information (manually entered)
-        vehicle_number: formData.vehicle_number,
-        vehicle_make: formData.vehicle_make,
-        vehicle_model: formData.vehicle_model,
-        vehicle_plate: formData.vehicle_plate
+        vehicle_number: formData.vehicle_number || null,
+        vehicle_make: formData.vehicle_make || null,
+        vehicle_model: formData.vehicle_model || null,
+        vehicle_plate: formData.vehicle_plate || null,
+        // Rental information
+        rental_duration: formData.rental_duration || null,
+        custom_duration: formData.custom_duration || null
       };
 
-      await deliveryService.createOrder(orderData);
-      success('Delivery order created successfully');
+      // Remove any null or undefined values that might cause issues
+      Object.keys(orderData).forEach(key => {
+        if (orderData[key] === null || orderData[key] === undefined || orderData[key] === '') {
+          delete orderData[key];
+        }
+      });
+
+      let result;
+      if (editingDelivery) {
+        console.log('About to update delivery order with:', orderData);
+        result = await deliveryService.updateOrder(editingDelivery.id, orderData);
+        console.log('Order update result:', result);
+        success('Delivery order updated successfully');
+      } else {
+        console.log('About to call deliveryService.createOrder with:', orderData);
+        result = await deliveryService.createOrder(orderData);
+        console.log('Order creation result:', result);
+        success('Delivery order created successfully');
+      }
       setShowCreateModal(false);
+      setEditingDelivery(null);
       setFormData({
         customer_name: '',
         customer_phone: '',
@@ -236,7 +300,7 @@ const FleetDeliveryChecklist = () => {
         custom_duration: '',
         location: '',
         special_notes: '',
-        priority: 'medium',
+        priority: 'Medium',
         delivery_date: '',
         driver_name: '',
         driver_phone: '',
@@ -249,7 +313,13 @@ const FleetDeliveryChecklist = () => {
       loadDeliveryChecklistData();
     } catch (error) {
       console.error('Error creating delivery order:', error);
-      showError('Failed to create delivery order');
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      showError(`Failed to create delivery order: ${error.message}`);
     }
   };
 
@@ -265,9 +335,10 @@ const FleetDeliveryChecklist = () => {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
+      case 'High': return 'bg-red-100 text-red-800';
+      case 'Urgent': return 'bg-red-200 text-red-900';
+      case 'Medium': return 'bg-yellow-100 text-yellow-800';
+      case 'Low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -574,9 +645,10 @@ const FleetDeliveryChecklist = () => {
                       className="px-4 py-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 bg-white/80 backdrop-blur-sm focus:bg-white transition-all duration-300 shadow-lg focus:shadow-xl appearance-none pr-10 min-w-[140px]"
                 >
                   <option value="">All Priorities</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                  <option value="Urgent">Urgent</option>
                 </select>
                     <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -732,7 +804,7 @@ const FleetDeliveryChecklist = () => {
         )}
 
         {/* Enhanced Delivery Cards with Premium Design */}
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8' : 'space-y-6'}>
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 xl:grid-cols-2 gap-8' : 'space-y-6'}>
           <AnimatePresence>
             {sortedData.map((delivery, index) => {
             const StatusIcon = getStatusIcon(delivery.status);
@@ -758,9 +830,9 @@ const FleetDeliveryChecklist = () => {
                   <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400/10 to-indigo-600/10 rounded-full -translate-y-10 translate-x-10 group-hover:scale-110 transition-transform duration-500"></div>
                   <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-purple-400/10 to-pink-600/10 rounded-full translate-y-8 -translate-x-8 group-hover:scale-110 transition-transform duration-500"></div>
                   {/* Enhanced Card Header */}
-                  <div className="p-8 border-b border-slate-200/50 relative z-10">
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="flex items-center space-x-5">
+                  <div className="p-6 border-b border-slate-200/50 relative z-10">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-4">
                         <div className="relative">
                           <input
                             type="checkbox"
@@ -817,18 +889,32 @@ const FleetDeliveryChecklist = () => {
                         </motion.span>
                         
                         <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setExpandedCard(isExpanded ? null : delivery.id)}
-                          className="p-3 hover:bg-slate-100 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                          className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+                            isExpanded 
+                              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
                         >
-                          {isExpanded ? <ChevronDown className="w-5 h-5 text-slate-600" /> : <ChevronRight className="w-5 h-5 text-slate-600" />}
+                          {isExpanded ? (
+                            <>
+                              <ChevronDown className="w-4 h-4" />
+                              <span className="text-sm font-medium">Hide Details</span>
+                            </>
+                          ) : (
+                            <>
+                              <ChevronRight className="w-4 h-4" />
+                              <span className="text-sm font-medium">View Details</span>
+                            </>
+                          )}
                         </motion.button>
                       </div>
                     </div>
                     
                     {/* Enhanced Progress Bar */}
-                    <div className="mb-6">
+                    <div className="mb-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-bold text-slate-700">Progress</span>
                         <span className="text-lg font-black text-slate-900">{progress}%</span>
@@ -844,29 +930,83 @@ const FleetDeliveryChecklist = () => {
                   </div>
                   
                     {/* Enhanced Quick Info */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <motion.div 
                         whileHover={{ scale: 1.05, y: -2 }}
-                        className="text-center p-4 bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl border border-emerald-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                        className="text-center p-3 bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl border border-emerald-200/50 shadow-lg hover:shadow-xl transition-all duration-300"
                       >
-                        <DollarSign className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-                        <p className="text-xs text-emerald-700 font-semibold mb-1">Value</p>
-                        <p className="text-xl font-black text-emerald-800">${delivery.delivery_fee || 0}</p>
+                        <DollarSign className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+                        <p className="text-xs text-emerald-700 font-semibold mb-1">Confirmed Amount</p>
+                        <p className="text-lg font-black text-emerald-800">AED {delivery.delivery_fee || 0}</p>
                       </motion.div>
                       <motion.div 
                         whileHover={{ scale: 1.05, y: -2 }}
-                        className={`text-center p-4 rounded-2xl border shadow-lg hover:shadow-xl transition-all duration-300 ${
+                        className={`text-center p-3 rounded-2xl border shadow-lg hover:shadow-xl transition-all duration-300 ${
                           overdue 
                             ? 'bg-gradient-to-br from-red-50 to-rose-100 border-red-200/50' 
                             : 'bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200/50'
                         }`}
                       >
-                        <Clock className={`w-6 h-6 mx-auto mb-2 ${overdue ? 'text-red-600' : 'text-blue-600'}`} />
-                        <p className={`text-xs font-semibold mb-1 ${overdue ? 'text-red-700' : 'text-blue-700'}`}>Days</p>
-                        <p className={`text-xl font-black ${overdue ? 'text-red-800' : 'text-blue-800'}`}>
-                          {daysSince}d
+                        <Clock className={`w-5 h-5 mx-auto mb-1 ${overdue ? 'text-red-600' : 'text-blue-600'}`} />
+                        <p className={`text-xs font-semibold mb-1 ${overdue ? 'text-red-700' : 'text-blue-700'}`}>Duration</p>
+                        <p className={`text-lg font-black ${overdue ? 'text-red-800' : 'text-blue-800'}`}>
+                          {delivery.rental_duration || delivery.custom_duration || 'N/A'}
                         </p>
                       </motion.div>
+                    </div>
+
+                    {/* Additional Delivery Info */}
+                    <div className="mt-4 space-y-3">
+                      {/* Vehicle Info */}
+                      {(delivery.vehicle_make || delivery.vehicle_model || delivery.vehicle_plate) && (
+                        <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200/50">
+                          <Truck className="w-5 h-5 text-purple-600" />
+                          <div className="flex-1">
+                            <p className="text-xs text-purple-700 font-semibold">Vehicle</p>
+                            <p className="text-sm font-bold text-purple-900">
+                              {delivery.vehicle_make && delivery.vehicle_model 
+                                ? `${delivery.vehicle_make} ${delivery.vehicle_model}`
+                                : delivery.vehicle_make || delivery.vehicle_model || 'N/A'
+                              }
+                            </p>
+                            {delivery.vehicle_plate && (
+                              <p className="text-xs text-purple-600 font-medium">License: {delivery.vehicle_plate}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Delivery Date & Time */}
+                      {delivery.estimated_delivery_time && (
+                        <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border border-orange-200/50">
+                          <Calendar className="w-5 h-5 text-orange-600" />
+                          <div className="flex-1">
+                            <p className="text-xs text-orange-700 font-semibold">Delivery Time</p>
+                            <p className="text-sm font-bold text-orange-900">
+                              {new Date(delivery.estimated_delivery_time).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Location */}
+                      {delivery.pickup_address && (
+                        <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl border border-green-200/50">
+                          <MapPin className="w-5 h-5 text-green-600" />
+                          <div className="flex-1">
+                            <p className="text-xs text-green-700 font-semibold">Location</p>
+                            <p className="text-sm font-bold text-green-900 truncate">
+                              {delivery.pickup_address}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                   
@@ -968,14 +1108,14 @@ const FleetDeliveryChecklist = () => {
                   </AnimatePresence>
                   
                   {/* Enhanced Action Buttons */}
-                  <div className="p-8 border-t border-slate-200/50 relative z-10">
-                  <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
+                  <div className="p-6 border-t border-slate-200/50 relative z-10">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                      <div className="flex flex-wrap items-center gap-3">
                         <motion.button
                           whileHover={{ scale: 1.05, y: -2 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => handleStatusUpdate(delivery.id, 'in_progress')}
-                          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl hover:from-blue-600 hover:to-cyan-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl flex items-center"
+                          className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl flex items-center"
                         >
                           <Play className="w-4 h-4 mr-2" />
                           Start
@@ -984,7 +1124,7 @@ const FleetDeliveryChecklist = () => {
                           whileHover={{ scale: 1.05, y: -2 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => handleStatusUpdate(delivery.id, 'completed')}
-                          className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl flex items-center"
+                          className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg hover:from-emerald-600 hover:to-green-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl flex items-center"
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Complete
@@ -992,10 +1132,20 @@ const FleetDeliveryChecklist = () => {
                         <motion.button
                           whileHover={{ scale: 1.05, y: -2 }}
                           whileTap={{ scale: 0.95 }}
-                          className="px-6 py-3 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-xl hover:from-slate-600 hover:to-slate-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl flex items-center"
+                          onClick={() => handleEdit(delivery)}
+                          className="px-4 py-2 bg-gradient-to-r from-slate-500 to-slate-600 text-white rounded-lg hover:from-slate-600 hover:to-slate-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl flex items-center"
                         >
                           <Eye className="w-4 h-4 mr-2" />
-                          View
+                          Edit
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleDelete(delivery)}
+                          className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl flex items-center"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
                         </motion.button>
                     </div>
                     
@@ -1091,10 +1241,15 @@ const FleetDeliveryChecklist = () => {
             >
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">Create Delivery Order</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {editingDelivery ? 'Edit Delivery Order' : 'Create Delivery Order'}
+                  </h2>
                   <Button
                     variant="outline"
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setEditingDelivery(null);
+                    }}
                   >
                     <XCircle className="w-4 h-4" />
                   </Button>
@@ -1328,10 +1483,10 @@ const FleetDeliveryChecklist = () => {
                           onChange={(e) => setFormData({...formData, priority: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="urgent">Urgent</option>
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                          <option value="Urgent">Urgent</option>
                         </select>
                       </div>
                       <div>
@@ -1369,15 +1524,65 @@ const FleetDeliveryChecklist = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setEditingDelivery(null);
+                    }}
                   >
                     Cancel
                   </Button>
                   <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                    Create Delivery Order
+                    {editingDelivery ? 'Update Delivery Order' : 'Create Delivery Order'}
                   </Button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+            >
+              <div className="flex items-center mb-4">
+                <div className="p-3 bg-red-100 rounded-full mr-4">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Delivery Order</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700">
+                  Are you sure you want to delete the delivery order <strong>{deleteConfirm.order_number}</strong>?
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Customer: {deleteConfirm.customer_name}
+                </p>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirm(null)}
+                  className="px-4 py-2"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Delete Order
+                </Button>
+              </div>
             </motion.div>
           </div>
         )}

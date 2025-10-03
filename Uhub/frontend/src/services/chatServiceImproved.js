@@ -336,6 +336,22 @@ class ChatServiceImproved {
 
       if (error) {
         console.error('Error updating user status:', error);
+        
+        // Handle specific error cases
+        if (error.code === 'PGRST116' || 
+            error.status === 404 || 
+            error.code === '42P01' || 
+            error.message?.includes('does not exist') ||
+            error.message?.includes('relation') ||
+            error.code === 'PGRST200') {
+          console.warn('User status table not found, skipping status update');
+          return;
+        }
+        
+        if (error.code === 'PGRST301' || error.status === 403) {
+          console.warn('Access denied to user status table, skipping status update');
+          return;
+        }
       } else {
         console.log('✅ User status updated');
       }
@@ -347,30 +363,63 @@ class ChatServiceImproved {
   // Get online users
   async getOnlineUsers() {
     try {
-      const { data: onlineUsers, error } = await supabase
+      // First try to get user status data
+      const { data: userStatusData, error: statusError } = await supabase
         .from('user_status')
-        .select(`
-          user_id,
-          status,
-          last_seen,
-          users!inner(
-            id,
-            auth_user_id,
-            full_name,
-            email,
-            avatar_url,
-            department
-          )
-        `)
+        .select('user_id, status, last_seen')
         .eq('status', 'online')
         .order('last_seen', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching online users:', error);
+      if (statusError) {
+        console.error('Error fetching user status:', statusError);
+        
+        // Handle specific error cases
+        if (statusError.code === 'PGRST116' || 
+            statusError.status === 404 || 
+            statusError.code === '42P01' || 
+            statusError.message?.includes('does not exist') ||
+            statusError.message?.includes('relation') ||
+            statusError.code === 'PGRST200') {
+          console.warn('User status table not found, returning empty array');
+          return [];
+        }
+        
+        if (statusError.code === 'PGRST301' || statusError.status === 403) {
+          console.warn('Access denied to user status table, returning empty array');
+          return [];
+        }
+        
         return [];
       }
 
-      return onlineUsers || [];
+      if (!userStatusData || userStatusData.length === 0) {
+        return [];
+      }
+
+      // Get user details for each online user
+      const userIds = userStatusData.map(status => status.user_id);
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, auth_user_id, full_name, email, avatar_url, department')
+        .in('auth_user_id', userIds);
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+        return [];
+      }
+
+      // Combine the data
+      const onlineUsers = userStatusData.map(status => {
+        const user = usersData?.find(u => u.auth_user_id === status.user_id);
+        return {
+          user_id: status.user_id,
+          status: status.status,
+          last_seen: status.last_seen,
+          users: user || null
+        };
+      }).filter(item => item.users !== null);
+
+      return onlineUsers;
     } catch (error) {
       console.error('Error getting online users:', error);
       return [];
@@ -396,6 +445,82 @@ class ChatServiceImproved {
       }
     } catch (error) {
       console.error('Error marking messages as read:', error);
+    }
+  }
+
+  // Subscribe to new conversations
+  async subscribeToNewConversations(callback) {
+    try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        console.warn('User not authenticated, skipping conversation subscription');
+        return null;
+      }
+
+      const channel = supabase
+        .channel('new-conversations')
+        .on('postgres_changes', 
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'conversations'
+          }, 
+          (payload) => {
+            console.log('💬 New conversation created:', payload);
+            callback();
+          }
+        )
+        .on('postgres_changes', 
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'conversation_participants',
+            filter: `user_id=eq.${currentUser.id}`
+          }, 
+          (payload) => {
+            console.log('👥 User added to conversation:', payload);
+            callback();
+          }
+        )
+        .subscribe();
+
+      this.subscriptions.set('new-conversations', channel);
+      return channel;
+    } catch (error) {
+      console.error('Error setting up new conversations subscription:', error);
+      return null;
+    }
+  }
+
+  // Subscribe to user status changes
+  async subscribeToUserStatus(callback) {
+    try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        console.warn('User not authenticated, skipping user status subscription');
+        return null;
+      }
+
+      const channel = supabase
+        .channel('user-status-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'user_status'
+          }, 
+          (payload) => {
+            console.log('👤 User status changed:', payload);
+            callback(payload);
+          }
+        )
+        .subscribe();
+
+      this.subscriptions.set('user-status-changes', channel);
+      return channel;
+    } catch (error) {
+      console.error('Error setting up user status subscription:', error);
+      return null;
     }
   }
 

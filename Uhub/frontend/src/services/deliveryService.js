@@ -107,16 +107,33 @@ class DeliveryService {
   // Create new delivery order
   async createOrder(orderData) {
     try {
+      console.log('Creating delivery order with data:', JSON.stringify(orderData, null, 2));
+      
       const { data, error } = await supabase
         .from('delivery_orders')
         .insert([orderData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: error
+        });
+        throw error;
+      }
+      
+      console.log('Order created successfully:', data);
       return data;
     } catch (error) {
       console.error('Error creating delivery order:', error);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Error details:', error.details);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
       throw error;
     }
   }
@@ -135,6 +152,46 @@ class DeliveryService {
       return data;
     } catch (error) {
       console.error('Error updating delivery order:', error);
+      throw error;
+    }
+  }
+
+  // Update order status
+  async updateOrderStatus(id, status) {
+    try {
+      console.log('Updating order status:', { id, status });
+      
+      // Validate status values
+      const validStatuses = ['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'];
+      if (!validStatuses.includes(status)) {
+        throw new Error(`Invalid status: ${status}. Valid statuses are: ${validStatuses.join(', ')}`);
+      }
+      
+      const { data, error } = await supabase
+        .from('delivery_orders')
+        .update({ 
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error updating order status:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: error
+        });
+        throw error;
+      }
+      
+      console.log('Order status updated successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Error updating order status:', error);
       throw error;
     }
   }
