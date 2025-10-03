@@ -54,33 +54,126 @@ class DeliveryService {
   // Get delivery overview with assignments
   async getDeliveryOverview(filters = {}) {
     try {
+      console.log('Fetching delivery overview from fleet_delivery_checklists...');
+      
       let query = supabase
-        .from('delivery_orders')
-        .select('*')
+        .from('fleet_delivery_checklists')
+        .select(`
+          *,
+          rental_agreements!fleet_delivery_checklists_rental_agreement_id_fkey(
+            id, customer_name, customer_phone, customer_email,
+            rental_start_date, rental_end_date, total_amount,
+            vehicle_id, driver_id, status, priority, special_requirements
+          )
+        `)
         .order('created_at', { ascending: false });
 
       // Apply filters
       if (filters.status) {
-        query = query.eq('status', filters.status);
+        query = query.eq('rental_agreements.status', filters.status);
       }
       if (filters.priority) {
-        query = query.eq('priority', filters.priority);
-      }
-      if (filters.driver_id) {
-        query = query.eq('driver_id', filters.driver_id);
+        query = query.eq('rental_agreements.priority', filters.priority);
       }
       if (filters.search) {
-        query = query.or(`order_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,driver_name.ilike.%${filters.search}%`);
+        query = query.or(`rental_agreements.customer_name.ilike.%${filters.search}%,rental_agreements.customer_phone.ilike.%${filters.search}%`);
       }
 
       const { data, error } = await query;
       
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching fleet delivery checklists:', error);
+        throw error;
+      }
+      
+      console.log('Raw data from fleet_delivery_checklists:', data);
+      
+      // Transform the data to match UI expectations
+      const transformedData = data.map(item => ({
+        id: item.id,
+        order_number: `DEL-${item.id.slice(-8).toUpperCase()}`,
+        customer_name: item.rental_agreements?.customer_name || 'Unknown Customer',
+        customer_phone: item.rental_agreements?.customer_phone || '',
+        customer_email: item.rental_agreements?.customer_email || '',
+        pickup_address: 'Pickup Location', // You might want to add this to rental_agreements
+        delivery_address: 'Delivery Location', // You might want to add this to rental_agreements
+        order_type: 'Standard',
+        priority: item.rental_agreements?.priority || 'Medium',
+        status: this.mapChecklistStatusToDeliveryStatus(item),
+        delivery_fee: item.rental_agreements?.total_amount || 0,
+        payment_status: 'Pending', // You might want to add this to rental_agreements
+        special_instructions: item.rental_agreements?.special_requirements || '',
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        created_by: item.created_by,
+        updated_by: item.updated_by,
+        // Checklist completion status
+        vehicle_inspection_completed: item.vehicle_inspection_completed,
+        vehicle_cleaning_completed: item.vehicle_cleaning_completed,
+        fuel_tank_filled: item.fuel_tank_filled,
+        customer_documents_verified: item.customer_documents_verified,
+        rental_contract_signed: item.rental_contract_signed,
+        payment_confirmation: item.payment_confirmation,
+        vehicle_keys_handed: item.vehicle_keys_handed,
+        vehicle_demonstration: item.vehicle_demonstration,
+        customer_orientation: item.customer_orientation,
+        delivery_acknowledgment: item.delivery_acknowledgment,
+        all_items_completed: item.all_items_completed,
+        // Rental info
+        rental_duration: this.calculateRentalDuration(item.rental_agreements),
+        custom_duration: null, // You might want to add this to rental_agreements
+        // Vehicle info (you'll need to join with vehicles table)
+        vehicle_number: 'VH-' + item.id.slice(-4).toUpperCase(),
+        vehicle_make: 'Vehicle Make', // Join with vehicles table
+        vehicle_model: 'Vehicle Model', // Join with vehicles table
+        vehicle_plate: 'ABC-123', // Join with vehicles table
+        // Driver info (you'll need to join with drivers/employees table)
+        driver_name: 'Driver Name', // Join with employees table
+        driver_phone: '+971-50-000-0000', // Join with employees table
+        driver_license: 'UAE123456789', // Join with employees table
+        // Rental agreement reference
+        rental_agreement_id: item.rental_agreement_id
+      }));
+      
+      console.log('Transformed data for UI:', transformedData);
+      return transformedData;
     } catch (error) {
       console.error('Error fetching delivery overview:', error);
       throw error;
     }
+  }
+
+  // Helper method to map checklist completion status to delivery status
+  mapChecklistStatusToDeliveryStatus(item) {
+    if (item.all_items_completed) {
+      return 'completed';
+    } else if (item.delivery_acknowledgment || item.vehicle_keys_handed) {
+      return 'in_progress';
+    } else if (item.vehicle_inspection_completed || item.customer_documents_verified) {
+      return 'in_progress';
+    } else {
+      return 'not_started';
+    }
+  }
+
+  // Helper method to calculate rental duration
+  calculateRentalDuration(rentalAgreement) {
+    if (!rentalAgreement?.rental_start_date || !rentalAgreement?.rental_end_date) {
+      return '1_week'; // Default
+    }
+    
+    const startDate = new Date(rentalAgreement.rental_start_date);
+    const endDate = new Date(rentalAgreement.rental_end_date);
+    const diffTime = Math.abs(endDate - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 1) return '1_day';
+    if (diffDays <= 3) return '3_days';
+    if (diffDays <= 7) return '1_week';
+    if (diffDays <= 14) return '2_weeks';
+    if (diffDays <= 30) return '1_month';
+    
+    return 'custom';
   }
 
   // Get single order by ID
@@ -104,14 +197,62 @@ class DeliveryService {
     }
   }
 
-  // Create new delivery order
+  // Create new delivery order (fleet delivery checklist)
   async createOrder(orderData) {
     try {
-      console.log('Creating delivery order with data:', JSON.stringify(orderData, null, 2));
+      console.log('Creating fleet delivery checklist with data:', JSON.stringify(orderData, null, 2));
+      
+      // First, create a rental agreement if it doesn't exist
+      const rentalAgreementData = {
+        customer_name: orderData.customer_name,
+        customer_phone: orderData.customer_phone,
+        customer_email: orderData.customer_email,
+        rental_start_date: new Date().toISOString(),
+        rental_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+        total_amount: orderData.delivery_fee || 0,
+        status: 'pending',
+        priority: orderData.priority || 'Medium',
+        special_requirements: orderData.special_instructions || '',
+        created_by: orderData.created_by
+      };
+
+      console.log('Creating rental agreement:', rentalAgreementData);
+      
+      const { data: rentalAgreement, error: rentalError } = await supabase
+        .from('rental_agreements')
+        .insert([rentalAgreementData])
+        .select()
+        .single();
+
+      if (rentalError) {
+        console.error('Error creating rental agreement:', rentalError);
+        throw rentalError;
+      }
+
+      console.log('Rental agreement created:', rentalAgreement);
+
+      // Now create the fleet delivery checklist
+      const checklistData = {
+        rental_agreement_id: rentalAgreement.id,
+        vehicle_inspection_completed: false,
+        vehicle_cleaning_completed: false,
+        fuel_tank_filled: false,
+        customer_documents_verified: false,
+        rental_contract_signed: false,
+        payment_confirmation: false,
+        vehicle_keys_handed: false,
+        vehicle_demonstration: false,
+        customer_orientation: false,
+        delivery_acknowledgment: false,
+        all_items_completed: false,
+        created_by: orderData.created_by
+      };
+
+      console.log('Creating fleet delivery checklist:', checklistData);
       
       const { data, error } = await supabase
-        .from('delivery_orders')
-        .insert([orderData])
+        .from('fleet_delivery_checklists')
+        .insert([checklistData])
         .select()
         .single();
 
@@ -126,10 +267,10 @@ class DeliveryService {
         throw error;
       }
       
-      console.log('Order created successfully:', data);
+      console.log('Fleet delivery checklist created successfully:', data);
       return data;
     } catch (error) {
-      console.error('Error creating delivery order:', error);
+      console.error('Error creating fleet delivery checklist:', error);
       console.error('Error message:', error.message);
       console.error('Error code:', error.code);
       console.error('Error details:', error.details);
@@ -138,76 +279,193 @@ class DeliveryService {
     }
   }
 
-  // Update delivery order
+  // Update delivery order (fleet delivery checklist)
   async updateOrder(id, updates) {
     try {
-      const { data, error } = await supabase
-        .from('delivery_orders')
-        .update(updates)
+      console.log('Updating fleet delivery checklist with ID:', id, 'Updates:', updates);
+      
+      // Get the current checklist to find the rental agreement
+      const { data: currentChecklist, error: fetchError } = await supabase
+        .from('fleet_delivery_checklists')
+        .select('rental_agreement_id')
         .eq('id', id)
-        .select()
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching current checklist:', fetchError);
+        throw fetchError;
+      }
+
+      // Update the rental agreement with customer info
+      const rentalAgreementUpdates = {};
+      if (updates.customer_name) rentalAgreementUpdates.customer_name = updates.customer_name;
+      if (updates.customer_phone) rentalAgreementUpdates.customer_phone = updates.customer_phone;
+      if (updates.customer_email) rentalAgreementUpdates.customer_email = updates.customer_email;
+      if (updates.delivery_fee) rentalAgreementUpdates.total_amount = updates.delivery_fee;
+      if (updates.priority) rentalAgreementUpdates.priority = updates.priority;
+      if (updates.special_instructions) rentalAgreementUpdates.special_requirements = updates.special_instructions;
+
+      if (Object.keys(rentalAgreementUpdates).length > 0) {
+        console.log('Updating rental agreement:', currentChecklist.rental_agreement_id, rentalAgreementUpdates);
+        
+        const { error: rentalError } = await supabase
+          .from('rental_agreements')
+          .update(rentalAgreementUpdates)
+          .eq('id', currentChecklist.rental_agreement_id);
+
+        if (rentalError) {
+          console.error('Error updating rental agreement:', rentalError);
+          throw rentalError;
+        }
+      }
+
+      // Update the checklist itself
+      const checklistUpdates = {};
+      if (updates.status) {
+        // Map delivery status to checklist completion
+        if (updates.status === 'completed') {
+          checklistUpdates.all_items_completed = true;
+        } else if (updates.status === 'in_progress') {
+          checklistUpdates.vehicle_inspection_completed = true;
+        }
+      }
+
+      if (Object.keys(checklistUpdates).length > 0) {
+        console.log('Updating checklist:', id, checklistUpdates);
+        
+        const { data, error } = await supabase
+          .from('fleet_delivery_checklists')
+          .update(checklistUpdates)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error updating checklist:', error);
+          throw error;
+        }
+
+        console.log('Checklist updated successfully:', data);
+        return data;
+      }
+
+      // If no checklist updates, return the current checklist
+      const { data, error } = await supabase
+        .from('fleet_delivery_checklists')
+        .select('*')
+        .eq('id', id)
         .single();
 
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error updating delivery order:', error);
+      console.error('Error updating fleet delivery checklist:', error);
       throw error;
     }
   }
 
-  // Update order status
+  // Update order status (fleet delivery checklist)
   async updateOrderStatus(id, status) {
     try {
-      console.log('Updating order status:', { id, status });
+      console.log('Updating fleet delivery checklist status:', { id, status });
       
-      // Validate status values
-      const validStatuses = ['not_started', 'in_progress', 'completed', 'on_hold', 'cancelled'];
-      if (!validStatuses.includes(status)) {
-        throw new Error(`Invalid status: ${status}. Valid statuses are: ${validStatuses.join(', ')}`);
+      // Map delivery status to checklist completion
+      const checklistUpdates = {};
+      
+      switch (status) {
+        case 'not_started':
+        case 'pending':
+          // Reset all to false
+          checklistUpdates.vehicle_inspection_completed = false;
+          checklistUpdates.vehicle_cleaning_completed = false;
+          checklistUpdates.fuel_tank_filled = false;
+          checklistUpdates.customer_documents_verified = false;
+          checklistUpdates.rental_contract_signed = false;
+          checklistUpdates.payment_confirmation = false;
+          checklistUpdates.vehicle_keys_handed = false;
+          checklistUpdates.vehicle_demonstration = false;
+          checklistUpdates.customer_orientation = false;
+          checklistUpdates.delivery_acknowledgment = false;
+          checklistUpdates.all_items_completed = false;
+          break;
+          
+        case 'in_progress':
+          checklistUpdates.vehicle_inspection_completed = true;
+          checklistUpdates.vehicle_cleaning_completed = true;
+          checklistUpdates.fuel_tank_filled = true;
+          break;
+          
+        case 'completed':
+          checklistUpdates.vehicle_inspection_completed = true;
+          checklistUpdates.vehicle_cleaning_completed = true;
+          checklistUpdates.fuel_tank_filled = true;
+          checklistUpdates.customer_documents_verified = true;
+          checklistUpdates.rental_contract_signed = true;
+          checklistUpdates.payment_confirmation = true;
+          checklistUpdates.vehicle_keys_handed = true;
+          checklistUpdates.vehicle_demonstration = true;
+          checklistUpdates.customer_orientation = true;
+          checklistUpdates.delivery_acknowledgment = true;
+          checklistUpdates.all_items_completed = true;
+          break;
+          
+        case 'on_hold':
+        case 'cancelled':
+          // Keep current state but mark as not completed
+          checklistUpdates.all_items_completed = false;
+          break;
       }
+
+      checklistUpdates.updated_at = new Date().toISOString();
+      
+      console.log('Updating checklist with:', checklistUpdates);
       
       const { data, error } = await supabase
-        .from('delivery_orders')
-        .update({ 
-          status: status,
-          updated_at: new Date().toISOString()
-        })
+        .from('fleet_delivery_checklists')
+        .update(checklistUpdates)
         .eq('id', id)
         .select()
         .single();
 
       if (error) {
-        console.error('Supabase error updating order status:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          fullError: error
-        });
+        console.error('Error updating checklist status:', error);
         throw error;
       }
       
-      console.log('Order status updated successfully:', data);
+      console.log('Checklist status updated successfully:', data);
       return data;
     } catch (error) {
-      console.error('Error updating order status:', error);
+      console.error('Error updating fleet delivery checklist status:', error);
       throw error;
     }
   }
 
-  // Delete delivery order
+  // Delete delivery order (fleet delivery checklist)
   async deleteOrder(id) {
     try {
-      const { error } = await supabase
-        .from('delivery_orders')
+      console.log('Attempting to delete fleet delivery checklist with ID:', id);
+      
+      const { data, error } = await supabase
+        .from('fleet_delivery_checklists')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
-      if (error) throw error;
-      return true;
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw error;
+      }
+      
+      console.log('Fleet delivery checklist deleted successfully:', data);
+      return { success: true, deletedCount: data?.length || 0 };
     } catch (error) {
-      console.error('Error deleting delivery order:', error);
+      console.error('Error deleting fleet delivery checklist:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       throw error;
     }
   }

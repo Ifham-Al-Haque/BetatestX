@@ -117,12 +117,20 @@ const FleetDeliveryChecklist = () => {
     vehicle_plate: ''
   });
 
-  const loadDeliveryChecklistData = useCallback(async () => {
+  const loadDeliveryChecklistData = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
+      console.log('Loading delivery checklist data...', { forceRefresh });
+      
+      // Add a small delay to ensure database consistency
+      if (forceRefresh) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       const data = await deliveryService.getDeliveryOverview();
-      setDeliveryChecklists(data);
-      calculateQuickStats(data);
+      console.log('Loaded delivery data:', data?.length, 'orders');
+      setDeliveryChecklists(data || []);
+      calculateQuickStats(data || []);
     } catch (error) {
       console.error('Error loading delivery checklist data:', error);
       showError('Failed to load delivery data');
@@ -222,13 +230,35 @@ const FleetDeliveryChecklist = () => {
 
   const confirmDelete = async () => {
     try {
-      await deliveryService.deleteOrder(deleteConfirm.id);
-      success('Delivery order deleted successfully');
+      console.log('Deleting delivery order with ID:', deleteConfirm.id);
+      
+      // Immediately remove from UI for better UX
+      const deletedId = deleteConfirm.id;
+      setDeliveryChecklists(prev => prev.filter(item => item.id !== deletedId));
       setDeleteConfirm(null);
-      loadDeliveryChecklistData();
+      
+      // Then perform actual deletion
+      const result = await deliveryService.deleteOrder(deletedId);
+      console.log('Delete result:', result);
+      
+      success('Delivery order deleted successfully');
+      
+      // Force refresh the data to ensure consistency
+      console.log('Refreshing delivery data...');
+      await loadDeliveryChecklistData(true);
+      console.log('Data refreshed successfully');
     } catch (error) {
       console.error('Error deleting delivery order:', error);
-      showError('Failed to delete delivery order');
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
+      // If deletion failed, refresh data to restore the item
+      await loadDeliveryChecklistData(true);
+      showError(`Failed to delete delivery order: ${error.message}`);
     }
   };
 
