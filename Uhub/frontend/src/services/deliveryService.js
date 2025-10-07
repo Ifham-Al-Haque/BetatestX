@@ -60,7 +60,7 @@ class DeliveryService {
         .from('fleet_delivery_checklists')
         .select(`
           *,
-          rental_agreements!fleet_delivery_checklists_rental_agreement_id_fkey(
+          fleet_rental_agreements!fleet_delivery_checklists_rental_agreement_id_fkey(
             id, customer_name, customer_phone, customer_email,
             rental_start_date, rental_end_date, total_amount,
             vehicle_id, driver_id, status, priority, special_requirements
@@ -70,13 +70,13 @@ class DeliveryService {
 
       // Apply filters
       if (filters.status) {
-        query = query.eq('rental_agreements.status', filters.status);
+        query = query.eq('fleet_rental_agreements.status', filters.status);
       }
       if (filters.priority) {
-        query = query.eq('rental_agreements.priority', filters.priority);
+        query = query.eq('fleet_rental_agreements.priority', filters.priority);
       }
       if (filters.search) {
-        query = query.or(`rental_agreements.customer_name.ilike.%${filters.search}%,rental_agreements.customer_phone.ilike.%${filters.search}%`);
+        query = query.or(`fleet_rental_agreements.customer_name.ilike.%${filters.search}%,fleet_rental_agreements.customer_phone.ilike.%${filters.search}%`);
       }
 
       const { data, error } = await query;
@@ -92,17 +92,17 @@ class DeliveryService {
       const transformedData = data.map(item => ({
         id: item.id,
         order_number: `DEL-${item.id.slice(-8).toUpperCase()}`,
-        customer_name: item.rental_agreements?.customer_name || 'Unknown Customer',
-        customer_phone: item.rental_agreements?.customer_phone || '',
-        customer_email: item.rental_agreements?.customer_email || '',
-        pickup_address: 'Pickup Location', // You might want to add this to rental_agreements
-        delivery_address: 'Delivery Location', // You might want to add this to rental_agreements
+        customer_name: item.fleet_rental_agreements?.customer_name || 'Unknown Customer',
+        customer_phone: item.fleet_rental_agreements?.customer_phone || '',
+        customer_email: item.fleet_rental_agreements?.customer_email || '',
+        pickup_address: 'Pickup Location', // You might want to add this to fleet_rental_agreements
+        delivery_address: 'Delivery Location', // You might want to add this to fleet_rental_agreements
         order_type: 'Standard',
-        priority: item.rental_agreements?.priority || 'Medium',
+        priority: item.fleet_rental_agreements?.priority || 'Medium',
         status: this.mapChecklistStatusToDeliveryStatus(item),
-        delivery_fee: item.rental_agreements?.total_amount || 0,
-        payment_status: 'Pending', // You might want to add this to rental_agreements
-        special_instructions: item.rental_agreements?.special_requirements || '',
+        delivery_fee: item.fleet_rental_agreements?.total_amount || 0,
+        payment_status: 'Pending', // You might want to add this to fleet_rental_agreements
+        special_instructions: item.fleet_rental_agreements?.special_requirements || '',
         created_at: item.created_at,
         updated_at: item.updated_at,
         created_by: item.created_by,
@@ -120,8 +120,8 @@ class DeliveryService {
         delivery_acknowledgment: item.delivery_acknowledgment,
         all_items_completed: item.all_items_completed,
         // Rental info
-        rental_duration: this.calculateRentalDuration(item.rental_agreements),
-        custom_duration: null, // You might want to add this to rental_agreements
+        rental_duration: this.calculateRentalDuration(item.fleet_rental_agreements),
+        custom_duration: null, // You might want to add this to fleet_rental_agreements
         // Vehicle info (you'll need to join with vehicles table)
         vehicle_number: 'VH-' + item.id.slice(-4).toUpperCase(),
         vehicle_make: 'Vehicle Make', // Join with vehicles table
@@ -219,7 +219,7 @@ class DeliveryService {
       console.log('Creating rental agreement:', rentalAgreementData);
       
       const { data: rentalAgreement, error: rentalError } = await supabase
-        .from('rental_agreements')
+        .from('fleet_rental_agreements')
         .insert([rentalAgreementData])
         .select()
         .single();
@@ -309,7 +309,7 @@ class DeliveryService {
         console.log('Updating rental agreement:', currentChecklist.rental_agreement_id, rentalAgreementUpdates);
         
         const { error: rentalError } = await supabase
-          .from('rental_agreements')
+          .from('fleet_rental_agreements')
           .update(rentalAgreementUpdates)
           .eq('id', currentChecklist.rental_agreement_id);
 

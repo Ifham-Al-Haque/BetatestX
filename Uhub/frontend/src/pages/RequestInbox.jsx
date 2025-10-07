@@ -101,14 +101,42 @@ const RequestInbox = () => {
 
   const fetchUsers = async () => {
     try {
-      // Fetch users from the employees table or users table
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id, full_name, email, department, role')
-        .order('full_name');
+      // Try multiple approaches to fetch users
+      let usersData = [];
       
-      if (error) throw error;
-      return data || [];
+      // Approach 1: Try employees table first
+      try {
+        const { data: employeesData, error: employeesError } = await supabase
+          .from('employees')
+          .select('id, full_name, email, department, role, auth_user_id')
+          .order('full_name');
+        
+        if (!employeesError && employeesData) {
+          usersData = employeesData;
+          console.log('Fetched users from employees table:', usersData.length);
+        }
+      } catch (employeesError) {
+        console.log('Employees table query failed:', employeesError);
+      }
+
+      // Approach 2: Try users table if employees failed
+      if (usersData.length === 0) {
+        try {
+          const { data: usersTableData, error: usersError } = await supabase
+            .from('users')
+            .select('id, full_name, email, department, role, auth_user_id')
+            .order('full_name');
+          
+          if (!usersError && usersTableData) {
+            usersData = usersTableData;
+            console.log('Fetched users from users table:', usersData.length);
+          }
+        } catch (usersError) {
+          console.log('Users table query failed:', usersError);
+        }
+      }
+
+      return usersData;
     } catch (err) {
       console.error('Error fetching users:', err);
       return [];
@@ -1558,15 +1586,22 @@ const RequestInbox = () => {
                             <Button
                               onClick={async () => {
                                 try {
+                                  console.log('Updating request:', selectedRequest.id, {
+                                    status: selectedRequest.status,
+                                    assigned_to: selectedRequest.assigned_to
+                                  });
+                                  
                                   await itServicesApi.requests.update(selectedRequest.id, {
                                     status: selectedRequest.status,
                                     assigned_to: selectedRequest.assigned_to
                                   });
+                                  
                                   success('Request updated successfully!');
                                   setSelectedRequest(null);
                                   fetchData();
                                 } catch (error) {
-                                  showError('Failed to update request');
+                                  console.error('Failed to update request:', error);
+                                  showError('Failed to update request', error.message || 'Unknown error occurred');
                                 }
                               }}
                               className="w-full"

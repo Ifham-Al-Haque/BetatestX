@@ -188,7 +188,13 @@ export const itServicesApi = {
             .select(`
               *,
               category:category_id(name, description, icon, color),
-              priority:priority_id(name, level, color, sla_hours, description)
+              priority:priority_id(name, level, color, sla_hours, description),
+              requester:requester_id(
+                full_name,
+                email,
+                department,
+                role
+              )
             `)
             .order('created_at', { ascending: false });
 
@@ -228,25 +234,114 @@ export const itServicesApi = {
           let processedData = fallbackData || [];
           if (processedData.length > 0 && (!processedData[0].requester || !processedData[0].requester.full_name)) {
             console.log('Fetching requester information for fallback data...');
-            const requesterIds = [...new Set(processedData.map(req => req.requester_id))];
+            const requesterIds = [...new Set(processedData.map(req => req.requester_id).filter(Boolean))];
             
-            try {
-              // Try to fetch from employees table first
-              const { data: employeesData, error: employeesError } = await supabase
-                .from('employees')
-                .select('id, full_name, email, department, role')
-                .in('id', requesterIds);
+            if (requesterIds.length > 0) {
+              try {
+                console.log('Requester IDs to fetch:', requesterIds);
+                
+                // Try multiple approaches to get user data
+                let requesterMap = {};
+                let userDataFound = false;
 
-              if (!employeesError && employeesData) {
-                const requesterMap = {};
-                employeesData.forEach(emp => {
-                  requesterMap[emp.id] = {
-                    full_name: emp.full_name,
-                    email: emp.email,
-                    department: emp.department,
-                    role: emp.role
-                  };
-                });
+                // Approach 1: Try users table with auth_user_id mapping
+                try {
+                  const { data: usersData, error: usersError } = await supabase
+                    .from('users')
+                    .select('id, auth_user_id, full_name, email, department, role')
+                    .in('auth_user_id', requesterIds);
+
+                  if (!usersError && usersData && usersData.length > 0) {
+                    console.log('Found users data:', usersData);
+                    usersData.forEach(user => {
+                      requesterMap[user.auth_user_id] = {
+                        full_name: user.full_name,
+                        email: user.email,
+                        department: user.department,
+                        role: user.role
+                      };
+                    });
+                    userDataFound = true;
+                  }
+                } catch (usersError) {
+                  console.log('Users table query failed:', usersError);
+                }
+
+                // Approach 2: Try employees table with auth_user_id mapping
+                if (!userDataFound) {
+                  try {
+                    const { data: employeesData, error: employeesError } = await supabase
+                      .from('employees')
+                      .select('id, auth_user_id, full_name, email, department, role')
+                      .in('auth_user_id', requesterIds);
+
+                    if (!employeesError && employeesData && employeesData.length > 0) {
+                      console.log('Found employees data:', employeesData);
+                      employeesData.forEach(emp => {
+                        requesterMap[emp.auth_user_id] = {
+                          full_name: emp.full_name,
+                          email: emp.email,
+                          department: emp.department,
+                          role: emp.role
+                        };
+                      });
+                      userDataFound = true;
+                    }
+                  } catch (employeesError) {
+                    console.log('Employees table query failed:', employeesError);
+                  }
+                }
+
+                // Approach 3: Try direct ID matching (for cases where requester_id is the actual user/employee ID)
+                if (!userDataFound) {
+                  try {
+                    const { data: usersData, error: usersError } = await supabase
+                      .from('users')
+                      .select('id, full_name, email, department, role')
+                      .in('id', requesterIds);
+
+                    if (!usersError && usersData && usersData.length > 0) {
+                      console.log('Found users data by direct ID:', usersData);
+                      usersData.forEach(user => {
+                        requesterMap[user.id] = {
+                          full_name: user.full_name,
+                          email: user.email,
+                          department: user.department,
+                          role: user.role
+                        };
+                      });
+                      userDataFound = true;
+                    }
+                  } catch (usersError) {
+                    console.log('Direct users table query failed:', usersError);
+                  }
+                }
+
+                if (!userDataFound) {
+                  try {
+                    const { data: employeesData, error: employeesError } = await supabase
+                      .from('employees')
+                      .select('id, full_name, email, department, role')
+                      .in('id', requesterIds);
+
+                    if (!employeesError && employeesData && employeesData.length > 0) {
+                      console.log('Found employees data by direct ID:', employeesData);
+                      employeesData.forEach(emp => {
+                        requesterMap[emp.id] = {
+                          full_name: emp.full_name,
+                          email: emp.email,
+                          department: emp.department,
+                          role: emp.role
+                        };
+                      });
+                      userDataFound = true;
+                    }
+                  } catch (employeesError) {
+                    console.log('Direct employees table query failed:', employeesError);
+                  }
+                }
+
+                console.log('Final requester map:', requesterMap);
 
                 // Merge requester information
                 processedData = processedData.map(request => ({
@@ -258,50 +353,22 @@ export const itServicesApi = {
                     role: null
                   }
                 }));
-              } else {
-                // Try users table as fallback
-                const { data: usersData, error: usersError } = await supabase
-                  .from('users')
-                  .select('id, full_name, email, department, role')
-                  .in('id', requesterIds);
 
-                if (!usersError && usersData) {
-                  const requesterMap = {};
-                  usersData.forEach(user => {
-                    requesterMap[user.id] = {
-                      full_name: user.full_name,
-                      email: user.email,
-                      department: user.department,
-                      role: user.role
-                    };
-                  });
-
-                  // Merge requester information
-                  processedData = processedData.map(request => ({
-                    ...request,
-                    requester: requesterMap[request.requester_id] || {
-                      full_name: 'Unknown User',
-                      email: null,
-                      department: null,
-                      role: null
-                    }
-                  }));
-                } else {
-                  // If both fail, set default requester info
-                  processedData = processedData.map(request => ({
-                    ...request,
-                    requester: {
-                      full_name: 'Unknown User',
-                      email: null,
-                      department: null,
-                      role: null
-                    }
-                  }));
-                }
+              } catch (fetchError) {
+                console.error('Error fetching requester information for fallback:', fetchError);
+                // Set default requester info on error
+                processedData = processedData.map(request => ({
+                  ...request,
+                  requester: {
+                    full_name: 'Unknown User',
+                    email: null,
+                    department: null,
+                    role: null
+                  }
+                }));
               }
-            } catch (fetchError) {
-              console.error('Error fetching requester information for fallback:', fetchError);
-              // Set default requester info on error
+            } else {
+              // No valid requester IDs, set default
               processedData = processedData.map(request => ({
                 ...request,
                 requester: {
@@ -525,6 +592,8 @@ export const itServicesApi = {
 
     update: async (id, updateData) => {
       try {
+        console.log('🔄 Updating IT request:', id, 'with data:', updateData);
+        
         // Get current request data to check for status changes
         const { data: currentRequest, error: fetchError } = await supabase
           .from('it_requests')
@@ -532,31 +601,48 @@ export const itServicesApi = {
           .eq('id', id)
           .single();
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          console.error('❌ Error fetching current request:', fetchError);
+          throw fetchError;
+        }
+
+        console.log('📋 Current request status:', currentRequest?.status);
+
+        const updatePayload = {
+          ...updateData,
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('📤 Update payload:', updatePayload);
 
         const { data, error } = await supabase
           .from('it_requests')
-          .update({
-            ...updateData,
-            updated_at: new Date().toISOString()
-          })
+          .update(updatePayload)
           .eq('id', id)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Error updating request:', error);
+          throw error;
+        }
 
-        // Send notification if status changed
+        console.log('✅ Request updated successfully:', data);
+
+        // Send notification if status changed (non-blocking)
         if (currentRequest && updateData.status && currentRequest.status !== updateData.status) {
-          try {
-            const { default: SimpleNotificationService } = await import('./simpleNotificationService');
-            const notificationService = new SimpleNotificationService();
-            await notificationService.notifyITRequestStatusUpdate(data, currentRequest.status, updateData.status);
-            console.log('✅ IT Request status update notification sent successfully');
-          } catch (notificationError) {
-            console.error('⚠️ Failed to send IT request status update notification:', notificationError);
-            // Don't throw error - request was updated successfully
-          }
+          // Use setTimeout to make notification non-blocking
+          setTimeout(async () => {
+            try {
+              const { default: SimpleNotificationService } = await import('./simpleNotificationService');
+              const notificationService = new SimpleNotificationService();
+              await notificationService.notifyITRequestStatusUpdate(data, currentRequest.status, updateData.status);
+              console.log('✅ IT Request status update notification sent successfully');
+            } catch (notificationError) {
+              console.error('⚠️ Failed to send IT request status update notification:', notificationError);
+              // This won't affect the main update operation
+            }
+          }, 0);
         }
 
         return data;

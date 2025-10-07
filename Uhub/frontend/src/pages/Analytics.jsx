@@ -498,7 +498,26 @@ const ServiceBreakdownChart = ({ expenses }) => {
     const serviceStats = {};
     expenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed) {
-        const service = expense.service_name.trim();
+        // Clean and normalize service names for consistency
+        let service = expense.service_name.trim();
+        
+        // Handle common variations and typos
+        if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
+          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
+        } else if (service.includes('AUTOMATION')) {
+          service = 'AUTOMATION';
+        } else if (service.includes('AWS') && service.includes('BESPIN')) {
+          service = 'AWS[BESPIN]';
+        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
+          service = 'ELEVEN LABS';
+        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
+          service = 'ZAPIER';
+        } else if (service.includes('IDWISE') || service.includes('ID WISE')) {
+          service = 'IDWISE';
+        } else if (service.includes('MO ENGAGE')) {
+          service = 'MO ENGAGE';
+        }
+        
         if (!serviceStats[service]) {
           serviceStats[service] = {
             total: 0,
@@ -544,42 +563,89 @@ const ServiceBreakdownChart = ({ expenses }) => {
   }
 
   return (
-    <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+    <div className="h-[500px] bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 dark:from-gray-800 dark:via-blue-900/20 dark:to-indigo-900/30 rounded-2xl p-6 border border-gray-200/60 dark:border-gray-700/60 shadow-xl backdrop-blur-sm">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={serviceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart data={serviceData} margin={{ top: 20, right: 30, left: 60, bottom: 120 }}>
           <defs>
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
-              <stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.6} />
+              <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.7} />
             </linearGradient>
+            <filter id="barShadow">
+              <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.15"/>
+            </filter>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.3} />
           <XAxis 
             dataKey="service" 
             angle={-45}
             textAnchor="end"
-            height={80}
+            height={120}
             interval={0}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            axisLine={{ stroke: '#D1D5DB' }}
-            tickLine={{ stroke: '#D1D5DB' }}
+            tick={{ 
+              fontSize: 11, 
+              fill: '#374151',
+              fontWeight: '500',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}
+            axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+            tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+            tickMargin={8}
           />
           <YAxis 
             tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            axisLine={{ stroke: '#D1D5DB' }}
-            tickLine={{ stroke: '#D1D5DB' }}
+            tick={{ 
+              fontSize: 12, 
+              fill: '#6B7280',
+              fontWeight: '500'
+            }}
+            axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+            tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+            tickMargin={8}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip 
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                return (
+                  <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl p-4 border border-gray-200/60 dark:border-gray-600/60 rounded-xl shadow-2xl">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div 
+                        className="w-4 h-4 rounded-full shadow-sm" 
+                        style={{ backgroundColor: data.color }}
+                      ></div>
+                      <p className="font-bold text-gray-900 dark:text-white text-lg">{data.service}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-gray-700 dark:text-gray-300">
+                        <span className="font-semibold">Total:</span> AED {data.total.toLocaleString()}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">
+                        <span className="font-semibold">Records:</span> {data.count} transactions
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">
+                        <span className="font-semibold">Months:</span> {data.months} months
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
           <Bar 
             dataKey="total" 
-            fill="url(#barGradient)"
-            radius={[8, 8, 0, 0]}
-            stroke="#1D4ED8"
-            strokeWidth={1}
+            radius={[6, 6, 0, 0]}
+            stroke="#fff"
+            strokeWidth={2}
+            filter="url(#barShadow)"
           >
             {serviceData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
+              <Cell 
+                key={`cell-${index}`} 
+                fill={entry.color}
+                className="hover:opacity-80 transition-opacity duration-200"
+              />
             ))}
           </Bar>
         </BarChart>
@@ -592,6 +658,24 @@ const ServiceBreakdownChart = ({ expenses }) => {
 
 // Enhanced Individual Service Line Charts Component with Filtering
 const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', comparison: 'none' } }) => {
+  const [serviceFilters, setServiceFilters] = useState({
+    selectedYear: 'all',
+    duration: 'all' // months - changed default to 'all' to show all data
+  });
+
+  // Get available years from expenses
+  const availableYears = useMemo(() => {
+    if (!expenses.length) return [];
+    const years = new Set();
+    expenses.forEach(expense => {
+      if (expense.date_paid) {
+        const year = new Date(expense.date_paid).getFullYear();
+        years.add(year);
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a); // Sort descending
+  }, [expenses]);
+
   // Group expenses by service and month with filtering
   const serviceData = useMemo(() => {
     if (!expenses.length) return {};
@@ -599,7 +683,69 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
     const now = new Date();
     let filteredExpenses = expenses;
 
-    // Apply time range filter
+    // Apply filters with priority: Year filter takes precedence over duration filter
+    if (serviceFilters.selectedYear !== 'all') {
+      const targetYear = parseInt(serviceFilters.selectedYear);
+      console.log('📊 Filter Debug - Year filter applied:', {
+        selectedYear: serviceFilters.selectedYear,
+        targetYear,
+        note: 'Year filter takes precedence over duration filter'
+      });
+      
+      filteredExpenses = filteredExpenses.filter(expense => {
+        if (!expense.date_paid) return false;
+        const expenseYear = new Date(expense.date_paid).getFullYear();
+        const isIncluded = expenseYear === targetYear;
+        
+        // Debug AWS[BESPIN] year filtering
+        if (expense.service_name && expense.service_name.toLowerCase().includes('aws') && 
+            expense.service_name.toLowerCase().includes('bespin')) {
+          console.log('📊 AWS[BESPIN] Year Filter Debug:', {
+            service: expense.service_name,
+            date: expense.date_paid,
+            expenseYear,
+            targetYear,
+            isIncluded
+          });
+        }
+        
+        return isIncluded;
+      });
+    } else if (serviceFilters.duration !== 'all') {
+      // Only apply duration filter if no year filter is selected
+      const monthsBack = parseInt(serviceFilters.duration);
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack);
+      
+      console.log('📊 Filter Debug - Duration filter applied:', {
+        duration: serviceFilters.duration,
+        monthsBack,
+        cutoffDate: cutoffDate.toISOString(),
+        note: 'Duration filter only applied when no year filter is selected'
+      });
+      
+      filteredExpenses = filteredExpenses.filter(expense => {
+        if (!expense.date_paid) return false;
+        const expenseDate = new Date(expense.date_paid);
+        const isIncluded = expenseDate >= cutoffDate;
+        
+        // Debug AWS[BESPIN] filtering
+        if (expense.service_name && expense.service_name.toLowerCase().includes('aws') && 
+            expense.service_name.toLowerCase().includes('bespin')) {
+          console.log('📊 AWS[BESPIN] Duration Filter Debug:', {
+            service: expense.service_name,
+            date: expense.date_paid,
+            expenseDate: expenseDate.toISOString(),
+            cutoffDate: cutoffDate.toISOString(),
+            isIncluded
+          });
+        }
+        
+        return isIncluded;
+      });
+    }
+
+    // Apply original time range filter as fallback
     if (filters.timeRange !== 'all-time') {
       const cutoffDate = new Date();
       switch (filters.timeRange) {
@@ -616,25 +762,63 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
           cutoffDate.setFullYear(now.getFullYear() - 1);
           break;
       }
-      filteredExpenses = expenses.filter(expense => {
+      filteredExpenses = filteredExpenses.filter(expense => {
         const expenseDate = new Date(expense.date_paid);
         return expenseDate >= cutoffDate;
       });
     }
 
     const grouped = {};
+    
+    // Debug: Log all unique service names to identify duplicates
+    const uniqueServices = new Set();
+    filteredExpenses.forEach(expense => {
+      if (expense.service_name) {
+        uniqueServices.add(expense.service_name);
+      }
+    });
+    console.log('📊 Individual Service Trends - All unique service names:', Array.from(uniqueServices));
+    
+    // Debug: Check specifically for AWS[BESPIN] data
+    const awsBespinExpenses = filteredExpenses.filter(expense => 
+      expense.service_name && expense.service_name.toLowerCase().includes('aws') && 
+      expense.service_name.toLowerCase().includes('bespin')
+    );
+    console.log('📊 AWS[BESPIN] Debug - Found expenses:', awsBespinExpenses.length);
+    console.log('📊 AWS[BESPIN] Debug - Service names:', awsBespinExpenses.map(e => e.service_name));
+    console.log('📊 AWS[BESPIN] Debug - Date range:', {
+      earliest: awsBespinExpenses.length > 0 ? Math.min(...awsBespinExpenses.map(e => new Date(e.date_paid))) : 'No data',
+      latest: awsBespinExpenses.length > 0 ? Math.max(...awsBespinExpenses.map(e => new Date(e.date_paid))) : 'No data'
+    });
+    
+    // Function to normalize service names and merge similar ones
+    const normalizeServiceName = (name) => {
+      return name
+        .trim()                    // Remove leading/trailing spaces
+        .replace(/\s+/g, ' ')      // Replace multiple spaces with single space
+        .toLowerCase()             // Convert to lowercase for consistent grouping
+        .replace(/[^\w\s]/g, '')   // Remove special characters except spaces and alphanumeric
+        .replace(/\b(the|a|an|and|or|of|in|on|at|to|for|with|by)\b/g, '') // Remove common words
+        .trim();                   // Trim again after removing words
+    };
+    
     filteredExpenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed && expense.date_paid) {
-        const service = expense.service_name.trim();
+        // Normalize service name to prevent duplicates
+        const service = normalizeServiceName(expense.service_name);
+        
         const date = new Date(expense.date_paid);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
         
         if (!grouped[service]) {
-          grouped[service] = {};
+          grouped[service] = {
+            displayName: expense.service_name.trim(), // Keep original name for display
+            data: {}
+          };
         }
-        if (!grouped[service][monthKey]) {
-          grouped[service][monthKey] = {
+        if (!grouped[service].data[monthKey]) {
+          grouped[service].data[monthKey] = {
             monthName,
             monthKey,
             total: 0,
@@ -643,26 +827,49 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
             month: date.getMonth() + 1
           };
         }
-        grouped[service][monthKey].total += parseFloat(expense.amount_aed) || 0;
-        grouped[service][monthKey].count += 1;
+        grouped[service].data[monthKey].total += parseFloat(expense.amount_aed) || 0;
+        grouped[service].data[monthKey].count += 1;
       }
     });
 
     // Convert to array format for charts with proper chronological sorting
     const result = {};
     Object.keys(grouped).forEach(service => {
-      const months = Object.values(grouped[service]);
-      result[service] = months.sort((a, b) => {
-        // Sort by year first, then by month
-        if (a.year !== b.year) {
-          return a.year - b.year;
-        }
-        return a.month - b.month;
-      });
+      const months = Object.values(grouped[service].data);
+      result[service] = {
+        displayName: grouped[service].displayName,
+        data: months.sort((a, b) => {
+          // Sort by year first, then by month
+          if (a.year !== b.year) {
+            return a.year - b.year;
+          }
+          return a.month - b.month;
+        })
+      };
     });
 
+    console.log('📊 Individual Service Trends - Processed service data:', Object.keys(result));
+    
+    // Debug: Check AWS[BESPIN] after processing
+    const awsBespinKey = Object.keys(result).find(key => 
+      key.toLowerCase().includes('aws') && key.toLowerCase().includes('bespin')
+    );
+    if (awsBespinKey) {
+      console.log('📊 AWS[BESPIN] Debug - Normalized key:', awsBespinKey);
+      console.log('📊 AWS[BESPIN] Debug - Display name:', result[awsBespinKey].displayName);
+      console.log('📊 AWS[BESPIN] Debug - Data points:', result[awsBespinKey].data.length);
+      console.log('📊 AWS[BESPIN] Debug - Monthly data:', result[awsBespinKey].data.map(d => ({
+        month: d.monthName,
+        year: d.year,
+        total: d.total
+      })));
+    } else {
+      console.log('📊 AWS[BESPIN] Debug - No matching service found after processing');
+      console.log('📊 AWS[BESPIN] Debug - Available keys:', Object.keys(result));
+    }
+    
     return result;
-  }, [expenses, filters]);
+  }, [expenses, filters, serviceFilters]);
 
   if (!expenses.length) {
     return (
@@ -688,18 +895,73 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
             Track spending patterns for each service over time
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {services.length} services tracked
-          </span>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-4 space-y-4 lg:space-y-0">
+          {/* Filter Controls */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+            {/* Year Filter */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                Year:
+              </label>
+              <select
+                value={serviceFilters.selectedYear}
+                onChange={(e) => setServiceFilters(prev => ({ ...prev, selectedYear: e.target.value }))}
+                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[100px]"
+              >
+                <option value="all">All Years</option>
+                {availableYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Duration Filter */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                Duration:
+              </label>
+              <select
+                value={serviceFilters.duration}
+                onChange={(e) => setServiceFilters(prev => ({ ...prev, duration: e.target.value }))}
+                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[120px]"
+              >
+                <option value="all">All Time</option>
+                <option value="3">Last 3 Months</option>
+                <option value="6">Last 6 Months</option>
+                <option value="12">Last 12 Months</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {services.length} services tracked
+            </span>
+          </div>
+          
+          {/* Debug Info - Temporary */}
+          <div className="text-xs text-gray-400 mt-2">
+            <div>Year: {serviceFilters.selectedYear} | Duration: {serviceFilters.duration} months</div>
+            <div>Global Filter: {filters.timeRange}</div>
+            <div className="text-yellow-600 mt-1">
+              {serviceFilters.selectedYear !== 'all' 
+                ? 'Note: Year filter takes precedence over duration filter'
+                : serviceFilters.duration !== 'all'
+                ? 'Note: Showing last ' + serviceFilters.duration + ' months from today'
+                : 'Note: Showing all available data'
+              }
+            </div>
+          </div>
         </div>
       </div>
       
-      {services.map((serviceName, index) => {
-        const data = serviceData[serviceName];
-        if (!data || data.length === 0) return null;
+      {services.map((serviceKey, index) => {
+        const serviceInfo = serviceData[serviceKey];
+        if (!serviceInfo || !serviceInfo.data || serviceInfo.data.length === 0) return null;
 
+        const data = serviceInfo.data;
+        const displayName = serviceInfo.displayName;
         const totalSpent = data.reduce((sum, item) => sum + item.total, 0);
         const peakMonth = data.reduce((max, item) => item.total > max.total ? item : max, data[0]);
         const averageMonthly = totalSpent / data.length;
@@ -707,7 +969,7 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
 
         return (
           <motion.div
-            key={serviceName}
+            key={serviceKey}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
@@ -721,7 +983,7 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
                 ></div>
                 <div>
                   <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {serviceName}
+                    {displayName}
                   </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {data.length} months • Total: AED {totalSpent.toLocaleString()}
@@ -846,7 +1108,26 @@ const ServiceDistributionChart = ({ expenses }) => {
     const serviceStats = {};
     expenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed) {
-        const service = expense.service_name.trim();
+        // Clean and normalize service names for consistency
+        let service = expense.service_name.trim();
+        
+        // Handle common variations and typos
+        if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
+          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
+        } else if (service.includes('AUTOMATION')) {
+          service = 'AUTOMATION';
+        } else if (service.includes('AWS') && service.includes('BESPIN')) {
+          service = 'AWS[BESPIN]';
+        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
+          service = 'ELEVEN LABS';
+        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
+          service = 'ZAPIER';
+        } else if (service.includes('IDWISE') || service.includes('ID WISE')) {
+          service = 'IDWISE';
+        } else if (service.includes('MO ENGAGE')) {
+          service = 'MO ENGAGE';
+        }
+        
         if (!serviceStats[service]) {
           serviceStats[service] = {
             total: 0,
@@ -891,66 +1172,104 @@ const ServiceDistributionChart = ({ expenses }) => {
   }
 
   return (
-    <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <defs>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge> 
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <Pie
-            data={pieData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percentage }) => `${name} (${percentage}%)`}
-            outerRadius={120}
-            innerRadius={40}
-            fill="#8884d8"
-            dataKey="value"
-            stroke="#fff"
-            strokeWidth={2}
-            filter="url(#glow)"
-          >
-            {pieData.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={entry.color}
-                stroke={entry.color}
-                strokeWidth={2}
+    <div className="h-[500px] bg-gradient-to-br from-white via-green-50/30 to-emerald-50/50 dark:from-gray-800 dark:via-green-900/20 dark:to-emerald-900/30 rounded-2xl p-6 border border-gray-200/60 dark:border-gray-700/60 shadow-xl backdrop-blur-sm">
+      <div className="flex h-full">
+        {/* Pie Chart */}
+        <div className="flex-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <defs>
+                <filter id="pieGlow">
+                  <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                  <feMerge> 
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+                <filter id="pieShadow">
+                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.2"/>
+                </filter>
+              </defs>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={false}
+                outerRadius={100}
+                innerRadius={35}
+                fill="#8884d8"
+                dataKey="value"
+                stroke="#fff"
+                strokeWidth={3}
+                filter="url(#pieShadow)"
+              >
+                {pieData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.color}
+                    stroke="#fff"
+                    strokeWidth={2}
+                    className="hover:opacity-80 transition-opacity duration-200"
+                  />
+                ))}
+              </Pie>
+              <Tooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl p-4 border border-gray-200/60 dark:border-gray-600/60 rounded-xl shadow-2xl">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <div 
+                            className="w-4 h-4 rounded-full shadow-sm" 
+                            style={{ backgroundColor: data.color }}
+                          ></div>
+                          <p className="font-bold text-gray-900 dark:text-white text-lg">{data.name}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-gray-700 dark:text-gray-300">
+                            <span className="font-semibold">Amount:</span> AED {data.value.toLocaleString()}
+                          </p>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm">
+                            <span className="font-semibold">Percentage:</span> {data.percentage}%
+                          </p>
+                          <p className="text-gray-600 dark:text-gray-400 text-sm">
+                            <span className="font-semibold">Category:</span> {data.category}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        
+        {/* Legend */}
+        <div className="w-48 pl-6 flex flex-col justify-center">
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {pieData.map((entry, index) => (
+              <div key={`legend-${index}`} className="flex items-center space-x-3 group">
+                <div 
+                  className="w-4 h-4 rounded-full shadow-sm flex-shrink-0" 
+                  style={{ backgroundColor: entry.color }}
+                ></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {entry.name}
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {entry.percentage}% • AED {entry.value.toLocaleString()}
+                  </p>
+                </div>
+              </div>
             ))}
-          </Pie>
-          <Tooltip 
-            content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                const data = payload[0].payload;
-                return (
-                  <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl backdrop-blur-sm">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div 
-                        className="w-4 h-4 rounded-full" 
-                        style={{ backgroundColor: data.color }}
-                      ></div>
-                      <p className="font-bold text-gray-800 dark:text-white text-lg">{data.name}</p>
-                    </div>
-                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                      {data.value.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{data.percentage}% of total</p>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -963,7 +1282,16 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
 
   // Process monthly data for charts with filtering
   const monthlyData = useMemo(() => {
-    if (!data || !data.length) return [];
+    console.log('📊 MonthlyExpenseTrendChart - Processing data:', { 
+      dataLength: data?.length, 
+      data: data,
+      timeFilter 
+    });
+    
+    if (!data || !data.length) {
+      console.log('❌ No data available for MonthlyExpenseTrendChart');
+      return [];
+    }
 
     const monthlyStats = {};
     const now = new Date();
@@ -1011,9 +1339,12 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
       monthlyStats[monthKey] += parseFloat(amount);
     });
 
-    return Object.entries(monthlyStats)
+    const processedData = Object.entries(monthlyStats)
       .map(([month, total]) => ({ month, total }))
       .sort((a, b) => a.month.localeCompare(b.month));
+    
+    console.log('📊 MonthlyExpenseTrendChart - Processed monthly data:', processedData);
+    return processedData;
   }, [data, timeFilter]);
 
   // Handle bar click to show expense breakdown
@@ -1121,74 +1452,121 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
       </div>
 
       <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
-        <div className="w-full overflow-x-auto">
-          <ResponsiveContainer width={Math.max(800, monthlyData.length * 80)} height="100%">
-            <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <defs>
-              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
-                <stop offset="100%" stopColor="#1D4ED8" stopOpacity={0.6} />
-              </linearGradient>
-              <filter id="barGlow">
-                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                <feMerge> 
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
-            <XAxis 
-              dataKey="month" 
-              tick={{ fontSize: 12, fill: '#6B7280' }}
-              axisLine={{ stroke: '#D1D5DB' }}
-              tickLine={{ stroke: '#D1D5DB' }}
-              tickFormatter={(value) => {
-                const [year, month] = value.split('-');
-                const monthNames = [
-                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-                ];
-                return `${monthNames[parseInt(month) - 1]} ${year}`;
-              }}
-            />
-            <YAxis 
-              tick={{ fontSize: 12, fill: '#6B7280' }}
-              axisLine={{ stroke: '#D1D5DB' }}
-              tickLine={{ stroke: '#D1D5DB' }}
-              tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-            />
-            <Tooltip 
-              contentStyle={{
-                backgroundColor: 'white',
-                border: '1px solid #E5E7EB',
-                borderRadius: '12px',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                backdropFilter: 'blur(10px)'
-              }}
-              formatter={(value) => [`${(value / 1000).toFixed(1)}k AED`, 'Amount']}
-              labelFormatter={(label) => {
-                const [year, month] = label.split('-');
-                const monthNames = [
-                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-                ];
-                return `${monthNames[parseInt(month) - 1]} ${year}`;
-              }}
-            />
-            <Bar 
-              dataKey="total" 
-              fill="url(#barGradient)"
-              radius={[8, 8, 0, 0]}
-              stroke="#1D4ED8"
-              strokeWidth={1}
-              filter="url(#barGlow)"
-              onClick={handleBarClick}
-              style={{ cursor: 'pointer' }}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-        </div>
+        {monthlyData.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📊</span>
+              </div>
+              <p className="text-gray-500">No data available for monthly trends</p>
+              <p className="text-sm text-gray-400 mt-2">
+                {data?.length === 0 ? 'No expense data found' : 'No data matches the selected time range'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="w-full h-full">
+            {console.log('📊 Rendering chart with data:', monthlyData)}
+            <div className="h-full w-full min-h-[300px]">
+              {/* Test if recharts is working */}
+              {(() => {
+                try {
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={monthlyData} 
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              width={800}
+              height={300}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+              <XAxis 
+                dataKey="month" 
+                tick={{ fontSize: 12, fill: '#6B7280' }}
+                axisLine={{ stroke: '#D1D5DB' }}
+                tickLine={{ stroke: '#D1D5DB' }}
+                tickFormatter={(value) => {
+                  const [year, month] = value.split('-');
+                  const monthNames = [
+                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                  ];
+                  return `${monthNames[parseInt(month) - 1]} ${year}`;
+                }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12, fill: '#6B7280' }}
+                axisLine={{ stroke: '#D1D5DB' }}
+                tickLine={{ stroke: '#D1D5DB' }}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip 
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '12px',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                }}
+                formatter={(value) => [`AED ${value.toLocaleString()}`, 'Amount']}
+                labelFormatter={(label) => {
+                  const [year, month] = label.split('-');
+                  const monthNames = [
+                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                  ];
+                  return `${monthNames[parseInt(month) - 1]} ${year}`;
+                }}
+              />
+              <Bar 
+                dataKey="total" 
+                fill="#3B82F6"
+                radius={[8, 8, 0, 0]}
+                stroke="#1D4ED8"
+                strokeWidth={1}
+                onClick={handleBarClick}
+                style={{ cursor: 'pointer' }}
+              />
+            </BarChart>
+                    </ResponsiveContainer>
+                  );
+                } catch (error) {
+                  console.error('❌ Chart rendering error:', error);
+                  // Fallback to simple CSS bar chart
+                  const maxValue = Math.max(...monthlyData.map(d => d.total));
+                  return (
+                    <div className="h-full w-full">
+                      <div className="text-center mb-4">
+                        <p className="text-sm text-gray-500">Fallback Chart (Recharts Error)</p>
+                      </div>
+                      <div className="flex items-end justify-around h-64 px-4">
+                        {monthlyData.map((item, index) => {
+                          const height = (item.total / maxValue) * 200;
+                          const [year, month] = item.month.split('-');
+                          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          return (
+                            <div key={index} className="flex flex-col items-center">
+                              <div 
+                                className="bg-blue-500 rounded-t w-8 mb-2 transition-all duration-300 hover:bg-blue-600"
+                                style={{ height: `${height}px` }}
+                                title={`${monthNames[parseInt(month) - 1]} ${year}: AED ${item.total.toLocaleString()}`}
+                              ></div>
+                              <span className="text-xs text-gray-500 transform -rotate-45 origin-left">
+                                {monthNames[parseInt(month) - 1]}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="text-center mt-2">
+                        <p className="text-xs text-gray-400">Error: {error.message}</p>
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Month Breakdown Modal */}
@@ -1733,6 +2111,26 @@ export default function Analytics() {
   const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
   const expenses = expensesResponse?.data || [];
   
+  // Debug logging for expenses data
+  console.log('📊 Analytics - Expenses data:', {
+    expensesResponse,
+    expensesLength: expenses.length,
+    expenses: expenses,
+    isLoading,
+    error
+  });
+  
+  // Test recharts components
+  console.log('📊 Recharts components test:', {
+    BarChart: typeof BarChart,
+    ResponsiveContainer: typeof ResponsiveContainer,
+    Bar: typeof Bar,
+    XAxis: typeof XAxis,
+    YAxis: typeof YAxis,
+    CartesianGrid: typeof CartesianGrid,
+    Tooltip: typeof Tooltip
+  });
+  
   // State
   const [activeTab, setActiveTab] = useState('overview');
   const [filters, setFilters] = useState({
@@ -2048,8 +2446,8 @@ export default function Analytics() {
                   </motion.div>
                 </div>
 
-                {/* Additional Enhanced Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Additional Enhanced Charts - Stacked Vertically */}
+                <div className="grid grid-cols-1 gap-6">
                   {/* Monthly Expense Trend Chart */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}

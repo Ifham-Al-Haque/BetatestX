@@ -55,7 +55,9 @@ import {
   Grid,
   List,
   SortAsc,
-  SortDesc
+  SortDesc,
+  Mail,
+  Hash
 } from 'lucide-react';
 
 import UserDropdown from '../components/UserDropdown';
@@ -1263,309 +1265,562 @@ const FleetDeliveryChecklist = () => {
 
         {/* Create Delivery Order Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden border border-gray-200/50"
             >
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {editingDelivery ? 'Edit Delivery Order' : 'Create Delivery Order'}
-                  </h2>
-                  <Button
-                    variant="outline"
+              {/* Enhanced Header with Gradient */}
+              <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white overflow-hidden">
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-12 -translate-x-12"></div>
+                
+                <div className="relative z-10 flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                      <Truck className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-3xl font-bold">
+                        {editingDelivery ? 'Edit Delivery Order' : 'Create New Delivery Order'}
+                      </h2>
+                      <p className="text-blue-100 mt-1">
+                        {editingDelivery ? 'Update delivery details and settings' : 'Fill in the details to create a new delivery order'}
+                      </p>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => {
                       setShowCreateModal(false);
                       setEditingDelivery(null);
                     }}
+                    className="p-3 bg-white/20 hover:bg-white/30 rounded-2xl backdrop-blur-sm transition-all duration-200"
                   >
-                    <XCircle className="w-4 h-4" />
-                  </Button>
+                    <XCircle className="w-6 h-6 text-white" />
+                  </motion.button>
                 </div>
               </div>
               
-              <form onSubmit={handleSubmit} className="p-6">
-                <div className="space-y-6">
-                  {/* Customer Details Section */}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <User className="w-5 h-5 mr-2 text-blue-600" />
-                      Customer Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="customer_name">Customer Name *</Label>
-                        <Input
-                          id="customer_name"
-                          value={formData.customer_name}
-                          onChange={(e) => setFormData({...formData, customer_name: e.target.value})}
-                          required
-                          placeholder="Enter customer name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="customer_phone">Phone Number *</Label>
-                        <Input
-                          id="customer_phone"
-                          value={formData.customer_phone}
-                          onChange={(e) => setFormData({...formData, customer_phone: e.target.value})}
-                          required
-                          placeholder="Enter phone number"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="customer_email">Email Address</Label>
-                        <Input
-                          id="customer_email"
-                          type="email"
-                          value={formData.customer_email}
-                          onChange={(e) => setFormData({...formData, customer_email: e.target.value})}
-                          placeholder="Enter email address"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="location">Location *</Label>
-                        <Input
-                          id="location"
-                          value={formData.location}
-                          onChange={(e) => setFormData({...formData, location: e.target.value})}
-                          required
-                          placeholder="Enter delivery location"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fleet and Rental Details Section */}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <Truck className="w-5 h-5 mr-2 text-blue-600" />
-                      Fleet & Rental Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="desired_fleet">Desired Fleet</Label>
-                        <select
-                          id="desired_fleet"
-                          value={formData.desired_fleet}
-                          onChange={(e) => setFormData({...formData, desired_fleet: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select Fleet Type</option>
-                          <option value="sedan">Sedan</option>
-                          <option value="suv">SUV</option>
-                          <option value="hatchback">Hatchback</option>
-                          <option value="hybrid">Hybrid</option>
-                          <option value="ev">EV</option>
-                          <option value="luxury">Luxury</option>
-                        </select>
-                      </div>
-                      <div>
-                        <Label htmlFor="vehicle_number">Vehicle ID *</Label>
-                        <Input
-                          id="vehicle_number"
-                          value={formData.vehicle_number}
-                          onChange={(e) => setFormData({...formData, vehicle_number: e.target.value})}
-                          required
-                          placeholder="Enter vehicle ID"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="vehicle_make">Vehicle Make *</Label>
-                        <Input
-                          id="vehicle_make"
-                          value={formData.vehicle_make}
-                          onChange={(e) => setFormData({...formData, vehicle_make: e.target.value})}
-                          required
-                          placeholder="Enter vehicle make (e.g., Toyota, Ford)"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="vehicle_model">Vehicle Model *</Label>
-                        <Input
-                          id="vehicle_model"
-                          value={formData.vehicle_model}
-                          onChange={(e) => setFormData({...formData, vehicle_model: e.target.value})}
-                          required
-                          placeholder="Enter vehicle model"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="vehicle_plate">License Plate *</Label>
-                        <Input
-                          id="vehicle_plate"
-                          value={formData.vehicle_plate}
-                          onChange={(e) => setFormData({...formData, vehicle_plate: e.target.value})}
-                          required
-                          placeholder="Enter license plate number"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="rental_amount">Rental Amount *</Label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                          <Input
-                            id="rental_amount"
-                            type="number"
-                            step="0.01"
-                            value={formData.rental_amount}
-                            onChange={(e) => setFormData({...formData, rental_amount: e.target.value})}
-                            required
-                            placeholder="0.00"
-                            className="pl-10"
-                          />
+              <div className="overflow-y-auto max-h-[calc(95vh-200px)]">
+                <form onSubmit={handleSubmit} className="p-8">
+                  <div className="space-y-8">
+                    {/* Customer Details Section */}
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100"
+                    >
+                      <div className="flex items-center mb-6">
+                        <div className="p-3 bg-blue-500 rounded-xl mr-4">
+                          <User className="w-6 h-6 text-white" />
                         </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="confirm_amount">Confirm Amount *</Label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                          <Input
-                            id="confirm_amount"
-                            type="number"
-                            step="0.01"
-                            value={formData.confirm_amount}
-                            onChange={(e) => setFormData({...formData, confirm_amount: e.target.value})}
-                            required
-                            placeholder="0.00"
-                            className="pl-10"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="rental_duration">Rental Duration *</Label>
-                        <select
-                          id="rental_duration"
-                          value={formData.rental_duration}
-                          onChange={(e) => setFormData({...formData, rental_duration: e.target.value})}
-                          required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select Duration</option>
-                          <option value="1_hour">1 Hour</option>
-                          <option value="2_hours">2 Hours</option>
-                          <option value="4_hours">4 Hours</option>
-                          <option value="8_hours">8 Hours</option>
-                          <option value="1_day">1 Day</option>
-                          <option value="2_days">2 Days</option>
-                          <option value="3_days">3 Days</option>
-                          <option value="1_week">1 Week</option>
-                          <option value="2_weeks">2 Weeks</option>
-                          <option value="1_month">1 Month</option>
-                          <option value="custom">Custom</option>
-                        </select>
-                      </div>
-                      {formData.rental_duration === 'custom' && (
                         <div>
-                          <Label htmlFor="custom_duration">Custom Duration</Label>
-                          <Input
-                            id="custom_duration"
-                            value={formData.custom_duration}
-                            onChange={(e) => setFormData({...formData, custom_duration: e.target.value})}
-                            placeholder="e.g., 5 days, 2 weeks, 3 months"
-                          />
+                          <h3 className="text-xl font-bold text-gray-900">Customer Information</h3>
+                          <p className="text-gray-600">Enter customer contact and location details</p>
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Assignment Details Section */}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-                      Assignment Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div>
-                        <Label htmlFor="driver_name">Driver Name</Label>
-                        <Input
-                          id="driver_name"
-                          value={formData.driver_name}
-                          onChange={(e) => setFormData({...formData, driver_name: e.target.value})}
-                          placeholder="Enter driver name (if known)"
-                        />
                       </div>
-                      <div>
-                        <Label htmlFor="driver_phone">Driver Phone</Label>
-                        <Input
-                          id="driver_phone"
-                          value={formData.driver_phone}
-                          onChange={(e) => setFormData({...formData, driver_phone: e.target.value})}
-                          placeholder="Enter driver phone number (if known)"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="driver_license">Driver License Number</Label>
-                        <Input
-                          id="driver_license"
-                          value={formData.driver_license}
-                          onChange={(e) => setFormData({...formData, driver_license: e.target.value})}
-                          placeholder="Enter driver license number"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="priority">Priority</Label>
-                        <select
-                          id="priority"
-                          value={formData.priority}
-                          onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
                         >
-                          <option value="Low">Low</option>
-                          <option value="Medium">Medium</option>
-                          <option value="High">High</option>
-                          <option value="Urgent">Urgent</option>
-                        </select>
+                          <Label htmlFor="customer_name" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <User className="w-4 h-4 mr-2 text-blue-500" />
+                            Customer Name *
+                          </Label>
+                          <Input
+                            id="customer_name"
+                            value={formData.customer_name}
+                            onChange={(e) => setFormData({...formData, customer_name: e.target.value})}
+                            required
+                            placeholder="Enter full customer name"
+                            className="h-12 rounded-xl border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="customer_phone" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Phone className="w-4 h-4 mr-2 text-green-500" />
+                            Phone Number *
+                          </Label>
+                          <Input
+                            id="customer_phone"
+                            value={formData.customer_phone}
+                            onChange={(e) => setFormData({...formData, customer_phone: e.target.value})}
+                            required
+                            placeholder="+971 50 123 4567"
+                            className="h-12 rounded-xl border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="customer_email" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Mail className="w-4 h-4 mr-2 text-purple-500" />
+                            Email Address
+                          </Label>
+                          <Input
+                            id="customer_email"
+                            type="email"
+                            value={formData.customer_email}
+                            onChange={(e) => setFormData({...formData, customer_email: e.target.value})}
+                            placeholder="customer@example.com"
+                            className="h-12 rounded-xl border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="location" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <MapPin className="w-4 h-4 mr-2 text-red-500" />
+                            Delivery Location *
+                          </Label>
+                          <Input
+                            id="location"
+                            value={formData.location}
+                            onChange={(e) => setFormData({...formData, location: e.target.value})}
+                            required
+                            placeholder="Enter complete delivery address"
+                            className="h-12 rounded-xl border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-200"
+                          />
+                        </motion.div>
                       </div>
-                      <div>
-                        <Label htmlFor="delivery_date">Delivery Date</Label>
-                        <Input
-                          id="delivery_date"
-                          type="date"
-                          value={formData.delivery_date}
-                          onChange={(e) => setFormData({...formData, delivery_date: e.target.value})}
+                    </motion.div>
+
+                    {/* Fleet and Rental Details Section */}
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100"
+                    >
+                      <div className="flex items-center mb-6">
+                        <div className="p-3 bg-green-500 rounded-xl mr-4">
+                          <Truck className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Vehicle & Rental Details</h3>
+                          <p className="text-gray-600">Specify vehicle information and rental terms</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="desired_fleet" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Truck className="w-4 h-4 mr-2 text-green-500" />
+                            Fleet Type
+                          </Label>
+                          <select
+                            id="desired_fleet"
+                            value={formData.desired_fleet}
+                            onChange={(e) => setFormData({...formData, desired_fleet: e.target.value})}
+                            className="w-full h-12 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white"
+                          >
+                            <option value="">Select Fleet Type</option>
+                            <option value="sedan">🚗 Sedan</option>
+                            <option value="suv">🚙 SUV</option>
+                            <option value="hatchback">🚐 Hatchback</option>
+                            <option value="hybrid">🔋 Hybrid</option>
+                            <option value="ev">⚡ Electric Vehicle</option>
+                            <option value="luxury">✨ Luxury</option>
+                          </select>
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="vehicle_number" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Hash className="w-4 h-4 mr-2 text-blue-500" />
+                            Vehicle ID *
+                          </Label>
+                          <Input
+                            id="vehicle_number"
+                            value={formData.vehicle_number}
+                            onChange={(e) => setFormData({...formData, vehicle_number: e.target.value})}
+                            required
+                            placeholder="VH-001"
+                            className="h-12 rounded-xl border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="vehicle_make" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Settings className="w-4 h-4 mr-2 text-orange-500" />
+                            Vehicle Make *
+                          </Label>
+                          <Input
+                            id="vehicle_make"
+                            value={formData.vehicle_make}
+                            onChange={(e) => setFormData({...formData, vehicle_make: e.target.value})}
+                            required
+                            placeholder="Toyota, Ford, BMW..."
+                            className="h-12 rounded-xl border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="vehicle_model" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Package className="w-4 h-4 mr-2 text-purple-500" />
+                            Vehicle Model *
+                          </Label>
+                          <Input
+                            id="vehicle_model"
+                            value={formData.vehicle_model}
+                            onChange={(e) => setFormData({...formData, vehicle_model: e.target.value})}
+                            required
+                            placeholder="Camry, F-150, X5..."
+                            className="h-12 rounded-xl border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="vehicle_plate" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <FileText className="w-4 h-4 mr-2 text-red-500" />
+                            License Plate *
+                          </Label>
+                          <Input
+                            id="vehicle_plate"
+                            value={formData.vehicle_plate}
+                            onChange={(e) => setFormData({...formData, vehicle_plate: e.target.value})}
+                            required
+                            placeholder="ABC-123"
+                            className="h-12 rounded-xl border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="rental_duration" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Clock className="w-4 h-4 mr-2 text-indigo-500" />
+                            Rental Duration *
+                          </Label>
+                          <select
+                            id="rental_duration"
+                            value={formData.rental_duration}
+                            onChange={(e) => setFormData({...formData, rental_duration: e.target.value})}
+                            required
+                            className="w-full h-12 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white"
+                          >
+                            <option value="">Select Duration</option>
+                            <option value="1_hour">⏰ 1 Hour</option>
+                            <option value="2_hours">⏰ 2 Hours</option>
+                            <option value="4_hours">⏰ 4 Hours</option>
+                            <option value="8_hours">⏰ 8 Hours</option>
+                            <option value="1_day">📅 1 Day</option>
+                            <option value="2_days">📅 2 Days</option>
+                            <option value="3_days">📅 3 Days</option>
+                            <option value="1_week">📅 1 Week</option>
+                            <option value="2_weeks">📅 2 Weeks</option>
+                            <option value="1_month">📅 1 Month</option>
+                            <option value="custom">⚙️ Custom</option>
+                          </select>
+                        </motion.div>
+                        
+                        {formData.rental_duration === 'custom' && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="space-y-2 col-span-full"
+                          >
+                            <Label htmlFor="custom_duration" className="text-sm font-semibold text-gray-700 flex items-center">
+                              <Edit className="w-4 h-4 mr-2 text-amber-500" />
+                              Custom Duration
+                            </Label>
+                            <Input
+                              id="custom_duration"
+                              value={formData.custom_duration}
+                              onChange={(e) => setFormData({...formData, custom_duration: e.target.value})}
+                              placeholder="e.g., 5 days, 2 weeks, 3 months"
+                              className="h-12 rounded-xl border-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200"
+                            />
+                          </motion.div>
+                        )}
+                      </div>
+                    </motion.div>
+
+                    {/* Pricing Section */}
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100"
+                    >
+                      <div className="flex items-center mb-6">
+                        <div className="p-3 bg-amber-500 rounded-xl mr-4">
+                          <DollarSign className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Pricing & Payment</h3>
+                          <p className="text-gray-600">Set rental amount and confirmed pricing</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="rental_amount" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <DollarSign className="w-4 h-4 mr-2 text-amber-500" />
+                            Rental Amount *
+                          </Label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-amber-600 font-bold">AED</span>
+                            <Input
+                              id="rental_amount"
+                              type="number"
+                              step="0.01"
+                              value={formData.rental_amount}
+                              onChange={(e) => setFormData({...formData, rental_amount: e.target.value})}
+                              required
+                              placeholder="0.00"
+                              className="h-12 pl-12 rounded-xl border-gray-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200"
+                            />
+                          </div>
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="confirm_amount" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                            Confirmed Amount *
+                          </Label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600 font-bold">AED</span>
+                            <Input
+                              id="confirm_amount"
+                              type="number"
+                              step="0.01"
+                              value={formData.confirm_amount}
+                              onChange={(e) => setFormData({...formData, confirm_amount: e.target.value})}
+                              required
+                              placeholder="0.00"
+                              className="h-12 pl-12 rounded-xl border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+                            />
+                          </div>
+                        </motion.div>
+                      </div>
+                    </motion.div>
+
+                    {/* Assignment Details Section */}
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                      className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100"
+                    >
+                      <div className="flex items-center mb-6">
+                        <div className="p-3 bg-purple-500 rounded-xl mr-4">
+                          <Calendar className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Assignment & Scheduling</h3>
+                          <p className="text-gray-600">Assign driver and set delivery priority</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="driver_name" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <User className="w-4 h-4 mr-2 text-purple-500" />
+                            Driver Name
+                          </Label>
+                          <Input
+                            id="driver_name"
+                            value={formData.driver_name}
+                            onChange={(e) => setFormData({...formData, driver_name: e.target.value})}
+                            placeholder="Enter driver name (if known)"
+                            className="h-12 rounded-xl border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="driver_phone" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Phone className="w-4 h-4 mr-2 text-blue-500" />
+                            Driver Phone
+                          </Label>
+                          <Input
+                            id="driver_phone"
+                            value={formData.driver_phone}
+                            onChange={(e) => setFormData({...formData, driver_phone: e.target.value})}
+                            placeholder="+971 50 123 4567"
+                            className="h-12 rounded-xl border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="driver_license" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <FileText className="w-4 h-4 mr-2 text-green-500" />
+                            Driver License
+                          </Label>
+                          <Input
+                            id="driver_license"
+                            value={formData.driver_license}
+                            onChange={(e) => setFormData({...formData, driver_license: e.target.value})}
+                            placeholder="UAE123456789"
+                            className="h-12 rounded-xl border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="priority" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Target className="w-4 h-4 mr-2 text-red-500" />
+                            Priority Level
+                          </Label>
+                          <select
+                            id="priority"
+                            value={formData.priority}
+                            onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                            className="w-full h-12 px-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 bg-white"
+                          >
+                            <option value="Low">🟢 Low Priority</option>
+                            <option value="Medium">🟡 Medium Priority</option>
+                            <option value="High">🟠 High Priority</option>
+                            <option value="Urgent">🔴 Urgent Priority</option>
+                          </select>
+                        </motion.div>
+                        
+                        <motion.div
+                          whileFocus={{ scale: 1.02 }}
+                          className="space-y-2"
+                        >
+                          <Label htmlFor="delivery_date" className="text-sm font-semibold text-gray-700 flex items-center">
+                            <Calendar className="w-4 h-4 mr-2 text-indigo-500" />
+                            Delivery Date
+                          </Label>
+                          <Input
+                            id="delivery_date"
+                            type="date"
+                            value={formData.delivery_date}
+                            onChange={(e) => setFormData({...formData, delivery_date: e.target.value})}
+                            className="h-12 rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                          />
+                        </motion.div>
+                      </div>
+                    </motion.div>
+
+                    {/* Special Notes Section */}
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                      className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-6 border border-slate-100"
+                    >
+                      <div className="flex items-center mb-6">
+                        <div className="p-3 bg-slate-500 rounded-xl mr-4">
+                          <Package className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Additional Information</h3>
+                          <p className="text-gray-600">Add special instructions and delivery notes</p>
+                        </div>
+                      </div>
+                      
+                      <motion.div
+                        whileFocus={{ scale: 1.01 }}
+                        className="space-y-2"
+                      >
+                        <Label htmlFor="special_notes" className="text-sm font-semibold text-gray-700 flex items-center">
+                          <FileText className="w-4 h-4 mr-2 text-slate-500" />
+                          Special Instructions & Notes
+                        </Label>
+                        <Textarea
+                          id="special_notes"
+                          value={formData.special_notes}
+                          onChange={(e) => setFormData({...formData, special_notes: e.target.value})}
+                          rows={5}
+                          placeholder="Enter any special instructions, requirements, or notes for this delivery..."
+                          className="rounded-xl border-gray-300 focus:border-slate-500 focus:ring-2 focus:ring-slate-200 transition-all duration-200 resize-none"
                         />
-                      </div>
-                    </div>
+                      </motion.div>
+                    </motion.div>
                   </div>
 
-                  {/* Special Notes Section */}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <Package className="w-5 h-5 mr-2 text-blue-600" />
-                      Additional Information
-                    </h3>
-                    <div>
-                      <Label htmlFor="special_notes">Special Notes</Label>
-                      <Textarea
-                        id="special_notes"
-                        value={formData.special_notes}
-                        onChange={(e) => setFormData({...formData, special_notes: e.target.value})}
-                        rows={4}
-                        placeholder="Enter any special instructions, requirements, or notes for this delivery..."
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setEditingDelivery(null);
-                    }}
+                  {/* Enhanced Form Actions */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t border-gray-200"
                   >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                    {editingDelivery ? 'Update Delivery Order' : 'Create Delivery Order'}
-                  </Button>
-                </div>
-              </form>
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setShowCreateModal(false);
+                        setEditingDelivery(null);
+                      }}
+                      className="px-8 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl"
+                    >
+                      Cancel
+                    </motion.button>
+                    
+                    <motion.button
+                      type="submit"
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white rounded-xl transition-all duration-200 font-bold shadow-xl hover:shadow-2xl flex items-center justify-center space-x-2"
+                    >
+                      {editingDelivery ? (
+                        <>
+                          <Edit className="w-5 h-5" />
+                          <span>Update Delivery Order</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-5 h-5" />
+                          <span>Create Delivery Order</span>
+                        </>
+                      )}
+                    </motion.button>
+                  </motion.div>
+                </form>
+              </div>
             </motion.div>
           </div>
         )}
