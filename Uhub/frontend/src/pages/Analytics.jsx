@@ -1880,7 +1880,11 @@ const DepartmentalExpensesLineChart = ({ data }) => {
 
 // Enhanced Average Spending Chart Component
 const AverageSpendingChart = ({ data }) => {
+  // Debug logging for AverageSpendingChart
+  console.log('📊 AverageSpendingChart - Processing', data?.length, 'expenses');
+
   if (!data || data.length === 0) {
+    console.log('📊 AverageSpendingChart - No data available, showing empty state');
     return (
       <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
         <div className="text-center">
@@ -1896,12 +1900,18 @@ const AverageSpendingChart = ({ data }) => {
 
   // Calculate average spending by service - try different possible field names
   const serviceStats = {};
+  let processedCount = 0;
+  let skippedCount = 0;
+  
   data.forEach(expense => {
     // Try different possible field names for service and amount
     const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
     const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
     
-    if (!serviceName || !amount || amount <= 0) return;
+    if (!serviceName || !amount || amount <= 0) {
+      skippedCount++;
+      return;
+    }
     
     if (!serviceStats[serviceName]) {
       serviceStats[serviceName] = {
@@ -1911,6 +1921,14 @@ const AverageSpendingChart = ({ data }) => {
     }
     serviceStats[serviceName].total += parseFloat(amount);
     serviceStats[serviceName].count += 1;
+    processedCount++;
+  });
+  
+  console.log('📊 Service stats processing complete:', {
+    servicesFound: Object.keys(serviceStats).length,
+    processedCount,
+    skippedCount,
+    totalExpenses: data.length
   });
 
   const chartData = Object.entries(serviceStats)
@@ -1922,8 +1940,11 @@ const AverageSpendingChart = ({ data }) => {
     .sort((a, b) => b.average - a.average)
     .slice(0, 8); // Top 8 services
 
+  console.log('📊 Chart data created:', chartData.length, 'services with data');
+
   // If no valid data, show empty state
   if (chartData.length === 0) {
+    console.log('📊 No chart data available, showing empty state');
     return (
       <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
         <div className="text-center">
