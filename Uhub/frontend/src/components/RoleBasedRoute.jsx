@@ -95,6 +95,15 @@ export const ROLE_PERMISSIONS = {
     icon: Shield,
     access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_view_only', 'it_requests', 'todo_list', 'asset_management', 'driver_records_view_only']
   },
+  collections: {
+    level: 4,
+    name: 'Collections Department',
+    description: 'Collection department with access to collection panel, HR features, and customer payment tracking',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    icon: Shield,
+    access: ['main_panel', 'slice_of_life', 'communication', 'user_profile', 'hr_limited', 'it_requests', 'todo_list', 'subscribe_now', 'collections_full']
+  },
   marketing_manager: {
     level: 3,
     name: 'Marketing Manager',
@@ -149,46 +158,46 @@ export const FEATURE_ACCESS = {
   csv_importer: ['admin'],
   
   // Main Panel Features - Subscribe Now has access to Home and Calendar View
-  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   dashboard: ['admin', 'manager', 'marketing_manager', 'marketing_management'], // Dashboard for admin and manager
-  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // Slice of Life Panel - Subscribe Now has access to ALL sections
-  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  slice_of_life: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  collections: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  slice_of_life: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  collections: ['admin', 'collections'], // Collection Department - Admin and Collections role access
   
   // Communication Panel - Subscribe Now has access to Team Chat
-  communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  team_chat: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  team_chat: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // User Profile - Subscribe Now has access
-  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // HR Panel - Subscribe Now has access to Employees, Complaints, and Suggestions
-  employees: ['admin', 'hr_manager', 'manager', 'subscribe_now'], // Subscribe Now can access employee section
+  employees: ['admin', 'hr_manager', 'manager', 'collections', 'subscribe_now'], // Collections can access employee section
   employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only for others
   employee_records: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only employee records
-  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  complaints_inbox: ['admin', 'hr_manager', 'employee'], // Admin, HR manager, and employees see inbox
-  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  complaints_inbox: ['admin', 'hr_manager', 'employee', 'collections'], // Admin, HR manager, employees, and collections see inbox
+  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   attendance: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   payroll: ['admin', 'hr_manager'],
   epr: ['admin', 'hr_manager'],
   
   // IT Service Panel - Subscribe Now has access to IT Request Section
-  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   it_assets: ['admin', 'it_management'],
   it_tickets: ['admin'],
   request_inbox: ['admin', 'it_management'],
   
   // Todo List Panel - Subscribe Now has access to ALL sections
-  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // Customer Service Panel - CS Manager has full access
   customer_service: ['admin', 'cs_manager'],
@@ -230,7 +239,7 @@ export const FEATURE_ACCESS = {
   fleet_maintenance_record: ['admin', 'operation_management', 'subscribe_now'],
   
   // Subscribe Now Panel - Subscribe Now role has full access, others have limited access
-  subscribe_now: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  subscribe_now: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // Marketing Panel Features
   marketing_calendar: ['admin', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
@@ -299,7 +308,7 @@ export const getRoleNavigationAccess = (userRole) => {
       }
     },
     data_operator: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'driver_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'driver_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
@@ -310,12 +319,11 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
+        subscribe_panel: ['subscribe_now']
       }
     },
     finance: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
@@ -326,12 +334,11 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
+        subscribe_panel: ['subscribe_now']
       }
     },
     it_management: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
@@ -342,12 +349,11 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
+        subscribe_panel: ['subscribe_now']
       }
     },
     employee: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'subscribe_panel', 'collections_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'subscribe_panel'],
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         user_profile: ['profile', 'settings'],
@@ -357,89 +363,97 @@ export const getRoleNavigationAccess = (userRole) => {
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
         driver_management: ['delivery_tracking'], // View only
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
+        subscribe_panel: ['subscribe_now']
       }
     },
-    cs_manager: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'customer_service', 'subscribe_panel', 'collections_panel'],
-      items: {
-        main: ['home', 'dashboard', 'calendar_view'],
-        user_profile: ['profile', 'settings'],
-        hr_panel: ['employee_records', 'complaints', 'suggestions'],
-        it_services: ['it_requests'],
-        todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories'],
-        communication: ['communication'],
-        customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
-      }
-    },
-    driver_management: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'subscribe_panel', 'collections_panel'],
-      items: {
-        main: ['home', 'dashboard', 'calendar_view'],
-        user_profile: ['profile', 'settings'],
-        hr_panel: ['employee_records', 'complaints', 'suggestions'],
-        it_services: ['it_requests'],
-        todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories'],
-        communication: ['communication'],
-        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
-      }
-    },
-    operation_management: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'operation_panel', 'subscribe_panel', 'collections_panel'],
-      items: {
-        main: ['home', 'dashboard', 'calendar_view'],
-        user_profile: ['profile', 'settings'],
-        hr_panel: ['employee_records', 'complaints', 'suggestions'],
-        it_services: ['it_requests'],
-        todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories'],
-        communication: ['communication'],
-        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
-        operation_panel: ['fleet_onboarding', 'fleet_offboarding', 'fleet_delivery_checklist', 'fleet_maintenance_record'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
-      }
-    },
-    hr_manager: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management', 'subscribe_panel', 'collections_panel'],
-      items: {
-        main: ['home', 'dashboard', 'calendar_view'],
-        user_profile: ['profile', 'settings'],
-        hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'epr'],
-        it_services: ['it_requests'],
-        todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories'],
-        communication: ['communication'],
-        driver_management: ['driver_records'], // View only
-        asset_management: ['assets', 'simcards'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
-      }
-    },
-    manager: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management', 'subscribe_panel', 'collections_panel'],
-      items: {
-        main: ['home', 'dashboard', 'calendar_view'],
-        user_profile: ['profile', 'settings'],
-        hr_panel: ['employee_records', 'complaints', 'suggestions'],
-        it_services: ['it_requests'],
-        todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories'],
-        communication: ['communication'],
-        driver_management: ['driver_records', 'delivery_management', 'delivery_tracking', 'delivery_routes'], // View only
-        asset_management: ['assets', 'simcards'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
-      }
-    },
-    subscribe_now: {
+  cs_manager: {
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'customer_service', 'subscribe_panel'],
+    items: {
+      main: ['home', 'dashboard', 'calendar_view'],
+      user_profile: ['profile', 'settings'],
+      hr_panel: ['employee_records', 'complaints', 'suggestions'],
+      it_services: ['it_requests'],
+      todo_list: ['todo_list', 'task_management', 'my_tasks'],
+      slice_of_life: ['events', 'memories'],
+      communication: ['communication'],
+      customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
+      subscribe_panel: ['subscribe_now']
+    }
+  },
+  driver_management: {
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'subscribe_panel'],
+    items: {
+      main: ['home', 'dashboard', 'calendar_view'],
+      user_profile: ['profile', 'settings'],
+      hr_panel: ['employee_records', 'complaints', 'suggestions'],
+      it_services: ['it_requests'],
+      todo_list: ['todo_list', 'task_management', 'my_tasks'],
+      slice_of_life: ['events', 'memories'],
+      communication: ['communication'],
+      driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
+      subscribe_panel: ['subscribe_now']
+    }
+  },
+  operation_management: {
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'operation_panel', 'subscribe_panel'],
+    items: {
+      main: ['home', 'dashboard', 'calendar_view'],
+      user_profile: ['profile', 'settings'],
+      hr_panel: ['employee_records', 'complaints', 'suggestions'],
+      it_services: ['it_requests'],
+      todo_list: ['todo_list', 'task_management', 'my_tasks'],
+      slice_of_life: ['events', 'memories'],
+      communication: ['communication'],
+      driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
+      operation_panel: ['fleet_onboarding', 'fleet_offboarding', 'fleet_delivery_checklist', 'fleet_maintenance_record'],
+      subscribe_panel: ['subscribe_now']
+    }
+  },
+  hr_manager: {
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management', 'subscribe_panel'],
+    items: {
+      main: ['home', 'dashboard', 'calendar_view'],
+      user_profile: ['profile', 'settings'],
+      hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'epr'],
+      it_services: ['it_requests'],
+      todo_list: ['todo_list', 'task_management', 'my_tasks'],
+      slice_of_life: ['events', 'memories'],
+      communication: ['communication'],
+      driver_management: ['driver_records'], // View only
+      asset_management: ['assets', 'simcards'],
+      subscribe_panel: ['subscribe_now']
+    }
+  },
+  manager: {
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management', 'subscribe_panel'],
+    items: {
+      main: ['home', 'dashboard', 'calendar_view'],
+      user_profile: ['profile', 'settings'],
+      hr_panel: ['employee_records', 'complaints', 'suggestions'],
+      it_services: ['it_requests'],
+      todo_list: ['todo_list', 'task_management', 'my_tasks'],
+      slice_of_life: ['events', 'memories'],
+      communication: ['communication'],
+      driver_management: ['driver_records', 'delivery_management', 'delivery_tracking', 'delivery_routes'], // View only
+      asset_management: ['assets', 'simcards'],
+      subscribe_panel: ['subscribe_now']
+    }
+  },
+  collections: {
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel'],
+    items: {
+      main: ['home', 'calendar_view'],
+      user_profile: ['profile', 'settings'],
+      hr_panel: ['employees', 'complaints', 'complaints_inbox', 'suggestions'],
+      it_services: ['it_requests'],
+      todo_list: ['todo_list', 'task_management', 'my_tasks'],
+      slice_of_life: ['events', 'memories'],
+      communication: ['communication', 'team_chat'],
+      subscribe_panel: ['subscribe_now'],
+      collections_panel: ['collections']
+    }
+  },
+  subscribe_now: {
       panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'operation_panel', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
       items: {
         main: ['home', 'calendar_view'],
@@ -453,23 +467,22 @@ export const getRoleNavigationAccess = (userRole) => {
         subscribe_panel: ['subscribe_now']
       }
     },
-    marketing_manager: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'marketing_panel', 'subscribe_panel', 'collections_panel'],
-      items: {
-        main: ['home', 'dashboard', 'calendar_view'],
-        user_profile: ['profile', 'settings'],
-        hr_panel: ['employee_records', 'complaints', 'suggestions'],
-        it_services: ['it_requests'],
-        todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories'],
-        communication: ['communication'],
-        marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
-      }
-    },
+  marketing_manager: {
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'marketing_panel', 'subscribe_panel'],
+    items: {
+      main: ['home', 'dashboard', 'calendar_view'],
+      user_profile: ['profile', 'settings'],
+      hr_panel: ['employee_records', 'complaints', 'suggestions'],
+      it_services: ['it_requests'],
+      todo_list: ['todo_list', 'task_management', 'my_tasks'],
+      slice_of_life: ['events', 'memories'],
+      communication: ['communication'],
+      marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics'],
+      subscribe_panel: ['subscribe_now']
+    }
+  },
     marketing_specialist: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'marketing_panel', 'subscribe_panel', 'collections_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'marketing_panel', 'subscribe_panel'],
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         user_profile: ['profile', 'settings'],
@@ -479,8 +492,7 @@ export const getRoleNavigationAccess = (userRole) => {
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
         marketing_panel: ['marketing_calendar', 'marketing_events'],
-        subscribe_panel: ['subscribe_now'],
-        collections_panel: ['collections']
+        subscribe_panel: ['subscribe_now']
       }
     },
     marketing_management: {
