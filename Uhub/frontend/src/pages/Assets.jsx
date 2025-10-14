@@ -8,7 +8,8 @@ import {
   Search, Filter, Plus, Edit, Trash, User, Calendar, 
   CheckCircle, AlertTriangle, Clock, DollarSign, X, Save,
   TrendingUp, Shield, Zap, Database, Smartphone as PhoneIcon,
-  FileText, Building, ImageIcon
+  FileText, Building, ImageIcon, Grid, List, Download, Eye,
+  Package, Settings
 } from "lucide-react";
 import { useAssets, useDeleteAsset, useCreateAsset, useUpdateAsset } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
@@ -306,6 +307,7 @@ export default function Assets() {
   const [editingAsset, setEditingAsset] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
+  const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
   
   const { success, error: showError } = useToast();
   const navigate = useNavigate();
@@ -402,14 +404,15 @@ export default function Assets() {
 
   // Asset statistics
   const stats = useMemo(() => {
-    const total = assets.length;
+    const total = totalCount || assets.length;
     const inStock = assets.filter(asset => asset.status === 'In Stock').length;
     const assigned = assets.filter(asset => asset.status === 'Assigned').length;
     const maintenance = assets.filter(asset => asset.status === 'Maintenance').length;
     const retired = assets.filter(asset => asset.status === 'Retired').length;
+    const totalValue = assets.reduce((sum, asset) => sum + (parseFloat(asset.purchase_price) || 0), 0);
 
-    return { total, inStock, assigned, maintenance, retired };
-  }, [assets]);
+    return { total, inStock, assigned, maintenance, retired, totalValue };
+  }, [assets, totalCount]);
 
   if (error) {
     return (
@@ -508,11 +511,12 @@ export default function Assets() {
           </div>
 
           {/* Enhanced Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
             <StatCard
               icon={Database}
               title="Total Assets"
               value={stats.total}
+              subtitle="All tracked items"
               color="bg-gradient-to-br from-blue-500 to-blue-600"
               gradient="bg-gradient-to-br from-blue-500 to-blue-600"
             />
@@ -520,6 +524,7 @@ export default function Assets() {
               icon={CheckCircle}
               title="In Stock"
               value={stats.inStock}
+              subtitle={`${stats.total > 0 ? Math.round((stats.inStock / stats.total) * 100) : 0}% available`}
               color="bg-gradient-to-br from-green-500 to-green-600"
               gradient="bg-gradient-to-br from-green-500 to-green-600"
             />
@@ -527,6 +532,7 @@ export default function Assets() {
               icon={User}
               title="Assigned"
               value={stats.assigned}
+              subtitle={`${stats.total > 0 ? Math.round((stats.assigned / stats.total) * 100) : 0}% in use`}
               color="bg-gradient-to-br from-indigo-500 to-indigo-600"
               gradient="bg-gradient-to-br from-indigo-500 to-indigo-600"
             />
@@ -534,6 +540,7 @@ export default function Assets() {
               icon={Clock}
               title="Maintenance"
               value={stats.maintenance}
+              subtitle="Being serviced"
               color="bg-gradient-to-br from-yellow-500 to-yellow-600"
               gradient="bg-gradient-to-br from-yellow-500 to-yellow-600"
             />
@@ -541,8 +548,17 @@ export default function Assets() {
               icon={AlertTriangle}
               title="Retired"
               value={stats.retired}
+              subtitle="End of life"
               color="bg-gradient-to-br from-red-500 to-red-600"
               gradient="bg-gradient-to-br from-red-500 to-red-600"
+            />
+            <StatCard
+              icon={DollarSign}
+              title="Total Value"
+              value={`${(stats.totalValue / 1000).toFixed(0)}K`}
+              subtitle={`AED ${stats.totalValue.toLocaleString()}`}
+              color="bg-gradient-to-br from-purple-500 to-purple-600"
+              gradient="bg-gradient-to-br from-purple-500 to-purple-600"
             />
           </div>
 
@@ -584,23 +600,100 @@ export default function Assets() {
                   <option value="Printer">Printer</option>
                   <option value="Network">Network</option>
                 </select>
+                
+                {/* View Mode Toggle */}
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+                  <motion.button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      viewMode === 'grid' 
+                        ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-md' 
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    title="Grid View"
+                  >
+                    <Grid className="w-5 h-5" />
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      viewMode === 'list' 
+                        ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-md' 
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    title="List View"
+                  >
+                    <List className="w-5 h-5" />
+                  </motion.button>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Loading State */}
+          {/* Loading State with Skeleton */}
           {isLoading && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-12">
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <span className="ml-4 text-lg text-gray-600 dark:text-gray-400">Loading assets...</span>
+            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 animate-pulse">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+                      <div className="flex-1">
+                        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-4/6"></div>
+                  </div>
               </div>
+              ))}
             </div>
           )}
 
-          {/* Enhanced Assets Grid */}
-          {!isLoading && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Enhanced Assets Grid/List */}
+          {!isLoading && assets.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-16 text-center"
+            >
+              <div className="max-w-md mx-auto">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Package className="w-12 h-12 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                  No Assets Found
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  {search || statusFilter || typeFilter 
+                    ? "No assets match your search criteria. Try adjusting your filters." 
+                    : "Get started by adding your first asset to the system."}
+                </p>
+                {canAddAsset() && !search && !statusFilter && !typeFilter && (
+                  <motion.button
+                    onClick={() => setShowForm(true)}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 rounded-xl flex items-center gap-3 mx-auto transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add Your First Asset
+                  </motion.button>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {!isLoading && assets.length > 0 && (
+            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
               <AnimatePresence>
                 {assets.map((asset, index) => (
                   <motion.div
@@ -609,20 +702,52 @@ export default function Assets() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group overflow-hidden relative"
+                    className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group overflow-hidden relative ${
+                      viewMode === 'list' ? 'p-4' : 'p-6'
+                    }`}
                     onClick={() => navigate(`/assets/${asset.id}`)}
                   >
                     {/* Background gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     
-                    <div className="relative z-10">
-                      <div className="flex items-start justify-between mb-6">
-                        <div className="flex items-center">
-                          <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                            {getAssetIcon(asset.type)}
+                    <div className={`relative z-10 ${viewMode === 'list' ? 'flex items-center gap-6' : ''}`}>
+                      {/* Asset Image */}
+                      {asset.asset_picture_url && (
+                        <div className={`${viewMode === 'list' ? 'w-24 h-24' : 'w-full h-48 mb-4'} bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-xl overflow-hidden flex-shrink-0 shadow-inner`}>
+                          <img
+                            src={asset.asset_picture_url}
+                            alt={asset.name}
+                            className="w-full h-full object-contain bg-white dark:bg-gray-800 group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                          <div className="hidden w-full h-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
+                            <div className="text-center">
+                              {getAssetIcon(asset.type)}
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">No Image</p>
+                            </div>
                           </div>
-                          <div className="ml-4">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
+                        </div>
+                      )}
+                      
+                      <div className={viewMode === 'list' ? 'flex-1 flex items-center justify-between' : ''}>
+                        <div className={viewMode === 'list' ? 'flex-1' : ''}>
+                          <div className={`flex items-start justify-between ${viewMode === 'list' ? 'mb-2' : 'mb-6'}`}>
+                            <div className={`flex items-center ${viewMode === 'list' ? 'gap-4' : ''}`}>
+                              {!asset.asset_picture_url && (
+                                <div className={`${viewMode === 'list' ? 'w-24 h-24' : 'w-full h-48 mb-4'} bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-xl overflow-hidden flex-shrink-0 shadow-inner flex items-center justify-center`}>
+                                  <div className="text-center">
+                                    <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 rounded-xl group-hover:scale-105 transition-transform duration-300 mx-auto mb-2 w-fit">
+                                      {getAssetIcon(asset.type)}
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">No Image</p>
+                                  </div>
+                                </div>
+                              )}
+                              <div className={!asset.asset_picture_url && viewMode === 'grid' ? 'ml-4' : ''}>
+                                <h3 className={`font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 ${viewMode === 'list' ? 'text-lg' : 'text-xl'}`}>
                               {asset.name}
                             </h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
@@ -630,8 +755,64 @@ export default function Assets() {
                             </p>
                           </div>
                         </div>
+                          </div>
+
+                          <div className={`${viewMode === 'list' ? 'flex items-center gap-6 flex-wrap' : 'space-y-4'}`}>
+                            <div className={`flex items-center ${viewMode === 'list' ? 'gap-2' : 'justify-between'}`}>
+                              {viewMode === 'grid' && <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>}
+                              <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(asset.status)}`}>
+                                {asset.status}
+                              </span>
+                            </div>
+
+                            {asset.asset_code && (
+                              <div className={`flex items-center ${viewMode === 'list' ? 'gap-2' : 'justify-between'}`}>
+                                {viewMode === 'grid' && <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Asset Code</span>}
+                                <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                                  {asset.asset_code}
+                                </span>
+                              </div>
+                            )}
+
+                            {asset.purchase_price && (
+                              <div className={`flex items-center ${viewMode === 'list' ? 'gap-2' : 'justify-between'}`}>
+                                {viewMode === 'grid' && <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Price</span>}
+                                <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                                  AED {parseFloat(asset.purchase_price).toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+
+                            {asset.assigned_to && viewMode === 'grid' && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Assigned to</span>
+                                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {asset.assigned_employee ? (
+                                    `${asset.assigned_employee.full_name}`
+                                  ) : (
+                                    asset.assigned_to
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
                         {(canEditAsset() || canDeleteAsset()) && (
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className={`flex items-center gap-2 ${viewMode === 'list' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300`}>
+                            <motion.button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/assets/${asset.id}`);
+                              }}
+                              className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200"
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </motion.button>
                             {canEditAsset() && (
                               <motion.button
                                 onClick={(e) => {
@@ -642,6 +823,7 @@ export default function Assets() {
                                 className="p-2 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all duration-200"
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
+                                title="Edit Asset"
                               >
                                 <Edit className="w-4 h-4" />
                               </motion.button>
@@ -656,59 +838,11 @@ export default function Assets() {
                                 disabled={deleteAssetMutation.isLoading}
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
+                                title="Delete Asset"
                               >
                                 <Trash className="w-4 h-4" />
                               </motion.button>
                             )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(asset.status)}`}>
-                            {asset.status}
-                          </span>
-                        </div>
-
-                        {asset.asset_code && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Asset Code</span>
-                            <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                              {asset.asset_code}
-                            </span>
-                          </div>
-                        )}
-
-                        {asset.assigned_to && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Assigned to</span>
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              {asset.assigned_employee ? (
-                                `${asset.assigned_employee.full_name} (${asset.assigned_employee.employee_id})`
-                              ) : (
-                                asset.assigned_to
-                              )}
-                            </span>
-                          </div>
-                        )}
-
-                        {asset.purchase_price && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Price</span>
-                            <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                              AED {parseFloat(asset.purchase_price).toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-
-                        {asset.created_at && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</span>
-                            <span className="text-sm text-gray-900 dark:text-white">
-                              {new Date(asset.created_at).toLocaleDateString()}
-                            </span>
                           </div>
                         )}
                       </div>
