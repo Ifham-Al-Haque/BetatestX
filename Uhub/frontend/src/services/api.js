@@ -30,7 +30,7 @@ export const apiService = {
         .order('created_at', { ascending: false });
 
       if (search) {
-        query = query.or(`full_name.ilike.%${search}%,department.ilike.%${search}%,position.ilike.%${search}%,employee_id.ilike.%${search}%,phone.ilike.%${search}%,location.ilike.%${search}%`);
+        query = query.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
       }
 
       const from = (page - 1) * limit;
@@ -142,7 +142,26 @@ export const apiService = {
       if (filters.status) query = query.eq('status', filters.status);
       if (filters.type) query = query.eq('type', filters.type);
       if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,type.ilike.%${filters.search}%,asset_code.ilike.%${filters.search}%,lpo_number.ilike.%${filters.search}%`);
+        // Build OR conditions across base columns
+        let orConditions = `name.ilike.*${filters.search}*,type.ilike.*${filters.search}*,asset_code.ilike.*${filters.search}*,lpo_number.ilike.*${filters.search}*`;
+
+        // Also match by assignee name: find employees whose full_name matches, then OR with assigned_to IN (ids)
+        const { data: matchingEmployees, error: empErr } = await supabase
+          .from('employees')
+          .select('id')
+          .ilike('full_name', `%${filters.search}%`);
+
+        if (!empErr && Array.isArray(matchingEmployees) && matchingEmployees.length > 0) {
+          const idList = matchingEmployees
+            .map((e) => (e && e.id !== undefined && e.id !== null ? `"${e.id}"` : null))
+            .filter((v) => v !== null)
+            .join(',');
+          if (idList) {
+            orConditions += `,assigned_to.in.(${idList})`;
+          }
+        }
+
+        query = query.or(orConditions);
       }
 
       const from = (page - 1) * limit;
@@ -782,7 +801,7 @@ export const apiService = {
         .order('created_at', { ascending: false });
 
       if (search) {
-        query = query.or(`full_name.ilike.%${search}%,designation.ilike.%${search}%,employee_id.ilike.%${search}%,team_type.ilike.%${search}%`);
+        query = query.or(`full_name.ilike.*${search}*,designation.ilike.*${search}*,employee_id.ilike.*${search}*,team_type.ilike.*${search}*`);
       }
 
       const from = (page - 1) * limit;

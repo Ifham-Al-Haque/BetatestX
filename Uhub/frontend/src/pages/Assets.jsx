@@ -569,7 +569,7 @@ export default function Assets() {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Search assets by name, code, or type..."
+                  placeholder="Search assets by name, code, type, or assigned employee..."
                   value={search}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all duration-200 text-lg"

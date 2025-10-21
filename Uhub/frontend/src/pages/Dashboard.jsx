@@ -16,6 +16,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import TodaySpendingChart from '../components/TodaySpendingChart';
 import RoleDebug from '../components/RoleDebug';
 import DashboardNotification, { NotificationTypes } from '../components/DashboardNotification';
+import OrgChart from '../components/OrgChart';
+import { useEmployees } from '../hooks/useEmployees';
 
 // Import dashboard styles
 import './Dashboard.css';
@@ -306,6 +308,7 @@ export default function Dashboard() {
   const { user, userProfile } = useAuth();
   const { data: expenseStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useExpenseStats();
   const { data: paymentEvents, refetch: refetchPayments } = usePaymentEvents();
+  const { data: employees, isLoading: employeesLoading } = useEmployees();
   const safePaymentEvents = paymentEvents || [];
   const [filters, setFilters] = useState({});
   const [collapsedSections, setCollapsedSections] = useState({});
@@ -730,6 +733,21 @@ export default function Dashboard() {
               onDateClick={handleDateClick}
               onEventsUpdate={handleEventsUpdate}
             />
+          </div>
+        </AnimatedCard>
+
+        {/* Organization Chart Section */}
+        <AnimatedCard delay={0.85}>
+          <SectionHeader 
+            title="Organization Chart" 
+            iconName="Users"
+            subtitle="Udrive Company organizational structure and hierarchy"
+            collapsible={true}
+            isCollapsed={collapsedSections.orgChart}
+            onToggle={() => toggleSection('orgChart')}
+          />
+          <div className="mt-6">
+            <OrgChart employees={employees} loading={employeesLoading} />
           </div>
         </AnimatedCard>
 
