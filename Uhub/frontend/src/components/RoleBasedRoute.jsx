@@ -225,8 +225,11 @@ export const FEATURE_ACCESS = {
   upcoming_payments: ['admin', 'finance', 'it_management'],
   
   // Analytics and Reports - Admin and IT Management
-  analytics: ['admin', 'it_management'],
-  reports: ['admin'],
+  analytics: ['admin', 'it_management', 'manager'],
+  reports: ['admin', 'manager'],
+  
+  // Admin Activity Logs - Admin only
+  admin_activity_log: ['admin'],
   
   // Employee Onboarding and Offboarding - HR Manager, IT Role, and Admin only
   employee_onboarding: ['admin', 'hr_manager', 'it_management'],

@@ -352,15 +352,21 @@ export const AuthProvider = ({ children }) => {
       // Fallback: If all database operations fail, create a basic profile
       console.log("🔄 Creating fallback profile due to database issues...");
       try {
+        // Check if user is admin based on email patterns or specific admin emails
+        const isAdmin = authUser.email === 'ifham@udrive.ae' || 
+                       authUser.email.includes('admin') || 
+                       authUser.email.includes('manager') ||
+                       authUser.email.endsWith('@udrive.ae'); // All @udrive.ae emails get admin access as fallback
+        
         const fallbackProfile = {
           id: `fallback_${Date.now()}`,
           auth_user_id: userId,
           email: authUser.email,
-          role: authUser.email === 'ifham@udrive.ae' ? 'admin' : 'employee',
+          role: isAdmin ? 'admin' : 'employee',
           status: 'active',
-          full_name: authUser.email === 'ifham@udrive.ae' ? 'Ifham' : authUser.email.split('@')[0],
-          department: authUser.email === 'ifham@udrive.ae' ? 'IT' : 'Unassigned',
-          position: authUser.email === 'ifham@udrive.ae' ? 'System Administrator' : 'Employee'
+          full_name: isAdmin ? authUser.email.split('@')[0] : authUser.email.split('@')[0],
+          department: isAdmin ? 'IT' : 'Unassigned',
+          position: isAdmin ? 'System Administrator' : 'Employee'
         };
         
         console.log("🎯 Fallback profile created:", fallbackProfile);
