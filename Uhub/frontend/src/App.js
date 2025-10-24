@@ -84,6 +84,7 @@ const FleetOffboarding = React.lazy(() => import('./pages/FleetOffboarding'));
 const FleetDeliveryChecklist = React.lazy(() => import('./pages/FleetDeliveryChecklist'));
 const FleetMaintenanceRecord = React.lazy(() => import('./pages/FleetMaintenanceRecord'));
 const MarketingCalendar = React.lazy(() => import('./pages/MarketingCalendar'));
+const RoleDebugger = React.lazy(() => import('./components/RoleDebugger'));
 
 function App() {
   return (
@@ -598,6 +599,15 @@ function App() {
                           <ProtectedRoute requiredFeature="marketing_calendar">
                             <Layout>
                               <MarketingCalendar />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Debug Route */}
+                        <Route path="/role-debug" element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <RoleDebugger />
                             </Layout>
                           </ProtectedRoute>
                         } />

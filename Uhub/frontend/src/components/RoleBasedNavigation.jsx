@@ -178,7 +178,7 @@ const NAVIGATION_ITEMS = {
     path: '/analytics',
     label: 'Analytics',
     icon: BarChart3,
-    roles: ['admin', 'manager', 'driver_management'],
+    roles: ['admin', 'manager', 'driver_management', 'it_management'],
     description: 'Data analytics and insights'
   },
 
@@ -380,7 +380,7 @@ const NAVIGATION_ITEMS = {
 const NAVIGATION_GROUPS = {
   main: {
     title: 'Main',
-    items: ['home', 'employees', 'calendar_view'],
+    items: ['home', 'employees', 'calendar_view', 'analytics'],
     roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer']
   },
   admin: {
@@ -417,7 +417,7 @@ const NAVIGATION_GROUPS = {
   financial: {
     title: 'Financial',
     items: ['expense_tracker', 'payment_calendar', 'upcoming_payments', 'vouchers', 'analytics'],
-    roles: ['admin', 'manager', 'driver_management']
+    roles: ['admin', 'manager', 'driver_management', 'it_management']
   },
   hr_panel: {
     title: 'HR Panel',
@@ -451,6 +451,8 @@ export const RoleBasedNavigation = () => {
   // Filter navigation groups based on user role
   const visibleGroups = Object.entries(NAVIGATION_GROUPS).filter(([key, group]) => {
     if (!group.roles) return true; // Show groups without role restrictions
+    // Admin users can see all groups
+    if (userRole === 'admin') return true;
     return group.roles.includes(userRole);
   });
 
@@ -460,7 +462,10 @@ export const RoleBasedNavigation = () => {
         // Filter items in this group based on user role
         const visibleItems = group.items.filter(itemKey => {
           const item = NAVIGATION_ITEMS[itemKey];
-          return item && item.roles.includes(userRole);
+          if (!item) return false;
+          // Admin users can see all items
+          if (userRole === 'admin') return true;
+          return item.roles.includes(userRole);
         });
 
         if (visibleItems.length === 0) return null;

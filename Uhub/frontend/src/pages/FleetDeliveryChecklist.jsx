@@ -68,7 +68,7 @@ import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
 
 const FleetDeliveryChecklist = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
   const [deliveryChecklists, setDeliveryChecklists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -361,6 +361,10 @@ const FleetDeliveryChecklist = () => {
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'on_hold': return 'bg-yellow-100 text-yellow-800';
       case 'not_started': return 'bg-gray-100 text-gray-800';
+      case 'approved': return 'bg-emerald-100 text-emerald-800';
+      case 'pending': return 'bg-orange-100 text-orange-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-600';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -381,25 +385,43 @@ const FleetDeliveryChecklist = () => {
       case 'in_progress': return TrendingUp;
       case 'on_hold': return AlertTriangle;
       case 'not_started': return Clock;
+      case 'approved': return CheckCircle;
+      case 'pending': return Clock;
+      case 'rejected': return XCircle;
+      case 'cancelled': return XCircleIcon;
       default: return Clock;
     }
+  };
+
+  const canChangeStatus = () => {
+    const userRole = userProfile?.role || user?.role;
+    // Allow admin, operation_management, and subscribe_now users to change status
+    return ['admin', 'operation_management', 'subscribe_now'].includes(userRole);
   };
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
       // Update status logic here
       await deliveryService.updateOrderStatus(id, newStatus);
-      success(`Status updated to ${newStatus}`);
+      success(`Status updated to ${newStatus.replace('_', ' ')}`);
       loadDeliveryChecklistData();
     } catch (error) {
       showError('Failed to update status');
     }
   };
 
-  const handleBulkAction = async (action, itemIds) => {
+  const handleBulkAction = async (action, itemIds, additionalData = {}) => {
     try {
-      // Bulk action logic here
-      success(`Bulk action ${action} completed`);
+      if (action === 'status_update' && additionalData.status) {
+        // Update status for all selected items
+        for (const id of itemIds) {
+          await deliveryService.updateOrderStatus(id, additionalData.status);
+        }
+        success(`Status updated to ${additionalData.status.replace('_', ' ')} for ${itemIds.length} items`);
+      } else {
+        // Other bulk actions
+        success(`Bulk action ${action} completed`);
+      }
       loadDeliveryChecklistData();
     } catch (error) {
       showError('Failed to perform bulk action');
@@ -666,6 +688,10 @@ const FleetDeliveryChecklist = () => {
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                   <option value="on_hold">On Hold</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="cancelled">Cancelled</option>
                 </select>
                     <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -813,12 +839,6 @@ const FleetDeliveryChecklist = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleBulkAction('status_update', selectedItems)}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  Update Status
-                </button>
-                <button
                   onClick={() => handleBulkAction('export', selectedItems)}
                   className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
                 >
@@ -912,6 +932,7 @@ const FleetDeliveryChecklist = () => {
                           {delivery.priority.toUpperCase()}
                         </motion.span>
                         
+                        {/* Status Display Only */}
                         <motion.span 
                           whileHover={{ scale: 1.05 }}
                           className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center shadow-lg ${getStatusColor(delivery.status)}`}

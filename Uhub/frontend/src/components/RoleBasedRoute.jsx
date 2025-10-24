@@ -244,6 +244,9 @@ export const FEATURE_ACCESS = {
   // Subscribe Now Panel - Subscribe Now role has full access, others have limited access
   subscribe_now: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
+  // LTR Reporting - Admin, Subscribe Now, CS Manager, and Operation Manager access
+  ltr_reporting: ['admin', 'subscribe_now', 'cs_manager', 'operation_management'],
+  
   // Marketing Panel Features
   marketing_calendar: ['admin', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   marketing_dashboard: ['admin', 'marketing_manager', 'marketing_management'],
@@ -261,6 +264,12 @@ export const hasFeatureAccess = (userRole, feature) => {
   if (!userRole || !feature) {
     console.log('🔍 hasFeatureAccess: Missing userRole or feature', { userRole, feature });
     return false;
+  }
+  
+  // Admin users have access to everything
+  if (userRole === 'admin') {
+    console.log('🔍 hasFeatureAccess: Admin user - granting access to all features', { userRole, feature });
+    return true;
   }
   
   const allowedRoles = FEATURE_ACCESS[feature];
@@ -305,7 +314,7 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        subscribe_panel: ['subscribe_now'],
+        subscribe_panel: ['subscribe_now', 'ltr_reporting'],
         collections_panel: ['collections'],
         marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics']
       }
@@ -394,7 +403,7 @@ export const getRoleNavigationAccess = (userRole) => {
       slice_of_life: ['events', 'memories'],
       communication: ['communication'],
       driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
-      subscribe_panel: ['subscribe_now']
+      subscribe_panel: ['subscribe_now', 'ltr_reporting']
     }
   },
   operation_management: {
@@ -409,7 +418,7 @@ export const getRoleNavigationAccess = (userRole) => {
       communication: ['communication'],
       driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
       operation_panel: ['fleet_onboarding', 'fleet_offboarding', 'fleet_delivery_checklist', 'fleet_maintenance_record'],
-      subscribe_panel: ['subscribe_now']
+      subscribe_panel: ['subscribe_now', 'ltr_reporting']
     }
   },
   hr_manager: {
@@ -452,7 +461,7 @@ export const getRoleNavigationAccess = (userRole) => {
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],
       communication: ['communication', 'team_chat'],
-      subscribe_panel: ['subscribe_now'],
+        subscribe_panel: ['subscribe_now', 'ltr_reporting'],
       collections_panel: ['collections']
     }
   },
@@ -467,7 +476,7 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories', 'collections'],
         communication: ['team_chat', 'communication'],
-        subscribe_panel: ['subscribe_now']
+        subscribe_panel: ['subscribe_now', 'ltr_reporting']
       }
     },
   marketing_manager: {
@@ -517,12 +526,22 @@ export const getRoleNavigationAccess = (userRole) => {
 
 // Check if user can see a specific panel
 export const canSeePanel = (userRole, panelKey) => {
+  // Admin users can see all panels
+  if (userRole === 'admin') {
+    return true;
+  }
+  
   const access = getRoleNavigationAccess(userRole);
   return access.panels.includes(panelKey);
 };
 
 // Check if user can see a specific navigation item
 export const canSeeItem = (userRole, panelKey, itemKey) => {
+  // Admin users can see all items
+  if (userRole === 'admin') {
+    return true;
+  }
+  
   // First check if the user can see the panel
   if (!canSeePanel(userRole, panelKey)) {
     return false;

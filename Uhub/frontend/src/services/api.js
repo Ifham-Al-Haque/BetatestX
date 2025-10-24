@@ -135,7 +135,7 @@ export const apiService = {
             full_name,
             employee_id
           )
-        `)
+        `, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       // Apply filters

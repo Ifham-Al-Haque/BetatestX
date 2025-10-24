@@ -27,7 +27,10 @@ import {
   Key,
   BookOpen,
   UserCheck,
-  HandMetal
+  HandMetal,
+  TrendingUp,
+  AlertTriangle,
+  XCircle as XCircleIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import subscribeNowService from '../../services/subscribeNowService';
@@ -40,6 +43,8 @@ const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
   const [updating, setUpdating] = useState({});
   const [notes, setNotes] = useState({});
   const [showNoteInput, setShowNoteInput] = useState({});
+  const [deliveryStatus, setDeliveryStatus] = useState('not_started');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const checklistItems = [
     {
@@ -131,6 +136,19 @@ const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
       setChecklist(checklistData);
       setHistory(historyData);
       
+      // Set delivery status from checklist data
+      if (checklistData?.delivery_status) {
+        // Map service status back to our UI status
+        const statusMap = {
+          'Pending': 'pending',
+          'In Progress': 'in_progress',
+          'Completed': 'completed',
+          'Failed': 'rejected'
+        };
+        const uiStatus = statusMap[checklistData.delivery_status] || 'not_started';
+        setDeliveryStatus(uiStatus);
+      }
+      
       // Initialize notes from existing data
       const initialNotes = {};
       checklistItems.forEach(item => {
@@ -197,6 +215,75 @@ const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
     } catch (error) {
       console.error('Error saving note:', error);
     }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (updatingStatus || !rental) return;
+
+    try {
+      setUpdatingStatus(true);
+      
+      // Map our status values to the service's expected values
+      const statusMap = {
+        'not_started': 'Pending',
+        'in_progress': 'In Progress',
+        'completed': 'Completed',
+        'on_hold': 'Pending',
+        'approved': 'Completed',
+        'pending': 'Pending',
+        'rejected': 'Failed',
+        'cancelled': 'Failed'
+      };
+      
+      const serviceStatus = statusMap[newStatus] || 'Pending';
+      
+      await subscribeNowService.updateDeliveryStatus(
+        rental.rental_id,
+        serviceStatus,
+        userProfile?.id
+      );
+
+      setDeliveryStatus(newStatus);
+      await loadChecklistData();
+      onSuccess?.();
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'on_hold': return 'bg-yellow-100 text-yellow-800';
+      case 'not_started': return 'bg-gray-100 text-gray-800';
+      case 'approved': return 'bg-emerald-100 text-emerald-800';
+      case 'pending': return 'bg-orange-100 text-orange-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-600';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'completed': return CheckSquare;
+      case 'in_progress': return TrendingUp;
+      case 'on_hold': return AlertTriangle;
+      case 'not_started': return Clock;
+      case 'approved': return CheckCircle;
+      case 'pending': return Clock;
+      case 'rejected': return XCircleIcon;
+      case 'cancelled': return XCircleIcon;
+      default: return Clock;
+    }
+  };
+
+  const canChangeStatus = () => {
+    const userRole = userProfile?.role;
+    return ['admin', 'operation_management', 'subscribe_now'].includes(userRole);
   };
 
   const getItemStatus = (itemKey) => {
@@ -272,12 +359,47 @@ const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-4">
+                {/* Status Display and Change */}
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    {(() => {
+                      const StatusIcon = getStatusIcon(deliveryStatus);
+                      return (
+                        <StatusIcon className="w-5 h-5 text-white" />
+                      );
+                    })()}
+                    <span className="text-white font-medium">
+                      Status: {deliveryStatus.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  
+                  {canChangeStatus() && (
+                    <select
+                      value={deliveryStatus}
+                      onChange={(e) => handleStatusChange(e.target.value)}
+                      disabled={updatingStatus}
+                      className="px-3 py-2 text-sm border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white bg-white/10 backdrop-blur-sm text-white placeholder-white/70 disabled:opacity-50"
+                    >
+                      <option value="not_started" className="text-gray-900">Not Started</option>
+                      <option value="in_progress" className="text-gray-900">In Progress</option>
+                      <option value="completed" className="text-gray-900">Completed</option>
+                      <option value="on_hold" className="text-gray-900">On Hold</option>
+                      <option value="approved" className="text-gray-900">Approved</option>
+                      <option value="pending" className="text-gray-900">Pending</option>
+                      <option value="rejected" className="text-gray-900">Rejected</option>
+                      <option value="cancelled" className="text-gray-900">Cancelled</option>
+                    </select>
+                  )}
+                </div>
+                
+                <button
+                  onClick={onClose}
+                  className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 

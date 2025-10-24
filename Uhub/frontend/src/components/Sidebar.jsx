@@ -274,7 +274,8 @@ const Sidebar = () => {
       title: 'Subscribe Now',
       icon: Bell,
       items: [
-        { label: 'Subscribe Now', path: '/subscribe-now', icon: Bell, feature: 'subscribe_now' }
+        { label: 'Subscribe Now', path: '/subscribe-now', icon: Bell, feature: 'subscribe_now' },
+        { label: 'LTR Reporting', path: '/subscribe-now#ltr-reporting', icon: BarChart3, feature: 'ltr_reporting' }
       ]
     },
     {

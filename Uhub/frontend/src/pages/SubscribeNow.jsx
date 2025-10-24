@@ -46,7 +46,8 @@ import {
   User,
   CheckCircle,
   XCircle,
-  Loader
+  Loader,
+  PieChart
 } from 'lucide-react';
 import subscribeNowService from '../services/subscribeNowService';
 import RentalAgreementModal from '../components/subscribeNow/RentalAgreementModal';
@@ -71,6 +72,14 @@ const SubscribeNow = () => {
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    // Check for URL hash to set active tab
+    const hash = window.location.hash;
+    if (hash === '#ltr-reporting') {
+      setActiveTab('ltr-reporting');
+    }
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'fleet-delivery') {
@@ -330,6 +339,17 @@ const SubscribeNow = () => {
                 >
                   <Bell className="w-4 h-4 inline mr-2" />
                   Subscription Services
+                </button>
+                <button
+                  onClick={() => setActiveTab('ltr-reporting')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'ltr-reporting'
+                      ? 'border-purple-500 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4 inline mr-2" />
+                  LTR Reporting
                 </button>
               </nav>
             </div>
@@ -741,214 +761,147 @@ const SubscribeNow = () => {
 
         {activeTab === 'services' && (
           <div>
-            {/* Real Fleet Rental Service Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Available Services</p>
-                    <p className="text-3xl font-bold text-gray-900">{serviceStatistics?.availableServices || 0}</p>
-                    <p className="text-sm text-green-600 mt-1">
-                      <Car className="w-4 h-4 inline mr-1" />
-                      Cars available for rental
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-green-100">
-                    <Car className="w-8 h-8 text-green-600" />
-                  </div>
+            {/* Coming Soon Placeholder */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-100"
+            >
+              <div className="max-w-2xl mx-auto">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg">
+                  <Bell className="w-12 h-12 text-white" />
                 </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Active Subscriptions</p>
-                    <p className="text-3xl font-bold text-gray-900">{serviceStatistics?.activeSubscriptions || 0}</p>
-                    <p className="text-sm text-blue-600 mt-1">
-                      <CheckSquare className="w-4 h-4 inline mr-1" />
-                      Cars currently rented
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-blue-100">
-                    <CheckSquare className="w-8 h-8 text-blue-600" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Pending</p>
-                    <p className="text-3xl font-bold text-gray-900">{serviceStatistics?.pendingConfirmations || 0}</p>
-                    <p className="text-sm text-yellow-600 mt-1">
-                      <Clock className="w-4 h-4 inline mr-1" />
-                      Rental confirmations ongoing
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-yellow-100">
-                    <Clock className="w-8 h-8 text-yellow-600" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Total Users</p>
-                    <p className="text-3xl font-bold text-gray-900">{serviceStatistics?.totalUsers || 0}</p>
-                    <p className="text-sm text-purple-600 mt-1">
-                      <Users className="w-4 h-4 inline mr-1" />
-                      Customers with ongoing rentals
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-purple-100">
-                    <Users className="w-8 h-8 text-purple-600" />
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Fleet Service Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {fleetServices.map((service, index) => {
-                const getServiceIcon = (iconName) => {
-                  switch (iconName) {
-                    case 'Car': return Car;
-                    case 'Users': return Users;
-                    case 'Clock': return Clock;
-                    case 'UserCheck': return UserCheck;
-                    default: return Car;
-                  }
-                };
-
-                const ServiceIcon = getServiceIcon(service.icon);
-                const getColorClasses = (color) => {
-                  switch (color) {
-                    case 'green': return 'bg-green-100 text-green-800 border-green-200';
-                    case 'blue': return 'bg-blue-100 text-blue-800 border-blue-200';
-                    case 'yellow': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                    case 'purple': return 'bg-purple-100 text-purple-800 border-purple-200';
-                    default: return 'bg-gray-100 text-gray-800 border-gray-200';
-                  }
-                };
-
-                return (
-                  <motion.div
-                    key={service.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
-                  >
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-3 rounded-2xl ${service.color === 'green' ? 'bg-green-100' : service.color === 'blue' ? 'bg-blue-100' : service.color === 'yellow' ? 'bg-yellow-100' : 'bg-purple-100'}`}>
-                            <ServiceIcon className={`w-6 h-6 ${service.color === 'green' ? 'text-green-600' : service.color === 'blue' ? 'text-blue-600' : service.color === 'yellow' ? 'text-yellow-600' : 'text-purple-600'}`} />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {service.name}
-                            </h3>
-                            <p className="text-sm text-gray-600">{service.category}</p>
-                          </div>
-                        </div>
-                        
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getColorClasses(service.color)}`}>
-                          {service.count} {service.count === 1 ? 'Item' : 'Items'}
-                        </span>
-                      </div>
-                      
-                      <p className="text-gray-600 mb-4">{service.description}</p>
-                      
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="text-right">
-                          <p className="text-3xl font-bold text-gray-900">{service.count}</p>
-                          <p className="text-sm text-gray-600">{service.details}</p>
-                        </div>
-                        {service.revenue && (
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-green-600">{formatCurrency(service.revenue)}</p>
-                            <p className="text-xs text-gray-500">Total Revenue</p>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <button className="text-purple-600 hover:text-purple-800 flex items-center text-sm font-medium transition-colors">
-                          <Eye className="w-4 h-4 mr-1" />
-                          View Details
-                        </button>
-                        
-                        <div className="text-sm text-gray-500">
-                          Live Data
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Fleet Analytics Summary */}
-            {serviceStatistics && (
-              <div className="bg-white rounded-2xl shadow-lg p-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                  <BarChart3 className="w-6 h-6 mr-3 text-purple-600" />
-                  Fleet Rental Analytics
-                </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-green-900 mb-2">Fleet Availability</h4>
-                    <p className="text-3xl font-bold text-green-700 mb-2">{serviceStatistics.availableServices}</p>
-                    <p className="text-sm text-green-600">Vehicles ready for long-term rental</p>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-blue-900 mb-2">Revenue Performance</h4>
-                    <p className="text-3xl font-bold text-blue-700 mb-2">{formatCurrency(serviceStatistics.totalRevenue)}</p>
-                    <p className="text-sm text-blue-600">
-                      Avg: {formatCurrency(serviceStatistics.averageRentalAmount)} per rental
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  Subscription Services
+                </h2>
+                
+                <p className="text-xl text-gray-600 mb-8">
+                  Coming Soon
+                </p>
+                
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8">
+                  <p className="text-gray-700 leading-relaxed">
+                    We're developing comprehensive subscription service management features. 
+                    This section will include service catalog management, subscription tracking, 
+                    customer service analytics, and automated billing once the service parameters are finalized.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                      <Bell className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Service Management</h3>
+                    <p className="text-gray-600 text-sm">
+                      Complete subscription service catalog and management system
                     </p>
                   </div>
                   
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-purple-900 mb-2">Customer Distribution</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-purple-700">Individual:</span>
-                        <span className="font-semibold text-purple-800">{serviceStatistics.customerBreakdown?.individual || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-purple-700">Corporate:</span>
-                        <span className="font-semibold text-purple-800">{serviceStatistics.customerBreakdown?.corporate || 0}</span>
-                      </div>
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                      <Users className="w-6 h-6 text-green-600" />
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Customer Analytics</h3>
+                    <p className="text-gray-600 text-sm">
+                      Detailed customer subscription patterns and service usage analytics
+                    </p>
                   </div>
+                  
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                      <CheckSquare className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Automated Billing</h3>
+                    <p className="text-gray-600 text-sm">
+                      Streamlined billing processes and payment tracking for subscriptions
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <p className="text-yellow-800 text-sm">
+                    <Clock className="w-4 h-4 inline mr-2" />
+                    <strong>Status:</strong> Awaiting service parameters and requirements to be finalized
+                  </p>
                 </div>
               </div>
-            )}
+            </motion.div>
+          </div>
+        )}
+
+        {activeTab === 'ltr-reporting' && (
+          <div>
+            {/* Coming Soon Placeholder */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-100"
+            >
+              <div className="max-w-2xl mx-auto">
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg">
+                  <BarChart3 className="w-12 h-12 text-white" />
+                </div>
+                
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  LTR Reporting
+                </h2>
+                
+                <p className="text-xl text-gray-600 mb-8">
+                  Coming Soon
+                </p>
+                
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 mb-8">
+                  <p className="text-gray-700 leading-relaxed">
+                    We're working on building comprehensive LTR (Long-Term Rental) reporting features. 
+                    This section will include detailed analytics, revenue tracking, contract management, 
+                    and fleet utilization reports once the data parameters are finalized.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                      <BarChart3 className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Analytics Dashboard</h3>
+                    <p className="text-gray-600 text-sm">
+                      Comprehensive data visualization and trend analysis for LTR contracts
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                      <DollarSign className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Revenue Tracking</h3>
+                    <p className="text-gray-600 text-sm">
+                      Detailed financial reporting and revenue analysis for long-term rentals
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                      <Truck className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Fleet Management</h3>
+                    <p className="text-gray-600 text-sm">
+                      Vehicle utilization reports and fleet performance metrics
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <p className="text-yellow-800 text-sm">
+                    <Clock className="w-4 h-4 inline mr-2" />
+                    <strong>Status:</strong> Awaiting data parameters and requirements to be finalized
+                  </p>
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
 
