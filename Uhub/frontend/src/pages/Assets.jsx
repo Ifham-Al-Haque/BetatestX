@@ -11,7 +11,7 @@ import {
   FileText, Building, ImageIcon, Grid, List, Download, Eye,
   Package, Settings
 } from "lucide-react";
-import { useAssets, useDeleteAsset, useCreateAsset, useUpdateAsset } from "../hooks/useApi";
+import { useAssets, useAssetStats, useDeleteAsset, useCreateAsset, useUpdateAsset } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../supabaseClient";
@@ -321,6 +321,7 @@ export default function Assets() {
   }), [search, statusFilter, typeFilter]);
   
   const { data: assetsData, isLoading, error } = useAssets(currentPage, pageSize, filters);
+  const { data: assetStats, isLoading: statsLoading } = useAssetStats();
   const deleteAssetMutation = useDeleteAsset();
   const createAssetMutation = useCreateAsset();
   const updateAssetMutation = useUpdateAsset();
@@ -402,8 +403,20 @@ export default function Assets() {
     return userRole === 'admin';
   }, [userProfile?.role]);
 
-  // Asset statistics
+  // Asset statistics - use API stats instead of calculating from paginated results
   const stats = useMemo(() => {
+    if (assetStats) {
+      return {
+        total: assetStats.total,
+        inStock: assetStats.inStock,
+        assigned: assetStats.assigned,
+        maintenance: assetStats.maintenance,
+        retired: assetStats.retired,
+        totalValue: assetStats.totalValue
+      };
+    }
+    
+    // Fallback to paginated data if stats not available
     const total = totalCount || assets.length;
     const inStock = assets.filter(asset => asset.status === 'In Stock').length;
     const assigned = assets.filter(asset => asset.status === 'Assigned').length;
@@ -412,7 +425,7 @@ export default function Assets() {
     const totalValue = assets.reduce((sum, asset) => sum + (parseFloat(asset.purchase_price) || 0), 0);
 
     return { total, inStock, assigned, maintenance, retired, totalValue };
-  }, [assets, totalCount]);
+  }, [assetStats, assets, totalCount]);
 
   if (error) {
     return (
@@ -635,7 +648,7 @@ export default function Assets() {
           </div>
 
           {/* Loading State with Skeleton */}
-          {isLoading && (
+          {(isLoading || statsLoading) && (
             <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 animate-pulse">

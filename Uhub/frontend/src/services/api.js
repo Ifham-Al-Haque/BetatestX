@@ -234,6 +234,40 @@ export const apiService = {
 
       if (error) throw error;
       return true;
+    },
+
+    getStats: async () => {
+      // Get counts for each status across all assets
+      const { data: statusCounts, error } = await supabase
+        .from('assets')
+        .select('status')
+        .not('status', 'is', null);
+
+      if (error) throw error;
+
+      // Calculate statistics
+      const stats = {
+        total: statusCounts.length,
+        inStock: statusCounts.filter(asset => asset.status === 'In Stock').length,
+        assigned: statusCounts.filter(asset => asset.status === 'Assigned').length,
+        maintenance: statusCounts.filter(asset => asset.status === 'Maintenance').length,
+        retired: statusCounts.filter(asset => asset.status === 'Retired').length
+      };
+
+      // Get total value across all assets
+      const { data: allAssets, error: valueError } = await supabase
+        .from('assets')
+        .select('purchase_price');
+
+      if (!valueError && allAssets) {
+        stats.totalValue = allAssets.reduce((sum, asset) => {
+          return sum + (parseFloat(asset.purchase_price) || 0);
+        }, 0);
+      } else {
+        stats.totalValue = 0;
+      }
+
+      return stats;
     }
   },
 

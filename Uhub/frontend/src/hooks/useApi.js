@@ -76,6 +76,14 @@ export const useAssets = (page = 1, limit = 50, filters = {}) => {
   });
 };
 
+export const useAssetStats = () => {
+  return useQuery({
+    queryKey: ['assetStats'],
+    queryFn: () => apiService.assets.getStats(),
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+};
+
 export const useAsset = (id) => {
   return useQuery({
     queryKey: ['asset', id],
@@ -92,6 +100,7 @@ export const useCreateAsset = () => {
     mutationFn: apiService.assets.create,
     onSuccess: () => {
       queryClient.invalidateQueries(['assets']);
+      queryClient.invalidateQueries(['assetStats']);
     },
     onError: (error) => {
       console.error('Create asset error:', error);
@@ -108,6 +117,7 @@ export const useUpdateAsset = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries(['assets']);
       queryClient.invalidateQueries(['asset', data.id]);
+      queryClient.invalidateQueries(['assetStats']);
     },
     onError: (error) => {
       console.error('Update asset error:', error);
@@ -123,6 +133,7 @@ export const useDeleteAsset = () => {
     mutationFn: apiService.assets.delete,
     onSuccess: () => {
       queryClient.invalidateQueries(['assets']);
+      queryClient.invalidateQueries(['assetStats']);
     },
     onError: (error) => {
       console.error('Delete asset error:', error);
