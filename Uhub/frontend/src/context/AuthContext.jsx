@@ -135,8 +135,9 @@ export const AuthProvider = ({ children }) => {
       
 
       
-      // If no user record found, check if it's the admin user
-      if (authUser.email === 'ifham@udrive.ae') {
+      // If no user record found, check if it's an admin user
+      const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
+      if (adminEmails.includes(authUser.email)) {
         console.log("👑 Admin user detected, creating admin profile...");
         
         // First check if employee already exists
@@ -172,7 +173,7 @@ export const AuthProvider = ({ children }) => {
             const { data: createdEmployee, error: createEmployeeError } = await supabase
               .from("employees")
               .upsert({
-                full_name: "Ifham",
+                full_name: authUser.email.split('@')[0],
                 email: authUser.email,
                 department: "IT",
                 position: "System Administrator",
@@ -353,7 +354,8 @@ export const AuthProvider = ({ children }) => {
       console.log("🔄 Creating fallback profile due to database issues...");
       try {
         // Check if user is admin based on email patterns or specific admin emails
-        const isAdmin = authUser.email === 'ifham@udrive.ae' || 
+        const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
+        const isAdmin = adminEmails.includes(authUser.email) || 
                        authUser.email.includes('admin') || 
                        authUser.email.includes('manager') ||
                        authUser.email.endsWith('@udrive.ae'); // All @udrive.ae emails get admin access as fallback
@@ -657,15 +659,16 @@ export const AuthProvider = ({ children }) => {
     // Add a function to create profile without database operations (for testing)
     createSimpleProfile: (email) => {
       console.log("🔧 Creating simple profile for:", email);
+      const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
       const simpleProfile = {
         id: `simple_${Date.now()}`,
         auth_user_id: user?.id,
         email: email,
-        role: email === 'ifham@udrive.ae' ? 'admin' : 'employee',
+        role: adminEmails.includes(email) ? 'admin' : 'employee',
         status: 'active',
-        full_name: email === 'ifham@udrive.ae' ? 'Ifham' : email.split('@')[0],
-        department: email === 'ifham@udrive.ae' ? 'IT' : 'Unassigned',
-        position: email === 'ifham@udrive.ae' ? 'System Administrator' : 'Employee'
+        full_name: email.split('@')[0],
+        department: adminEmails.includes(email) ? 'IT' : 'Unassigned',
+        position: adminEmails.includes(email) ? 'System Administrator' : 'Employee'
       };
       
       setUserProfile(simpleProfile);

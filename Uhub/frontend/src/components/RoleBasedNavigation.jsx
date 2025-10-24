@@ -178,7 +178,7 @@ const NAVIGATION_ITEMS = {
     path: '/analytics',
     label: 'Analytics',
     icon: BarChart3,
-    roles: ['admin', 'manager', 'driver_management', 'it_management'],
+    roles: ['admin', 'manager', 'driver_management', 'it_management', 'hr_manager', 'cs_manager', 'operation_management'],
     description: 'Data analytics and insights'
   },
 
@@ -381,7 +381,7 @@ const NAVIGATION_GROUPS = {
   main: {
     title: 'Main',
     items: ['home', 'employees', 'calendar_view', 'analytics'],
-    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer']
+    roles: ['admin', 'manager', 'driver_management', 'hr_manager', 'cs_manager', 'employee', 'viewer', 'it_management', 'operation_management']
   },
   admin: {
     title: 'Administration',
@@ -417,7 +417,7 @@ const NAVIGATION_GROUPS = {
   financial: {
     title: 'Financial',
     items: ['expense_tracker', 'payment_calendar', 'upcoming_payments', 'vouchers', 'analytics'],
-    roles: ['admin', 'manager', 'driver_management', 'it_management']
+    roles: ['admin', 'manager', 'driver_management', 'it_management', 'hr_manager', 'cs_manager', 'operation_management']
   },
   hr_panel: {
     title: 'HR Panel',

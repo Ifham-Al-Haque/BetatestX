@@ -224,9 +224,9 @@ export const FEATURE_ACCESS = {
   payment_calendar: ['admin', 'finance', 'it_management'],
   upcoming_payments: ['admin', 'finance', 'it_management'],
   
-  // Analytics and Reports - Admin and IT Management
-  analytics: ['admin', 'it_management', 'manager'],
-  reports: ['admin', 'manager'],
+  // Analytics and Reports - All admin-level roles should have access
+  analytics: ['admin', 'it_management', 'manager', 'hr_manager', 'cs_manager', 'driver_management', 'operation_management'],
+  reports: ['admin', 'manager', 'hr_manager', 'cs_manager', 'driver_management', 'operation_management', 'it_management'],
   
   // Admin Activity Logs - Admin only
   admin_activity_log: ['admin'],

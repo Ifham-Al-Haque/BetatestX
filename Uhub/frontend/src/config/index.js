@@ -85,17 +85,37 @@ const config = {
     customer_service_manager: {
       name: 'customer_service_manager',
       displayName: 'Customer Service Manager',
-      permissions: ['view_dashboard', 'view_cspa', 'manage_customer_service', 'view_reports', 'data_import'],
+      permissions: ['view_dashboard', 'view_cspa', 'manage_customer_service', 'view_reports', 'data_import', 'analytics'],
     },
     manager: {
       name: 'manager',
       displayName: 'Manager',
-      permissions: ['view_dashboard', 'manage_employees', 'view_reports'],
+      permissions: ['view_dashboard', 'manage_employees', 'view_reports', 'analytics'],
     },
     employee: {
       name: 'employee',
       displayName: 'Employee',
       permissions: ['view_dashboard', 'view_own_profile', 'edit_own_profile'],
+    },
+    hr_manager: {
+      name: 'hr_manager',
+      displayName: 'HR Manager',
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'employees', 'attendance', 'hr_operations', 'payroll', 'epr', 'analytics', 'todo_list'],
+    },
+    cs_manager: {
+      name: 'cs_manager',
+      displayName: 'CS Manager',
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'customer_service', 'cspa', 'cs_tickets', 'analytics', 'todo_list'],
+    },
+    driver_management: {
+      name: 'driver_management',
+      displayName: 'Driver Management',
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'drivers', 'driver_records', 'driver_documents', 'fleet_management', 'analytics', 'todo_list'],
+    },
+    operation_management: {
+      name: 'operation_management',
+      displayName: 'Operation Management',
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'drivers', 'driver_records', 'driver_documents', 'fleet_management', 'analytics', 'todo_list'],
     },
     subscribe_now: {
       name: 'subscribe_now',

@@ -2128,12 +2128,20 @@ const TopExpenseCategories = ({ data }) => {
 };
 
 export default function Analytics() {
-  const { user } = useAuth();
-  const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
+  const { user, userProfile } = useAuth();
+  
+  // For admin users, show all expenses. For other users, show only their expenses
+  const isAdmin = userProfile?.role === 'admin';
+  const expenseFilters = isAdmin ? {} : { userId: user?.id };
+  
+  const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, expenseFilters);
   const expenses = expensesResponse?.data || [];
   
   // Debug logging for expenses data
   console.log('📊 Analytics - Expenses data:', {
+    userRole: userProfile?.role,
+    isAdmin,
+    expenseFilters,
     expensesResponse,
     expensesLength: expenses.length,
     expenses: expenses,

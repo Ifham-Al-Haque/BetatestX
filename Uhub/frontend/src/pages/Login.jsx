@@ -44,8 +44,9 @@ export default function Login() {
       if (userData) {
         redirectToRolePage(userData.role);
       } else {
-        // User not in users table, check if it's the admin user
-        if (user.email === adminEmail) {
+        // User not in users table, check if it's an admin user
+        const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
+        if (adminEmails.includes(user.email)) {
           // First check if employee already exists
           const { data: existingEmployee } = await supabase
             .from("employees")
@@ -60,7 +61,7 @@ export default function Login() {
           } else {
             // Create new employee record
             const { data: newEmployee } = await supabase.from("employees").upsert({
-              full_name: "Ifham",
+              full_name: user.email.split('@')[0],
               email: user.email,
               department: "IT",
               position: "System Administrator",
