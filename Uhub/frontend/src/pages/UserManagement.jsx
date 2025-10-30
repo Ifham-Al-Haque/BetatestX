@@ -15,6 +15,7 @@ import {
   useToggleUserStatus 
 } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
+import { supabase } from '../supabaseClient';
 
 import InvitationManager from '../components/InvitationManager';
 
@@ -29,6 +30,9 @@ export default function UserManagement() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [showPassword, setShowPassword] = useState(false);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
+  
+  // Check if current user is authorized admin (ifham@udrive.ae)
+  const isAuthorizedAdmin = user?.email === 'ifham@udrive.ae';
   
   // Password strength indicator
   const getPasswordStrength = (password) => {
@@ -116,6 +120,61 @@ export default function UserManagement() {
     e.preventDefault();
 
     try {
+      // If authorized admin is trying to reset password
+      if (isAuthorizedAdmin && userFormData.password && userFormData.password === userFormData.confirmPassword) {
+        // Validate password strength
+        if (userFormData.password.length < 6) {
+          showError("Error", "Password must be at least 6 characters long");
+          return;
+        }
+        
+        // Send password reset email using Supabase Auth
+        try {
+          const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+            editingUser.email,
+            {
+              redirectTo: `${window.location.origin}/reset-password`,
+            }
+          );
+          
+          if (resetError) {
+            throw resetError;
+          }
+          
+          success(
+            "Password Reset Initiated",
+            `A password reset link has been sent to ${editingUser.email}. Please instruct the user to check their email and set their password using the reset link. Suggested new password: "${userFormData.password}"`
+          );
+        } catch (resetErr) {
+          console.error('Password reset error:', resetErr);
+          success(
+            "Password Reset Instructions",
+            `To reset the password for ${editingUser.email}:\n\n1. Go to Supabase Dashboard\n2. Navigate to Authentication → Users\n3. Find user ${editingUser.email}\n4. Click "Reset Password"\n5. Share the reset link with the user\n\nSuggested password: "${userFormData.password}"`
+          );
+        }
+        
+        // Continue with regular update
+        await updateUserMutation.mutateAsync({
+          id: editingUser.id,
+          data: {
+            role: userFormData.role,
+            status: userFormData.status
+          }
+        });
+        
+        setShowUserForm(false);
+        setEditingUser(null);
+        setUserFormData({
+          email: '',
+          password: '',
+          confirmPassword: '',
+          role: 'employee',
+          status: 'active'
+        });
+        return;
+      }
+      
+      // Regular update (no password change)
       await updateUserMutation.mutateAsync({
         id: editingUser.id,
         data: {
@@ -137,7 +196,7 @@ export default function UserManagement() {
     } catch (err) {
       showError("Error", err.message);
     }
-  }, [userFormData, editingUser, updateUserMutation, success, showError]);
+  }, [userFormData, editingUser, updateUserMutation, success, showError, isAuthorizedAdmin]);
 
   const handleDeleteUser = useCallback(async (userId) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
@@ -602,7 +661,12 @@ export default function UserManagement() {
                     </div>
                     
                     <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Password
+                        {editingUser && isAuthorizedAdmin && (
+                          <span className="text-xs text-blue-600 font-normal ml-2">(Admin can reset)</span>
+                        )}
+                      </label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                         <input
@@ -610,15 +674,15 @@ export default function UserManagement() {
                           value={userFormData.password}
                           onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
                           required={!editingUser}
-                          disabled={!!editingUser}
+                          disabled={!!editingUser && !isAuthorizedAdmin}
                           className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 transition-all duration-200"
-                          placeholder="Enter password (required for login)"
+                          placeholder={editingUser && isAuthorizedAdmin ? "Enter new password to reset" : "Enter password (required for login)"}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          disabled={!!editingUser}
+                          disabled={!!editingUser && !isAuthorizedAdmin}
                         >
                           {showPassword ? (
                             <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600" />
@@ -652,17 +716,22 @@ export default function UserManagement() {
                     </div>
                     
                     <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Confirm Password</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Confirm Password
+                        {editingUser && isAuthorizedAdmin && (
+                          <span className="text-xs text-blue-600 font-normal ml-2">(Admin can reset)</span>
+                        )}
+                      </label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                         <input
                           type={showPassword ? 'text' : 'password'}
                           value={userFormData.confirmPassword}
                           onChange={(e) => setUserFormData({ ...userFormData, confirmPassword: e.target.value })}
-                          required={!editingUser}
-                          disabled={!!editingUser}
+                          required={!editingUser || (editingUser && isAuthorizedAdmin && userFormData.password)}
+                          disabled={!!editingUser && !isAuthorizedAdmin}
                           className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 transition-all duration-200"
-                          placeholder="Confirm password (required)"
+                          placeholder={editingUser && isAuthorizedAdmin ? "Confirm new password" : "Confirm password (required)"}
                         />
                       </div>
                       {userFormData.password && userFormData.confirmPassword && (

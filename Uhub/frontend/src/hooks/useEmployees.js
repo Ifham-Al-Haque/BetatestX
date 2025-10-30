@@ -13,6 +13,11 @@ export const useEmployees = () => {
           employee_id,
           department,
           position,
+          designation,
+          email,
+          phone,
+          location,
+          hire_date,
           profile_picture,
           photo_url,
           reporting_manager_id,
@@ -21,7 +26,9 @@ export const useEmployees = () => {
             full_name,
             employee_id,
             department,
-            position
+            position,
+            email,
+            phone
           )
         `)
         .eq('status', 'active')

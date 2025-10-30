@@ -120,34 +120,90 @@ export default function DriverForm() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size must be less than 5MB');
+      return;
+    }
+
     try {
       setUploading(true);
+      setError("");
       
       // Create a unique filename
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `drivers/${id || 'new'}/${fileName}`;
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      // For existing drivers, use their ID. For new drivers, use 'temp' folder
+      // We'll move/update the file path after driver creation if needed
+      const folderId = id || 'temp';
+      const filePath = `drivers/${folderId}/${fileName}`;
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('driver-profiles')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (error) throw error;
+      if (uploadError) {
+        // Check if bucket doesn't exist
+        if (uploadError.message.includes('not found') || uploadError.message.includes('Bucket')) {
+          throw new Error('Storage bucket "driver-profiles" does not exist. Please create it in Supabase Storage.');
+        }
+        // Check if file already exists (shouldn't happen with timestamp + random)
+        if (uploadError.message.includes('already exists')) {
+          // Retry with a new filename
+          const retryFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const retryPath = `drivers/${folderId}/${retryFileName}`;
+          const { data: retryData, error: retryError } = await supabase.storage
+            .from('driver-profiles')
+            .upload(retryPath, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+          
+          if (retryError) throw retryError;
+          
+          // Get public URL for retry
+          const { data: { publicUrl: retryUrl } } = supabase.storage
+            .from('driver-profiles')
+            .getPublicUrl(retryPath);
+          
+          setFormData(prev => ({
+            ...prev,
+            [field]: retryUrl
+          }));
+          
+          setSuccess('Image uploaded successfully!');
+          return;
+        }
+        throw uploadError;
+      }
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('driver-profiles')
-        .getPublicUrl(filePath);
+        .getPublicUrl(uploadData.path);
 
-      // Update form data
+      // Update form data with the public URL
       setFormData(prev => ({
         ...prev,
         [field]: publicUrl
       }));
 
+      setSuccess('Image uploaded successfully!');
+
     } catch (error) {
-      setError(`Failed to upload image: ${error.message}`);
+      console.error('Image upload error:', error);
+      setError(`Failed to upload image: ${error.message || 'Unknown error. Please check if the storage bucket exists.'}`);
     } finally {
       setUploading(false);
     }
@@ -157,25 +213,42 @@ export default function DriverForm() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Validate file size (max 10MB for documents)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Document size must be less than 10MB');
+      return;
+    }
+
     try {
       setUploading(true);
+      setError("");
       
       // Create a unique filename
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `drivers/${id || 'new'}/documents/${fileName}`;
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const folderId = id || 'temp';
+      const filePath = `drivers/${folderId}/documents/${fileName}`;
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('driver-documents')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (error) throw error;
+      if (uploadError) {
+        // Check if bucket doesn't exist
+        if (uploadError.message.includes('not found') || uploadError.message.includes('Bucket')) {
+          throw new Error('Storage bucket "driver-documents" does not exist. Please create it in Supabase Storage.');
+        }
+        throw uploadError;
+      }
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('driver-documents')
-        .getPublicUrl(filePath);
+        .getPublicUrl(uploadData.path);
 
       // Update documents
       setDocuments(prev => ({
@@ -183,8 +256,11 @@ export default function DriverForm() {
         [field]: publicUrl
       }));
 
+      setSuccess('Document uploaded successfully!');
+
     } catch (error) {
-      setError(`Failed to upload document: ${error.message}`);
+      console.error('Document upload error:', error);
+      setError(`Failed to upload document: ${error.message || 'Unknown error. Please check if the storage bucket exists.'}`);
     } finally {
       setUploading(false);
     }
@@ -199,6 +275,13 @@ export default function DriverForm() {
     try {
       let driverId = id;
 
+      // Log what we're about to save
+      console.log('Submitting driver form:', {
+        isUpdate: !!id,
+        profile_picture: formData.profile_picture,
+        formDataKeys: Object.keys(formData)
+      });
+
       if (id) {
         // Update existing driver
         const { error } = await supabase
@@ -206,17 +289,107 @@ export default function DriverForm() {
           .update(formData)
           .eq("id", id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating driver:', error);
+          throw error;
+        }
+        
+        console.log('Driver updated successfully');
       } else {
         // Create new driver
+        console.log('Creating new driver with profile_picture:', formData.profile_picture);
+        
         const { data, error } = await supabase
           .from("drivers")
           .insert([formData])
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating driver:', error);
+          throw error;
+        }
+        
         driverId = data.id;
+        console.log('Driver created successfully with ID:', driverId, 'Profile picture:', data.profile_picture);
+
+        // If profile picture was uploaded to temp folder, move it to the driver's folder
+        if (formData.profile_picture && formData.profile_picture.includes('/drivers/temp/')) {
+          try {
+            // Extract the filename from the URL (handle both full URLs and paths)
+            let fileName = '';
+            if (formData.profile_picture.includes('drivers/temp/')) {
+              // Extract from URL like: https://...supabase.co/.../driver-profiles/drivers/temp/filename.jpg
+              const tempPathIndex = formData.profile_picture.indexOf('drivers/temp/');
+              const pathAfterTemp = formData.profile_picture.substring(tempPathIndex + 'drivers/temp/'.length);
+              // Remove query parameters if any
+              fileName = pathAfterTemp.split('?')[0].split('/')[0];
+            }
+            
+            if (fileName) {
+              const oldPath = `drivers/temp/${fileName}`;
+              const newPath = `drivers/${driverId}/${fileName}`;
+
+              console.log('Moving profile picture:', { oldPath, newPath, fileName });
+
+              // Download the file from temp location
+              const { data: fileData, error: downloadError } = await supabase.storage
+                .from('driver-profiles')
+                .download(oldPath);
+
+              if (downloadError) {
+                console.error('Error downloading temp file:', downloadError);
+                throw downloadError;
+              }
+
+              if (fileData) {
+                // Re-upload to the correct location
+                const { error: uploadError } = await supabase.storage
+                  .from('driver-profiles')
+                  .upload(newPath, fileData, {
+                    cacheControl: '3600',
+                    upsert: false
+                  });
+
+                if (uploadError) {
+                  console.error('Error uploading to new location:', uploadError);
+                  throw uploadError;
+                }
+
+                // Get new public URL
+                const { data: { publicUrl: newUrl } } = supabase.storage
+                  .from('driver-profiles')
+                  .getPublicUrl(newPath);
+
+                console.log('Profile picture moved successfully. New URL:', newUrl);
+
+                // Update driver record with new URL
+                const { error: updateError } = await supabase
+                  .from("drivers")
+                  .update({ profile_picture: newUrl })
+                  .eq("id", driverId);
+
+                if (updateError) {
+                  console.error('Error updating driver record with new URL:', updateError);
+                  throw updateError;
+                }
+
+                // Delete the old temp file (best effort - don't fail if this doesn't work)
+                await supabase.storage
+                  .from('driver-profiles')
+                  .remove([oldPath]);
+              }
+            } else {
+              console.warn('Could not extract filename from profile picture URL:', formData.profile_picture);
+            }
+          } catch (moveError) {
+            // If move fails, log the error but don't fail the entire save
+            // The image is still accessible at the temp location
+            console.error('Could not move profile picture to driver folder:', moveError);
+            // Optionally show a warning to the user
+            setSuccess("Driver saved! Note: Profile picture may be in temporary location.");
+          }
+        }
       }
 
       // Save documents

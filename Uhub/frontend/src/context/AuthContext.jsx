@@ -41,11 +41,11 @@ export const AuthProvider = ({ children }) => {
       
       console.log("Auth user email:", authUser.email);
       
-      // Check if user exists in users table (primary role source)
+      // Check if user exists in users table (for Uhub application roles only)
       console.log("🔍 Checking users table for auth_user_id:", userId);
       const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("role, status, employee_id, email, full_name, department, position")
+        .select("role, status, employee_id, email")
         .eq("auth_user_id", userId)
         .maybeSingle();
       
@@ -59,20 +59,65 @@ export const AuthProvider = ({ children }) => {
       if (userData) {
         console.log("✅ User data found in database:", userData);
         
-        // Since we now have all the data from users table, create profile directly
+        // Check if user is linked to an employee record
+        if (userData.employee_id) {
+          console.log("🔗 User is linked to employee record, fetching employee data...");
+          
+          // Fetch employee data from employees table (for Udrive Company data)
+          const { data: employeeData, error: employeeError } = await supabase
+            .from("employees")
+            .select("id, full_name, department, position, status")
+            .eq("id", userData.employee_id)
+            .single();
+            
+          if (employeeError) {
+            console.error("❌ Error fetching employee data:", employeeError);
+            // Fallback to user data only
+            const profile = {
+              id: userId,
+              auth_user_id: userId,
+              email: authUser.email,
+              role: userData.role,
+              status: userData.status,
+              full_name: authUser.email.split('@')[0],
+              department: 'Unassigned',
+              position: 'Employee'
+            };
+            console.log("⚠️ Created profile with fallback data:", profile);
+            setProfileCache(prev => new Map(prev.set(userId, profile)));
+            return profile;
+          }
+          
+          // Create profile with employee data (Udrive Company data)
+          const profile = {
+            id: employeeData.id,
+            auth_user_id: userId,
+            email: authUser.email,
+            role: userData.role,
+            status: userData.status,
+            full_name: employeeData.full_name,
+            department: employeeData.department,
+            position: employeeData.position
+          };
+          console.log("✅ Created profile with employee data:", profile);
+          setProfileCache(prev => new Map(prev.set(userId, profile)));
+          return profile;
+        }
+        
+        // User exists but not linked to employee - create basic profile
         if (userData.role) {
-          console.log("🎯 Creating profile from users table data");
+          console.log("🎯 Creating basic profile from users table data (no employee link)");
           const profile = {
             id: userId,
             auth_user_id: userId,
             email: authUser.email,
             role: userData.role,
             status: userData.status,
-            full_name: userData.full_name || authUser.email.split('@')[0],
-            department: userData.department || 'Unassigned',
-            position: userData.position || 'Employee'
+            full_name: authUser.email.split('@')[0],
+            department: 'Unassigned',
+            position: 'Employee'
           };
-          console.log("✅ Created profile from users table:", profile);
+          console.log("✅ Created basic profile:", profile);
           setProfileCache(prev => new Map(prev.set(userId, profile)));
           return profile;
         }

@@ -145,7 +145,8 @@ const Sidebar = () => {
       items: [
         { label: 'Home', path: '/', icon: Home, feature: 'home' },
         { label: 'Dashboard', path: '/dashboard', icon: BarChart3, feature: 'dashboard' },
-        { label: 'Calendar View', path: '/calendar-view', icon: Calendar, feature: 'calendar_view' }
+        { label: 'Calendar View', path: '/calendar-view', icon: Calendar, feature: 'calendar_view' },
+        { label: 'Organizational Hierarchy', path: '/organizational-hierarchy', icon: Users, feature: 'organizational_hierarchy' }
       ]
     },
     {

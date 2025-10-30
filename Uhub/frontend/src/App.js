@@ -52,6 +52,7 @@ const DriverForm = React.lazy(() => import('./pages/DriverForm'));
 const DriverProfile = React.lazy(() => import('./pages/DriverProfile'));
 const Assets = React.lazy(() => import('./pages/Assets'));
 const AssetProfile = React.lazy(() => import('./pages/AssetProfile'));
+const AssetEdit = React.lazy(() => import('./pages/AssetEdit'));
 const ITAssets = React.lazy(() => import('./pages/ITAssets'));
 const ITRequests = React.lazy(() => import('./pages/ITRequestsEnhanced'));
 const RequestInbox = React.lazy(() => import('./pages/RequestInbox'));
@@ -84,6 +85,7 @@ const FleetOffboarding = React.lazy(() => import('./pages/FleetOffboarding'));
 const FleetDeliveryChecklist = React.lazy(() => import('./pages/FleetDeliveryChecklist'));
 const FleetMaintenanceRecord = React.lazy(() => import('./pages/FleetMaintenanceRecord'));
 const MarketingCalendar = React.lazy(() => import('./pages/MarketingCalendar'));
+const OrganizationalHierarchy = React.lazy(() => import('./pages/OrganizationalHierarchy'));
 const RoleDebugger = React.lazy(() => import('./components/RoleDebugger'));
 
 function App() {
@@ -289,6 +291,14 @@ function App() {
                           </ProtectedRoute>
                         } />
 
+                        <Route path="/assets/:id/edit" element={
+                          <ProtectedRoute requiredFeature="assets">
+                            <Layout>
+                              <AssetEdit />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
                         <Route path="/assets" element={
                           <ProtectedRoute requiredFeature="assets">
                             <Layout>
@@ -383,6 +393,15 @@ function App() {
                           <ProtectedRoute requiredFeature="calendar_view">
                             <Layout>
                               <CalendarView />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Organizational Hierarchy */}
+                        <Route path="/organizational-hierarchy" element={
+                          <ProtectedRoute requiredFeature="organizational_hierarchy">
+                            <Layout>
+                              <OrganizationalHierarchy />
                             </Layout>
                           </ProtectedRoute>
                         } />

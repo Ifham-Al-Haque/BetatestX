@@ -560,9 +560,9 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
           <span className={`text-sm font-medium transition-colors duration-300 ${
             isDark ? 'text-slate-300' : 'text-gray-600'
           }`}>Current User</span>
-          <span className={`text-sm font-semibold max-w-32 truncate transition-colors duration-300 ${
+          <span className={`text-sm font-semibold transition-colors duration-300 ${
             isDark ? 'text-slate-100' : 'text-gray-900'
-          }`}>
+          }`} title={simCard.current_user || 'Unassigned'}>
             {simCard.current_user || 'Unassigned'}
           </span>
         </div>
@@ -586,9 +586,9 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
             <span className={`text-sm font-medium transition-colors duration-300 ${
               isDark ? 'text-slate-300' : 'text-gray-600'
             }`}>Designation</span>
-            <span className={`text-sm font-semibold max-w-32 truncate transition-colors duration-300 ${
+            <span className={`text-sm font-semibold transition-colors duration-300 ${
               isDark ? 'text-slate-100' : 'text-gray-900'
-            }`}>
+            }`} title={simCard.designation}>
               {simCard.designation}
             </span>
           </div>
