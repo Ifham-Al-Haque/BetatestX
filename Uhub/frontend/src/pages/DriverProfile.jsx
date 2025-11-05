@@ -21,6 +21,8 @@ export default function DriverProfile() {
   const [loading, setLoading] = useState(true);
   const [showUdrivePassword, setShowUdrivePassword] = useState(false);
   const [showZimyoPassword, setShowZimyoPassword] = useState(false);
+  const [documentUrls, setDocumentUrls] = useState({});
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   const toggleUdrivePassword = useCallback(() => {
     setShowUdrivePassword(prev => !prev);
@@ -28,6 +30,66 @@ export default function DriverProfile() {
 
   const toggleZimyoPassword = useCallback(() => {
     setShowZimyoPassword(prev => !prev);
+  }, []);
+
+  const generateSignedUrl = useCallback(async (documentType, documentUrl) => {
+    if (!documentUrl) return;
+    
+    setLoadingDocs(true);
+    try {
+      // Check if URL is a Supabase Storage URL
+      if (documentUrl.includes('supabase.co/storage/v1/object')) {
+        // Extract path from URL
+        // URL format: https://[project].supabase.co/storage/v1/object/public/[bucket]/[path]
+        // or: https://[project].supabase.co/storage/v1/object/sign/[bucket]/[path]
+        const urlMatch = documentUrl.match(/\/storage\/v1\/object\/(?:public|sign\/[\w-]+\/)(.+)$/);
+        if (urlMatch) {
+          const fullPath = urlMatch[1];
+          // Remove query parameters if any
+          const cleanPath = fullPath.split('?')[0];
+          const pathParts = cleanPath.split('/').filter(p => p);
+          
+          if (pathParts.length > 1) {
+            const bucketName = pathParts[0];
+            const actualPath = pathParts.slice(1).join('/');
+            
+            console.log(`Generating signed URL for ${documentType}:`, { bucketName, actualPath });
+            
+            const { data: signedData, error: signedError } = await supabase.storage
+              .from(bucketName)
+              .createSignedUrl(actualPath, 3600); // 1 hour expiry
+            
+            if (!signedError && signedData) {
+              setDocumentUrls(prev => ({
+                ...prev,
+                [documentType]: signedData.signedUrl
+              }));
+              // Open the URL in a new tab
+              window.open(signedData.signedUrl, '_blank');
+            } else {
+              console.error('Error generating signed URL:', signedError);
+              // Fallback: try to use the original URL
+              window.open(documentUrl, '_blank');
+            }
+          } else {
+            console.warn('Could not parse path from URL:', documentUrl);
+            window.open(documentUrl, '_blank');
+          }
+        } else {
+          // Try to use the URL as-is
+          window.open(documentUrl, '_blank');
+        }
+      } else {
+        // External URL - open directly
+        window.open(documentUrl, '_blank');
+      }
+    } catch (error) {
+      console.error(`Error generating signed URL for ${documentType}:`, error);
+      // Fallback: try to open the original URL
+      window.open(documentUrl, '_blank');
+    } finally {
+      setLoadingDocs(false);
+    }
   }, []);
 
   const fetchDriver = useCallback(async () => {
@@ -46,25 +108,48 @@ export default function DriverProfile() {
     }
 
     // Fetch driver documents
-    const { data: docsData } = await supabase
+    const { data: docsData, error: docsError } = await supabase
       .from("driver_documents")
       .select("*")
       .eq("driver_id", id);
+
+    if (docsError) {
+      console.error("Error fetching documents:", docsError.message);
+    }
 
     setDriver(driverData);
     
     // Convert documents array to the expected format
     if (docsData && docsData.length > 0) {
       const docsMap = {};
-      docsData.forEach(doc => {
+      const urlsMap = {};
+      
+      // Generate signed URLs for documents if they're stored in Supabase Storage
+      for (const doc of docsData) {
         docsMap[doc.document_type] = doc.document_url;
         if (doc.document_type === 'passport_copy') {
           docsMap.passport_number = doc.passport_number;
         }
-      });
+        
+        // Check if URL is a Supabase Storage URL
+        if (doc.document_url && doc.document_url.includes('supabase.co/storage/v1/object/public')) {
+          // Public URL - use as is
+          urlsMap[doc.document_type] = doc.document_url;
+        } else if (doc.document_url && doc.document_url.includes('supabase.co/storage/v1/object')) {
+          // This might be a signed URL or private URL - try to use as is first
+          // If it doesn't work, we'll generate a signed URL when clicked
+          urlsMap[doc.document_type] = doc.document_url;
+        } else {
+          // External URL or other format - use as is
+          urlsMap[doc.document_type] = doc.document_url;
+        }
+      }
+      
       setDocuments(docsMap);
+      setDocumentUrls(urlsMap);
     } else {
       setDocuments({});
+      setDocumentUrls({});
     }
     
     setLoading(false);
@@ -203,7 +288,15 @@ export default function DriverProfile() {
                       Edit Profile
                     </Link>
                     
-                    <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                    <button 
+                      onClick={() => {
+                        const documentsSection = document.getElementById('documents-section');
+                        if (documentsSection) {
+                          documentsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
                       <FileText className="w-4 h-4" />
                       View Documents
                     </button>
@@ -404,6 +497,7 @@ export default function DriverProfile() {
                 {/* Documents Section */}
                 {documents && (
                   <motion.div
+                    id="documents-section"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
@@ -427,15 +521,21 @@ export default function DriverProfile() {
                             <div className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                               <Eye className="w-4 h-4 text-blue-600" />
                               <a 
-                                href={documents.emirates_id_front} 
+                                href={documentUrls.emirates_id_front || documents.emirates_id_front} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:underline"
+                                onClick={async (e) => {
+                                  if (!documentUrls.emirates_id_front) {
+                                    e.preventDefault();
+                                    await generateSignedUrl('emirates_id_front', documents.emirates_id_front);
+                                  }
+                                }}
                               >
                                 Front Side
                               </a>
                               <a 
-                                href={documents.emirates_id_front} 
+                                href={documentUrls.emirates_id_front || documents.emirates_id_front} 
                                 download
                                 className="text-sm text-green-600 hover:underline ml-auto"
                               >
@@ -448,15 +548,21 @@ export default function DriverProfile() {
                             <div className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                               <Eye className="w-4 h-4 text-blue-600" />
                               <a 
-                                href={documents.emirates_id_back} 
+                                href={documentUrls.emirates_id_back || documents.emirates_id_back} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:underline"
+                                onClick={async (e) => {
+                                  if (!documentUrls.emirates_id_back) {
+                                    e.preventDefault();
+                                    await generateSignedUrl('emirates_id_back', documents.emirates_id_back);
+                                  }
+                                }}
                               >
                                 Back Side
                               </a>
                               <a 
-                                href={documents.emirates_id_back} 
+                                href={documentUrls.emirates_id_back || documents.emirates_id_back} 
                                 download
                                 className="text-sm text-green-600 hover:underline ml-auto"
                               >
@@ -483,15 +589,21 @@ export default function DriverProfile() {
                             <div className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                               <Eye className="w-4 h-4 text-blue-600" />
                               <a 
-                                href={documents.driving_license_front} 
+                                href={documentUrls.driving_license_front || documents.driving_license_front} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:underline"
+                                onClick={async (e) => {
+                                  if (!documentUrls.driving_license_front) {
+                                    e.preventDefault();
+                                    await generateSignedUrl('driving_license_front', documents.driving_license_front);
+                                  }
+                                }}
                               >
                                 Front Side
                               </a>
                               <a 
-                                href={documents.driving_license_front} 
+                                href={documentUrls.driving_license_front || documents.driving_license_front} 
                                 download
                                 className="text-sm text-green-600 hover:underline ml-auto"
                               >
@@ -504,15 +616,21 @@ export default function DriverProfile() {
                             <div className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                               <Eye className="w-4 h-4 text-blue-600" />
                               <a 
-                                href={documents.driving_license_back} 
+                                href={documentUrls.driving_license_back || documents.driving_license_back} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:underline"
+                                onClick={async (e) => {
+                                  if (!documentUrls.driving_license_back) {
+                                    e.preventDefault();
+                                    await generateSignedUrl('driving_license_back', documents.driving_license_back);
+                                  }
+                                }}
                               >
                                 Back Side
                               </a>
                               <a 
-                                href={documents.driving_license_back} 
+                                href={documentUrls.driving_license_back || documents.driving_license_back} 
                                 download
                                 className="text-sm text-green-600 hover:underline ml-auto"
                               >
@@ -548,15 +666,21 @@ export default function DriverProfile() {
                               <div className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                                 <Eye className="w-4 h-4 text-blue-600" />
                                 <a 
-                                  href={documents.passport_copy} 
+                                  href={documentUrls.passport_copy || documents.passport_copy} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
                                   className="text-sm text-blue-600 hover:underline"
+                                  onClick={async (e) => {
+                                    if (!documentUrls.passport_copy) {
+                                      e.preventDefault();
+                                      await generateSignedUrl('passport_copy', documents.passport_copy);
+                                    }
+                                  }}
                                 >
                                   View Document
                                 </a>
                                 <a 
-                                  href={documents.passport_copy} 
+                                  href={documentUrls.passport_copy || documents.passport_copy} 
                                   download
                                   className="text-sm text-green-600 hover:underline ml-auto"
                                 >
