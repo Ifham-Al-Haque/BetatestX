@@ -17,20 +17,33 @@ class TaskApi {
         };
       }
 
-      // Get user profile to check role and department
+      // Get user profile to check role and department, and get users.id (primary key)
       const { data: userProfile, error: profileError } = await supabase
         .from('users')
-        .select('role, department')
+        .select('id, role, department')
         .eq('auth_user_id', authUser.id)
         .single();
 
-      if (profileError) {
+      if (profileError || !userProfile) {
         console.warn('Error fetching user profile:', profileError);
         // Continue without department filtering if profile fetch fails
       }
 
+      // Get current user's users.id (primary key) - this is what's stored in tasks.assigned_to and tasks.assigned_by
+      const currentUserId = userProfile?.id;
+      if (!currentUserId) {
+        console.warn('Current user not found in users table, returning empty data');
+        return {
+          data: [],
+          count: 0,
+          page,
+          limit,
+          totalPages: 0
+        };
+      }
+
       // First, get all tasks that match the visibility rules
-      // We can't directly query auth.users, so we'll fetch tasks and then enrich with user data
+      // Tasks use users.id (primary key) for assigned_to and assigned_by
       let query = supabase
         .from('tasks')
         .select('*')
@@ -41,7 +54,8 @@ class TaskApi {
       // - Tasks assigned to others: visible to both assigned_by and assigned_to
       // This is done using OR condition: (assigned_by = user OR assigned_to = user) AND (if self-assigned, then assigned_by = user)
       // Simplified: Show tasks where user is assigned_by OR assigned_to, but for self-assigned tasks, only show if user is the creator
-      query = query.or(`assigned_by.eq.${authUser.id},assigned_to.eq.${authUser.id}`);
+      // IMPORTANT: Use users.id (primary key), not auth.users.id
+      query = query.or(`assigned_by.eq.${currentUserId},assigned_to.eq.${currentUserId}`);
 
       // Apply department filtering based on user role
       if (userProfile && userProfile.role !== 'admin' && userProfile.role !== 'manager' && userProfile.department) {
@@ -88,6 +102,7 @@ class TaskApi {
       }
 
       // Fetch user details from users table for all assigned users
+      // Note: task.assigned_to and task.assigned_by now contain users.id (primary key), not auth_user_id
       const allUserIds = new Set();
       data?.forEach(task => {
         if (task.assigned_to) allUserIds.add(task.assigned_to);
@@ -99,12 +114,12 @@ class TaskApi {
         const userIdsArray = Array.from(allUserIds);
         const { data: usersData } = await supabase
           .from('users')
-          .select('auth_user_id, email, full_name')
-          .in('auth_user_id', userIdsArray);
+          .select('id, email, full_name')
+          .in('id', userIdsArray);
 
         if (usersData) {
           usersData.forEach(user => {
-            userDetailsMap[user.auth_user_id] = {
+            userDetailsMap[user.id] = {
               email: user.email || '',
               full_name: user.full_name || user.email || 'Unknown User'
             };
@@ -138,10 +153,11 @@ class TaskApi {
           const allAssigneeIds = [...new Set(assigneesData.map(ta => ta.user_id))];
           
           // Fetch user details from users table
+          // Note: task_assignees.user_id contains users.id (primary key), not auth_user_id
           const { data: usersData } = await supabase
             .from('users')
-            .select('auth_user_id, email, full_name')
-            .in('auth_user_id', allAssigneeIds);
+            .select('id, email, full_name')
+            .in('id', allAssigneeIds);
 
           if (usersData) {
             // Update tasks with assignees
@@ -149,7 +165,7 @@ class TaskApi {
               if (task.assignment_type === 'coordinated') {
                 const taskAssignees = assigneesData.filter(ta => ta.task_id === task.id);
                 const assignees = taskAssignees.map(ta => {
-                  const user = usersData.find(u => u.auth_user_id === ta.user_id);
+                  const user = usersData.find(u => u.id === ta.user_id);
                   return {
                     user_id: ta.user_id,
                     user_name: user?.full_name || user?.email || 'Unknown User',
@@ -166,20 +182,21 @@ class TaskApi {
 
       // Apply visibility rules: Filter out self-assigned tasks where user is not the creator
       // Also include coordinated tasks where user is one of the assignees
+      // IMPORTANT: Use currentUserId (users.id), not authUser.id (auth.users.id)
       transformedData = transformedData.filter(task => {
         const isSelfAssigned = task.assignment_type === 'self' || (task.assigned_to === task.assigned_by);
         const isCoordinated = task.assignment_type === 'coordinated';
         
         if (isSelfAssigned) {
           // Self-assigned tasks: only visible to the creator
-          return task.assigned_by === authUser.id;
+          return task.assigned_by === currentUserId;
         } else if (isCoordinated && task.assignees && task.assignees.length > 0) {
           // Coordinated tasks: visible to creator and all assignees
-          const isAssignee = task.assignees.some(a => a.user_id === authUser.id);
-          return task.assigned_by === authUser.id || isAssignee;
+          const isAssignee = task.assignees.some(a => a.user_id === currentUserId);
+          return task.assigned_by === currentUserId || isAssignee;
         } else {
           // Single assignment tasks: visible to both assigner and assignee
-          return task.assigned_by === authUser.id || task.assigned_to === authUser.id;
+          return task.assigned_by === currentUserId || task.assigned_to === currentUserId;
         }
       });
 
@@ -322,6 +339,88 @@ class TaskApi {
         throw new Error('Invalid user ID format. Please select a valid UHub user.');
       }
 
+      // Validate that assigned_to user exists in the users table
+      // Note: assigned_to should be users.id (primary key), not auth_user_id
+      if (taskInsertData.assigned_to) {
+        const { data: assignedUser, error: userCheckError } = await supabase
+          .from('users')
+          .select('id, auth_user_id, email, full_name, status')
+          .eq('id', taskInsertData.assigned_to)
+          .single();
+
+        if (userCheckError || !assignedUser) {
+          console.error('❌ User validation failed:', {
+            userId: taskInsertData.assigned_to,
+            error: userCheckError
+          });
+          throw new Error('Invalid user selected. The selected user does not exist in the users table. Please select a valid UHub user from the dropdown.');
+        }
+        
+        // Verify the user ID matches (data consistency check)
+        if (assignedUser.id !== taskInsertData.assigned_to) {
+          console.error('❌ User ID mismatch:', {
+            expected: taskInsertData.assigned_to,
+            found: assignedUser.id
+          });
+          throw new Error('User data inconsistency detected. The selected user ID does not match. Please contact your administrator.');
+        }
+
+        if (assignedUser.status !== 'active') {
+          throw new Error(`Cannot assign task to ${assignedUser.full_name || assignedUser.email}. The user account is not active.`);
+        }
+
+        console.log('✅ User validation passed:', {
+          userId: taskInsertData.assigned_to,
+          email: assignedUser.email,
+          name: assignedUser.full_name,
+          users_table_id: assignedUser.id
+        });
+      }
+
+      // Validate assigned_by user exists
+      if (taskInsertData.assigned_by) {
+        const { data: assignedByUser, error: assignedByCheckError } = await supabase
+          .from('users')
+          .select('id, email, full_name, status')
+          .eq('id', taskInsertData.assigned_by)
+          .single();
+
+        if (assignedByCheckError || !assignedByUser) {
+          console.error('❌ Assigned by user validation failed:', {
+            userId: taskInsertData.assigned_by,
+            error: assignedByCheckError
+          });
+          throw new Error('Your account is not properly set up in the users table. Please contact your administrator.');
+        }
+      }
+
+      // Validate assignees for coordinated tasks
+      if (assignmentType === 'coordinated' && assignees.length > 0) {
+        const { data: assigneeUsers, error: assigneesCheckError } = await supabase
+          .from('users')
+          .select('id, email, full_name, status')
+          .in('id', assignees);
+
+        if (assigneesCheckError) {
+          console.error('❌ Assignees validation failed:', assigneesCheckError);
+          throw new Error('Error validating assignees. Please try again.');
+        }
+
+        if (!assigneeUsers || assigneeUsers.length !== assignees.length) {
+          const foundIds = assigneeUsers?.map(u => u.id) || [];
+          const missingIds = assignees.filter(id => !foundIds.includes(id));
+          console.error('❌ Some assignees do not exist:', missingIds);
+          throw new Error('One or more selected assignees do not exist in the users table. Please select valid users and try again.');
+        }
+
+        // Check if any assignee is inactive
+        const inactiveAssignees = assigneeUsers.filter(u => u.status !== 'active');
+        if (inactiveAssignees.length > 0) {
+          const inactiveNames = inactiveAssignees.map(u => u.full_name || u.email).join(', ');
+          throw new Error(`Cannot assign task to inactive users: ${inactiveNames}. Please select active users only.`);
+        }
+      }
+
       console.log('📤 Inserting task data:', {
         ...taskInsertData,
         assigned_to: taskInsertData.assigned_to,
@@ -345,7 +444,43 @@ class TaskApi {
         
         // Provide more specific error message for foreign key violations
         if (error.code === '23503' || error.message?.includes('foreign key') || error.message?.includes('violates foreign key constraint')) {
-          const enhancedError = new Error('Invalid user selected. The selected user does not exist in the authentication system. Please ensure the user has a valid auth account and try again.');
+          // Check which field caused the foreign key violation
+          const isAssignedTo = error.message?.includes('assigned_to') || error.details?.includes('assigned_to');
+          const isAssignedBy = error.message?.includes('assigned_by') || error.details?.includes('assigned_by');
+          
+          // Try to get user details for better error message
+          let userInfo = '';
+          try {
+            if (isAssignedTo && taskInsertData.assigned_to) {
+              const { data: userData } = await supabase
+                .from('users')
+                .select('email, full_name')
+                .eq('auth_user_id', taskInsertData.assigned_to)
+                .single();
+              if (userData) {
+                userInfo = ` (${userData.full_name || userData.email})`;
+              }
+            }
+          } catch (e) {
+            // Ignore errors when fetching user info
+          }
+          
+          let errorMessage = 'Invalid user selected. The selected user does not exist in the authentication system.';
+          if (isAssignedTo) {
+            errorMessage = `The user you selected to assign this task to${userInfo} does not exist in the authentication system. This indicates a data inconsistency where the user exists in the users table but not in auth.users. Please select a different user or contact your administrator to fix this user's account.`;
+          } else if (isAssignedBy) {
+            errorMessage = 'Your account does not exist in the authentication system. Please contact your administrator.';
+          }
+          
+          console.error('❌ Foreign key violation details:', {
+            field: isAssignedTo ? 'assigned_to' : isAssignedBy ? 'assigned_by' : 'unknown',
+            userId: isAssignedTo ? taskInsertData.assigned_to : taskInsertData.assigned_by,
+            userInfo,
+            errorCode: error.code,
+            errorDetails: error.details
+          });
+          
+          const enhancedError = new Error(errorMessage);
           enhancedError.code = error.code;
           enhancedError.details = error.details;
           enhancedError.hint = error.hint;

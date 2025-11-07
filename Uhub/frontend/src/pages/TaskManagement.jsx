@@ -21,6 +21,9 @@ import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
+import TaskCard from '../components/TaskCard';
+import TaskNotes from '../components/TaskNotes';
+import MyTaskCard from '../components/MyTaskCard';
 
 const TaskManagement = () => {
   const { user, userProfile } = useAuth();
@@ -54,6 +57,7 @@ const TaskManagement = () => {
     search: ''
   });
   const [userDepartment, setUserDepartment] = useState('');
+  const [currentUserId, setCurrentUserId] = useState(null); // Store current user's users.id (primary key)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -112,8 +116,8 @@ const TaskManagement = () => {
       console.log('📊 Raw users data from UHub database:', users);
       
       if (users && users.length > 0) {
-        // Process and filter users for task assignment
-        const validUsers = users
+        // First, filter users with basic criteria
+        const basicFilteredUsers = users
           .filter(user => {
             // CRITICAL: Only include users that have auth_user_id (they must be linked to auth.users)
             const hasAuthUserId = user.auth_user_id && 
@@ -129,32 +133,42 @@ const TaskManagement = () => {
             const isActive = user.status === 'active';
             
             return hasAuthUserId && hasValidDepartment && isActive;
-          })
-          .map(user => ({
-            id: user.auth_user_id, // Use auth_user_id for task assignment (references auth.users)
-            auth_user_id: user.auth_user_id, // Keep original for reference
-            users_table_id: user.id, // Keep users table ID for reference
-            full_name: user.full_name || user.email || 'N/A',
-            email: user.email || 'N/A',
-            department: user.department,
-            status: user.status || 'active',
-            role: user.role || 'employee',
-            position: user.position || 'N/A',
-            phone: user.phone || 'N/A',
-            location: user.location || 'N/A'
-          }));
+          });
         
-        console.log('✅ Valid UHub users for task assignment:', validUsers);
-        console.log('🏢 Available departments:', [...new Set(validUsers.map(u => u.department))]);
-        console.log('🔑 User IDs (auth_user_id) for task assignment:', validUsers.map(u => ({ id: u.id, email: u.email, auth_user_id: u.auth_user_id, users_table_id: u.users_table_id })));
+        console.log(`📋 Found ${basicFilteredUsers.length} users after basic filtering`);
         
-        if (validUsers.length > 0) {
+        // Note: We're using users.id (primary key) for task assignment, which matches
+        // the foreign key constraint on tasks.assigned_to -> users.id
+        // All users that pass the basic filtering are valid for task assignment
+        
+        // Map to final format
+        // IMPORTANT: Use users.id (primary key) for task assignment, not auth_user_id
+        // This matches the foreign key constraint on tasks.assigned_to -> users.id
+        const finalUsers = basicFilteredUsers.map(user => ({
+          id: user.id, // Use users.id for task assignment (references users table primary key)
+          auth_user_id: user.auth_user_id, // Keep original for reference
+          users_table_id: user.id, // Same as id (for consistency)
+          full_name: user.full_name || user.email || 'N/A',
+          email: user.email || 'N/A',
+          department: user.department,
+          status: user.status || 'active',
+          role: user.role || 'employee',
+          position: user.position || 'N/A',
+          phone: user.phone || 'N/A',
+          location: user.location || 'N/A'
+        }));
+        
+        console.log(`✅ Valid UHub users for task assignment: ${finalUsers.length} users`);
+        console.log('🏢 Available departments:', [...new Set(finalUsers.map(u => u.department))]);
+        console.log('🔑 User IDs (users.id) for task assignment:', finalUsers.map(u => ({ id: u.id, email: u.email, users_table_id: u.users_table_id })));
+        
+        if (finalUsers.length > 0) {
           console.log('🎉 Successfully loaded real UHub users!');
-          setAllUsers(validUsers);
+          setAllUsers(finalUsers);
           return;
         } else {
-          console.warn('⚠️ No valid users found in UHub database');
-          console.log('🔍 All users were filtered out. Check department assignments and status.');
+          console.warn('⚠️ No valid users found in UHub database after auth verification');
+          console.log('🔍 All users were filtered out. Check department assignments, status, and auth accounts.');
         }
       } else {
         console.warn('⚠️ No users found in UHub database');
@@ -309,6 +323,7 @@ const TaskManagement = () => {
         console.warn('Error fetching user profile:', profileError);
       } else if (userProfile) {
         setUserDepartment(userProfile.department);
+        setCurrentUserId(userProfile.id); // Store users.id (primary key) for filtering
       }
 
       // Fetch tasks based on filters and user role
@@ -419,6 +434,22 @@ const TaskManagement = () => {
         return;
       }
 
+      // Get current user's users.id (primary key) from users table
+      // This is needed because tasks.assigned_by references users.id, not auth.users.id
+      const { data: currentUser, error: currentUserError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', authUser.id)
+        .single();
+
+      if (currentUserError || !currentUser) {
+        console.error('❌ Error fetching current user from users table:', currentUserError);
+        showError('Error', 'Your account is not properly set up in the system. Please contact your administrator.');
+        return;
+      }
+
+      const currentUserId = currentUser.id; // This is users.id (primary key)
+
       // Validate required fields
       if (!formData.title || !formData.title.trim()) {
         showError('Validation Error', 'Task title is required');
@@ -438,7 +469,8 @@ const TaskManagement = () => {
       let assignmentType = formData.assignmentType || 'single';
 
       if (assignmentType === 'self') {
-        assignedToId = authUser.id;
+        // For self-assignment, use current user's users.id
+        assignedToId = currentUserId;
         assignmentType = 'self';
       } else if (assignmentType === 'coordinated') {
         assignees = formData.assigned_to_multiple || [];
@@ -502,8 +534,8 @@ const TaskManagement = () => {
         title: formData.title.trim(),
         description: formData.description.trim(),
         notes: formData.notes ? formData.notes.trim() : null, // Add notes field
-        assigned_to: assignedToId, // This should be auth_user_id (UUID from auth.users)
-        assigned_by: authUser.id, // This is already from auth.users
+        assigned_to: assignedToId, // This is users.id (primary key from users table)
+        assigned_by: currentUserId, // This is users.id (primary key from users table)
         priority: formData.priority || 'medium',
         department: finalDepartment,
         category: formData.category || 'general',
@@ -511,14 +543,15 @@ const TaskManagement = () => {
         estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : null,
         tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [],
         assignment_type: assignmentType,
-        assignees: assignees // Array of auth_user_id values for coordinated tasks
+        assignees: assignees // Array of users.id values for coordinated tasks
       };
 
       console.log('📝 Submitting task with data:', taskData);
-      console.log('👤 Assigned to (auth_user_id):', assignedToId);
-      console.log('👥 Assignees (auth_user_ids):', assignees);
+      console.log('👤 Assigned to (users.id):', assignedToId);
+      console.log('👤 Assigned by (users.id):', currentUserId);
+      console.log('👥 Assignees (users.ids):', assignees);
       console.log('📋 Selected user details:', allUsers.find(u => u.id === assignedToId));
-      console.log('🔍 All available users:', allUsers.map(u => ({ id: u.id, email: u.email, auth_user_id: u.auth_user_id })));
+      console.log('🔍 All available users:', allUsers.map(u => ({ id: u.id, email: u.email })));
 
       if (editingTask) {
         // Update existing task
@@ -531,8 +564,9 @@ const TaskManagement = () => {
       } else {
         // Create new task
         const newTask = await taskApi.create(taskData);
-        setTasks([newTask, ...tasks]);
         success('Success', 'Task created and assigned successfully!');
+        // Refresh the task list to ensure all data is properly loaded
+        await fetchData();
       }
 
       setShowForm(false);
@@ -704,27 +738,40 @@ const TaskManagement = () => {
   const getFilteredTasks = () => {
     let filtered = [...tasks];
 
-    // Filter by tab with visibility rules
-    if (activeTab === 'my-tasks') {
-      // Show tasks assigned to me (whether I assigned to myself or others assigned to me)
-      filtered = filtered.filter(task => task.assigned_to === user.id);
-    } else if (activeTab === 'assigned-by-me') {
-      // Show tasks I assigned (both to myself and to others)
-      filtered = filtered.filter(task => task.assigned_by === user.id);
+    // Use currentUserId from state (users.id primary key)
+    // Note: tasks use users.id, not auth.users.id
+    if (!currentUserId) {
+      console.warn('⚠️ Current user ID not available for filtering, showing all tasks');
+      // Still apply other filters
     } else {
-      // For 'all' tab, show tasks based on visibility rules:
-      // - Tasks assigned to self: only visible to creator (assigned_by === user.id)
-      // - Tasks assigned to others: visible to both assigned_by and assigned_to
-      filtered = filtered.filter(task => {
-        const isSelfAssigned = task.assigned_to === task.assigned_by;
-        if (isSelfAssigned) {
-          // Self-assigned tasks: only visible to the creator
-          return task.assigned_by === user.id;
-        } else {
-          // Tasks assigned to others: visible to both assigner and assignee
-          return task.assigned_by === user.id || task.assigned_to === user.id;
-        }
-      });
+      // Filter by tab with visibility rules
+      if (activeTab === 'my-tasks') {
+        // Show tasks assigned to me OR tasks assigned by me
+        // This includes:
+        // 1. Tasks assigned to me by others (assigned_to === currentUserId)
+        // 2. Tasks I assigned to myself (assigned_to === currentUserId AND assigned_by === currentUserId)
+        // 3. Tasks I assigned to others (assigned_by === currentUserId)
+        filtered = filtered.filter(task => 
+          task.assigned_to === currentUserId || task.assigned_by === currentUserId
+        );
+      } else if (activeTab === 'assigned-by-me') {
+        // Show tasks I assigned (both to myself and to others)
+        filtered = filtered.filter(task => task.assigned_by === currentUserId);
+      } else {
+        // For 'all' tab, show tasks based on visibility rules:
+        // - Tasks assigned to self: only visible to creator (assigned_by === currentUserId)
+        // - Tasks assigned to others: visible to both assigned_by and assigned_to
+        filtered = filtered.filter(task => {
+          const isSelfAssigned = task.assigned_to === task.assigned_by;
+          if (isSelfAssigned) {
+            // Self-assigned tasks: only visible to the creator
+            return task.assigned_by === currentUserId;
+          } else {
+            // Tasks assigned to others: visible to both assigner and assignee
+            return task.assigned_by === currentUserId || task.assigned_to === currentUserId;
+          }
+        });
+      }
     }
 
     // Apply other filters
@@ -1761,147 +1808,85 @@ const TaskManagement = () => {
               </motion.div>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredTasks.map((task) => {
-                const priorityConfig = getPriorityConfig(task.priority);
-                const statusConfig = getStatusConfig(task.status);
-                const StatusIcon = statusConfig.icon;
-                const isOverdueTask = task.due_date && isOverdue(task.due_date);
-                
-                return (
-                  <motion.div
-                    key={task.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ y: -5, shadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
-                    className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden group"
-                  >
-                    <div className="p-6">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2 flex-wrap gap-2">
-                            <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                              {task.title}
-                            </h3>
-                            {task.assignment_type === 'coordinated' && (
-                              <span className="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-800 flex items-center gap-1">
-                                <Users className="w-3 h-3" />
-                                Coordinated
-                              </span>
-                            )}
-                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(task.status)}`}>
-                              {task.status.replace('_', ' ').toUpperCase()}
-                            </span>
-                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${getPriorityColor(task.priority)}`}>
-                              {priorities.find(p => p.value === task.priority)?.label || task.priority}
-                            </span>
-                          </div>
-
-                          <p className="text-gray-600 text-sm leading-relaxed">{task.description}</p>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => setSelectedTask(task)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleEdit(task)}
-                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDelete(task.id)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </motion.button>
-                        </div>
+            <>
+              {/* Enhanced My Tasks Header */}
+              {activeTab === 'my-tasks' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 shadow-lg"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                        <Target className="w-8 h-8 text-white" />
                       </div>
-
-                      {/* Details */}
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Users className="w-4 h-4 text-blue-500" />
-                          <span className="font-medium">Assigned to:</span>
-                          {task.assignment_type === 'coordinated' && task.assignees && task.assignees.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {task.assignees.map((assignee, idx) => (
-                                <span key={assignee.user_id || idx} className="text-gray-900">
-                                  {assignee.user_name || 'Unknown'}
-                                  {idx < task.assignees.length - 1 && ','}
-                                </span>
-                              ))}
-                              <span className="text-purple-600 font-semibold">({task.assignees.length} coordinators)</span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-900">{getAssignedUserName(task.assigned_to)}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <User className="w-4 h-4 text-green-500" />
-                          <span className="font-medium">Assigned by:</span>
-                          <span className="text-gray-900">{getAssignedByUserName(task.assigned_by)}</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Building className="w-4 h-4 text-purple-500" />
-                          <span className="font-medium">Department:</span>
-                          <span className="text-gray-900">{task.department}</span>
-                        </div>
-                        {task.due_date && (
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <Calendar className="w-4 h-4 text-orange-500" />
-                            <span className="font-medium">Due:</span>
-                            <span className="text-gray-900">{new Date(task.due_date).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Footer */}
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
-                            <span>Created: {new Date(task.created_at).toLocaleDateString()}</span>
-                          </div>
-                          {task.estimated_hours && (
-                            <div className="flex items-center space-x-1">
-                              <Timer className="w-3 h-3" />
-                              <span>Est. {task.estimated_hours}h</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {task.tags && task.tags.length > 0 && (
-                            <div className="flex items-center space-x-1">
-                              {task.tags.slice(0, 2).map((tag, index) => (
-                                <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                                  {tag}
-                                </span>
-                              ))}
-                              {task.tags.length > 2 && (
-                                <span className="text-xs text-gray-500">+{task.tags.length - 2}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-white mb-1">My Tasks</h2>
+                        <p className="text-blue-100 text-sm">
+                          Tasks assigned to you or created by you • {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
+                        </p>
                       </div>
                     </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                    <div className="hidden md:flex items-center gap-4 text-white/90">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{filteredTasks.filter(t => t.status === 'pending').length}</div>
+                        <div className="text-xs text-blue-100">Pending</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{filteredTasks.filter(t => t.status === 'in_progress').length}</div>
+                        <div className="text-xs text-blue-100">In Progress</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{filteredTasks.filter(t => t.status === 'completed').length}</div>
+                        <div className="text-xs text-blue-100">Completed</div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              
+              <div className={`grid gap-6 ${
+                activeTab === 'my-tasks' 
+                  ? 'grid-cols-1 lg:grid-cols-2' 
+                  : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
+              }`}>
+              <AnimatePresence>
+                {filteredTasks.map((task, index) => {
+                  // Use MyTaskCard for "My Tasks" tab for enhanced UI with inline notes
+                  if (activeTab === 'my-tasks') {
+                    return (
+                      <MyTaskCard
+                        key={task.id}
+                        task={task}
+                        onView={setSelectedTask}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        getAssignedUserName={getAssignedUserName}
+                        getAssignedByUserName={getAssignedByUserName}
+                        isOverdue={isOverdue}
+                        allUsers={allUsers}
+                        currentUserId={currentUserId}
+                      />
+                    );
+                  }
+                  // Use regular TaskCard for other tabs
+                  return (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onView={setSelectedTask}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      getAssignedUserName={getAssignedUserName}
+                      getAssignedByUserName={getAssignedByUserName}
+                      isOverdue={isOverdue}
+                    />
+                  );
+                })}
+              </AnimatePresence>
+              </div>
+            </>
           )}
         </div>
 
@@ -2048,11 +2033,18 @@ const TaskManagement = () => {
                     </div>
                   )}
 
+                  {/* Notes Section */}
+                  {selectedTask && (
+                    <div className="border-t border-gray-200 pt-6">
+                      <TaskNotes taskId={selectedTask.id} allUsers={allUsers} />
+                    </div>
+                  )}
+
                   {/* Comments Section */}
-                  <div className="border-t border-gray-200 pt-6">
+                  <div className="border-t border-gray-200 pt-6 mt-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <MessageCircle className="w-5 h-5 text-blue-500" />
-                      Comments & Notes
+                      Comments
                     </h3>
                     
                     {/* Comments List */}

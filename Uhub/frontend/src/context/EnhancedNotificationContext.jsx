@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { useChat } from './ChatContext';
 import { supabase } from '../supabaseClient';
 import notificationService from '../services/notificationService';
+import soundNotificationService from '../services/soundNotificationService';
 
 const NotificationContext = createContext();
 
@@ -29,6 +30,32 @@ export const NotificationProvider = ({ children }) => {
   const subscriptionsRef = useRef([]);
   const chatSubscriptionsRef = useRef([]);
 
+  // Request browser notification permission
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+      console.warn('This browser does not support notifications');
+      return false;
+    }
+
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+
+    if (Notification.permission !== 'denied') {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    }
+
+    return false;
+  }, []);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (user && 'Notification' in window) {
+      requestNotificationPermission();
+    }
+  }, [user?.id, requestNotificationPermission]);
+
   // Load initial data
   useEffect(() => {
     if (user) {
@@ -41,7 +68,7 @@ export const NotificationProvider = ({ children }) => {
     return () => {
       cleanupSubscriptions();
     };
-  }, [user?.id]);
+  }, [user?.id, setupNotificationSubscriptions]);
 
   // Load notifications from database
   const loadNotifications = async () => {
@@ -164,6 +191,15 @@ export const NotificationProvider = ({ children }) => {
           // Add to notifications list
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
+          
+          // Play sound notification
+          soundNotificationService.playNotificationSound(
+            newNotification.type || 'default',
+            newNotification.priority || 'medium'
+          );
+          
+          // Show browser notification if permission granted
+          showBrowserNotification(newNotification);
           
           // Show popup for high priority notifications
           if (newNotification.priority === 'high' || newNotification.priority === 'urgent') {
@@ -293,6 +329,130 @@ export const NotificationProvider = ({ children }) => {
         .subscribe();
       subs.push(itRequestUpdatesSub);
 
+      // Subscribe to task assignments
+      // Note: We can't filter by users.id directly in the subscription,
+      // so we'll check in the callback
+      const tasksSub = supabase
+        .channel('tasks_notifications')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'tasks'
+        }, async (payload) => {
+          const task = payload.new;
+          
+          // Get current user's users.id to match with task.assigned_to
+          const { data: currentUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .single();
+          
+          // Only notify if task is assigned to current user
+          if (currentUser && task.assigned_to === currentUser.id) {
+            // Create notification in database
+            try {
+              await notificationService.createNotification({
+                userId: user.id,
+                type: 'task_assigned',
+                title: 'New Task Assigned',
+                message: `You have been assigned a new task: ${task.title}`,
+                data: {
+                  task_id: task.id,
+                  task_title: task.title,
+                  due_date: task.due_date,
+                  priority: task.priority,
+                  department: task.department
+                },
+                priority: task.priority === 'urgent' ? 'urgent' : 
+                         task.priority === 'high' ? 'high' : 'medium',
+                actionUrl: `/tasks`,
+                actionLabel: 'View Task'
+              });
+            } catch (error) {
+              console.warn('Error creating task notification:', error);
+            }
+            
+            // Play sound notification
+            soundNotificationService.playNotificationSound('task_assigned', task.priority || 'medium');
+            
+            // Show browser notification
+            showBrowserNotification({
+              type: 'task_assigned',
+              title: 'New Task Assigned',
+              message: `You have been assigned a new task: ${task.title}`,
+              priority: task.priority || 'medium'
+            });
+          }
+        })
+        .subscribe();
+      subs.push(tasksSub);
+
+      // Subscribe to coordinated task assignees
+      const taskAssigneesSub = supabase
+        .channel('task_assignees_notifications')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'task_assignees'
+        }, async (payload) => {
+          const assignee = payload.new;
+          
+          // Get current user's users.id
+          const { data: currentUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .single();
+          
+          // Only notify if this assignee is the current user
+          if (currentUser && assignee.user_id === currentUser.id) {
+            // Get task details
+            const { data: task } = await supabase
+              .from('tasks')
+              .select('*')
+              .eq('id', assignee.task_id)
+              .single();
+            
+            if (task) {
+              // Create notification
+              try {
+                await notificationService.createNotification({
+                  userId: user.id,
+                  type: 'task_assigned',
+                  title: 'New Coordinated Task',
+                  message: `You have been added to a coordinated task: ${task.title}`,
+                  data: {
+                    task_id: task.id,
+                    task_title: task.title,
+                    due_date: task.due_date,
+                    priority: task.priority
+                  },
+                  priority: task.priority === 'urgent' ? 'urgent' : 
+                           task.priority === 'high' ? 'high' : 'medium',
+                  actionUrl: `/tasks`,
+                  actionLabel: 'View Task'
+                });
+              } catch (error) {
+                console.warn('Error creating task assignee notification:', error);
+              }
+              
+              // Play sound notification
+              soundNotificationService.playNotificationSound('task_assigned', task.priority || 'medium');
+              
+              // Show browser notification
+              showBrowserNotification({
+                type: 'task_assigned',
+                title: 'New Coordinated Task',
+                message: `You have been added to a coordinated task: ${task.title}`,
+                priority: task.priority || 'medium'
+              });
+            }
+          }
+        })
+        .subscribe();
+      subs.push(taskAssigneesSub);
+
       // Subscribe to new messages for chat popups
       const messagesSub = supabase
         .channel('chat_messages_notifications')
@@ -316,7 +476,44 @@ export const NotificationProvider = ({ children }) => {
     } catch (error) {
       console.error('Error setting up notification subscriptions:', error);
     }
-  }, [user, addNotification]);
+  }, [user, addNotification, showBrowserNotification]);
+
+  // Show browser notification
+  const showBrowserNotification = useCallback(async (notification) => {
+    try {
+      const hasPermission = await requestNotificationPermission();
+      
+      if (hasPermission) {
+        const icon = '/favicon.ico'; // You can customize this
+        const badge = '/favicon.ico';
+        
+        const browserNotification = new Notification(notification.title || 'New Notification', {
+          body: notification.message || '',
+          icon: icon,
+          badge: badge,
+          tag: notification.type || 'notification',
+          requireInteraction: notification.priority === 'urgent' || notification.priority === 'high',
+          silent: false // Sound will be handled by soundNotificationService
+        });
+
+        // Handle click on notification
+        browserNotification.onclick = () => {
+          window.focus();
+          if (notification.actionUrl) {
+            window.location.href = notification.actionUrl;
+          }
+          browserNotification.close();
+        };
+
+        // Auto-close after 5 seconds (or 10 for urgent)
+        setTimeout(() => {
+          browserNotification.close();
+        }, notification.priority === 'urgent' ? 10000 : 5000);
+      }
+    } catch (error) {
+      console.warn('Error showing browser notification:', error);
+    }
+  }, [requestNotificationPermission]);
 
   // Check if user is participant in conversation before showing popup
   const checkConversationParticipation = useCallback(async (conversationId, message) => {
