@@ -16,8 +16,6 @@ import { taskApi } from '../services/taskApi';
 import { supabase } from '../supabaseClient';
 import { DEPARTMENTS } from '../config/departments';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
@@ -37,7 +35,6 @@ const TaskManagement = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'my-tasks', 'assigned-by-me'
   const [showComments, setShowComments] = useState(false);
-  const [newComment, setNewComment] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
@@ -62,13 +59,19 @@ const TaskManagement = () => {
     title: '',
     description: '',
     assigned_to: '',
+    assigned_to_multiple: [], // Array of user IDs for coordinated tasks
     priority: 'medium',
     department: '',
     due_date: '',
     estimated_hours: '',
     tags: '',
-    category: 'general'
+    category: 'general',
+    assignToMyself: false, // New field to track if assigning to self
+    assignmentType: 'single', // 'single', 'coordinated', 'self'
+    notes: '' // Notes field for task
   });
+  const [taskComments, setTaskComments] = useState({}); // taskId -> comments array
+  const [newComment, setNewComment] = useState(''); // For adding new comments
 
   // Use centralized departments from config
   const departments = DEPARTMENTS.map(dept => dept.value);
@@ -112,6 +115,10 @@ const TaskManagement = () => {
         // Process and filter users for task assignment
         const validUsers = users
           .filter(user => {
+            // CRITICAL: Only include users that have auth_user_id (they must be linked to auth.users)
+            const hasAuthUserId = user.auth_user_id && 
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.auth_user_id);
+            
             // Only include active users with valid departments
             const hasValidDepartment = user.department && 
               user.department !== 'N/A' && 
@@ -121,10 +128,12 @@ const TaskManagement = () => {
             
             const isActive = user.status === 'active';
             
-            return hasValidDepartment && isActive;
+            return hasAuthUserId && hasValidDepartment && isActive;
           })
           .map(user => ({
-            id: user.id,
+            id: user.auth_user_id, // Use auth_user_id for task assignment (references auth.users)
+            auth_user_id: user.auth_user_id, // Keep original for reference
+            users_table_id: user.id, // Keep users table ID for reference
             full_name: user.full_name || user.email || 'N/A',
             email: user.email || 'N/A',
             department: user.department,
@@ -137,6 +146,7 @@ const TaskManagement = () => {
         
         console.log('✅ Valid UHub users for task assignment:', validUsers);
         console.log('🏢 Available departments:', [...new Set(validUsers.map(u => u.department))]);
+        console.log('🔑 User IDs (auth_user_id) for task assignment:', validUsers.map(u => ({ id: u.id, email: u.email, auth_user_id: u.auth_user_id, users_table_id: u.users_table_id })));
         
         if (validUsers.length > 0) {
           console.log('🎉 Successfully loaded real UHub users!');
@@ -189,29 +199,75 @@ const TaskManagement = () => {
   };
 
   const filterUsersByDepartment = (department) => {
-    console.log('Filtering users by department:', department);
-    console.log('All users:', allUsers);
-    console.log('User departments:', allUsers.map(u => ({ name: u.full_name, dept: u.department, status: u.status })));
+    console.log('🔍 Filtering users by department:', department);
+    console.log('📊 All users:', allUsers);
+    console.log('🏢 User departments:', allUsers.map(u => ({ name: u.full_name, dept: u.department, status: u.status })));
+    
+    if (!department) {
+      console.log('⚠️ No department selected');
+      setDepartmentUsers([]);
+      return;
+    }
     
     const filtered = allUsers.filter(user => {
       // Handle case-insensitive matching and different department formats
       const userDept = (user.department || '').toString().toUpperCase().trim();
       const selectedDept = (department || '').toString().toUpperCase().trim();
       
-      // Also check for partial matches (e.g., "TECHNOLOGY" matches "TECHNOLOGY")
-      const isMatch = userDept === selectedDept || 
-                     userDept.includes(selectedDept) || 
-                     selectedDept.includes(userDept);
+      // Normalize department names for better matching
+      // Handle common variations: OPERATION/OPERATIONS, CUSTOMER_SERVICE/CUSTOMER SERVICE, etc.
+      const normalizeDept = (dept) => {
+        if (!dept) return '';
+        return dept
+          .replace(/\s+/g, '_')      // Replace spaces with underscores
+          .replace(/[_-]/g, '')     // Remove underscores and hyphens
+          .replace(/S$/, '')        // Remove trailing 'S' for plural/singular matching (OPERATIONS -> OPERATION)
+          .toUpperCase();
+      };
+      
+      const normalizedUserDept = normalizeDept(userDept);
+      const normalizedSelectedDept = normalizeDept(selectedDept);
+      
+      // Check exact match (case-insensitive)
+      const exactMatch = userDept === selectedDept;
+      
+      // Check normalized match (handles OPERATION/OPERATIONS, CUSTOMER_SERVICE/CUSTOMER SERVICE, etc.)
+      const normalizedMatch = normalizedUserDept === normalizedSelectedDept && normalizedUserDept.length > 0;
+      
+      // Check if one contains the other (for partial matches)
+      const containsMatch = userDept.includes(selectedDept) || selectedDept.includes(userDept);
+      
+      // Check if normalized versions contain each other
+      const normalizedContainsMatch = normalizedUserDept.length > 0 && normalizedSelectedDept.length > 0 &&
+                                     (normalizedUserDept.includes(normalizedSelectedDept) || 
+                                      normalizedSelectedDept.includes(normalizedUserDept));
+      
+      // Special handling for OPERATION/OPERATIONS
+      const operationMatch = (userDept === 'OPERATION' && selectedDept === 'OPERATIONS') ||
+                            (userDept === 'OPERATIONS' && selectedDept === 'OPERATION');
+      
+      const isMatch = exactMatch || normalizedMatch || containsMatch || normalizedContainsMatch || operationMatch;
       
       const isActive = (user.status || '').toLowerCase() === 'active';
       
-      console.log(`User: ${user.full_name}, Dept: "${userDept}", Selected: "${selectedDept}", Match: ${isMatch}, Active: ${isActive}`);
+      console.log(`👤 User: ${user.full_name}`);
+      console.log(`   User Dept: "${userDept}" (normalized: "${normalizedUserDept}")`);
+      console.log(`   Selected: "${selectedDept}" (normalized: "${normalizedSelectedDept}")`);
+      console.log(`   Match: ${isMatch} (exact: ${exactMatch}, normalized: ${normalizedMatch}, contains: ${containsMatch})`);
+      console.log(`   Active: ${isActive}`);
+      console.log(`   ✅ Result: ${isMatch && isActive ? 'INCLUDED' : 'EXCLUDED'}`);
       
       return isMatch && isActive;
     });
     
-    console.log('Filtered users:', filtered);
+    console.log(`✅ Filtered ${filtered.length} users for department "${department}":`, filtered.map(u => u.full_name));
     setDepartmentUsers(filtered);
+    
+    if (filtered.length === 0 && allUsers.length > 0) {
+      console.warn('⚠️ No users found! Available departments in database:', 
+        [...new Set(allUsers.map(u => u.department))].filter(Boolean)
+      );
+    }
   };
 
   const getTaskStats = useCallback(async () => {
@@ -279,20 +335,24 @@ const TaskManagement = () => {
         return;
       }
       
-      // Fetch comments for each task
-      const tasksWithComments = await Promise.all(
+      // Fetch comments for each task and store in taskComments state
+      const commentsMap = {};
+      await Promise.all(
         tasksResponse.data.map(async (task) => {
           try {
             const comments = await taskApi.getComments(task.id);
+            commentsMap[task.id] = comments || [];
             return { ...task, comments: comments || [] };
           } catch (error) {
             console.error(`Error fetching comments for task ${task.id}:`, error);
+            commentsMap[task.id] = [];
             return { ...task, comments: [] };
           }
         })
       );
 
-      setTasks(tasksWithComments);
+      setTaskComments(commentsMap);
+      setTasks(tasksResponse.data);
     } catch (err) {
       console.error('Error fetching data:', err);
       // Don't show error toast for empty data, just set empty array
@@ -328,16 +388,25 @@ const TaskManagement = () => {
     }
   }, [userDepartment, formData.department]);
 
-  // Update department users when department changes
+  // Load comments when a task is selected
   useEffect(() => {
-    if (formData.department) {
-      filterUsersByDepartment(formData.department);
-    } else {
-      setDepartmentUsers([]);
+    if (selectedTask) {
+      const loadComments = async () => {
+        try {
+          const comments = await taskApi.getComments(selectedTask.id);
+          setTaskComments(prev => ({
+            ...prev,
+            [selectedTask.id]: comments || []
+          }));
+        } catch (error) {
+          console.error('Error loading comments:', error);
+        }
+      };
+      loadComments();
     }
-    // Reset assigned_to when department changes
-    setFormData(prev => ({ ...prev, assigned_to: '' }));
-  }, [formData.department, allUsers]);
+  }, [selectedTask]);
+
+  // Note: Department filtering removed - users are now selected from all UHub account holders
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -350,18 +419,106 @@ const TaskManagement = () => {
         return;
       }
 
+      // Validate required fields
+      if (!formData.title || !formData.title.trim()) {
+        showError('Validation Error', 'Task title is required');
+        return;
+      }
+
+      if (!formData.description || !formData.description.trim()) {
+        showError('Validation Error', 'Task description is required');
+        return;
+      }
+
+      // Department is optional - will be auto-determined from selected users or use current user's department
+
+      // Determine assignment type and validate
+      let assignedToId = null;
+      let assignees = [];
+      let assignmentType = formData.assignmentType || 'single';
+
+      if (assignmentType === 'self') {
+        assignedToId = authUser.id;
+        assignmentType = 'self';
+      } else if (assignmentType === 'coordinated') {
+        assignees = formData.assigned_to_multiple || [];
+        if (assignees.length === 0) {
+          showError('Error', 'Please select at least one user for coordinated task');
+          return;
+        }
+        if (assignees.length === 1) {
+          // If only one user selected, treat as single assignment
+          assignedToId = assignees[0];
+          assignmentType = 'single';
+          assignees = [];
+        } else {
+          // Multiple users - coordinated task
+          assignedToId = assignees[0]; // Keep first as primary for backward compatibility
+          assignmentType = 'coordinated';
+        }
+      } else {
+        // Single assignment
+        assignedToId = formData.assigned_to;
+        if (!assignedToId) {
+          showError('Error', 'Please select a user to assign the task to');
+          return;
+        }
+        assignmentType = 'single';
+      }
+
+      // Validate that assigned users have valid auth_user_id
+      if (assignedToId && !allUsers.find(u => u.id === assignedToId)) {
+        console.error('❌ Selected user not found in allUsers:', assignedToId);
+        console.log('Available users:', allUsers.map(u => ({ id: u.id, email: u.email })));
+        showError('Error', 'Selected user is not valid. Please select a different user.');
+        return;
+      }
+
+      // Auto-determine department from selected users if not set
+      let finalDepartment = formData.department || userDepartment;
+      if (!finalDepartment && assignmentType === 'coordinated' && assignees.length > 0) {
+        // Get department from first assignee
+        const firstAssignee = allUsers.find(u => u.id === assignees[0]);
+        finalDepartment = firstAssignee?.department || userDepartment || 'OTHERS';
+      } else if (!finalDepartment && assignedToId) {
+        // Get department from selected user
+        const selectedUser = allUsers.find(u => u.id === assignedToId);
+        finalDepartment = selectedUser?.department || userDepartment || 'OTHERS';
+      }
+
+      // Default to user's department or 'OTHERS' if still not set
+      if (!finalDepartment) {
+        finalDepartment = userDepartment || 'OTHERS';
+      }
+
+      // Validate that assignedToId is a valid UUID (auth_user_id)
+      if (assignedToId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignedToId)) {
+        console.error('❌ Invalid UUID format for assigned_to:', assignedToId);
+        showError('Error', 'Invalid user ID format. Please select a user again.');
+        return;
+      }
+
       const taskData = {
-        title: formData.title,
-        description: formData.description,
-        assigned_to: formData.assigned_to,
-        assigned_by: authUser.id,
-        priority: formData.priority,
-        department: formData.department || userDepartment,
-        category: formData.category,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        notes: formData.notes ? formData.notes.trim() : null, // Add notes field
+        assigned_to: assignedToId, // This should be auth_user_id (UUID from auth.users)
+        assigned_by: authUser.id, // This is already from auth.users
+        priority: formData.priority || 'medium',
+        department: finalDepartment,
+        category: formData.category || 'general',
         due_date: formData.due_date || null,
         estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : null,
-        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : []
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [],
+        assignment_type: assignmentType,
+        assignees: assignees // Array of auth_user_id values for coordinated tasks
       };
+
+      console.log('📝 Submitting task with data:', taskData);
+      console.log('👤 Assigned to (auth_user_id):', assignedToId);
+      console.log('👥 Assignees (auth_user_ids):', assignees);
+      console.log('📋 Selected user details:', allUsers.find(u => u.id === assignedToId));
+      console.log('🔍 All available users:', allUsers.map(u => ({ id: u.id, email: u.email, auth_user_id: u.auth_user_id })));
 
       if (editingTask) {
         // Update existing task
@@ -382,8 +539,34 @@ const TaskManagement = () => {
       setEditingTask(null);
       resetForm();
     } catch (err) {
-      console.error('Error submitting task:', err);
-      showError('Error', 'Failed to submit task. Please try again.');
+      console.error('❌ Error submitting task:', err);
+      console.error('Error details:', {
+        message: err.message,
+        details: err.details,
+        hint: err.hint,
+        code: err.code
+      });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to submit task. Please try again.';
+      
+      if (err.message) {
+        if (err.message.includes('duplicate') || err.message.includes('unique')) {
+          errorMessage = 'A task with this title already exists. Please use a different title.';
+        } else if (err.message.includes('foreign key') || err.message.includes('constraint')) {
+          errorMessage = 'Invalid user selected. Please select a valid UHub user.';
+        } else if (err.message.includes('permission') || err.message.includes('policy')) {
+          errorMessage = 'You do not have permission to create tasks. Please contact your administrator.';
+        } else if (err.message.includes('null value') || err.message.includes('not null')) {
+          errorMessage = 'Required fields are missing. Please fill in all required fields.';
+        } else if (err.message.includes('invalid input') || err.message.includes('syntax')) {
+          errorMessage = 'Invalid data format. Please check your input and try again.';
+        } else {
+          errorMessage = `Error: ${err.message}`;
+        }
+      }
+      
+      showError('Error', errorMessage);
     }
   };
 
@@ -437,17 +620,52 @@ const TaskManagement = () => {
   };
 
   const handleEdit = (task) => {
-    setEditingTask(task);
-    setFormData({
-      title: task.title,
-      description: task.description,
-      assigned_to: task.assigned_to,
-      priority: task.priority,
-      department: task.department,
-      due_date: task.due_date || '',
-      estimated_hours: task.estimated_hours ? task.estimated_hours.toString() : ''
-    });
-    setShowForm(true);
+    // Get current user to check if task is assigned to self
+    const checkSelfAssignment = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const isSelfAssigned = task.assigned_to === authUser?.id && task.assigned_by === authUser?.id;
+        
+        setEditingTask(task);
+        setFormData({
+          title: task.title,
+          description: task.description,
+          notes: task.notes || '',
+          assigned_to: isSelfAssigned ? '' : task.assigned_to,
+          assigned_to_multiple: task.assignment_type === 'coordinated' && task.assignees 
+            ? task.assignees.map(a => a.user_id) 
+            : [],
+          priority: task.priority,
+          department: task.department,
+          due_date: task.due_date || '',
+          estimated_hours: task.estimated_hours ? task.estimated_hours.toString() : '',
+          tags: task.tags ? task.tags.join(', ') : '',
+          category: task.category || 'general',
+          assignToMyself: isSelfAssigned,
+          assignmentType: task.assignment_type || 'single'
+        });
+        setShowForm(true);
+      } catch (err) {
+        console.error('Error checking self assignment:', err);
+        // Fallback to regular assignment
+        setEditingTask(task);
+        setFormData({
+          title: task.title,
+          description: task.description,
+          assigned_to: task.assigned_to,
+          priority: task.priority,
+          department: task.department,
+          due_date: task.due_date || '',
+          estimated_hours: task.estimated_hours ? task.estimated_hours.toString() : '',
+          tags: task.tags ? task.tags.join(', ') : '',
+          category: task.category || 'general',
+          assignToMyself: false
+        });
+        setShowForm(true);
+      }
+    };
+    
+    checkSelfAssignment();
   };
 
   const handleDelete = async (id) => {
@@ -469,12 +687,16 @@ const TaskManagement = () => {
       title: '',
       description: '',
       assigned_to: '',
+      assigned_to_multiple: [],
       priority: 'medium',
-      department: '',
+      department: userDepartment || '',
       due_date: '',
       estimated_hours: '',
       tags: '',
-      category: 'general'
+      category: 'general',
+      assignToMyself: false,
+      assignmentType: 'single',
+      notes: ''
     });
   };
 
@@ -482,11 +704,27 @@ const TaskManagement = () => {
   const getFilteredTasks = () => {
     let filtered = [...tasks];
 
-    // Filter by tab
+    // Filter by tab with visibility rules
     if (activeTab === 'my-tasks') {
+      // Show tasks assigned to me (whether I assigned to myself or others assigned to me)
       filtered = filtered.filter(task => task.assigned_to === user.id);
     } else if (activeTab === 'assigned-by-me') {
+      // Show tasks I assigned (both to myself and to others)
       filtered = filtered.filter(task => task.assigned_by === user.id);
+    } else {
+      // For 'all' tab, show tasks based on visibility rules:
+      // - Tasks assigned to self: only visible to creator (assigned_by === user.id)
+      // - Tasks assigned to others: visible to both assigned_by and assigned_to
+      filtered = filtered.filter(task => {
+        const isSelfAssigned = task.assigned_to === task.assigned_by;
+        if (isSelfAssigned) {
+          // Self-assigned tasks: only visible to the creator
+          return task.assigned_by === user.id;
+        } else {
+          // Tasks assigned to others: visible to both assigner and assignee
+          return task.assigned_by === user.id || task.assigned_to === user.id;
+        }
+      });
     }
 
     // Apply other filters
@@ -624,8 +862,6 @@ const TaskManagement = () => {
                   New Task
                 </Button>
               </motion.div>
-              <DarkModeToggle />
-              <UserDropdown />
             </div>
           </div>
         </div>
@@ -1024,67 +1260,26 @@ const TaskManagement = () => {
                 </motion.div>
 
               <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Task Title and Department */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <motion.div 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="space-y-2"
-                  >
-                    <Label htmlFor="title" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-500" />
-                      Task Title *
-                    </Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      required
-                      placeholder="Enter a descriptive task title"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 text-lg"
-                    />
-                  </motion.div>
-
-                  <motion.div 
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="space-y-2"
-                  >
-                    <Label htmlFor="department" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <Building className="w-4 h-4 text-blue-500" />
-                      Department *
-                    </Label>
-                    <div className="relative">
-                      <select
-                        id="department"
-                        value={formData.department}
-                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
-                        required
-                        disabled={userProfile?.role !== 'admin' && userProfile?.role !== 'manager'}
-                      >
-                        <option value="">Select Department</option>
-                        {(userProfile?.role === 'admin' || userProfile?.role === 'manager' 
-                          ? DEPARTMENTS 
-                          : userDepartment ? DEPARTMENTS.filter(d => d.value === userDepartment) : []
-                        ).map(dept => (
-                          <option key={dept.value} value={dept.value}>{dept.label}</option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                        <Building className="w-5 h-5 text-gray-400" />
-                      </div>
-                    </div>
-                    {userProfile?.role !== 'admin' && userProfile?.role !== 'manager' && (
-                      <p className="text-sm text-blue-600 mt-2 flex items-center gap-1">
-                        <AlertCircle className="w-4 h-4" />
-                        You can only create tasks in your department: {userDepartment}
-                      </p>
-                    )}
-                  </motion.div>
-                </div>
+                {/* Task Title */}
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="space-y-2"
+                >
+                  <Label htmlFor="title" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    Task Title *
+                  </Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    required
+                    placeholder="Enter a descriptive task title"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 text-lg"
+                  />
+                </motion.div>
 
                 {/* Task Description */}
                 <motion.div 
@@ -1108,38 +1303,204 @@ const TaskManagement = () => {
                   />
                 </motion.div>
 
-                {/* Assignment, Priority, and Due Date */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="space-y-2"
-                  >
-                    <Label htmlFor="assigned_to" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                {/* Notes Section */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="space-y-2"
+                >
+                  <Label htmlFor="notes" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-purple-500" />
+                    Notes
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows={3}
+                    placeholder="Add any additional notes, reminders, or important information about this task..."
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-300 resize-none"
+                  />
+                  <p className="text-xs text-gray-500">These notes will be visible to all assigned users and the task creator</p>
+                </motion.div>
+
+                {/* Task Type Selection - Individual or Joined Task */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-2"
+                >
+                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4 text-blue-500" />
+                    Task Type *
+                  </Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
+                    <label className="flex items-center space-x-3 cursor-pointer p-4 rounded-lg hover:bg-white transition-colors border-2 border-transparent hover:border-green-300">
+                      <input
+                        type="radio"
+                        name="assignmentType"
+                        value="single"
+                        checked={formData.assignmentType === 'single'}
+                        onChange={() => setFormData({ 
+                          ...formData, 
+                          assignmentType: 'single',
+                          assignToMyself: false,
+                          assigned_to_multiple: [],
+                          assigned_to: ''
+                        })}
+                        className="w-5 h-5 text-green-600 focus:ring-green-500 focus:ring-2"
+                      />
+                      <div className="flex items-center gap-2 flex-1">
+                        <User className="w-6 h-6 text-green-500" />
+                        <div>
+                          <span className="font-bold text-gray-900 block">Individual Task</span>
+                          <span className="text-xs text-gray-600">Assign to one person</span>
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex items-center space-x-3 cursor-pointer p-4 rounded-lg hover:bg-white transition-colors border-2 border-transparent hover:border-purple-300">
+                      <input
+                        type="radio"
+                        name="assignmentType"
+                        value="coordinated"
+                        checked={formData.assignmentType === 'coordinated'}
+                        onChange={() => setFormData({ 
+                          ...formData, 
+                          assignmentType: 'coordinated',
+                          assignToMyself: false,
+                          assigned_to: ''
+                        })}
+                        className="w-5 h-5 text-purple-600 focus:ring-purple-500 focus:ring-2"
+                      />
+                      <div className="flex items-center gap-2 flex-1">
+                        <Users className="w-6 h-6 text-purple-500" />
+                        <div>
+                          <span className="font-bold text-gray-900 block">Joined Task</span>
+                          <span className="text-xs text-gray-600">Assign to multiple people</span>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  {formData.assignmentType === 'single' && (
+                    <div className="flex items-center gap-2 mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <User className="w-4 h-4 text-green-500" />
+                      <p className="text-sm text-green-600 font-medium">
+                        This task will be assigned to one person - visible to both you and the assignee
+                      </p>
+                    </div>
+                  )}
+                  {formData.assignmentType === 'coordinated' && (
+                    <div className="flex items-center gap-2 mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <Users className="w-4 h-4 text-purple-500" />
+                      <p className="text-sm text-purple-600 font-medium">
+                        This task will be assigned to multiple people for coordination - visible to all assignees and you
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+
+                {/* Assignment Section - Show all UHub account holders */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="space-y-2"
+                >
+                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    {formData.assignmentType === 'coordinated' ? (
+                      <Users className="w-4 h-4 text-purple-500" />
+                    ) : (
                       <User className="w-4 h-4 text-blue-500" />
-                      Assign To *
-                    </Label>
+                    )}
+                    {formData.assignmentType === 'coordinated'
+                      ? 'Select Multiple UHub Users *'
+                      : 'Assign To UHub User *'}
+                  </Label>
+                  
+                  {formData.assignmentType === 'coordinated' ? (
+                    <div className="space-y-3">
+                      <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl p-3 bg-white">
+                        {allUsers.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-4">No UHub users available</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {allUsers.map(user => {
+                              const isSelected = formData.assigned_to_multiple.includes(user.id);
+                              return (
+                                <label
+                                  key={user.id}
+                                  className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? 'bg-purple-50 border-2 border-purple-300'
+                                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setFormData({
+                                          ...formData,
+                                          assigned_to_multiple: [...formData.assigned_to_multiple, user.id],
+                                          // Auto-set department from first selected user if not set
+                                          department: formData.department || user.department || formData.department
+                                        });
+                                      } else {
+                                        setFormData({
+                                          ...formData,
+                                          assigned_to_multiple: formData.assigned_to_multiple.filter(id => id !== user.id)
+                                        });
+                                      }
+                                    }}
+                                    className="w-5 h-5 text-purple-600 focus:ring-purple-500 focus:ring-2 rounded"
+                                  />
+                                  <div className="flex-1">
+                                    <p className="font-medium text-gray-900">{user.full_name}</p>
+                                    <p className="text-sm text-gray-500">{user.email} {user.department && `• ${user.department}`}</p>
+                                  </div>
+                                  {isSelected && (
+                                    <CheckCircle className="w-5 h-5 text-purple-500" />
+                                  )}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      {formData.assigned_to_multiple.length > 0 && (
+                        <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <Users className="w-4 h-4 text-purple-500" />
+                          <p className="text-sm text-purple-600 font-medium">
+                            {formData.assigned_to_multiple.length} UHub user(s) selected for coordination
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                     <div className="relative">
                       <select
                         id="assigned_to"
                         value={formData.assigned_to}
-                        onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                        onChange={(e) => {
+                          const selectedUserId = e.target.value;
+                          const selectedUser = allUsers.find(u => u.id === selectedUserId);
+                          setFormData({ 
+                            ...formData, 
+                            assigned_to: selectedUserId,
+                            // Auto-set department from selected user if not set
+                            department: formData.department || selectedUser?.department || formData.department
+                          });
+                        }}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
-                        required
-                        disabled={!formData.department}
+                        required={formData.assignmentType === 'single'}
                       >
-                        <option value="">
-                          {!formData.department 
-                            ? 'Select Department First' 
-                            : departmentUsers.length === 0 
-                              ? 'No Users in Department' 
-                              : 'Select Employee'
-                          }
-                        </option>
-                        {departmentUsers.map(user => (
+                        <option value="">Select UHub User</option>
+                        {allUsers.map(user => (
                           <option key={user.id} value={user.id}>
-                            {user.full_name} - {user.email}
+                            {user.full_name} - {user.email} {user.department && `(${user.department})`}
                           </option>
                         ))}
                       </select>
@@ -1147,68 +1508,27 @@ const TaskManagement = () => {
                         <User className="w-5 h-5 text-gray-400" />
                       </div>
                     </div>
-              {formData.department && departmentUsers.length === 0 && allUsers.length > 0 && (
-                <div className="flex items-center gap-2 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                  <div>
-                    <p className="text-sm text-red-600 font-medium">
-                      No active users found in {formData.department} department
-                    </p>
-                    <p className="text-xs text-red-500 mt-1">
-                      Make sure users have the correct department assigned in their profile
-                    </p>
-                  </div>
-                </div>
-              )}
-      {allUsers.length === 0 && (
-        <div className="flex items-center gap-2 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <AlertTriangle className="w-4 h-4 text-red-500" />
-          <div>
-            <p className="text-sm text-red-600 font-medium">
-              No UHub users found in database
-            </p>
-            <p className="text-xs text-red-500 mt-1">
-              Run the populate_users_database.sql script to create sample users for testing.
-            </p>
-            <button
-              onClick={() => {
-                console.log('=== TASK ASSIGNMENT DEBUG ===');
-                console.log('All users from users table:', allUsers);
-                console.log('Available departments:', [...new Set(allUsers.map(u => u.department))]);
-                console.log('Selected department:', formData.department);
-                console.log('Filtered department users:', departmentUsers);
-                console.log('User count by department:',
-                  [...new Set(allUsers.map(u => u.department))].map(dept => ({
-                    department: dept,
-                    count: allUsers.filter(u => u.department === dept).length,
-                    users: allUsers.filter(u => u.department === dept).map(u => u.full_name)
-                  }))
-                );
-                console.log('=== END DEBUG ===');
-              }}
-              className="px-2 py-1 bg-yellow-500/30 text-yellow-200 text-xs rounded hover:bg-yellow-500/50 transition-colors mt-2"
-            >
-              Debug
-            </button>
-          </div>
-        </div>
-      )}
-                    {formData.department && departmentUsers.length > 0 && (
-                      <div className="flex items-center gap-2 mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <div>
-                          <p className="text-sm text-green-600 font-medium">
-                            {departmentUsers.length} UHub user(s) available in {formData.department}
-                          </p>
-                          <p className="text-xs text-green-500 mt-1">
-                            Real users from your UHub database - they will receive task notifications
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
+                  )}
+                </motion.div>
 
-                  <motion.div 
+                {/* Error message if no users available */}
+                {allUsers.length === 0 && (
+                  <div className="flex items-center gap-2 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    <div>
+                      <p className="text-sm text-red-600 font-medium">
+                        No UHub users found in database
+                      </p>
+                      <p className="text-xs text-red-500 mt-1">
+                        Please ensure users are registered in the UHub system.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Priority, and Due Date */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
@@ -1460,10 +1780,16 @@ const TaskManagement = () => {
                       {/* Header */}
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
+                          <div className="flex items-center space-x-3 mb-2 flex-wrap gap-2">
                             <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                               {task.title}
                             </h3>
+                            {task.assignment_type === 'coordinated' && (
+                              <span className="px-3 py-1 text-xs font-bold rounded-full bg-purple-100 text-purple-800 flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                Coordinated
+                              </span>
+                            )}
                             <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(task.status)}`}>
                               {task.status.replace('_', ' ').toUpperCase()}
                             </span>
@@ -1508,7 +1834,19 @@ const TaskManagement = () => {
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Users className="w-4 h-4 text-blue-500" />
                           <span className="font-medium">Assigned to:</span>
-                          <span className="text-gray-900">{getAssignedUserName(task.assigned_to)}</span>
+                          {task.assignment_type === 'coordinated' && task.assignees && task.assignees.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {task.assignees.map((assignee, idx) => (
+                                <span key={assignee.user_id || idx} className="text-gray-900">
+                                  {assignee.user_name || 'Unknown'}
+                                  {idx < task.assignees.length - 1 && ','}
+                                </span>
+                              ))}
+                              <span className="text-purple-600 font-semibold">({task.assignees.length} coordinators)</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-900">{getAssignedUserName(task.assigned_to)}</span>
+                          )}
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <User className="w-4 h-4 text-green-500" />
@@ -1599,10 +1937,75 @@ const TaskManagement = () => {
                     <p className="text-gray-600">{selectedTask.description}</p>
                   </div>
                   
+                  {selectedTask.notes && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-purple-500" />
+                        Notes
+                      </h3>
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <p className="text-gray-700 whitespace-pre-wrap">{selectedTask.notes}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Status Change Section */}
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-blue-500" />
+                      Task Status
+                    </h3>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {statuses.map(status => {
+                        const StatusIcon = status.icon;
+                        return (
+                          <button
+                            key={status.value}
+                            onClick={async () => {
+                              try {
+                                await taskApi.update(selectedTask.id, { status: status.value });
+                                const updatedTask = { ...selectedTask, status: status.value };
+                                setSelectedTask(updatedTask);
+                                setTasks(tasks.map(t => t.id === selectedTask.id ? updatedTask : t));
+                                success('Success', `Task status updated to ${status.label}`);
+                              } catch (err) {
+                                console.error('Error updating status:', err);
+                                showError('Error', 'Failed to update task status');
+                              }
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                              selectedTask.status === status.value
+                                ? `${status.color} border-2 border-current shadow-md`
+                                : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
+                            }`}
+                          >
+                            <StatusIcon className="w-4 h-4" />
+                            {status.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <h4 className="text-sm font-medium text-gray-500 mb-2">Assigned To</h4>
-                      <p className="text-gray-900">{getAssignedUserName(selectedTask.assigned_to)}</p>
+                      {selectedTask.assignment_type === 'coordinated' && selectedTask.assignees && selectedTask.assignees.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            {selectedTask.assignees.map((assignee, idx) => (
+                              <span key={assignee.user_id || idx} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                                {assignee.user_name || 'Unknown'}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-xs text-purple-600 font-semibold">
+                            Coordinated Task - {selectedTask.assignees.length} assignee(s)
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-gray-900">{getAssignedUserName(selectedTask.assigned_to)}</p>
+                      )}
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-gray-500 mb-2">Assigned By</h4>
@@ -1644,6 +2047,80 @@ const TaskManagement = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Comments Section */}
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <MessageCircle className="w-5 h-5 text-blue-500" />
+                      Comments & Notes
+                    </h3>
+                    
+                    {/* Comments List */}
+                    <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
+                      {taskComments[selectedTask.id] && taskComments[selectedTask.id].length > 0 ? (
+                        taskComments[selectedTask.id].map((comment) => (
+                          <div key={comment.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {comment.user_name?.charAt(0) || 'U'}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900">{comment.user_name || 'Unknown User'}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(comment.created_at).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-gray-700 whitespace-pre-wrap mt-2">{comment.content}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">No comments yet. Be the first to add a comment!</p>
+                      )}
+                    </div>
+                    
+                    {/* Add Comment Form */}
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <Label htmlFor="new_comment" className="text-sm font-semibold text-gray-700 mb-2 block">
+                        Add Comment or Note
+                      </Label>
+                      <Textarea
+                        id="new_comment"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Add a comment or note about this task..."
+                        rows={3}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 resize-none mb-3"
+                      />
+                      <Button
+                        onClick={async () => {
+                          if (!newComment.trim()) {
+                            showError('Error', 'Please enter a comment');
+                            return;
+                          }
+                          try {
+                            const comment = await taskApi.addComment(selectedTask.id, newComment.trim());
+                            const updatedComments = {
+                              ...taskComments,
+                              [selectedTask.id]: [...(taskComments[selectedTask.id] || []), comment]
+                            };
+                            setTaskComments(updatedComments);
+                            setNewComment('');
+                            success('Success', 'Comment added successfully!');
+                          } catch (err) {
+                            console.error('Error adding comment:', err);
+                            showError('Error', 'Failed to add comment');
+                          }
+                        }}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 rounded-lg"
+                      >
+                        <Send className="w-4 h-4 inline mr-2" />
+                        Post Comment
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1680,17 +2157,7 @@ const TaskManagement = () => {
                     onClick={() => {
                       setShowForm(false);
                       setEditingTask(null);
-                      setFormData({
-                        title: '',
-                        description: '',
-                        assigned_to: '',
-                        priority: 'medium',
-                        department: '',
-                        due_date: '',
-                        estimated_hours: '',
-                        tags: '',
-                        category: 'general'
-                      });
+                      resetForm();
                     }}
                     className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-all duration-200"
                   >
@@ -1731,27 +2198,7 @@ const TaskManagement = () => {
                       />
                     </div>
                     
-                    <div>
-                      <Label htmlFor="department" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Department *
-                      </Label>
-                      <select
-                        id="department"
-                        value={formData.department}
-                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
-                        required
-                        disabled={userProfile?.role !== 'admin' && userProfile?.role !== 'manager'}
-                      >
-                        <option value="">Select Department</option>
-                        {(userProfile?.role === 'admin' || userProfile?.role === 'manager'
-                          ? DEPARTMENTS
-                          : userDepartment ? DEPARTMENTS.filter(d => d.value === userDepartment) : []
-                        ).map(dept => (
-                          <option key={dept.value} value={dept.value}>{dept.label}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Department field removed - will be auto-determined from selected users */}
                     
                     <div>
                       <Label htmlFor="priority" className="text-sm font-medium text-gray-700 mb-2 block">
@@ -1772,84 +2219,194 @@ const TaskManagement = () => {
                       </select>
                     </div>
                     
-                    <div>
-                      <Label htmlFor="assigned_to" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Assign To *
+                    {/* Notes Section */}
+                    <div className="md:col-span-2">
+                      <Label htmlFor="notes" className="text-sm font-medium text-gray-700 mb-2 block">
+                        Notes
                       </Label>
-                      <select
-                        id="assigned_to"
-                        value={formData.assigned_to}
-                        onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
-                        required
-                        disabled={!formData.department}
-                      >
-                        <option value="">Select User</option>
-                        {departmentUsers.map(user => (
-                          <option key={user.id} value={user.id}>
-                            {user.full_name} ({user.email})
-                          </option>
-                        ))}
-                      </select>
+                      <Textarea
+                        id="notes"
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-300 min-h-[80px]"
+                        placeholder="Add any additional notes, reminders, or important information about this task..."
+                      />
+                      <p className="text-xs text-gray-500 mt-1">These notes will be visible to all assigned users and the task creator</p>
+                    </div>
+
+                    {/* Task Type Selection - Individual or Joined Task */}
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Task Type *
+                      </Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
+                        <label className="flex items-center space-x-3 cursor-pointer p-4 rounded-lg hover:bg-white transition-colors border-2 border-transparent hover:border-green-300">
+                          <input
+                            type="radio"
+                            name="assignmentType"
+                            value="single"
+                            checked={formData.assignmentType === 'single'}
+                            onChange={() => setFormData({ 
+                              ...formData, 
+                              assignmentType: 'single',
+                              assignToMyself: false,
+                              assigned_to_multiple: [],
+                              assigned_to: ''
+                            })}
+                            className="w-5 h-5 text-green-600 focus:ring-green-500 focus:ring-2"
+                          />
+                          <div className="flex items-center gap-2 flex-1">
+                            <User className="w-6 h-6 text-green-500" />
+                            <div>
+                              <span className="font-bold text-gray-900 block">Individual Task</span>
+                              <span className="text-xs text-gray-600">Assign to one person</span>
+                            </div>
+                          </div>
+                        </label>
+                        <label className="flex items-center space-x-3 cursor-pointer p-4 rounded-lg hover:bg-white transition-colors border-2 border-transparent hover:border-purple-300">
+                          <input
+                            type="radio"
+                            name="assignmentType"
+                            value="coordinated"
+                            checked={formData.assignmentType === 'coordinated'}
+                            onChange={() => setFormData({ 
+                              ...formData, 
+                              assignmentType: 'coordinated',
+                              assignToMyself: false,
+                              assigned_to: ''
+                            })}
+                            className="w-5 h-5 text-purple-600 focus:ring-purple-500 focus:ring-2"
+                          />
+                          <div className="flex items-center gap-2 flex-1">
+                            <Users className="w-6 h-6 text-purple-500" />
+                            <div>
+                              <span className="font-bold text-gray-900 block">Joined Task</span>
+                              <span className="text-xs text-gray-600">Assign to multiple people</span>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                      {formData.assignmentType === 'single' && (
+                        <div className="flex items-center gap-2 mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <User className="w-4 h-4 text-green-500" />
+                          <p className="text-sm text-green-600 font-medium">
+                            This task will be assigned to one person - visible to both you and the assignee
+                          </p>
+                        </div>
+                      )}
+                      {formData.assignmentType === 'coordinated' && (
+                        <div className="flex items-center gap-2 mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <Users className="w-4 h-4 text-purple-500" />
+                          <p className="text-sm text-purple-600 font-medium">
+                            This task will be assigned to multiple people for coordination - visible to all assignees and you
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Assignment Section - Show all UHub account holders */}
+                    <div className="md:col-span-2">
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        {formData.assignmentType === 'coordinated'
+                          ? 'Select Multiple UHub Users *'
+                          : 'Assign To UHub User *'}
+                      </Label>
                       
-                      {/* User Assignment Feedback */}
-                      {formData.department && departmentUsers.length === 0 && allUsers.length > 0 && (
-                        <div className="flex items-center gap-2 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                          <div>
-                            <p className="text-sm text-red-600 font-medium">
-                              No active users found in {formData.department} department
-                            </p>
-                            <p className="text-xs text-red-500 mt-1">
-                              Make sure users have the correct department assigned in their profile
-                            </p>
+                      {formData.assignmentType === 'coordinated' ? (
+                        <div className="space-y-3">
+                          <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl p-3 bg-white">
+                            {allUsers.length === 0 ? (
+                              <p className="text-sm text-gray-500 text-center py-4">No UHub users available</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {allUsers.map(user => {
+                                  const isSelected = formData.assigned_to_multiple.includes(user.id);
+                                  return (
+                                    <label
+                                      key={user.id}
+                                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                                        isSelected
+                                          ? 'bg-purple-50 border-2 border-purple-300'
+                                          : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setFormData({
+                                              ...formData,
+                                              assigned_to_multiple: [...formData.assigned_to_multiple, user.id],
+                                              department: formData.department || user.department || formData.department
+                                            });
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              assigned_to_multiple: formData.assigned_to_multiple.filter(id => id !== user.id)
+                                            });
+                                          }
+                                        }}
+                                        className="w-5 h-5 text-purple-600 focus:ring-purple-500 focus:ring-2 rounded"
+                                      />
+                                      <div className="flex-1">
+                                        <p className="font-medium text-gray-900">{user.full_name}</p>
+                                        <p className="text-sm text-gray-500">{user.email} {user.department && `• ${user.department}`}</p>
+                                      </div>
+                                      {isSelected && (
+                                        <CheckCircle className="w-5 h-5 text-purple-500" />
+                                      )}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          {formData.assigned_to_multiple.length > 0 && (
+                            <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                              <Users className="w-4 h-4 text-purple-500" />
+                              <p className="text-sm text-purple-600 font-medium">
+                                {formData.assigned_to_multiple.length} UHub user(s) selected for coordination
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <select
+                            id="assigned_to"
+                            value={formData.assigned_to}
+                            onChange={(e) => {
+                              const selectedUserId = e.target.value;
+                              const selectedUser = allUsers.find(u => u.id === selectedUserId);
+                              setFormData({ 
+                                ...formData, 
+                                assigned_to: selectedUserId,
+                                department: formData.department || selectedUser?.department || formData.department
+                              });
+                            }}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
+                            required={formData.assignmentType === 'single'}
+                          >
+                            <option value="">Select UHub User</option>
+                            {allUsers.map(user => (
+                              <option key={user.id} value={user.id}>
+                                {user.full_name} - {user.email} {user.department && `(${user.department})`}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <User className="w-5 h-5 text-gray-400" />
                           </div>
                         </div>
                       )}
+                      
                       {allUsers.length === 0 && (
                         <div className="flex items-center gap-2 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                           <AlertTriangle className="w-4 h-4 text-red-500" />
-                          <div>
-                            <p className="text-sm text-red-600 font-medium">
-                              No UHub users found in database
-                            </p>
-                            <p className="text-xs text-red-500 mt-1">
-                              Run the populate_users_database.sql script to create sample users for testing.
-                            </p>
-                            <button
-                              onClick={() => {
-                                console.log('=== TASK ASSIGNMENT DEBUG ===');
-                                console.log('All users from users table:', allUsers);
-                                console.log('Available departments:', [...new Set(allUsers.map(u => u.department))]);
-                                console.log('Selected department:', formData.department);
-                                console.log('Filtered department users:', departmentUsers);
-                                console.log('User count by department:',
-                                  [...new Set(allUsers.map(u => u.department))].map(dept => ({
-                                    department: dept,
-                                    count: allUsers.filter(u => u.department === dept).length,
-                                    users: allUsers.filter(u => u.department === dept).map(u => u.full_name)
-                                  }))
-                                );
-                                console.log('=== END DEBUG ===');
-                              }}
-                              className="px-2 py-1 bg-yellow-500/30 text-yellow-200 text-xs rounded hover:bg-yellow-500/50 transition-colors mt-2"
-                            >
-                              Debug
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {formData.department && departmentUsers.length > 0 && (
-                        <div className="flex items-center gap-2 mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <div>
-                            <p className="text-sm text-green-600 font-medium">
-                              {departmentUsers.length} UHub user(s) available in {formData.department}
-                            </p>
-                            <p className="text-xs text-green-500 mt-1">
-                              Real users from your UHub database - they will receive task notifications
-                            </p>
-                          </div>
+                          <p className="text-sm text-red-600 font-medium">
+                            No UHub users found in database
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1931,7 +2488,8 @@ const TaskManagement = () => {
                           due_date: '',
                           estimated_hours: '',
                           tags: '',
-                          category: 'general'
+                          category: 'general',
+                          assignToMyself: false
                         });
                       }}
                       className="px-6 py-3 rounded-xl border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
