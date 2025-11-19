@@ -18,17 +18,17 @@ import SmartHomeRoute from './components/SmartHomeRoute';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
+      staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh for 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes - cache data for 10 minutes
       retry: (failureCount, error) => {
         if (error?.status >= 400 && error?.status < 500) { return false; }
         return false;
       },
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      refetchOnMount: false, // Don't refetch on every mount - only if data is stale
+      refetchOnReconnect: true, // Only refetch on reconnect
       networkMode: 'online',
-      refetchOnReconnect: true,
-      refetchOnMount: true,
     },
     mutations: {
       retry: false,

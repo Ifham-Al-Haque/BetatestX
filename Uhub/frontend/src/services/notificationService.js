@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient';
 class NotificationService {
   constructor() {
     this.subscriptions = new Map();
+    this.createNotificationAvailable = true;
   }
 
   // Create a single notification
@@ -17,6 +18,10 @@ class NotificationService {
     actionLabel = null,
     expiresAt = null
   }) {
+    if (!this.createNotificationAvailable) {
+      return null;
+    }
+
     try {
       const { data: notification, error } = await supabase
         .rpc('create_notification', {
@@ -34,8 +39,9 @@ class NotificationService {
       if (error) throw error;
       return notification;
     } catch (error) {
-      console.error('Error creating notification:', error);
-      throw error;
+      console.warn('Notification service: disabling create_notification RPC due to error:', error);
+      this.createNotificationAvailable = false;
+      return null;
     }
   }
 
@@ -51,6 +57,10 @@ class NotificationService {
     actionLabel = null,
     expiresAt = null
   }) {
+    if (!this.createNotificationAvailable) {
+      return 0;
+    }
+
     try {
       const { data: count, error } = await supabase
         .rpc('create_notifications_for_users', {
@@ -68,8 +78,9 @@ class NotificationService {
       if (error) throw error;
       return count;
     } catch (error) {
-      console.error('Error creating notifications for users:', error);
-      throw error;
+      console.warn('Notification service: disabling create_notification RPC due to error:', error);
+      this.createNotificationAvailable = false;
+      return 0;
     }
   }
 
@@ -85,6 +96,10 @@ class NotificationService {
     actionLabel = null,
     expiresAt = null
   }) {
+    if (!this.createNotificationAvailable) {
+      return 0;
+    }
+
     try {
       const { data: count, error } = await supabase
         .rpc('create_notifications_for_role', {
@@ -102,8 +117,9 @@ class NotificationService {
       if (error) throw error;
       return count;
     } catch (error) {
-      console.error('Error creating notifications for role:', error);
-      throw error;
+      console.warn('Notification service: disabling create_notification RPC due to error:', error);
+      this.createNotificationAvailable = false;
+      return 0;
     }
   }
 
@@ -301,11 +317,14 @@ class NotificationService {
       const generalSub = await this.subscribeToUserNotifications((payload) => {
         if (payload.eventType === 'INSERT') {
           addNotificationCallback({
+            id: payload.new.id,
             type: payload.new.type,
             title: payload.new.title,
             message: payload.new.message,
             priority: payload.new.priority,
-            data: payload.new.data
+            data: payload.new.data,
+            timestamp: payload.new.created_at,
+            read: payload.new.is_read ?? false
           });
         }
       });
@@ -314,11 +333,14 @@ class NotificationService {
       const systemSub = this.subscribeToNotifications((payload) => {
         if (payload.eventType === 'INSERT') {
           addNotificationCallback({
+            id: payload.new.id,
             type: payload.new.type,
             title: payload.new.title,
             message: payload.new.message,
             priority: payload.new.priority,
-            data: payload.new.data
+            data: payload.new.data,
+            timestamp: payload.new.created_at,
+            read: payload.new.is_read ?? false
           });
         }
       });

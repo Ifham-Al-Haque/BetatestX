@@ -22,6 +22,14 @@ const NotificationBell = () => {
 
   const getNotificationIcon = (type) => {
     switch (type) {
+      case 'task_assignment':
+      case 'task_assigned':
+      case 'task_notification':
+        return <Bell className="w-5 h-5 text-blue-600" />;
+      case 'task_status_update':
+        return <AlertCircle className="w-5 h-5 text-orange-500" />;
+      case 'task_comment':
+        return <MessageSquare className="w-5 h-5 text-green-500" />;
       case 'complaint':
       case 'complaint_update':
         return <AlertCircle className="w-5 h-5 text-red-500" />;
@@ -41,6 +49,14 @@ const NotificationBell = () => {
 
   const getNotificationColor = (type) => {
     switch (type) {
+      case 'task_assignment':
+      case 'task_assigned':
+      case 'task_notification':
+        return 'border-blue-300 bg-blue-50';
+      case 'task_status_update':
+        return 'border-orange-300 bg-orange-50';
+      case 'task_comment':
+        return 'border-green-300 bg-green-50';
       case 'complaint':
       case 'complaint_update':
         return 'border-red-200 bg-red-50';

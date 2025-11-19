@@ -106,6 +106,96 @@ const TaskManagement = () => {
     { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: XCircle }
   ];
 
+  const formatDateInputValue = useCallback((value) => {
+    if (!value) return '';
+
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return '';
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+      if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+        return trimmed.slice(0, 10);
+      }
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const formatDateTimeLocalValue = useCallback((value) => {
+    if (!value) return '';
+
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return '';
+      const tzOffset = value.getTimezoneOffset();
+      const localDate = new Date(value.getTime() - tzOffset * 60000);
+      return localDate.toISOString().slice(0, 16);
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return '';
+
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      const date = new Date(trimmed);
+      if (Number.isNaN(date.getTime())) return '';
+      const tzOffset = date.getTimezoneOffset();
+      const localDate = new Date(date.getTime() - tzOffset * 60000);
+      return localDate.toISOString().slice(0, 16);
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const tzOffset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - tzOffset * 60000);
+    return localDate.toISOString().slice(0, 16);
+  }, []);
+
+  const normalizeDueDateForSave = useCallback((value) => {
+    if (!value) return '';
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? '' : value.toISOString();
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return '';
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        const date = new Date(`${trimmed}T00:00:00`);
+        return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+      }
+
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
+        const date = new Date(trimmed);
+        return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+      }
+
+      const parsed = new Date(trimmed);
+      return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+    }
+
+    return '';
+  }, []);
+
   const fetchUsers = async () => {
     try {
       console.log('🔄 Fetching real UHub users for task assignment...');
@@ -530,6 +620,8 @@ const TaskManagement = () => {
         return;
       }
 
+      const normalizedDueDateForSubmit = normalizeDueDateForSave(formData.due_date);
+
       const taskData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
@@ -539,7 +631,7 @@ const TaskManagement = () => {
         priority: formData.priority || 'medium',
         department: finalDepartment,
         category: formData.category || 'general',
-        due_date: formData.due_date || null,
+        due_date: normalizedDueDateForSubmit || null,
         estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : null,
         tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [],
         assignment_type: assignmentType,
@@ -671,7 +763,7 @@ const TaskManagement = () => {
             : [],
           priority: task.priority,
           department: task.department,
-          due_date: task.due_date || '',
+          due_date: normalizeDueDateForSave(task.due_date) || '',
           estimated_hours: task.estimated_hours ? task.estimated_hours.toString() : '',
           tags: task.tags ? task.tags.join(', ') : '',
           category: task.category || 'general',
@@ -689,7 +781,7 @@ const TaskManagement = () => {
           assigned_to: task.assigned_to,
           priority: task.priority,
           department: task.department,
-          due_date: task.due_date || '',
+          due_date: normalizeDueDateForSave(task.due_date) || '',
           estimated_hours: task.estimated_hours ? task.estimated_hours.toString() : '',
           tags: task.tags ? task.tags.join(', ') : '',
           category: task.category || 'general',
@@ -868,9 +960,9 @@ const TaskManagement = () => {
   const filteredTasks = getFilteredTasks();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
       {/* Header Section */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="bg-white dark:bg-gray-800/95 dark:backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 dark:shadow-lg shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
@@ -878,8 +970,8 @@ const TaskManagement = () => {
                 <CheckSquare className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
-                <p className="text-sm text-gray-600">Create, assign, and track tasks efficiently across your team</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Task Management</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Create, assign, and track tasks efficiently across your team</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -981,8 +1073,8 @@ const TaskManagement = () => {
 
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+        <div className="bg-white dark:bg-gray-800/90 dark:backdrop-blur-sm rounded-xl shadow-sm dark:shadow-lg dark:shadow-blue-500/5 border border-gray-200 dark:border-gray-700 p-6 mb-8">
+          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
             {[
               { id: 'all', label: 'All Tasks', icon: ClipboardList, count: stats.total },
               { id: 'my-tasks', label: 'My Tasks', icon: Target, count: stats.myTasks },
@@ -995,16 +1087,16 @@ const TaskManagement = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-md transition-all duration-200 ${
                     activeTab === tab.id
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="font-medium">{tab.label}</span>
                   <span className={`px-2 py-1 rounded-full text-xs ${
                     activeTab === tab.id
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'bg-gray-200 text-gray-600'
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300'
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
                   }`}>
                     {tab.count}
                   </span>
@@ -1015,21 +1107,21 @@ const TaskManagement = () => {
         </div>
 
         {/* Enhanced Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800/90 dark:backdrop-blur-sm rounded-xl shadow-sm dark:shadow-lg dark:shadow-blue-500/5 border border-gray-200 dark:border-gray-700 p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
                 <Filter className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Filter Tasks</h3>
-                <p className="text-sm text-gray-600">Find exactly what you're looking for</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filter Tasks</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Find exactly what you're looking for</p>
               </div>
             </div>
             <Button
               onClick={() => setFilters({ status: '', priority: '', assigned_to: '', department: '', search: '' })}
               variant="outline"
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Clear All</span>
@@ -1039,12 +1131,12 @@ const TaskManagement = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search Input */}
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
               <Input
                 placeholder="Search tasks, users..."
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="pl-10 w-full rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-300"
+                className="pl-10 w-full rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 transition-all duration-300"
               />
             </div>
             
@@ -1053,7 +1145,7 @@ const TaskManagement = () => {
               <select
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all duration-300 appearance-none cursor-pointer"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition-all duration-300 appearance-none cursor-pointer"
               >
                 <option value="">All Status</option>
                 {statuses.map(status => (
@@ -1061,7 +1153,7 @@ const TaskManagement = () => {
                 ))}
               </select>
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <Clock className="w-4 h-4 text-gray-400" />
+                <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
 
@@ -1070,7 +1162,7 @@ const TaskManagement = () => {
               <select
                 value={filters.department}
                 onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all duration-300 appearance-none cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition-all duration-300 appearance-none cursor-pointer disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
                 disabled={userProfile?.role !== 'admin' && userProfile?.role !== 'manager'}
               >
                 <option value="">All Departments</option>
@@ -1082,7 +1174,7 @@ const TaskManagement = () => {
                 ))}
               </select>
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <Building className="w-4 h-4 text-gray-400" />
+                <Building className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
 
@@ -1091,7 +1183,7 @@ const TaskManagement = () => {
               <select
                 value={filters.priority}
                 onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white transition-all duration-300 appearance-none cursor-pointer"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition-all duration-300 appearance-none cursor-pointer"
               >
                 <option value="">All Priorities</option>
                 {priorities.map(priority => (
@@ -1099,7 +1191,7 @@ const TaskManagement = () => {
                 ))}
               </select>
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <AlertTriangle className="w-4 h-4 text-gray-400" />
+                <AlertTriangle className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
           </div>
@@ -1109,10 +1201,10 @@ const TaskManagement = () => {
             <motion.div 
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mt-6 pt-6 border-t border-gray-200"
+              className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-center space-x-2 flex-wrap gap-2">
-                <span className="text-sm font-medium text-gray-600">Active filters:</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Active filters:</span>
                 {filters.search && (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
                     <Search className="w-3 h-3 mr-1" />
@@ -1617,8 +1709,11 @@ const TaskManagement = () => {
                       <Input
                         id="due_date"
                         type="date"
-                        value={formData.due_date}
-                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                        value={formatDateInputValue(formData.due_date)}
+                        onChange={(e) => setFormData({ 
+                          ...formData, 
+                          due_date: e.target.value ? normalizeDueDateForSave(e.target.value) : '' 
+                        })}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 text-lg"
                       />
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -1700,7 +1795,7 @@ const TaskManagement = () => {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl p-16 text-center border border-gray-100"
+              className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-xl dark:shadow-2xl p-16 text-center border border-gray-100 dark:border-gray-700"
             >
               <div className="relative mb-8">
                 <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
@@ -1727,7 +1822,7 @@ const TaskManagement = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-3xl font-bold text-gray-900 mb-4"
+                className="text-3xl font-bold text-gray-900 dark:text-white mb-4"
               >
                 {filters.search || filters.status || filters.department || filters.priority
                   ? "No tasks match your filters"
@@ -1739,7 +1834,7 @@ const TaskManagement = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-lg text-gray-600 mb-8 max-w-md mx-auto leading-relaxed"
+                className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-md mx-auto leading-relaxed"
               >
                 {filters.search || filters.status || filters.department || filters.priority
                   ? "Try adjusting your search criteria or clear the filters to see all available tasks."
@@ -1785,13 +1880,13 @@ const TaskManagement = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="mt-12 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100"
+                className="mt-12 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 rounded-2xl border border-blue-100 dark:border-gray-600"
               >
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-center">
-                  <Zap className="w-5 h-5 mr-2 text-blue-500" />
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center justify-center">
+                  <Zap className="w-5 h-5 mr-2 text-blue-500 dark:text-blue-400" />
                   Quick Tips
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-300">
                   <div className="flex items-center">
                     <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                     Set clear priorities
@@ -2410,8 +2505,11 @@ const TaskManagement = () => {
                       <Input
                         id="due_date"
                         type="datetime-local"
-                        value={formData.due_date}
-                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                        value={formatDateTimeLocalValue(formData.due_date)}
+                        onChange={(e) => setFormData({ 
+                          ...formData, 
+                          due_date: e.target.value ? normalizeDueDateForSave(e.target.value) : '' 
+                        })}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
                       />
                     </div>

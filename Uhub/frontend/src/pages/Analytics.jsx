@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"; // Analytics component with real expense data
+import React, { useMemo, useState, useEffect } from "react"; // Analytics component with real expense data
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -67,6 +67,227 @@ const CustomTooltip = ({ active, payload, label }) => {
     );
   }
   return null;
+};
+
+// Enhanced Animated Metric Card Component
+const AnimatedMetricCard = ({ 
+  title, 
+  value, 
+  icon: Icon, 
+  color = 'blue', 
+  delay = 0,
+  formatValue = (val) => val.toLocaleString('en-US')
+}) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const colorClasses = {
+    blue: {
+      bg: 'from-blue-50 to-blue-100',
+      border: 'border-blue-200',
+      iconBg: 'from-blue-500 to-blue-600',
+      text: 'text-blue-600',
+      textBold: 'text-blue-900',
+      dot: 'bg-blue-500',
+      shadow: 'shadow-blue-200/50'
+    },
+    green: {
+      bg: 'from-green-50 to-green-100',
+      border: 'border-green-200',
+      iconBg: 'from-green-500 to-green-600',
+      text: 'text-green-600',
+      textBold: 'text-green-900',
+      dot: 'bg-green-500',
+      shadow: 'shadow-green-200/50'
+    },
+    yellow: {
+      bg: 'from-yellow-50 to-yellow-100',
+      border: 'border-yellow-200',
+      iconBg: 'from-yellow-500 to-yellow-600',
+      text: 'text-yellow-600',
+      textBold: 'text-yellow-900',
+      dot: 'bg-yellow-500',
+      shadow: 'shadow-yellow-200/50'
+    },
+    purple: {
+      bg: 'from-purple-50 to-purple-100',
+      border: 'border-purple-200',
+      iconBg: 'from-purple-500 to-purple-600',
+      text: 'text-purple-600',
+      textBold: 'text-purple-900',
+      dot: 'bg-purple-500',
+      shadow: 'shadow-purple-200/50'
+    }
+  };
+
+  const colors = colorClasses[color] || colorClasses.blue;
+
+  // Animate number counting
+  useEffect(() => {
+    // Extract numeric value from string or use direct value
+    let numericValue;
+    if (typeof value === 'string') {
+      // Remove AED prefix and extract number
+      const cleaned = value.replace(/AED\s*/i, '').replace(/,/g, '');
+      numericValue = parseFloat(cleaned);
+    } else {
+      numericValue = value;
+    }
+
+    if (isNaN(numericValue) || numericValue === 0) {
+      setDisplayValue(numericValue || 0);
+      return;
+    }
+
+    const duration = 1500; // Animation duration in ms
+    const steps = 60; // Number of animation steps
+    const increment = numericValue / steps;
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep++;
+      const nextValue = Math.min(increment * currentStep, numericValue);
+      setDisplayValue(nextValue);
+
+      if (currentStep >= steps) {
+        setDisplayValue(numericValue);
+        clearInterval(timer);
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  // Format the display value
+  const formattedDisplay = (() => {
+    if (typeof value === 'string' && value.includes('AED')) {
+      return `AED ${formatValue(displayValue)}`;
+    }
+    return formatValue(displayValue);
+  })();
+
+  // Calculate responsive font size based on content length
+  const getFontSize = () => {
+    const length = formattedDisplay.length;
+    if (length <= 10) return 'clamp(1.75rem, 5vw, 2.25rem)'; // Large for short numbers
+    if (length <= 15) return 'clamp(1.5rem, 4.5vw, 2rem)';   // Medium
+    if (length <= 20) return 'clamp(1.25rem, 4vw, 1.75rem)'; // Smaller
+    return 'clamp(1rem, 3.5vw, 1.5rem)';                      // Smallest for very long numbers
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ 
+        delay,
+        duration: 0.5,
+        type: "spring",
+        stiffness: 100,
+        damping: 15
+      }}
+      whileHover={{ 
+        y: -8,
+        scale: 1.02,
+        transition: { duration: 0.3, ease: "easeOut" }
+      }}
+      whileTap={{ scale: 0.98 }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      className={`
+        relative bg-gradient-to-br ${colors.bg} p-6 rounded-2xl 
+        border ${colors.border} 
+        shadow-lg hover:shadow-2xl
+        transition-all duration-300 ease-out
+        overflow-hidden
+        group cursor-pointer
+        min-h-[140px]
+      `}
+    >
+      {/* Animated background gradient on hover */}
+      <motion.div
+        className={`absolute inset-0 bg-gradient-to-br ${colors.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+        initial={false}
+        animate={{ opacity: isHovered ? 0.3 : 0 }}
+      />
+      
+      {/* Shine effect on hover */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+        initial={{ x: '-100%' }}
+        animate={{ x: isHovered ? '200%' : '-100%' }}
+        transition={{ duration: 0.6, ease: "easeInOut" }}
+      />
+
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-3">
+          {/* Icon with enhanced animation */}
+          <motion.div
+            className={`p-3 bg-gradient-to-r ${colors.iconBg} rounded-xl shadow-lg flex-shrink-0`}
+            whileHover={{ 
+              rotate: [0, -10, 10, -10, 0],
+              scale: 1.1
+            }}
+            transition={{ duration: 0.5 }}
+          >
+            <Icon className="w-6 h-6 text-white" />
+          </motion.div>
+          
+          {/* Enhanced pulse indicator */}
+          <motion.div 
+            className={`${colors.dot} rounded-full flex-shrink-0`}
+            initial={{ width: 12, height: 12 }}
+            animate={{ 
+              width: [12, 16, 12],
+              height: [12, 16, 12],
+              opacity: [1, 0.7, 1]
+            }}
+            transition={{ 
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+        </div>
+        
+        {/* Title */}
+        <motion.p 
+          className={`text-sm font-medium ${colors.text} mb-2`}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: delay + 0.2 }}
+        >
+          {title}
+        </motion.p>
+        
+        {/* Value with responsive font size */}
+        <motion.div
+          className="w-full overflow-hidden"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: delay + 0.3, type: "spring" }}
+        >
+          <p 
+            className={`font-bold ${colors.textBold} leading-tight`}
+            style={{
+              fontSize: getFontSize(),
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              lineHeight: '1.2',
+              maxWidth: '100%',
+              whiteSpace: 'normal'
+            }}
+            title={formattedDisplay}
+          >
+            {formattedDisplay}
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Decorative corner accent */}
+      <div className={`absolute top-0 right-0 w-20 h-20 ${colors.bg} opacity-20 rounded-bl-full`} />
+    </motion.div>
+  );
 };
 
 // Enhanced Filter Component
@@ -170,8 +391,28 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
     const serviceMap = {};
     expenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed && expense.date_paid) {
-        const service = expense.service_name.trim();
+        // Normalize service names for consistency (same as other charts)
+        let service = expense.service_name.trim();
+        
+        // Handle common variations and typos
+        if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
+          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
+        } else if (service.includes('AUTOMATION')) {
+          service = 'AUTOMATION';
+        } else if (service.includes('AWS') && service.includes('BESPIN')) {
+          service = 'AWS[BESPIN]';
+        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
+          service = 'ELEVEN LABS';
+        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
+          service = 'ZAPIER';
+        } else if (service.includes('IDWISE') || service.includes('ID WISE')) {
+          service = 'IDWISE';
+        } else if (service.includes('MO ENGAGE')) {
+          service = 'MO ENGAGE';
+        }
+        
         const date = new Date(expense.date_paid);
+        // Ensure consistent month key format: "MMM YY" (e.g., "Jan 24")
         const monthKey = `${date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}`;
         
         if (!serviceMap[service]) {
@@ -191,6 +432,29 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
       }
     });
 
+    // Sort monthly spending chronologically for each service
+    Object.values(serviceMap).forEach(service => {
+      const sortedMonths = Object.entries(service.monthly_spending)
+        .sort(([monthA], [monthB]) => {
+          // Parse month strings to dates for proper sorting
+          const parseMonth = (monthStr) => {
+            const [month, year] = monthStr.split(' ');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthIndex = monthNames.indexOf(month);
+            const fullYear = 2000 + parseInt(year); // Convert 2-digit year to 4-digit
+            return new Date(fullYear, monthIndex);
+          };
+          return parseMonth(monthA) - parseMonth(monthB);
+        });
+      
+      // Rebuild monthly_spending object with sorted order
+      const sortedSpending = {};
+      sortedMonths.forEach(([month, amount]) => {
+        sortedSpending[month] = amount;
+      });
+      service.monthly_spending = sortedSpending;
+    });
+
     return Object.values(serviceMap);
   }, [expenses]);
 
@@ -198,19 +462,41 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
   const getPaymentDetails = (serviceName, month) => {
     if (!expenses.length) return [];
 
-    const monthYear = month.split('-');
-    if (monthYear.length !== 2) return [];
+    // Parse month string (format: "MMM YY" e.g., "Jan 24")
+    const [monthStr, yearStr] = month.split(' ');
+    if (!monthStr || !yearStr) return [];
 
-    const monthNum = new Date(Date.parse(monthYear[0] + " 1, 2000")).getMonth();
-    const year = monthYear[1];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNum = monthNames.indexOf(monthStr);
+    if (monthNum === -1) return [];
+    
+    const fullYear = 2000 + parseInt(yearStr);
 
     return expenses
       .filter(expense => {
-        if (expense.service_name?.trim() !== serviceName) return false;
+        // Normalize service name for matching
+        let service = expense.service_name?.trim() || '';
+        if (service.includes('IDWISE') || service.includes('ID WISE')) {
+          service = 'IDWISE';
+        } else if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
+          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
+        } else if (service.includes('AUTOMATION')) {
+          service = 'AUTOMATION';
+        } else if (service.includes('AWS') && service.includes('BESPIN')) {
+          service = 'AWS[BESPIN]';
+        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
+          service = 'ELEVEN LABS';
+        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
+          service = 'ZAPIER';
+        } else if (service.includes('MO ENGAGE')) {
+          service = 'MO ENGAGE';
+        }
+        
+        if (service !== serviceName) return false;
         
         const expenseDate = new Date(expense.date_paid);
         return expenseDate.getMonth() === monthNum && 
-               expenseDate.getFullYear().toString().slice(-2) === year;
+               expenseDate.getFullYear() === fullYear;
       })
       .map(expense => ({
         payment_date: expense.date_paid,
@@ -277,10 +563,22 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
               <div className="h-80 bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
-                    data={Object.entries(service.monthly_spending || {}).map(([month, amount]) => ({
-                      month,
-                      amount: amount || 0
-                    }))}
+                    data={Object.entries(service.monthly_spending || {})
+                      .map(([month, amount]) => ({
+                        month,
+                        amount: amount || 0
+                      }))
+                      .sort((a, b) => {
+                        // Sort chronologically
+                        const parseMonth = (monthStr) => {
+                          const [month, year] = monthStr.split(' ');
+                          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          const monthIndex = monthNames.indexOf(month);
+                          const fullYear = 2000 + parseInt(year);
+                          return new Date(fullYear, monthIndex);
+                        };
+                        return parseMonth(a.month) - parseMonth(b.month);
+                      })}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -442,7 +740,19 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
 
                {/* Monthly Details */}
                <div className="space-y-4">
-                {Object.entries(service.monthly_spending || {}).map(([month, amount]) => {
+                {Object.entries(service.monthly_spending || {})
+                  .sort(([monthA], [monthB]) => {
+                    // Sort chronologically
+                    const parseMonth = (monthStr) => {
+                      const [month, year] = monthStr.split(' ');
+                      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                      const monthIndex = monthNames.indexOf(month);
+                      const fullYear = 2000 + parseInt(year);
+                      return new Date(fullYear, monthIndex);
+                    };
+                    return parseMonth(monthA) - parseMonth(monthB);
+                  })
+                  .map(([month, amount]) => {
                   const paymentDetails = getPaymentDetails(service.service_name, month);
                   const isZoomed = zoomedMonth === month && zoomedService === service.service_name;
                   
@@ -1005,7 +1315,7 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
 
             <div className="h-80 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                   <defs>
                     <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.3} />
@@ -1015,9 +1325,13 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                   <XAxis 
                     dataKey="monthName" 
-                    tick={{ fontSize: 12, fill: '#6B7280' }}
+                    tick={{ fontSize: 11, fill: '#6B7280' }}
                     axisLine={{ stroke: '#D1D5DB' }}
                     tickLine={{ stroke: '#D1D5DB' }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
                   />
                   <YAxis 
                     tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
@@ -1025,15 +1339,46 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
                     axisLine={{ stroke: '#D1D5DB' }}
                     tickLine={{ stroke: '#D1D5DB' }}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip 
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl backdrop-blur-sm">
+                            <p className="font-bold text-gray-800 dark:text-white text-lg mb-2">{label}</p>
+                            {payload.map((entry, index) => (
+                              <div key={index} className="flex items-center space-x-2 mb-1">
+                                <div 
+                                  className="w-3 h-3 rounded-full" 
+                                  style={{ backgroundColor: entry.color }}
+                                ></div>
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  Amount: <span className="font-bold text-blue-600 dark:text-blue-400">
+                                    AED {entry.value?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </p>
+                              </div>
+                            ))}
+                            {data.count !== undefined && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                Transactions: {data.count}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Line 
                     type="monotone" 
                     dataKey="total" 
                     stroke={COLORS[index % COLORS.length]}
                     strokeWidth={4}
-                    dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 5 }}
-                    activeDot={{ r: 8, stroke: COLORS[index % COLORS.length], strokeWidth: 3, fill: 'white' }}
+                    dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 6 }}
+                    activeDot={{ r: 10, stroke: COLORS[index % COLORS.length], strokeWidth: 3, fill: 'white' }}
                     fill={`url(#gradient-${index})`}
+                    connectNulls={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -2349,97 +2694,39 @@ export default function Analytics() {
               <div className="space-y-6">
                 {/* Enhanced Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-lg border border-blue-200 hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                          <DollarSign className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-blue-600">Total Services</p>
-                          <p className="text-3xl font-bold text-blue-900">{summaryStats.totalServices}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl shadow-lg border border-green-200 hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
-                          <TrendingUp className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-green-600">Total Spent</p>
-                          <p className="text-3xl font-bold text-green-900">
-                            AED {summaryStats.totalSpent.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-2xl shadow-lg border border-yellow-200 hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="p-3 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg">
-                          <Calendar className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-yellow-600">Average Per Service</p>
-                          <p className="text-3xl font-bold text-yellow-900">
-                            AED {summaryStats.averagePerService.toFixed(0)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl shadow-lg border border-purple-200 hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
-                          <Shield className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-purple-600">Total Transactions</p>
-                          <p className="text-3xl font-bold text-purple-900">{expenses.length}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-                      </div>
-                    </div>
-                  </motion.div>
+                  <AnimatedMetricCard
+                    title="Total Services"
+                    value={summaryStats.totalServices}
+                    icon={DollarSign}
+                    color="blue"
+                    delay={0.1}
+                  />
+                  
+                  <AnimatedMetricCard
+                    title="Total Spent"
+                    value={`AED ${summaryStats.totalSpent}`}
+                    icon={TrendingUp}
+                    color="green"
+                    delay={0.2}
+                    formatValue={(val) => val.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                  />
+                  
+                  <AnimatedMetricCard
+                    title="Average Per Service"
+                    value={`AED ${summaryStats.averagePerService}`}
+                    icon={Calendar}
+                    color="yellow"
+                    delay={0.3}
+                    formatValue={(val) => Math.round(val).toLocaleString('en-US')}
+                  />
+                  
+                  <AnimatedMetricCard
+                    title="Total Transactions"
+                    value={expenses.length}
+                    icon={Shield}
+                    color="purple"
+                    delay={0.4}
+                  />
                 </div>
 
                 {/* Enhanced Charts */}

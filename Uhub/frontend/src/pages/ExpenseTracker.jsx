@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
+import { DEPARTMENTS, getDepartmentLabel } from "../config/departments";
 
 import { motion } from "framer-motion";
 import { Plus, Edit, Trash, Save, X, Filter, Search, Calendar, DollarSign, Building } from "lucide-react";
@@ -566,20 +567,43 @@ export default function ExpenseTracker() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {expense.department || "N/A"}
+                          {editingId === expense.id ? (
+                            <input
+                              type="text"
+                              value={editForm.department || ""}
+                              onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                              placeholder="Enter department"
+                            />
+                          ) : (
+                            getDepartmentLabel(expense.department) || "N/A"
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            expense.service_status === 'active' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : expense.service_status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                              : expense.service_status === 'final'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          }`}>
-                            {expense.service_status}
-                          </span>
+                          {editingId === expense.id ? (
+                            <select
+                              value={editForm.service_status}
+                              onChange={(e) => setEditForm({ ...editForm, service_status: e.target.value })}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
+                            >
+                              <option value="active">Active</option>
+                              <option value="inactive">Inactive</option>
+                              <option value="pending">Pending</option>
+                              <option value="final">Final</option>
+                            </select>
+                          ) : (
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              expense.service_status === 'active' 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : expense.service_status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                : expense.service_status === 'final'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            }`}>
+                              {expense.service_status}
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           {editingId === expense.id ? (
