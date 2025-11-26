@@ -116,23 +116,10 @@ class FleetService {
   // Get maintenance records for a vehicle or all records
   async getMaintenanceRecords(vehicleId = null, filters = {}) {
     try {
+      // Fetch records first (only real data from database)
       let query = supabase
         .from('fleet_maintenance')
-        .select(`
-          *,
-          fleet_vehicles!inner(
-            id,
-            vehicle_number,
-            make,
-            model,
-            license_plate,
-            status
-          ),
-          employees!fleet_maintenance_created_by_fkey(
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .order('service_date', { ascending: false });
 
       // Filter by vehicle if specified
@@ -159,7 +146,33 @@ class FleetService {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+
+      if (!data || data.length === 0) {
+        return []; // Return empty array if no records - no sample data
+      }
+
+      // Fetch related data separately (more reliable)
+      const enrichedData = await Promise.all(data.map(async (record) => {
+        const [vehicleData, employeeData, ticketData] = await Promise.all([
+          record.vehicle_id 
+            ? supabase.from('fleet_vehicles').select('id, vehicle_number, make, model, license_plate, status').eq('id', record.vehicle_id).maybeSingle()
+            : Promise.resolve({ data: null }),
+          record.created_by 
+            ? supabase.from('employees').select('id, full_name, email').eq('id', record.created_by).maybeSingle()
+            : Promise.resolve({ data: null }),
+          // Check if this record was created from a ticket
+          supabase.from('fleet_maintenance_tickets').select('id').eq('maintenance_record_id', record.id).maybeSingle()
+        ]);
+
+        return {
+          ...record,
+          fleet_vehicles: vehicleData.data,
+          employees: employeeData.data,
+          converted_from_ticket: !!ticketData.data // Flag to indicate if converted from ticket
+        };
+      }));
+
+      return enrichedData;
     } catch (error) {
       console.error('Error fetching maintenance records:', error);
       throw error;
@@ -204,20 +217,34 @@ class FleetService {
   // Delete maintenance record
   async deleteMaintenanceRecord(id) {
     try {
-      const { error } = await supabase
+      console.log('Deleting maintenance record with ID:', id);
+      
+      const { data, error, count } = await supabase
         .from('fleet_maintenance')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
-      if (error) throw error;
-      return true;
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw new Error(error.message || 'Failed to delete maintenance record');
+      }
+
+      // Check if any rows were actually deleted
+      if (!data || data.length === 0) {
+        console.warn('No rows deleted - record may not exist or RLS policy prevented deletion');
+        throw new Error('No record was deleted. You may not have permission to delete this record, or it does not exist.');
+      }
+
+      console.log('Successfully deleted maintenance record:', data);
+      return { success: true, deleted: data };
     } catch (error) {
       console.error('Error deleting maintenance record:', error);
       throw error;
     }
   }
 
-  // Get maintenance statistics
+  // Get maintenance statistics (only real data from database)
   async getMaintenanceStatistics() {
     try {
       const { data, error } = await supabase
@@ -226,9 +253,21 @@ class FleetService {
 
       if (error) throw error;
 
+      // Return zeros if no data - no sample data
+      if (!data || data.length === 0) {
+        return {
+          totalRecords: 0,
+          totalCost: 0,
+          statusBreakdown: {},
+          typeBreakdown: {},
+          monthlyTrend: {},
+          avgCostByType: {}
+        };
+      }
+
       const stats = {
         totalRecords: data.length,
-        totalCost: data.reduce((sum, record) => sum + (record.cost || 0), 0),
+        totalCost: data.reduce((sum, record) => sum + (parseFloat(record.cost) || 0), 0),
         statusBreakdown: {},
         typeBreakdown: {},
         monthlyTrend: {},
@@ -237,29 +276,41 @@ class FleetService {
 
       // Calculate status breakdown
       data.forEach(record => {
-        stats.statusBreakdown[record.status] = (stats.statusBreakdown[record.status] || 0) + 1;
-        stats.typeBreakdown[record.maintenance_type] = (stats.typeBreakdown[record.maintenance_type] || 0) + 1;
+        const status = record.status || 'Unknown';
+        const type = record.maintenance_type || 'Unknown';
+        stats.statusBreakdown[status] = (stats.statusBreakdown[status] || 0) + 1;
+        stats.typeBreakdown[type] = (stats.typeBreakdown[type] || 0) + 1;
         
         // Monthly trend
-        const month = new Date(record.service_date).toISOString().slice(0, 7);
-        if (!stats.monthlyTrend[month]) {
-          stats.monthlyTrend[month] = { count: 0, cost: 0 };
+        if (record.service_date) {
+          const month = new Date(record.service_date).toISOString().slice(0, 7);
+          if (!stats.monthlyTrend[month]) {
+            stats.monthlyTrend[month] = { count: 0, cost: 0 };
+          }
+          stats.monthlyTrend[month].count += 1;
+          stats.monthlyTrend[month].cost += parseFloat(record.cost) || 0;
         }
-        stats.monthlyTrend[month].count += 1;
-        stats.monthlyTrend[month].cost += record.cost || 0;
       });
 
       // Calculate average cost by type
       Object.keys(stats.typeBreakdown).forEach(type => {
-        const typeRecords = data.filter(r => r.maintenance_type === type);
-        const totalCost = typeRecords.reduce((sum, r) => sum + (r.cost || 0), 0);
-        stats.avgCostByType[type] = totalCost / typeRecords.length;
+        const typeRecords = data.filter(r => (r.maintenance_type || 'Unknown') === type);
+        const totalCost = typeRecords.reduce((sum, r) => sum + (parseFloat(r.cost) || 0), 0);
+        stats.avgCostByType[type] = typeRecords.length > 0 ? totalCost / typeRecords.length : 0;
       });
 
       return stats;
     } catch (error) {
       console.error('Error fetching maintenance statistics:', error);
-      throw error;
+      // Return empty stats on error - no sample data
+      return {
+        totalRecords: 0,
+        totalCost: 0,
+        statusBreakdown: {},
+        typeBreakdown: {},
+        monthlyTrend: {},
+        avgCostByType: {}
+      };
     }
   }
 
@@ -509,6 +560,364 @@ class FleetService {
       throw error;
     }
   }
+
+  // ===== MAINTENANCE TICKETS =====
+
+  // Get all maintenance tickets with optional filters
+  async getMaintenanceTickets(filters = {}) {
+    try {
+      // Fetch tickets first
+      let query = supabase
+        .from('fleet_maintenance_tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+      if (filters.maintenance_type) {
+        query = query.eq('maintenance_type', filters.maintenance_type);
+      }
+      if (filters.vehicle_id) {
+        query = query.eq('vehicle_id', filters.vehicle_id);
+      }
+      if (filters.assigned_to) {
+        query = query.eq('assigned_to', filters.assigned_to);
+      }
+      if (filters.requested_by) {
+        query = query.eq('requested_by', filters.requested_by);
+      }
+      if (filters.date_from) {
+        query = query.gte('created_at', filters.date_from);
+      }
+      if (filters.date_to) {
+        query = query.lte('created_at', filters.date_to);
+      }
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,ticket_number.ilike.%${filters.search}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      // Fetch related data separately (more reliable than joins)
+      const enrichedData = await Promise.all(data.map(async (ticket) => {
+        const [vehicleData, requestedByData, assignedToData] = await Promise.all([
+          ticket.vehicle_id 
+            ? supabase.from('fleet_vehicles').select('id, vehicle_number, make, model, license_plate, status').eq('id', ticket.vehicle_id).maybeSingle()
+            : Promise.resolve({ data: null }),
+          ticket.requested_by 
+            ? supabase.from('employees').select('id, full_name, email').eq('id', ticket.requested_by).maybeSingle()
+            : Promise.resolve({ data: null }),
+          ticket.assigned_to 
+            ? supabase.from('employees').select('id, full_name, email').eq('id', ticket.assigned_to).maybeSingle()
+            : Promise.resolve({ data: null })
+        ]);
+
+        return {
+          ...ticket,
+          fleet_vehicles: vehicleData.data,
+          employees: requestedByData.data,
+          assigned_employee: assignedToData.data
+        };
+      }));
+
+      return enrichedData;
+    } catch (error) {
+      console.error('Error fetching maintenance tickets:', error);
+      throw error;
+    }
+  }
+
+  // Get single ticket by ID
+  async getMaintenanceTicket(id) {
+    try {
+      const { data, error } = await supabase
+        .from('fleet_maintenance_tickets')
+        .select(`
+          *,
+          fleet_vehicles(
+            id,
+            vehicle_number,
+            make,
+            model,
+            license_plate,
+            status,
+            mileage
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      // Fetch employee data separately if needed
+      const [requestedByData, assignedToData, maintenanceRecordData] = await Promise.all([
+        data.requested_by ? supabase.from('employees').select('id, full_name, email').eq('id', data.requested_by).single() : Promise.resolve({ data: null }),
+        data.assigned_to ? supabase.from('employees').select('id, full_name, email').eq('id', data.assigned_to).single() : Promise.resolve({ data: null }),
+        data.maintenance_record_id ? supabase.from('fleet_maintenance').select('id, description, service_date, cost').eq('id', data.maintenance_record_id).single() : Promise.resolve({ data: null })
+      ]);
+
+      return {
+        ...data,
+        employees: requestedByData.data,
+        assigned_employee: assignedToData.data,
+        maintenance_record: maintenanceRecordData.data
+      };
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching maintenance ticket:', error);
+      throw error;
+    }
+  }
+
+  // Create maintenance ticket
+  async createMaintenanceTicket(ticketData) {
+    try {
+      const { data, error } = await supabase
+        .from('fleet_maintenance_tickets')
+        .insert([ticketData])
+        .select(`
+          *,
+          fleet_vehicles(
+            id,
+            vehicle_number,
+            make,
+            model,
+            license_plate
+          ),
+          employees!requested_by(
+            id,
+            full_name,
+            email
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error creating maintenance ticket:', error);
+      throw error;
+    }
+  }
+
+  // Update maintenance ticket
+  async updateMaintenanceTicket(id, updates) {
+    try {
+      // First, get the current ticket to check if we need to auto-create a maintenance record
+      const { data: currentTicket, error: fetchError } = await supabase
+        .from('fleet_maintenance_tickets')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Check if status is being set to Completed and no maintenance record exists
+      const isBeingCompleted = updates.status === 'Completed' || updates.status === 'Closed';
+      const wasNotCompleted = currentTicket.status !== 'Completed' && currentTicket.status !== 'Closed';
+      const hasNoMaintenanceRecord = !currentTicket.maintenance_record_id;
+
+      // Update the ticket
+      const { data, error } = await supabase
+        .from('fleet_maintenance_tickets')
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      // Auto-create maintenance record if ticket is being completed and no record exists
+      if (isBeingCompleted && wasNotCompleted && hasNoMaintenanceRecord) {
+        try {
+          const maintenanceData = {
+            vehicle_id: currentTicket.vehicle_id,
+            maintenance_type: currentTicket.maintenance_type || 'Repair',
+            description: currentTicket.description || currentTicket.title,
+            service_provider: '',
+            cost: updates.actual_cost || currentTicket.actual_cost || currentTicket.estimated_cost || null,
+            mileage_at_service: currentTicket.mileage_at_request,
+            service_date: updates.completed_at ? new Date(updates.completed_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            next_service_date: currentTicket.estimated_completion_date || null,
+            status: 'Completed',
+            technician_notes: currentTicket.notes || '',
+            parts_replaced: [],
+            labor_hours: null,
+            invoice_number: '',
+            created_by: currentTicket.requested_by
+          };
+
+          const maintenanceRecord = await this.createMaintenanceRecord(maintenanceData);
+
+          // Link the maintenance record to the ticket
+          await supabase
+            .from('fleet_maintenance_tickets')
+            .update({ maintenance_record_id: maintenanceRecord.id })
+            .eq('id', id);
+
+          console.log('Automatically created maintenance record from completed ticket:', maintenanceRecord.id);
+        } catch (autoCreateError) {
+          console.error('Error auto-creating maintenance record:', autoCreateError);
+          // Don't throw - ticket update succeeded, just log the error
+        }
+      }
+
+      // Fetch related data separately
+      const [vehicleData, requestedByData, assignedToData] = await Promise.all([
+        data.vehicle_id 
+          ? supabase.from('fleet_vehicles').select('id, vehicle_number, make, model, license_plate, status').eq('id', data.vehicle_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        data.requested_by 
+          ? supabase.from('employees').select('id, full_name, email').eq('id', data.requested_by).maybeSingle()
+          : Promise.resolve({ data: null }),
+        data.assigned_to 
+          ? supabase.from('employees').select('id, full_name, email').eq('id', data.assigned_to).maybeSingle()
+          : Promise.resolve({ data: null })
+      ]);
+
+      return {
+        ...data,
+        fleet_vehicles: vehicleData.data,
+        employees: requestedByData.data,
+        assigned_employee: assignedToData.data
+      };
+    } catch (error) {
+      console.error('Error updating maintenance ticket:', error);
+      throw error;
+    }
+  }
+
+  // Delete maintenance ticket
+  async deleteMaintenanceTicket(id) {
+    try {
+      console.log('Deleting maintenance ticket with ID:', id);
+      
+      const { data, error } = await supabase
+        .from('fleet_maintenance_tickets')
+        .delete()
+        .eq('id', id)
+        .select();
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+        throw new Error(error.message || 'Failed to delete maintenance ticket');
+      }
+
+      // Check if any rows were actually deleted
+      if (!data || data.length === 0) {
+        console.warn('No rows deleted - ticket may not exist or RLS policy prevented deletion');
+        throw new Error('No ticket was deleted. You may not have permission to delete this ticket, or it does not exist.');
+      }
+
+      console.log('Successfully deleted maintenance ticket:', data);
+      return { success: true, deleted: data };
+    } catch (error) {
+      console.error('Error deleting maintenance ticket:', error);
+      throw error;
+    }
+  }
+
+  // Convert ticket to maintenance record
+  async convertTicketToMaintenanceRecord(ticketId, maintenanceData) {
+    try {
+      // First create the maintenance record
+      const maintenanceRecord = await this.createMaintenanceRecord(maintenanceData);
+
+      // Then update the ticket to link it to the maintenance record
+      await this.updateMaintenanceTicket(ticketId, {
+        maintenance_record_id: maintenanceRecord.id,
+        status: 'Completed',
+        actual_cost: maintenanceData.cost
+      });
+
+      return maintenanceRecord;
+    } catch (error) {
+      console.error('Error converting ticket to maintenance record:', error);
+      throw error;
+    }
+  }
+
+  // Get ticket statistics
+  async getTicketStatistics() {
+    try {
+      // Try to get stats from view first
+      const { data: viewData, error: viewError } = await supabase
+        .from('fleet_maintenance_ticket_stats')
+        .select('*')
+        .single();
+
+      if (!viewError && viewData) {
+        return viewData;
+      }
+
+      // If view doesn't exist, calculate stats manually
+      const { data: tickets, error: ticketsError } = await supabase
+        .from('fleet_maintenance_tickets')
+        .select('status, priority, actual_cost, created_at, completed_at');
+
+      if (ticketsError) throw ticketsError;
+
+      // Calculate statistics manually
+      const stats = {
+        open_tickets: tickets.filter(t => t.status === 'Open').length,
+        assigned_tickets: tickets.filter(t => t.status === 'Assigned').length,
+        in_progress_tickets: tickets.filter(t => t.status === 'In Progress').length,
+        pending_parts_tickets: tickets.filter(t => t.status === 'Pending Parts').length,
+        completed_tickets: tickets.filter(t => t.status === 'Completed').length,
+        cancelled_tickets: tickets.filter(t => t.status === 'Cancelled').length,
+        closed_tickets: tickets.filter(t => t.status === 'Closed').length,
+        urgent_tickets: tickets.filter(t => t.priority === 'Urgent').length,
+        high_priority_tickets: tickets.filter(t => t.priority === 'High').length,
+        total_tickets: tickets.length,
+        total_cost: tickets.reduce((sum, t) => sum + (parseFloat(t.actual_cost) || 0), 0),
+        avg_completion_days: 0
+      };
+
+      // Calculate average completion days
+      const completedTickets = tickets.filter(t => t.completed_at && t.created_at);
+      if (completedTickets.length > 0) {
+        const totalDays = completedTickets.reduce((sum, t) => {
+          const created = new Date(t.created_at);
+          const completed = new Date(t.completed_at);
+          const days = (completed - created) / (1000 * 60 * 60 * 24);
+          return sum + days;
+        }, 0);
+        stats.avg_completion_days = totalDays / completedTickets.length;
+      }
+
+      return stats;
+    } catch (error) {
+      console.error('Error fetching ticket statistics:', error);
+      // Return default stats if error occurs
+      return {
+        open_tickets: 0,
+        assigned_tickets: 0,
+        in_progress_tickets: 0,
+        pending_parts_tickets: 0,
+        completed_tickets: 0,
+        cancelled_tickets: 0,
+        closed_tickets: 0,
+        urgent_tickets: 0,
+        high_priority_tickets: 0,
+        total_tickets: 0,
+        total_cost: 0,
+        avg_completion_days: 0
+      };
+    }
+  }
 }
 
-export default new FleetService();
+const fleetService = new FleetService();
+export default fleetService;
