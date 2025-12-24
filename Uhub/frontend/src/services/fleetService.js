@@ -467,17 +467,81 @@ class FleetService {
 
   // ===== UTILITY FUNCTIONS =====
 
-  // Get available drivers (employees who can drive)
+  // Get available drivers (operation managers for ticket assignment)
   async getAvailableDrivers() {
     try {
-      const { data, error } = await supabase
+      // First, get users with operation_manager role
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, full_name, email, employee_id, role, status')
+        .eq('role', 'operation_manager')
+        .eq('status', 'active');
+
+      if (usersError) {
+        console.error('Error fetching operation managers from users:', usersError);
+        throw usersError;
+      }
+
+      if (!users || users.length === 0) {
+        console.warn('No operation managers found');
+        return [];
+      }
+
+      // Get employee IDs that are linked to these users
+      const employeeIds = users
+        .map(u => u.employee_id)
+        .filter(Boolean); // Remove null/undefined values
+
+      if (employeeIds.length === 0) {
+        console.warn('No employee IDs found for operation managers');
+        // Return users data directly if no employee_id links
+        return users.map(u => ({
+          id: u.employee_id || u.id, // Use employee_id if available, otherwise use user id
+          full_name: u.full_name,
+          email: u.email
+        }));
+      }
+
+      // Fetch employee details for these IDs
+      const { data: employees, error: employeesError } = await supabase
         .from('employees')
-        .select('id, full_name, email, department_id')
+        .select('id, full_name, email, department_id, status')
+        .in('id', employeeIds)
         .eq('status', 'active')
         .order('full_name');
 
-      if (error) throw error;
-      return data;
+      if (employeesError) {
+        console.error('Error fetching employees:', employeesError);
+        // Fallback: return users data if employee fetch fails
+        return users.map(u => ({
+          id: u.employee_id || u.id,
+          full_name: u.full_name,
+          email: u.email
+        }));
+      }
+
+      // Return employees data (preferred) or fallback to users
+      if (employees && employees.length > 0) {
+        // Sort employees by full_name
+        return employees.sort((a, b) => {
+          const nameA = (a.full_name || '').toLowerCase();
+          const nameB = (b.full_name || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+      }
+
+      // Fallback to users if no employees found - sort by full_name
+      return users
+        .map(u => ({
+          id: u.employee_id || u.id,
+          full_name: u.full_name,
+          email: u.email
+        }))
+        .sort((a, b) => {
+          const nameA = (a.full_name || '').toLowerCase();
+          const nameB = (b.full_name || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
     } catch (error) {
       console.error('Error fetching available drivers:', error);
       throw error;

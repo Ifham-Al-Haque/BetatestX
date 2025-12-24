@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   Plus, Search, Filter, FileText, Clock, User, 
   AlertCircle, CheckCircle, XCircle, MoreHorizontal,
@@ -71,13 +72,7 @@ const ITRequestsEnhanced = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
   const { isDark } = useTheme();
-  
-  // Core state
-  const [requests, setRequests] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [priorities, setPriorities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
   
   // UI state
   const [showForm, setShowForm] = useState(false);
@@ -118,79 +113,7 @@ const ITRequestsEnhanced = () => {
 
   const isAdminOrManager = userProfile?.role === 'admin' || userProfile?.role === 'hr_manager';
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      // Get the current authenticated user for RLS compliance
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      console.log('Auth user:', authUser?.id, 'Profile role:', userProfile?.role);
-      
-      console.log('Fetching data with filters:', filters);
-      
-      // Add cache-busting parameter to ensure fresh data
-      const cacheBuster = Date.now();
-      const [requestsData, categoriesData, prioritiesData] = await Promise.all([
-        itServicesApi.requests.getAll({ ...filters, _t: cacheBuster }, authUser?.id, userProfile?.role),
-        itServicesApi.categories.getAll(),
-        itServicesApi.priorities.getAll()
-      ]);
-      
-      console.log('Data fetched:', {
-        requests: requestsData?.length || 0,
-        categories: categoriesData?.length || 0,
-        priorities: prioritiesData?.length || 0
-      });
-
-      // Ensure we always have arrays
-      const safeRequestsData = Array.isArray(requestsData) ? requestsData : [];
-      const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
-      const safePrioritiesData = Array.isArray(prioritiesData) ? prioritiesData : [];
-      
-      setRequests(safeRequestsData);
-      setCategories(safeCategoriesData);
-      setPriorities(safePrioritiesData);
-      
-      // Calculate stats with safe array
-      const requestStats = {
-        total: safeRequestsData.length,
-        open: safeRequestsData.filter(r => r?.status === 'open').length,
-        inProgress: safeRequestsData.filter(r => r?.status === 'in_progress').length,
-        resolved: safeRequestsData.filter(r => r?.status === 'resolved').length,
-        pending: safeRequestsData.filter(r => r?.status === 'pending_user').length
-      };
-      setStats(requestStats);
-      
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      showError('Failed to load data', error.message);
-      
-      // Ensure state is properly initialized even on error
-      setRequests([]);
-      setCategories([]);
-      setPriorities([]);
-      setStats({
-        total: 0,
-        open: 0,
-        inProgress: 0,
-        resolved: 0,
-        pending: 0
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, userProfile?.role, showError]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Fetch data when user or userProfile changes
-  useEffect(() => {
-    if (user && userProfile) {
-      fetchData();
-    }
-  }, [user, userProfile, fetchData]);
+  // Old fetchData removed - now using React Query hooks above
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -231,7 +154,8 @@ const ITRequestsEnhanced = () => {
       setShowForm(false);
       setEditingRequest(null);
       resetForm();
-      fetchData();
+      // Invalidate and refetch queries
+      queryClient.invalidateQueries(['itRequests']);
     } catch (error) {
       console.error('Error saving request:', error);
       showError('Failed to save request', error.message);
@@ -260,13 +184,9 @@ const ITRequestsEnhanced = () => {
           // Don't fail the deletion if activity logging fails
         }
         
-        // Remove from UI state immediately for better UX
-        setRequests(prevRequests => prevRequests.filter(r => r.id !== id));
-        console.log('Request removed from UI state');
-        
-        // Refresh data from server to ensure consistency
-        await fetchData();
-        console.log('Data refreshed from server');
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries(['itRequests']);
+        console.log('Queries invalidated, data will refresh');
         
         success('Request deleted successfully');
       } else {
@@ -283,8 +203,8 @@ const ITRequestsEnhanced = () => {
         showError('Failed to delete request', error.message);
       }
       
-      // Always refresh data to show current state, even on error
-      await fetchData();
+      // Always invalidate queries to show current state, even on error
+      queryClient.invalidateQueries(['itRequests']);
     }
   };
 

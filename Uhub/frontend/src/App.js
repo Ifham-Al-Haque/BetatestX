@@ -13,6 +13,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SmartHomeRoute from './components/SmartHomeRoute';
+import RoutePrefetcher from './components/RoutePrefetcher';
 
 // React Query configuration
 const queryClient = new QueryClient({
@@ -98,6 +99,7 @@ function App() {
               <SidebarProvider>
                 <ThemeProvider>
                   <Router>
+                    <RoutePrefetcher />
                     <Suspense fallback={<LoadingSpinner />}>
                       <Routes>
                         {/* Public Routes */}

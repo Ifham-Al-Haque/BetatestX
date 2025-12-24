@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   Plus, Search, Filter, FileText, Clock, User, 
   AlertCircle, CheckCircle, XCircle, MoreHorizontal,
@@ -28,11 +29,10 @@ import MyTaskCard from '../components/MyTaskCard';
 const TaskManagement = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
+  const queryClient = useQueryClient();
   
-  const [tasks, setTasks] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [departmentUsers, setDepartmentUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -74,7 +74,6 @@ const TaskManagement = () => {
     assignmentType: 'single', // 'single', 'coordinated', 'self'
     notes: '' // Notes field for task
   });
-  const [taskComments, setTaskComments] = useState({}); // taskId -> comments array
   const [newComment, setNewComment] = useState(''); // For adding new comments
 
   // Use centralized departments from config
@@ -390,101 +389,158 @@ const TaskManagement = () => {
     }
   }, []);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      // Get current user
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) {
-        console.warn('User not authenticated');
-        setTasks([]);
-        return;
-      }
+  // Memoize task filters to prevent unnecessary refetches
+  const taskFilters = useMemo(() => {
+    const cleanFilters = {
+      ...(filters.status && { status: filters.status }),
+      ...(filters.priority && { priority: filters.priority }),
+      ...(filters.department && { department: filters.department }),
+      ...(filters.assigned_to && { assigned_to: filters.assigned_to }),
+      ...(filters.search && { search: filters.search }),
+      ...(filters.category && { category: filters.category })
+    };
+    
+    // Filter by user's department unless user is admin/manager
+    if (userProfile?.role !== 'admin' && userProfile?.role !== 'manager' && userProfile?.department) {
+      cleanFilters.department = userProfile.department;
+    }
+    
+    return cleanFilters;
+  }, [filters, userProfile]);
 
-      // Get user profile to check role and department
-      const { data: userProfile, error: profileError } = await supabase
+  // Fetch user profile and set currentUserId
+  const { data: userProfileData } = useQuery({
+    queryKey: ['taskUserProfile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return null;
+
+      const { data: profile, error } = await supabase
         .from('users')
         .select('*')
         .eq('auth_user_id', authUser.id)
         .single();
 
-      if (profileError) {
-        console.warn('Error fetching user profile:', profileError);
-      } else if (userProfile) {
-        setUserDepartment(userProfile.department);
-        setCurrentUserId(userProfile.id); // Store users.id (primary key) for filtering
+      if (error) {
+        console.warn('Error fetching user profile:', error);
+        return null;
       }
 
-      // Fetch tasks based on filters and user role
-      const taskFilters = {
-        ...filters,
-        // Filter by user's department unless user is admin/manager
-        ...(userProfile?.role !== 'admin' && userProfile?.role !== 'manager' && userProfile?.department && { 
-          department: userProfile.department 
-        }),
-        // Remove empty filters
-        ...(filters.status && { status: filters.status }),
-        ...(filters.priority && { priority: filters.priority }),
-        ...(filters.department && { department: filters.department }),
-        ...(filters.assigned_to && { assigned_to: filters.assigned_to }),
-        ...(filters.search && { search: filters.search }),
-        ...(filters.category && { category: filters.category })
-      };
+      return profile;
+    },
+    enabled: !!user?.id,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    cacheTime: 30 * 60 * 1000, // 30 minutes
+  });
+
+  // Set user department and currentUserId when profile is loaded
+  useEffect(() => {
+    if (userProfileData) {
+      setUserDepartment(userProfileData.department);
+      setCurrentUserId(userProfileData.id);
+    }
+  }, [userProfileData]);
+
+  // Fetch tasks with React Query - includes caching and prevents reloads
+  const { 
+    data: tasksData, 
+    isLoading: tasksLoading, 
+    refetch: refetchTasks,
+    isRefetching: isRefetchingTasks
+  } = useQuery({
+    queryKey: ['tasks', taskFilters, activeTab], // Include activeTab in key for tab-specific caching
+    queryFn: async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        return { data: [], commentsMap: {} };
+      }
 
       const tasksResponse = await taskApi.getAll(taskFilters, 1, 100);
       
-      // If no tasks returned, set empty array
       if (!tasksResponse || !tasksResponse.data) {
-        setTasks([]);
-        return;
+        return { data: [], commentsMap: {} };
       }
       
-      // Fetch comments for each task and store in taskComments state
+      // Fetch comments for each task
       const commentsMap = {};
       await Promise.all(
         tasksResponse.data.map(async (task) => {
           try {
             const comments = await taskApi.getComments(task.id);
             commentsMap[task.id] = comments || [];
-            return { ...task, comments: comments || [] };
           } catch (error) {
             console.error(`Error fetching comments for task ${task.id}:`, error);
             commentsMap[task.id] = [];
-            return { ...task, comments: [] };
           }
         })
       );
 
-      setTaskComments(commentsMap);
-      setTasks(tasksResponse.data);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      // Don't show error toast for empty data, just set empty array
-      setTasks([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+      return { data: tasksResponse.data, commentsMap };
+    },
+    enabled: !!user?.id && !!currentUserId, // Only fetch when user is available
+    staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh for 2 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes - cache for 10 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Use cached data if available
+    refetchOnReconnect: true, // Only refetch on reconnect
+    keepPreviousData: true, // Keep previous data while fetching new data
+  });
 
-  // useEffect hooks
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // Extract tasks and comments from query data
+  const tasks = useMemo(() => tasksData?.data || [], [tasksData]);
+  const taskComments = useMemo(() => tasksData?.commentsMap || {}, [tasksData]);
+  const loading = tasksLoading && !tasksData; // Only show loading if we don't have cached data
+
+  // Handle refresh manually
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetchTasks();
+    // Also refetch stats
+    queryClient.invalidateQueries(['taskStats']);
+    setRefreshing(false);
+  }, [refetchTasks, queryClient]);
+  
+  // Use query's refetching state combined with manual refreshing state
+  const isRefreshing = refreshing || isRefetchingTasks;
 
   // Fetch all users when component mounts
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Fetch stats when component mounts or tasks change
+  // Fetch stats with React Query - cached separately
+  const { data: statsData } = useQuery({
+    queryKey: ['taskStats', user?.id],
+    queryFn: async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        return { total: 0, myTasks: 0, assignedByMe: 0, pending: 0, inProgress: 0, completed: 0, overdue: 0 };
+      }
+      return await getTaskStats();
+    },
+    enabled: !!user?.id,
+    staleTime: 1 * 60 * 1000, // 1 minute
+    cacheTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Update stats state when query data changes
   useEffect(() => {
-    const loadStats = async () => {
-      const statsData = await getTaskStats();
-      setStats(statsData);
-    };
-    loadStats();
-  }, [getTaskStats, tasks]);
+    if (statsData) {
+      setStats({
+        total: statsData.total_tasks || statsData.total || 0,
+        myTasks: statsData.my_tasks || statsData.myTasks || 0,
+        assignedByMe: statsData.assigned_by_me || statsData.assignedByMe || 0,
+        pending: statsData.pending_tasks || statsData.pending || 0,
+        inProgress: statsData.in_progress_tasks || statsData.inProgress || 0,
+        completed: statsData.completed_tasks || statsData.completed || 0,
+        overdue: statsData.overdue_tasks || statsData.overdue || 0
+      });
+    }
+  }, [statsData]);
 
   // Set form department when user department is loaded
   useEffect(() => {
@@ -493,23 +549,7 @@ const TaskManagement = () => {
     }
   }, [userDepartment, formData.department]);
 
-  // Load comments when a task is selected
-  useEffect(() => {
-    if (selectedTask) {
-      const loadComments = async () => {
-        try {
-          const comments = await taskApi.getComments(selectedTask.id);
-          setTaskComments(prev => ({
-            ...prev,
-            [selectedTask.id]: comments || []
-          }));
-        } catch (error) {
-          console.error('Error loading comments:', error);
-        }
-      };
-      loadComments();
-    }
-  }, [selectedTask]);
+  // Comments are now loaded with tasks via React Query, no separate useEffect needed
 
   // Note: Department filtering removed - users are now selected from all UHub account holders
 
@@ -648,17 +688,17 @@ const TaskManagement = () => {
       if (editingTask) {
         // Update existing task
         const updatedTask = await taskApi.update(editingTask.id, taskData);
-        const updatedTasks = tasks.map(task => 
-          task.id === editingTask.id ? { ...task, ...updatedTask } : task
-        );
-        setTasks(updatedTasks);
+        // Invalidate and refetch tasks to get fresh data
+        queryClient.invalidateQueries(['tasks']);
+        queryClient.invalidateQueries(['taskStats']);
         success('Success', 'Task updated successfully!');
       } else {
         // Create new task
         const newTask = await taskApi.create(taskData);
+        // Invalidate and refetch tasks to get fresh data
+        queryClient.invalidateQueries(['tasks']);
+        queryClient.invalidateQueries(['taskStats']);
         success('Success', 'Task created and assigned successfully!');
-        // Refresh the task list to ensure all data is properly loaded
-        await fetchData();
       }
 
       setShowForm(false);
@@ -705,12 +745,11 @@ const TaskManagement = () => {
         ...(newStatus === 'completed' && { completed_at: new Date().toISOString() })
       };
 
-      const updatedTask = await taskApi.update(taskId, updateData);
+      await taskApi.update(taskId, updateData);
       
-      const updatedTasks = tasks.map(task => 
-        task.id === taskId ? { ...task, ...updatedTask } : task
-      );
-      setTasks(updatedTasks);
+      // Invalidate and refetch tasks to get fresh data
+      queryClient.invalidateQueries(['tasks']);
+      queryClient.invalidateQueries(['taskStats']);
       success('Success', `Task status updated to ${newStatus.replace('_', ' ')}`);
     } catch (err) {
       console.error('Error updating status:', err);
@@ -722,14 +761,10 @@ const TaskManagement = () => {
     if (!newComment.trim()) return;
     
     try {
-      const comment = await taskApi.addComment(taskId, newComment.trim());
+      await taskApi.addComment(taskId, newComment.trim());
       
-      const updatedTasks = tasks.map(task => 
-        task.id === taskId 
-          ? { ...task, comments: [...(task.comments || []), comment] }
-          : task
-      );
-      setTasks(updatedTasks);
+      // Invalidate tasks query to refetch with new comments
+      queryClient.invalidateQueries(['tasks']);
       setNewComment('');
       success('Success', 'Comment added successfully');
     } catch (err) {
@@ -738,12 +773,7 @@ const TaskManagement = () => {
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
-    success('Data refreshed successfully');
-  };
+  // handleRefresh is now defined above with useCallback
 
   const handleEdit = (task) => {
     // Get current user to check if task is assigned to self
@@ -798,8 +828,9 @@ const TaskManagement = () => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
         await taskApi.delete(id);
-        const updatedTasks = tasks.filter(task => task.id !== id);
-        setTasks(updatedTasks);
+        // Invalidate and refetch tasks to get fresh data
+        queryClient.invalidateQueries(['tasks']);
+        queryClient.invalidateQueries(['taskStats']);
         success('Success', 'Task deleted successfully!');
       } catch (err) {
         console.error('Error deleting task:', err);
@@ -981,11 +1012,11 @@ const TaskManagement = () => {
               >
                 <Button
                   onClick={handleRefresh}
-                  disabled={refreshing}
+                  disabled={isRefreshing}
                   variant="outline"
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300"
                 >
-                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
               </motion.div>

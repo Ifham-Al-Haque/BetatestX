@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import collectionService from '../services/collectionService';
 import { 
@@ -39,26 +40,13 @@ import {
 
 const Collections = () => {
   const { user, userProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('payments'); // 'payments', 'reminders', 'checklist'
-  const [loading, setLoading] = useState(true);
   
-  // States for Payments
-  const [payments, setPayments] = useState([]);
-  const [paymentStats, setPaymentStats] = useState({});
   const [paymentFilters, setPaymentFilters] = useState({
     status: '',
     priority: ''
   });
-  
-  // States for Reminders
-  const [reminders, setReminders] = useState([]);
-  const [todaysReminders, setTodaysReminders] = useState([]);
-  const [upcomingReminders, setUpcomingReminders] = useState([]);
-  
-  // States for Checklist
-  const [checklistItems, setChecklistItems] = useState([]);
-  const [checklistStats, setChecklistStats] = useState({});
-  const [todaysChecklist, setTodaysChecklist] = useState([]);
   
   // Modal states
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
@@ -70,23 +58,118 @@ const Collections = () => {
   // Search
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Fetch payments with React Query
+  const { data: paymentsData = [], isLoading: paymentsLoading } = useQuery({
+    queryKey: ['collections', 'payments', paymentFilters],
+    queryFn: () => collectionService.getAllPayments(paymentFilters),
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    keepPreviousData: true,
+  });
+
+  // Fetch payment stats
+  const { data: paymentStatsData = {} } = useQuery({
+    queryKey: ['collections', 'paymentStats'],
+    queryFn: () => collectionService.getPaymentStats(),
+    staleTime: 1 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch reminders with React Query
+  const { data: remindersData = [] } = useQuery({
+    queryKey: ['collections', 'reminders'],
+    queryFn: () => collectionService.getAllReminders(),
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch today's reminders
+  const { data: todaysRemindersData = [] } = useQuery({
+    queryKey: ['collections', 'todaysReminders'],
+    queryFn: () => collectionService.getTodaysReminders(),
+    staleTime: 1 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch upcoming reminders
+  const { data: upcomingRemindersData = [] } = useQuery({
+    queryKey: ['collections', 'upcomingReminders'],
+    queryFn: () => collectionService.getUpcomingReminders(7),
+    staleTime: 1 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch checklist items
+  const { data: checklistItemsData = [] } = useQuery({
+    queryKey: ['collections', 'checklist'],
+    queryFn: () => collectionService.getAllChecklistItems(),
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch today's checklist
+  const { data: todaysChecklistData = [] } = useQuery({
+    queryKey: ['collections', 'todaysChecklist'],
+    queryFn: () => collectionService.getTodaysChecklist(),
+    staleTime: 1 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch checklist stats
+  const { data: checklistStatsData = {} } = useQuery({
+    queryKey: ['collections', 'checklistStats'],
+    queryFn: () => collectionService.getChecklistStats(),
+    staleTime: 1 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Extract data from queries
+  const payments = useMemo(() => paymentsData || [], [paymentsData]);
+  const paymentStats = useMemo(() => paymentStatsData || {}, [paymentStatsData]);
+  const reminders = useMemo(() => remindersData || [], [remindersData]);
+  const todaysReminders = useMemo(() => todaysRemindersData || [], [todaysRemindersData]);
+  const upcomingReminders = useMemo(() => upcomingRemindersData || [], [upcomingRemindersData]);
+  const checklistItems = useMemo(() => checklistItemsData || [], [checklistItemsData]);
+  const todaysChecklist = useMemo(() => todaysChecklistData || [], [todaysChecklistData]);
+  const checklistStats = useMemo(() => checklistStatsData || {}, [checklistStatsData]);
+  const loading = paymentsLoading && !paymentsData;
+
+  // Subscribe to real-time updates
   useEffect(() => {
-    loadAllData();
-    
-    // Subscribe to real-time updates
     const paymentsSubscription = collectionService.subscribeToPayments((payload) => {
       console.log('Payment updated:', payload);
-      loadPayments();
+      queryClient.invalidateQueries(['collections', 'payments']);
+      queryClient.invalidateQueries(['collections', 'paymentStats']);
     });
     
     const remindersSubscription = collectionService.subscribeToReminders((payload) => {
       console.log('Reminder updated:', payload);
-      loadReminders();
+      queryClient.invalidateQueries(['collections', 'reminders']);
+      queryClient.invalidateQueries(['collections', 'todaysReminders']);
+      queryClient.invalidateQueries(['collections', 'upcomingReminders']);
     });
     
     const checklistSubscription = collectionService.subscribeToChecklist((payload) => {
       console.log('Checklist updated:', payload);
-      loadChecklist();
+      queryClient.invalidateQueries(['collections', 'checklist']);
+      queryClient.invalidateQueries(['collections', 'todaysChecklist']);
+      queryClient.invalidateQueries(['collections', 'checklistStats']);
     });
     
     return () => {
@@ -94,65 +177,14 @@ const Collections = () => {
       remindersSubscription.unsubscribe();
       checklistSubscription.unsubscribe();
     };
-  }, []);
-
-  const loadAllData = async () => {
-    setLoading(true);
-    await Promise.all([
-      loadPayments(),
-      loadReminders(),
-      loadChecklist()
-    ]);
-    setLoading(false);
-  };
-
-  const loadPayments = async () => {
-    try {
-      const [paymentsData, stats] = await Promise.all([
-        collectionService.getAllPayments(paymentFilters),
-        collectionService.getPaymentStats()
-      ]);
-      setPayments(paymentsData);
-      setPaymentStats(stats);
-    } catch (error) {
-      console.error('Error loading payments:', error);
-    }
-  };
-
-  const loadReminders = async () => {
-    try {
-      const [allReminders, todayReminders, upcoming] = await Promise.all([
-        collectionService.getAllReminders(),
-        collectionService.getTodaysReminders(),
-        collectionService.getUpcomingReminders(7)
-      ]);
-      setReminders(allReminders);
-      setTodaysReminders(todayReminders);
-      setUpcomingReminders(upcoming);
-    } catch (error) {
-      console.error('Error loading reminders:', error);
-    }
-  };
-
-  const loadChecklist = async () => {
-    try {
-      const [allItems, todayItems, stats] = await Promise.all([
-        collectionService.getAllChecklistItems(),
-        collectionService.getTodaysChecklist(),
-        collectionService.getChecklistStats()
-      ]);
-      setChecklistItems(allItems);
-      setTodaysChecklist(todayItems);
-      setChecklistStats(stats);
-    } catch (error) {
-      console.error('Error loading checklist:', error);
-    }
-  };
+  }, [queryClient]);
 
   const handleAcknowledgeReminder = async (reminderId, action) => {
     try {
       await collectionService.acknowledgeReminder(reminderId, action);
-      loadReminders();
+      queryClient.invalidateQueries(['collections', 'reminders']);
+      queryClient.invalidateQueries(['collections', 'todaysReminders']);
+      queryClient.invalidateQueries(['collections', 'upcomingReminders']);
     } catch (error) {
       console.error('Error acknowledging reminder:', error);
     }
@@ -161,7 +193,9 @@ const Collections = () => {
   const handleCompleteChecklist = async (itemId, notes) => {
     try {
       await collectionService.completeChecklistItem(itemId, notes);
-      loadChecklist();
+      queryClient.invalidateQueries(['collections', 'checklist']);
+      queryClient.invalidateQueries(['collections', 'todaysChecklist']);
+      queryClient.invalidateQueries(['collections', 'checklistStats']);
     } catch (error) {
       console.error('Error completing checklist item:', error);
     }
@@ -371,7 +405,7 @@ const Collections = () => {
             }}
             getStatusBadgeColor={getStatusBadgeColor}
             getPriorityBadgeColor={getPriorityBadgeColor}
-            loadPayments={loadPayments}
+            loadPayments={() => queryClient.invalidateQueries(['collections', 'payments'])}
           />
         )}
 
@@ -385,7 +419,11 @@ const Collections = () => {
             setSearchTerm={setSearchTerm}
             onAddReminder={() => setShowAddReminderModal(true)}
             onAcknowledgeReminder={handleAcknowledgeReminder}
-            loadReminders={loadReminders}
+            loadReminders={() => {
+              queryClient.invalidateQueries(['collections', 'reminders']);
+              queryClient.invalidateQueries(['collections', 'todaysReminders']);
+              queryClient.invalidateQueries(['collections', 'upcomingReminders']);
+            }}
           />
         )}
 
@@ -400,7 +438,11 @@ const Collections = () => {
             onAddChecklistItem={() => setShowAddChecklistModal(true)}
             onCompleteItem={handleCompleteChecklist}
             getPriorityBadgeColor={getPriorityBadgeColor}
-            loadChecklist={loadChecklist}
+            loadChecklist={() => {
+              queryClient.invalidateQueries(['collections', 'checklist']);
+              queryClient.invalidateQueries(['collections', 'todaysChecklist']);
+              queryClient.invalidateQueries(['collections', 'checklistStats']);
+            }}
           />
         )}
 
@@ -408,26 +450,40 @@ const Collections = () => {
         <AddPaymentModal
           isOpen={showAddPaymentModal}
           onClose={() => setShowAddPaymentModal(false)}
-          onSuccess={loadPayments}
+          onSuccess={() => {
+            queryClient.invalidateQueries(['collections', 'payments']);
+            queryClient.invalidateQueries(['collections', 'paymentStats']);
+          }}
         />
 
         <RecordPaymentModal
           isOpen={showRecordPaymentModal}
           onClose={() => setShowRecordPaymentModal(false)}
           payment={selectedPayment}
-          onSuccess={loadPayments}
+          onSuccess={() => {
+            queryClient.invalidateQueries(['collections', 'payments']);
+            queryClient.invalidateQueries(['collections', 'paymentStats']);
+          }}
         />
 
         <AddReminderModal
           isOpen={showAddReminderModal}
           onClose={() => setShowAddReminderModal(false)}
-          onSuccess={loadReminders}
+          onSuccess={() => {
+            queryClient.invalidateQueries(['collections', 'reminders']);
+            queryClient.invalidateQueries(['collections', 'todaysReminders']);
+            queryClient.invalidateQueries(['collections', 'upcomingReminders']);
+          }}
         />
 
         <AddChecklistModal
           isOpen={showAddChecklistModal}
           onClose={() => setShowAddChecklistModal(false)}
-          onSuccess={loadChecklist}
+          onSuccess={() => {
+            queryClient.invalidateQueries(['collections', 'checklist']);
+            queryClient.invalidateQueries(['collections', 'todaysChecklist']);
+            queryClient.invalidateQueries(['collections', 'checklistStats']);
+          }}
         />
       </div>
     </div>
@@ -447,6 +503,7 @@ const PaymentCollectionSection = ({
   getPriorityBadgeColor,
   loadPayments
 }) => {
+  const queryClient = useQueryClient();
   const filteredPayments = payments.filter(payment =>
     payment.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     payment.customer_phone?.includes(searchTerm) ||
@@ -474,7 +531,8 @@ const PaymentCollectionSection = ({
               value={paymentFilters.status}
               onChange={(e) => {
                 setPaymentFilters({ ...paymentFilters, status: e.target.value });
-                loadPayments();
+                queryClient.invalidateQueries(['collections', 'payments']);
+                queryClient.invalidateQueries(['collections', 'paymentStats']);
               }}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
@@ -489,7 +547,7 @@ const PaymentCollectionSection = ({
               value={paymentFilters.priority}
               onChange={(e) => {
                 setPaymentFilters({ ...paymentFilters, priority: e.target.value });
-                loadPayments();
+                // Filters change will trigger query refetch automatically via queryKey dependency
               }}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >

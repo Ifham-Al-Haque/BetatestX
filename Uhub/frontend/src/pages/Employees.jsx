@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
@@ -24,6 +24,15 @@ export default function Employees() {
     status: "",
     location: ""
   });
+  
+  // Track which employee images have failed to load
+  const imageErrorsRef = useRef(new Set());
+  const [, forceUpdate] = useState(0);
+  
+  // Function to force re-render when image fails
+  const triggerRerender = useCallback(() => {
+    forceUpdate(prev => prev + 1);
+  }, []);
   
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
@@ -634,22 +643,37 @@ export default function Employees() {
                       {/* Profile Picture */}
                       <div className="flex justify-center">
                         <div className="flex-shrink-0 h-20 w-20">
-                          {employee.profile_picture || employee.photo_url ? (
-                            <img
-                              className="h-20 w-20 rounded-full ring-4 ring-white shadow-lg object-cover"
-                              src={employee.profile_picture || employee.photo_url}
-                              alt={employee.full_name || employee.name}
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                          ) : null}
-                          {!employee.profile_picture && !employee.photo_url && (
-                            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-2xl ring-4 ring-white shadow-lg">
-                              {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          {(() => {
+                            const imageUrl = employee.profile_picture || employee.photo_url;
+                            const imageKey = `${employee.id}-${imageUrl}`;
+                            const hasError = imageErrorsRef.current.has(imageKey);
+                            
+                            // Show fallback if no image URL or if image failed to load
+                            if (!imageUrl || hasError) {
+                              return (
+                                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-2xl ring-4 ring-white shadow-lg">
+                                  {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
+                                </div>
+                              );
+                            }
+                            
+                            // Try to load the image
+                            return (
+                              <img
+                                key={imageKey}
+                                className="h-20 w-20 rounded-full ring-4 ring-white shadow-lg object-cover"
+                                src={imageUrl}
+                                alt={employee.full_name || employee.name}
+                                onError={() => {
+                                  // Mark this image as failed and trigger re-render
+                                  if (!imageErrorsRef.current.has(imageKey)) {
+                                    imageErrorsRef.current.add(imageKey);
+                                    triggerRerender();
+                                  }
+                                }}
+                              />
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -793,22 +817,37 @@ export default function Employees() {
                             <td className="px-6 py-6 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="flex-shrink-0 h-12 w-12">
-                                  {employee.profile_picture || employee.photo_url ? (
-                                    <img
-                                      className="h-12 w-12 rounded-full ring-2 ring-slate-200 shadow-sm object-cover group-hover:ring-2 group-hover:ring-blue-200 transition-all duration-300"
-                                      src={employee.profile_picture || employee.photo_url}
-                                      alt={employee.full_name || employee.name}
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  {!employee.profile_picture && !employee.photo_url && (
-                                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg ring-2 ring-slate-200 shadow-sm group-hover:ring-2 group-hover:ring-blue-200 transition-all duration-300">
-                                      {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
-                                    </div>
-                                  )}
+                                  {(() => {
+                                    const imageUrl = employee.profile_picture || employee.photo_url;
+                                    const imageKey = `${employee.id}-${imageUrl}`;
+                                    const hasError = imageErrorsRef.current.has(imageKey);
+                                    
+                                    // Show fallback if no image URL or if image failed to load
+                                    if (!imageUrl || hasError) {
+                                      return (
+                                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg ring-2 ring-slate-200 shadow-sm group-hover:ring-2 group-hover:ring-blue-200 transition-all duration-300">
+                                          {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Try to load the image
+                                    return (
+                                      <img
+                                        key={imageKey}
+                                        className="h-12 w-12 rounded-full ring-2 ring-slate-200 shadow-sm object-cover group-hover:ring-2 group-hover:ring-blue-200 transition-all duration-300"
+                                        src={imageUrl}
+                                        alt={employee.full_name || employee.name}
+                                        onError={() => {
+                                          // Mark this image as failed and trigger re-render
+                                          if (!imageErrorsRef.current.has(imageKey)) {
+                                            imageErrorsRef.current.add(imageKey);
+                                            triggerRerender();
+                                          }
+                                        }}
+                                      />
+                                    );
+                                  })()}
                                 </div>
                                 <div className="ml-4 min-w-0 flex-1">
                                   <div className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors duration-200">

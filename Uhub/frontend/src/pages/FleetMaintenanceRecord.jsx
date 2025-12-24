@@ -29,7 +29,9 @@ import {
   Building,
   Zap,
   ArrowRight,
-  Tag
+  Tag,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import fleetService from '../services/fleetService';
 import MaintenanceRecordModal from '../components/fleet/MaintenanceRecordModal';
@@ -47,6 +49,7 @@ const FleetMaintenanceRecord = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [expandedTickets, setExpandedTickets] = useState(new Set()); // Track expanded tickets
   
   // Tickets State
   const [maintenanceTickets, setMaintenanceTickets] = useState([]);
@@ -369,7 +372,7 @@ const FleetMaintenanceRecord = () => {
       setSortOrder('desc');
     }
     if (activeTab === 'records') {
-      loadMaintenanceRecords();
+    loadMaintenanceRecords();
     }
   };
 
@@ -483,13 +486,13 @@ const FleetMaintenanceRecord = () => {
                 Filters
               </button>
               {activeTab === 'records' ? (
-                <button
-                  onClick={handleCreateRecord}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center transition-all shadow-lg hover:shadow-xl"
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  Add Record
-                </button>
+              <button
+                onClick={handleCreateRecord}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center transition-all shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Add Record
+              </button>
               ) : (
                 <button
                   onClick={handleCreateTicket}
@@ -549,95 +552,95 @@ const FleetMaintenanceRecord = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {activeTab === 'records' ? (
             <>
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
                 className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg p-6 border-2 border-blue-200 hover:shadow-xl transition-all hover:scale-105"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
+          >
+            <div className="flex items-center justify-between">
+              <div>
                     <p className="text-sm font-semibold text-blue-700 mb-1 uppercase tracking-wide">Total Records</p>
                     <p className="text-4xl font-bold text-blue-900">{statistics?.totalRecords || maintenanceRecords.length}</p>
                     <p className="text-sm text-blue-600 mt-2 flex items-center font-medium">
                       <TrendingUp className="w-4 h-4 mr-1" />
-                      All time
-                    </p>
-                  </div>
+                  All time
+                </p>
+              </div>
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
                     <FileText className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+              </div>
+            </div>
+          </motion.div>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
                 className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl shadow-lg p-6 border-2 border-green-200 hover:shadow-xl transition-all hover:scale-105"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
+          >
+            <div className="flex items-center justify-between">
+              <div>
                     <p className="text-sm font-semibold text-green-700 mb-1 uppercase tracking-wide">Completed</p>
                     <p className="text-4xl font-bold text-green-900">
-                      {statistics?.statusBreakdown?.Completed || maintenanceRecords.filter(r => r.status?.toLowerCase() === 'completed').length}
-                    </p>
+                  {statistics?.statusBreakdown?.Completed || maintenanceRecords.filter(r => r.status?.toLowerCase() === 'completed').length}
+                </p>
                     <p className="text-sm text-green-600 mt-2 flex items-center font-medium">
                       <CheckCircle className="w-4 h-4 mr-1" />
-                      Success rate
-                    </p>
-                  </div>
+                  Success rate
+                </p>
+              </div>
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg">
                     <CheckCircle className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+              </div>
+            </div>
+          </motion.div>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
                 className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl shadow-lg p-6 border-2 border-yellow-200 hover:shadow-xl transition-all hover:scale-105"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
+          >
+            <div className="flex items-center justify-between">
+              <div>
                     <p className="text-sm font-semibold text-yellow-700 mb-1 uppercase tracking-wide">In Progress</p>
                     <p className="text-4xl font-bold text-yellow-900">
-                      {statistics?.statusBreakdown?.['In Progress'] || maintenanceRecords.filter(r => r.status?.toLowerCase() === 'in progress').length}
-                    </p>
+                  {statistics?.statusBreakdown?.['In Progress'] || maintenanceRecords.filter(r => r.status?.toLowerCase() === 'in progress').length}
+                </p>
                     <p className="text-sm text-yellow-600 mt-2 flex items-center font-medium">
                       <Activity className="w-4 h-4 mr-1" />
-                      Active
-                    </p>
-                  </div>
+                  Active
+                </p>
+              </div>
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-yellow-500 to-yellow-600 shadow-lg">
                     <Settings className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+              </div>
+            </div>
+          </motion.div>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
                 className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-lg p-6 border-2 border-purple-200 hover:shadow-xl transition-all hover:scale-105"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
+          >
+            <div className="flex items-center justify-between">
+              <div>
                     <p className="text-sm font-semibold text-purple-700 mb-1 uppercase tracking-wide">Total Cost</p>
                     <p className="text-3xl font-bold text-purple-900">
-                      {formatCurrency(statistics?.totalCost || maintenanceRecords.reduce((sum, r) => sum + (r.cost || 0), 0))}
-                    </p>
+                  {formatCurrency(statistics?.totalCost || maintenanceRecords.reduce((sum, r) => sum + (r.cost || 0), 0))}
+                </p>
                     <p className="text-sm text-purple-600 mt-2 flex items-center font-medium">
                       <BarChart3 className="w-4 h-4 mr-1" />
-                      Investment
-                    </p>
-                  </div>
+                  Investment
+                </p>
+              </div>
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
                     <DollarSign className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-              </motion.div>
+              </div>
+            </div>
+          </motion.div>
             </>
           ) : (
             <>
@@ -763,10 +766,10 @@ const FleetMaintenanceRecord = () => {
                       <option value="">All Status</option>
                       {activeTab === 'records' ? (
                         <>
-                          <option value="Completed">Completed</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Scheduled">Scheduled</option>
-                          <option value="Cancelled">Cancelled</option>
+                      <option value="Completed">Completed</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Scheduled">Scheduled</option>
+                      <option value="Cancelled">Cancelled</option>
                         </>
                       ) : (
                         <>
@@ -849,25 +852,25 @@ const FleetMaintenanceRecord = () => {
                   </div>
                   
                   {activeTab === 'records' && (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600">Sort by:</span>
-                      <button
-                        onClick={() => handleSort('service_date')}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                          sortBy === 'service_date' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        Date <ArrowUpDown className="w-3 h-3 inline ml-1" />
-                      </button>
-                      <button
-                        onClick={() => handleSort('cost')}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                          sortBy === 'cost' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        Cost <ArrowUpDown className="w-3 h-3 inline ml-1" />
-                      </button>
-                    </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Sort by:</span>
+                    <button
+                      onClick={() => handleSort('service_date')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        sortBy === 'service_date' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      Date <ArrowUpDown className="w-3 h-3 inline ml-1" />
+                    </button>
+                    <button
+                      onClick={() => handleSort('cost')}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        sortBy === 'cost' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      Cost <ArrowUpDown className="w-3 h-3 inline ml-1" />
+                    </button>
+                  </div>
                   )}
                 </div>
               </div>
@@ -877,26 +880,26 @@ const FleetMaintenanceRecord = () => {
 
         {/* Content Area - Records or Tickets */}
         {activeTab === 'records' ? (
-          <div className="space-y-4">
-            {maintenanceRecords.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-white rounded-2xl shadow-lg p-12 text-center"
-              >
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No maintenance records found</h3>
+        <div className="space-y-4">
+          {maintenanceRecords.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-white rounded-2xl shadow-lg p-12 text-center"
+            >
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No maintenance records found</h3>
                 <p className="text-gray-600 mb-6">Get started by adding your first maintenance record or converting a ticket.</p>
                 <div className="flex items-center justify-center space-x-3">
-                  <button
-                    onClick={handleCreateRecord}
+              <button
+                onClick={handleCreateRecord}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl flex items-center transition-all"
-                  >
-                    <Plus className="w-5 h-5 mr-2" />
+              >
+                <Plus className="w-5 h-5 mr-2" />
                     Add Record
-                  </button>
+              </button>
                   {maintenanceTickets.length > 0 && (
                     <button
                       onClick={() => setActiveTab('tickets')}
@@ -907,10 +910,10 @@ const FleetMaintenanceRecord = () => {
                     </button>
                   )}
                 </div>
-              </motion.div>
-            ) : (
-              maintenanceRecords.map((record, index) => {
-                const StatusIcon = getStatusIcon(record.status);
+            </motion.div>
+          ) : (
+            maintenanceRecords.map((record, index) => {
+              const StatusIcon = getStatusIcon(record.status);
                 const getTypeGradient = (type) => {
                   switch (type?.toLowerCase()) {
                     case 'repair': return 'from-red-500 to-red-600';
@@ -921,11 +924,11 @@ const FleetMaintenanceRecord = () => {
                   }
                 };
                 
-                return (
-                  <motion.div
-                    key={record.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+              return (
+                <motion.div
+                  key={record.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden group"
                   >
@@ -935,11 +938,11 @@ const FleetMaintenanceRecord = () => {
                         <div className="flex items-start space-x-4 flex-1">
                           <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform shadow-lg">
                             <Wrench className="w-7 h-7 text-white" />
-                          </div>
+                        </div>
                           <div className="flex-1">
                             <h3 className="text-2xl font-bold mb-2 line-clamp-2">
                               {record.description || 'Maintenance Record'}
-                            </h3>
+                          </h3>
                             <div className="flex items-center space-x-3 text-white/90">
                               <div className="flex items-center space-x-1">
                                 <Car className="w-4 h-4" />
@@ -956,31 +959,31 @@ const FleetMaintenanceRecord = () => {
                                 </>
                               )}
                             </div>
-                          </div>
                         </div>
-                        
+                      </div>
+                      
                         <div className="flex flex-col items-end space-y-2 ml-4">
                           <div className="flex items-center space-x-2">
                             <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-lg text-sm font-medium border border-white/30">
-                              {record.maintenance_type}
-                            </span>
+                          {record.maintenance_type}
+                        </span>
                             <span className={`px-3 py-1 rounded-lg text-sm font-medium border flex items-center ${
                               record.status === 'Completed' ? 'bg-green-500/20 border-green-300' :
                               record.status === 'In Progress' ? 'bg-blue-500/20 border-blue-300' :
                               'bg-yellow-500/20 border-yellow-300'
                             }`}>
                               <StatusIcon className="w-4 h-4 mr-1" />
-                              {record.status}
-                            </span>
+                          {record.status}
+                        </span>
                           </div>
-                          <div className="text-right">
+                        <div className="text-right">
                             <p className="text-xs text-white/80 uppercase tracking-wide">Total Cost</p>
                             <p className="text-3xl font-bold">{formatCurrency(record.cost || 0)}</p>
                           </div>
                         </div>
                       </div>
                     </div>
-
+                    
                     {/* Content Section */}
                     <div className="p-6">
                       
@@ -990,19 +993,19 @@ const FleetMaintenanceRecord = () => {
                           <div className="flex items-center space-x-2 mb-2">
                             <div className="p-2 bg-blue-500 rounded-lg">
                               <Calendar className="w-4 h-4 text-white" />
-                            </div>
+                        </div>
                             <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Service Date</p>
                           </div>
                           <p className="text-lg font-bold text-gray-900">{formatDate(record.service_date)}</p>
-                        </div>
-                        
+                      </div>
+                      
                         <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200 hover:shadow-md transition-shadow">
                           <div className="flex items-center space-x-2 mb-2">
                             <div className="p-2 bg-purple-500 rounded-lg">
                               <Building className="w-4 h-4 text-white" />
-                            </div>
+                        </div>
                             <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Provider</p>
-                          </div>
+                      </div>
                           <p className="text-lg font-bold text-gray-900 truncate" title={record.service_provider || 'Not specified'}>
                             {record.service_provider || 'Not specified'}
                           </p>
@@ -1018,41 +1021,41 @@ const FleetMaintenanceRecord = () => {
                           <p className="text-lg font-bold text-gray-900">
                             {record.mileage_at_service ? `${record.mileage_at_service.toLocaleString()} km` : 'N/A'}
                           </p>
-                        </div>
-                        
+                      </div>
+                      
                         <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-xl p-4 border border-orange-200 hover:shadow-md transition-shadow">
                           <div className="flex items-center space-x-2 mb-2">
                             <div className="p-2 bg-orange-500 rounded-lg">
                               <Clock className="w-4 h-4 text-white" />
-                            </div>
+                        </div>
                             <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Labor Hours</p>
                           </div>
                           <p className="text-lg font-bold text-gray-900">{record.labor_hours ? `${record.labor_hours}h` : '0h'}</p>
-                        </div>
                       </div>
-                      
-                      {/* Parts Replaced */}
-                      {record.parts_replaced && record.parts_replaced.length > 0 && (
+                    </div>
+                    
+                    {/* Parts Replaced */}
+                    {record.parts_replaced && record.parts_replaced.length > 0 && (
                         <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
                             <Tag className="w-4 h-4 mr-2 text-blue-600" />
                             Parts Replaced
                           </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {record.parts_replaced.map((part, partIndex) => (
-                              <span
-                                key={partIndex}
+                        <div className="flex flex-wrap gap-2">
+                          {record.parts_replaced.map((part, partIndex) => (
+                            <span
+                              key={partIndex}
                                 className="px-4 py-2 bg-white text-blue-700 text-sm font-medium rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                {part}
-                              </span>
-                            ))}
-                          </div>
+                            >
+                              {part}
+                            </span>
+                          ))}
                         </div>
-                      )}
-                      
+                      </div>
+                    )}
+                    
                       {/* Next Service Alert */}
-                      {record.next_service_date && (
+                    {record.next_service_date && (
                         <div className="mb-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border-2 border-yellow-300 shadow-sm">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-yellow-400 rounded-lg">
@@ -1063,52 +1066,52 @@ const FleetMaintenanceRecord = () => {
                               <p className="text-lg font-bold text-yellow-900">{formatDate(record.next_service_date)}</p>
                             </div>
                           </div>
-                        </div>
-                      )}
-                      
+                      </div>
+                    )}
+                    
                       {/* Actions Footer */}
                       <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                         <div className="flex items-center space-x-3">
-                          <button 
-                            onClick={() => handleEditRecord(record)}
+                        <button 
+                          onClick={() => handleEditRecord(record)}
                             className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg flex items-center text-sm font-medium transition-all hover:shadow-md"
-                          >
+                        >
                             <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </button>
+                          Edit
+                        </button>
                           <button 
                             onClick={() => handleViewDetails(record, 'record')}
                             className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg flex items-center text-sm font-medium transition-all hover:shadow-md"
                           >
                             <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </button>
+                          View Details
+                        </button>
                           {/* Only show delete if admin OR record not converted from ticket */}
                           {(isAdmin || !record.converted_from_ticket) && (
-                            <button 
-                              onClick={() => handleDeleteRecord(record.id)}
+                        <button 
+                          onClick={() => handleDeleteRecord(record.id)}
                               className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg flex items-center text-sm font-medium transition-all hover:shadow-md"
-                            >
+                        >
                               <Trash className="w-4 h-4 mr-2" />
-                              Delete
-                            </button>
+                          Delete
+                        </button>
                           )}
-                        </div>
-                        
-                        {record.employees && (
+                      </div>
+                      
+                      {record.employees && (
                           <div className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
                             <User className="w-4 h-4 text-gray-400" />
                             <span className="font-medium">Created by</span>
                             <span className="font-semibold text-gray-900">{record.employees.full_name}</span>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
-                  </motion.div>
-                );
-              })
-            )}
-          </div>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </div>
         ) : (
           <div className="space-y-4">
             {maintenanceTickets.length === 0 ? (
@@ -1133,6 +1136,7 @@ const FleetMaintenanceRecord = () => {
             ) : (
               maintenanceTickets.map((ticket, index) => {
                 const StatusIcon = getStatusIcon(ticket.status);
+                const isExpanded = expandedTickets.has(ticket.id);
                 const getPriorityGradient = (priority) => {
                   switch (priority?.toLowerCase()) {
                     case 'urgent': return 'from-red-500 to-red-600';
@@ -1141,6 +1145,18 @@ const FleetMaintenanceRecord = () => {
                     case 'low': return 'from-green-500 to-green-600';
                     default: return 'from-orange-400 to-orange-500';
                   }
+                };
+
+                const toggleTicket = () => {
+                  setExpandedTickets(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(ticket.id)) {
+                      newSet.delete(ticket.id);
+                    } else {
+                      newSet.add(ticket.id);
+                    }
+                    return newSet;
+                  });
                 };
                 
                 return (
@@ -1151,8 +1167,11 @@ const FleetMaintenanceRecord = () => {
                     transition={{ delay: index * 0.05 }}
                     className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-hidden group"
                   >
-                    {/* Header Section with Gradient */}
-                    <div className={`bg-gradient-to-r ${getPriorityGradient(ticket.priority)} p-6 text-white`}>
+                    {/* Header Section with Gradient - Clickable */}
+                    <div 
+                      className={`bg-gradient-to-r ${getPriorityGradient(ticket.priority)} p-6 text-white cursor-pointer hover:opacity-95 transition-opacity`}
+                      onClick={toggleTicket}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-4 flex-1">
                           <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform shadow-lg">
@@ -1235,7 +1254,11 @@ const FleetMaintenanceRecord = () => {
                             {/* Status Dropdown */}
                             <select
                               value={ticket.status}
-                              onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
+                              onChange={(e) => {
+                                e.stopPropagation(); // Prevent header click
+                                handleStatusChange(ticket.id, e.target.value);
+                              }}
+                              onClick={(e) => e.stopPropagation()} // Prevent header click
                               className={`px-3 py-1 rounded-lg text-sm font-medium border cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 ${
                                 ticket.status === 'Completed' || ticket.status === 'Closed' 
                                   ? 'bg-green-500/20 border-green-300 text-white' 
@@ -1251,6 +1274,21 @@ const FleetMaintenanceRecord = () => {
                               <option value="Cancelled" className="text-gray-900">Cancelled</option>
                               <option value="Closed" className="text-gray-900">Closed</option>
                             </select>
+                            {/* Expand/Collapse Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTicket();
+                              }}
+                              className="p-2 bg-white/20 backdrop-blur-sm rounded-lg hover:bg-white/30 transition-all border border-white/30 flex items-center justify-center"
+                              title={isExpanded ? 'Collapse' : 'Expand'}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-5 h-5 text-white" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-white" />
+                              )}
+                            </button>
                           </div>
                           {ticket.estimated_cost && (
                             <div className="text-right">
@@ -1262,64 +1300,73 @@ const FleetMaintenanceRecord = () => {
                       </div>
                     </div>
 
-                    {/* Content Section */}
-                    <div className="p-6">
-                      {/* Key Information Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200 hover:shadow-md transition-shadow">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <div className="p-2 bg-blue-500 rounded-lg">
-                              <Calendar className="w-4 h-4 text-white" />
-                            </div>
-                            <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Created</p>
-                          </div>
-                          <p className="text-lg font-bold text-gray-900">{formatDate(ticket.created_at)}</p>
-                        </div>
-                        
-                        {ticket.assigned_employee && (
-                          <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200 hover:shadow-md transition-shadow">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <div className="p-2 bg-purple-500 rounded-lg">
-                                <User className="w-4 h-4 text-white" />
+                    {/* Content Section - Collapsible */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          className="overflow-hidden"
+                        >
+                          <div className="p-6">
+                            {/* Key Information Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                              <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200 hover:shadow-md transition-shadow">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <div className="p-2 bg-blue-500 rounded-lg">
+                                    <Calendar className="w-4 h-4 text-white" />
+                                  </div>
+                                  <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Created</p>
+                                </div>
+                                <p className="text-lg font-bold text-gray-900">{formatDate(ticket.created_at)}</p>
                               </div>
-                              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Assigned To</p>
+                              
+                              {ticket.assigned_employee && (
+                                <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl p-4 border border-purple-200 hover:shadow-md transition-shadow">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <div className="p-2 bg-purple-500 rounded-lg">
+                                      <User className="w-4 h-4 text-white" />
+                                    </div>
+                                    <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Assigned To</p>
+                                  </div>
+                                  <p className="text-lg font-bold text-gray-900 truncate" title={ticket.assigned_employee.full_name}>
+                                    {ticket.assigned_employee.full_name}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {ticket.estimated_cost && (
+                                <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200 hover:shadow-md transition-shadow">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <div className="p-2 bg-green-500 rounded-lg">
+                                      <DollarSign className="w-4 h-4 text-white" />
+                                    </div>
+                                    <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Est. Cost</p>
+                                  </div>
+                                  <p className="text-lg font-bold text-gray-900">{formatCurrency(ticket.estimated_cost)}</p>
+                                </div>
+                              )}
+                              
+                              {ticket.garage_name && (
+                                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-4 border border-indigo-200 hover:shadow-md transition-shadow">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <div className="p-2 bg-indigo-500 rounded-lg">
+                                      <Building className="w-4 h-4 text-white" />
+                                    </div>
+                                    <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Garage</p>
+                                  </div>
+                                  <p className="text-lg font-bold text-gray-900 truncate" title={ticket.garage_name}>
+                                    {ticket.garage_name}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                            <p className="text-lg font-bold text-gray-900 truncate" title={ticket.assigned_employee.full_name}>
-                              {ticket.assigned_employee.full_name}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {ticket.estimated_cost && (
-                          <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200 hover:shadow-md transition-shadow">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <div className="p-2 bg-green-500 rounded-lg">
-                                <DollarSign className="w-4 h-4 text-white" />
-                              </div>
-                              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Est. Cost</p>
-                            </div>
-                            <p className="text-lg font-bold text-gray-900">{formatCurrency(ticket.estimated_cost)}</p>
-                          </div>
-                        )}
-                        
-                        {ticket.garage_name && (
-                          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-4 border border-indigo-200 hover:shadow-md transition-shadow">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <div className="p-2 bg-indigo-500 rounded-lg">
-                                <Building className="w-4 h-4 text-white" />
-                              </div>
-                              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">Garage</p>
-                            </div>
-                            <p className="text-lg font-bold text-gray-900 truncate" title={ticket.garage_name}>
-                              {ticket.garage_name}
-                            </p>
-                          </div>
-                        )}
-                      </div>
 
-                      {/* Additional Vehicle Details */}
-                      {(ticket.vehicle_id_text || ticket.vehicle_plate_number || ticket.hardware_id || ticket.vehicle_model || ticket.vehicle_year || ticket.vehicle_color) && (
-                        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                            {/* Additional Vehicle Details */}
+                            {(ticket.vehicle_id_text || ticket.vehicle_plate_number || ticket.hardware_id || ticket.vehicle_model || ticket.vehicle_year || ticket.vehicle_color) && (
+                              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
                           <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
                             <Car className="w-4 h-4 mr-2 text-blue-600" />
                             Vehicle Details
@@ -1361,13 +1408,13 @@ const FleetMaintenanceRecord = () => {
                                 <p className="font-medium text-gray-900">{ticket.vehicle_color}</p>
                               </div>
                             )}
-                          </div>
-                        </div>
-                      )}
+                                </div>
+                              </div>
+                            )}
 
-                      {/* Garage Information */}
-                      {ticket.garage_name && (
-                        <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                            {/* Garage Information */}
+                            {ticket.garage_name && (
+                              <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
                           <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
                             <Building className="w-4 h-4 mr-2 text-purple-600" />
                             Service Garage
@@ -1383,13 +1430,13 @@ const FleetMaintenanceRecord = () => {
                                 <p className="font-medium text-gray-900">{ticket.garage_location}</p>
                               </div>
                             )}
-                          </div>
-                        </div>
-                      )}
+                                </div>
+                              </div>
+                            )}
 
-                      {/* Conversion Notice */}
-                      {ticket.maintenance_record_id && (
-                        <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
+                            {/* Conversion Notice */}
+                            {ticket.maintenance_record_id && (
+                              <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 shadow-sm">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-green-400 rounded-lg">
                               <CheckCircle className="w-5 h-5 text-green-900" />
@@ -1398,12 +1445,12 @@ const FleetMaintenanceRecord = () => {
                               <p className="text-sm font-medium text-green-900">Converted to Maintenance Record</p>
                               <p className="text-xs text-green-700">This ticket has been successfully converted</p>
                             </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Actions Footer */}
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Actions Footer */}
+                            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                         <div className="flex items-center space-x-3">
                           <button 
                             onClick={() => handleEditTicket(ticket)}
@@ -1446,9 +1493,12 @@ const FleetMaintenanceRecord = () => {
                             <span className="font-medium">Requested by</span>
                             <span className="font-semibold text-gray-900">{ticket.employees.full_name}</span>
                           </div>
-                        )}
-                      </div>
-                    </div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 );
               })

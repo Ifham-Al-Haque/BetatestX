@@ -1,7 +1,8 @@
 // src/components/Sidebar.jsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePrefetch } from '../hooks/usePrefetch';
 import { 
   Settings,
   ChevronLeft,
@@ -84,6 +85,10 @@ const Sidebar = () => {
     marketing_panel: true
   });
 
+  // Track prefetched routes to avoid duplicate calls
+  const prefetchedRoutesRef = useRef(new Set());
+  const prefetchTimeoutRef = useRef(null);
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -100,6 +105,7 @@ const Sidebar = () => {
   };
 
   const isActive = (path) => location.pathname === path;
+  const { prefetchRoute } = usePrefetch();
 
   // Safety check - don't render if auth is not initialized
   if (!user && !userProfile) {
@@ -578,6 +584,25 @@ const Sidebar = () => {
                                       if (!active) {
                                         e.target.style.background = 'var(--bg-sidebar-hover)';
                                         e.target.style.color = 'var(--text-primary)';
+                                        
+                                        // Debounce prefetch to avoid rapid successive calls
+                                        if (prefetchTimeoutRef.current) {
+                                          clearTimeout(prefetchTimeoutRef.current);
+                                        }
+                                        
+                                        prefetchTimeoutRef.current = setTimeout(() => {
+                                          // Skip if already prefetched
+                                          if (!prefetchedRoutesRef.current.has(item.path)) {
+                                            prefetchedRoutesRef.current.add(item.path);
+                                            // Prefetch data for this route (non-blocking)
+                                            prefetchRoute(item.path).catch(err => {
+                                              // Remove from set on error so it can be retried
+                                              prefetchedRoutesRef.current.delete(item.path);
+                                              // Silently handle prefetch errors - they shouldn't affect UX
+                                              console.debug('Prefetch failed for', item.path, err);
+                                            });
+                                          }
+                                        }, 300); // 300ms debounce
                                       }
                                     }}
                                     onMouseLeave={(e) => {

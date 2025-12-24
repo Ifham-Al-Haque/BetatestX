@@ -465,43 +465,81 @@ const CSPAPerformanceAnalytics = ({ data, selectedPeriod = 'month' }) => {
           </div>
 
           {/* Call Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center space-x-3">
-                <PhoneIncoming className="w-8 h-8 text-blue-600" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl shadow-lg text-white hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-600 font-medium">Total Inbound</p>
-                  <p className="text-2xl font-bold text-blue-900">{callAnalytics.totalInbound}</p>
+                  <p className="text-sm font-medium opacity-90 mb-2">Total Inbound</p>
+                  <p className="text-4xl font-bold mb-1">{callAnalytics.totalInbound.toLocaleString()}</p>
+                  <p className="text-xs opacity-75">Calls received</p>
+                </div>
+                <div className="p-4 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <PhoneIncoming className="w-8 h-8" />
                 </div>
               </div>
-            </div>
+            </motion.div>
             
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center space-x-3">
-                <PhoneOutgoing className="w-8 h-8 text-green-600" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-xl shadow-lg text-white hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-green-600 font-medium">Total Outbound</p>
-                  <p className="text-2xl font-bold text-green-900">{callAnalytics.totalOutbound}</p>
+                  <p className="text-sm font-medium opacity-90 mb-2">Total Outbound</p>
+                  <p className="text-4xl font-bold mb-1">{callAnalytics.totalOutbound.toLocaleString()}</p>
+                  <p className="text-xs opacity-75">Calls made</p>
+                </div>
+                <div className="p-4 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <PhoneOutgoing className="w-8 h-8" />
                 </div>
               </div>
-            </div>
+            </motion.div>
             
-            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-              <div className="flex items-center space-x-3">
-                <Phone className="w-8 h-8 text-purple-600" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-indigo-600 p-6 rounded-xl shadow-lg text-white hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-purple-600 font-medium">Total Calls</p>
-                  <p className="text-2xl font-bold text-purple-900">{callAnalytics.totalInbound + callAnalytics.totalOutbound}</p>
+                  <p className="text-sm font-medium opacity-90 mb-2">Total Calls</p>
+                  <p className="text-4xl font-bold mb-1">{(callAnalytics.totalInbound + callAnalytics.totalOutbound).toLocaleString()}</p>
+                  <p className="text-xs opacity-75">Combined volume</p>
+                </div>
+                <div className="p-4 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <Phone className="w-8 h-8" />
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Weekly Call Comparison Chart */}
           {callAnalytics.weeklyData.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Weekly Call Comparison</h4>
-              <div className="h-64 flex items-end justify-between space-x-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mb-6 bg-gradient-to-br from-gray-50 to-blue-50 p-6 rounded-xl border border-gray-200"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h4 className="text-xl font-semibold text-gray-900">Weekly Call Comparison</h4>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4" />
+                  <span>Last {callAnalytics.weeklyData.length} weeks</span>
+                </div>
+              </div>
+              <div className="h-72 flex items-end justify-between gap-3">
                 {callAnalytics.weeklyData.map((week, index) => {
                   const displayData = selectedCallType === 'inbound' ? week.inbound :
                                     selectedCallType === 'outbound' ? week.outbound :
@@ -511,31 +549,43 @@ const CSPAPerformanceAnalytics = ({ data, selectedPeriod = 'month' }) => {
                     selectedCallType === 'outbound' ? w.outbound :
                     w.total
                   ));
-                  const barColor = selectedCallType === 'inbound' ? 'bg-blue-600' :
-                                 selectedCallType === 'outbound' ? 'bg-green-600' :
-                                 'bg-purple-600';
+                  const barGradient = selectedCallType === 'inbound' ? 'from-blue-500 to-blue-600' :
+                                     selectedCallType === 'outbound' ? 'from-green-500 to-emerald-600' :
+                                     'from-purple-500 to-indigo-600';
                   
                   return (
-                    <div key={week.week} className="flex flex-col items-center flex-1">
-                      <div className="w-full bg-gray-100 rounded-t-lg relative">
-                        <div
-                          className={`${barColor} rounded-t-lg transition-all duration-500 ease-out cursor-pointer hover:opacity-80`}
+                    <motion.div
+                      key={week.week}
+                      initial={{ opacity: 0, scaleY: 0 }}
+                      animate={{ opacity: 1, scaleY: 1 }}
+                      transition={{ delay: 0.1 + index * 0.05, duration: 0.5 }}
+                      className="flex flex-col items-center flex-1 group"
+                    >
+                      <div className="w-full bg-gray-200 rounded-t-xl relative h-full flex items-end">
+                        <motion.div
+                          className={`bg-gradient-to-t ${barGradient} rounded-t-xl w-full transition-all duration-500 ease-out cursor-pointer hover:opacity-90 shadow-lg hover:shadow-xl relative overflow-hidden`}
                           style={{
-                            height: `${(displayData / maxValue) * 200}px`,
-                            minHeight: '20px'
+                            height: `${maxValue > 0 ? (displayData / maxValue) * 100 : 0}%`,
+                            minHeight: '8px'
                           }}
                           onClick={() => {
                             setSelectedWeek(week);
                             setShowAgentDetails(true);
                           }}
-                        />
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                            {displayData}
+                          </div>
+                        </motion.div>
                       </div>
-                      <span className="text-xs text-gray-600 mt-2">{week.week}</span>
-                    </div>
+                      <span className="text-xs text-gray-700 font-medium mt-3 text-center">{week.week}</span>
+                    </motion.div>
                   );
                 })}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Data Source Info */}
@@ -578,63 +628,92 @@ const CSPAPerformanceAnalytics = ({ data, selectedPeriod = 'month' }) => {
 
         {/* Metric Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {metrics.map((metric) => {
+          {metrics.map((metric, index) => {
             const Icon = metric.icon;
             const metricData = getMetricData(metric.key);
             const isSelected = selectedMetric === metric.key;
+            const colorClasses = {
+              blue: { bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-blue-500', selectedBg: 'bg-blue-50' },
+              green: { bg: 'bg-green-100', text: 'text-green-600', border: 'border-green-500', selectedBg: 'bg-green-50' },
+              yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600', border: 'border-yellow-500', selectedBg: 'bg-yellow-50' },
+              purple: { bg: 'bg-purple-100', text: 'text-purple-600', border: 'border-purple-500', selectedBg: 'bg-purple-50' }
+            };
+            const colors = colorClasses[metric.color] || colorClasses.blue;
             
             return (
-              <button
+              <motion.button
                 key={metric.key}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + index * 0.05 }}
                 onClick={() => setSelectedMetric(metric.key)}
-                className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                className={`p-5 rounded-xl border-2 transition-all duration-300 text-left relative overflow-hidden group ${
                   isSelected
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? `${colors.border} ${colors.selectedBg} shadow-lg`
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md'
                 }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <div className="flex items-center space-x-3 mb-2">
-                  <div className={`p-2 rounded-lg bg-${metric.color}-100`}>
-                    <Icon className={`w-5 h-5 text-${metric.color}-600`} />
+                {isSelected && (
+                  <motion.div
+                    layoutId="selectedMetric"
+                    className={`absolute inset-0 ${colors.selectedBg} opacity-50`}
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+                <div className="relative flex items-center justify-between mb-3">
+                  <div className={`p-3 rounded-lg ${colors.bg} group-hover:scale-110 transition-transform`}>
+                    <Icon className={`w-6 h-6 ${colors.text}`} />
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1">
                     {getTrendIcon(metricData.trend)}
-                    <span className={`text-sm font-medium ${getTrendColor(metricData.trend)}`}>
+                    <span className={`text-xs font-semibold ${getTrendColor(metricData.trend)}`}>
                       {metricData.change}
                     </span>
                   </div>
                 </div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                <h4 className={`text-2xl font-bold ${isSelected ? 'text-gray-900' : 'text-gray-800'} mb-1`}>
                   {metricData.data[metricData.data.length - 1]}{metricData.unit}
                 </h4>
-                <p className="text-sm text-gray-600">{metric.label}</p>
-                <p className="text-xs text-gray-500 mt-1">{metric.description}</p>
-              </button>
+                <p className="text-sm font-medium text-gray-700 mb-1">{metric.label}</p>
+                <p className="text-xs text-gray-500">{metric.description}</p>
+              </motion.button>
             );
           })}
         </div>
 
         {/* Chart Display */}
-        <div className="bg-gray-50 p-6 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-lg font-medium text-gray-900">
-              {metrics.find(m => m.key === selectedMetric)?.label} Trend
-            </h4>
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <span>Period: {selectedPeriod}</span>
-              <span>•</span>
-              <span>Last 6 months</span>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-8 rounded-xl border border-gray-200 shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h4 className="text-xl font-semibold text-gray-900 mb-1">
+                {metrics.find(m => m.key === selectedMetric)?.label} Trend
+              </h4>
+              <p className="text-sm text-gray-600">
+                {metrics.find(m => m.key === selectedMetric)?.description}
+              </p>
+            </div>
+            <div className="flex items-center space-x-3 text-sm">
+              <div className="px-3 py-1 bg-white rounded-lg border border-gray-200 text-gray-700">
+                <span className="font-medium">Period:</span> {selectedPeriod}
+              </div>
+              <div className="px-3 py-1 bg-white rounded-lg border border-gray-200 text-gray-700">
+                Last 6 months
+              </div>
             </div>
           </div>
           
-          {renderChart()}
-          
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">
-              {metrics.find(m => m.key === selectedMetric)?.description}
-            </p>
+          <div className="bg-white p-6 rounded-lg shadow-sm">
+            {renderChart()}
           </div>
-        </div>
+        </motion.div>
       </motion.div>
 
       {/* Key Insights - Will be populated from real data */}

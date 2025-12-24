@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -71,6 +71,8 @@ export default function EmployeeForm() {
   const [activeTab, setActiveTab] = useState('basic');
   const [showPassword, setShowPassword] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [imageError, setImageError] = useState(false);
+  const imageErrorHandledRef = useRef(new Set());
 
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +81,43 @@ export default function EmployeeForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Helper function to validate if an image URL can be loaded
+  const isValidImageUrl = useCallback((url) => {
+    if (!url) return false;
+    // Check if it's a cross-origin blob URL (cannot be loaded)
+    if (url.startsWith('blob:') && !url.startsWith(`blob:${window.location.origin}`)) {
+      return false;
+    }
+    // Check if we've already failed to load this URL
+    if (imageErrorHandledRef.current.has(url)) {
+      return false;
+    }
+    return true;
+  }, []);
+
+  // Handle image load error safely
+  const handleImageError = useCallback((imageUrl) => {
+    // Prevent multiple error handlers for the same URL
+    if (imageErrorHandledRef.current.has(imageUrl)) {
+      return;
+    }
+    
+    imageErrorHandledRef.current.add(imageUrl);
+    
+    // Use setTimeout to avoid React batching issues
+    setTimeout(() => {
+      setImageError(true);
+    }, 0);
+  }, []);
+
+  // Handle successful image load
+  const handleImageLoad = useCallback(() => {
+    // Reset error state when image loads successfully
+    setTimeout(() => {
+      setImageError(false);
+    }, 0);
+  }, []);
 
   // Fetch managers for reporting manager dropdown
   useEffect(() => {
@@ -94,6 +133,14 @@ export default function EmployeeForm() {
     }
     fetchManagers();
   }, []);
+
+  // Reset image error when image source changes
+  useEffect(() => {
+    const currentImageUrl = imagePreview || formData.profile_picture || formData.photo_url;
+    // Clear error state and reset the handled URLs set when image source changes
+    imageErrorHandledRef.current.clear();
+    setImageError(false);
+  }, [formData.profile_picture, formData.photo_url, imagePreview]);
 
   // Fetch employee data for editing
   useEffect(() => {
@@ -556,35 +603,73 @@ export default function EmployeeForm() {
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-8 border-b border-gray-200">
               <div className="flex items-center justify-center mb-6">
                 <div className="relative">
-                  {imagePreview || formData.profile_picture || formData.photo_url ? (
-                    <img
-                      key={`preview-${formData.profile_picture || formData.photo_url}`}
-                      src={imagePreview || formData.profile_picture || formData.photo_url}
-                      alt={formData.full_name || formData.name}
-                      className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-white shadow-lg"
-                      data-employee-id={id || 'new'}
-                      onError={(e) => {
-                        console.log(`Failed to load preview image: ${formData.profile_picture || formData.photo_url}`);
-                        e.target.style.display = 'none';
-                        const container = e.target.parentElement;
-                        if (container) {
-                          container.innerHTML = `
-                            <div class="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto border-4 border-white shadow-lg">
-                              <span class="text-3xl font-bold text-blue-600">
-                                ${(formData.full_name || formData.name || 'U')?.charAt(0)?.toUpperCase() || "?"}
-                              </span>
-                            </div>
-                          `;
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto border-4 border-white shadow-lg">
-                      <span className="text-3xl font-bold text-blue-600">
-                        {(formData.full_name || formData.name || 'U')?.charAt(0)?.toUpperCase() || "?"}
-                      </span>
-                    </div>
-                  )}
+                  {(() => {
+                    const imageUrl = imagePreview || formData.profile_picture || formData.photo_url;
+                    
+                    // Early validation - check if URL is invalid before attempting to load
+                    if (!imageUrl) {
+                      return (
+                        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto border-4 border-white shadow-lg">
+                          <span className="text-3xl font-bold text-blue-600">
+                            {(formData.full_name || formData.name || 'U')?.charAt(0)?.toUpperCase() || "?"}
+                          </span>
+                        </div>
+                      );
+                    }
+                    
+                    // Check if this URL is known to fail or is invalid
+                    const isInvalidUrl = imageErrorHandledRef.current.has(imageUrl) || 
+                                        (imageUrl.startsWith('blob:') && !imageUrl.startsWith(`blob:${window.location.origin}`));
+                    
+                    // If URL is invalid or we have an error state, show fallback
+                    if (isInvalidUrl || imageError) {
+                      return (
+                        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto border-4 border-white shadow-lg">
+                          <span className="text-3xl font-bold text-blue-600">
+                            {(formData.full_name || formData.name || 'U')?.charAt(0)?.toUpperCase() || "?"}
+                          </span>
+                        </div>
+                      );
+                    }
+                    
+                    // Try to load the image - only render if URL is valid
+                    return (
+                      <img
+                        key={`preview-${imageUrl}`}
+                        src={imageUrl}
+                        alt={formData.full_name || formData.name || 'Employee'}
+                        className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-white shadow-lg"
+                        data-employee-id={id || 'new'}
+                        onError={(e) => {
+                          // Prevent event bubbling and default behavior to avoid React DOM conflicts
+                          try {
+                            if (e && e.nativeEvent) {
+                              e.nativeEvent.stopImmediatePropagation();
+                            }
+                            if (e && e.stopPropagation) {
+                              e.stopPropagation();
+                            }
+                          } catch (err) {
+                            // Ignore errors in error handler
+                          }
+                          
+                          // Log for debugging (only once per URL)
+                          if (!imageErrorHandledRef.current.has(imageUrl)) {
+                            if (imageUrl && imageUrl.startsWith('blob:') && !imageUrl.startsWith(`blob:${window.location.origin}`)) {
+                              console.warn('Cross-origin blob URL detected, cannot load:', imageUrl);
+                            } else {
+                              console.warn('Failed to load preview image:', imageUrl);
+                            }
+                          }
+                          
+                          // Handle error safely without causing DOM conflicts
+                          handleImageError(imageUrl);
+                        }}
+                        onLoad={handleImageLoad}
+                        loading="lazy"
+                      />
+                    );
+                  })()}
                   
                   {/* Image Upload Button */}
                   <button
@@ -943,6 +1028,7 @@ export default function EmployeeForm() {
                             onChange={(e) => {
                               setFormData({ ...formData, profile_picture: e.target.value });
                               setImagePreview(null);
+                              setImageError(false);
                             }}
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                             placeholder="https://example.com/image.jpg"
