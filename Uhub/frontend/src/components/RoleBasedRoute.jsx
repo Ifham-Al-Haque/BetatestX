@@ -139,7 +139,17 @@ export const ROLE_PERMISSIONS = {
     bgColor: 'bg-emerald-50',
     icon: Shield,
     access: ['main_panel', 'slice_of_life', 'communication', 'hr_view_only', 'it_requests', 'todo_list', 'fleet_operations', 'subscribe_now_panel']
+  },
+  iot_management: {
+    level: 3,
+    name: 'IOT Management',
+    description: 'IOT Management role with access to home, slice of life, user profile, HR complaints, IT requests, todo list, and IOT panel',
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-50',
+    icon: Shield,
+    access: ['main_panel', 'slice_of_life', 'user_profile', 'hr_view_only', 'complaints', 'complaints_inbox', 'suggestions', 'it_requests', 'todo_list', 'iot_panel']
   }
+
 };
 
 // Feature access mapping
@@ -158,46 +168,47 @@ export const FEATURE_ACCESS = {
   csv_importer: ['admin'],
   
   // Main Panel Features - Subscribe Now has access to Home and Calendar View
-  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   dashboard: ['admin', 'manager', 'marketing_manager', 'marketing_management'], // Dashboard for admin and manager
-  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  organizational_hierarchy: ['admin', 'iot_management'],
   
   // Slice of Life Panel - Subscribe Now has access to ALL sections
-  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  slice_of_life: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  collections: ['admin', 'collections'], // Collection Department - Admin and Collections role access
+  events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  memories: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  slice_of_life: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  collections: ['admin', 'collections', 'iot_management'], // Collection Department - Admin, Collections, and IOT Management role access
   
   // Communication Panel - Subscribe Now has access to Team Chat
   communication: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   team_chat: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
   // User Profile - Subscribe Now has access
-  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  user_profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  profile: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   
   // HR Panel - Subscribe Now has access to Employees, Complaints, and Suggestions
   employees: ['admin', 'hr_manager', 'manager', 'collections', 'subscribe_now'], // Collections can access employee section
   employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only for others
   employee_records: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only employee records
-  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  complaints_inbox: ['admin', 'hr_manager', 'employee', 'collections'], // Admin, HR manager, employees, and collections see inbox
-  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  complaints: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  complaints_inbox: ['admin', 'hr_manager', 'employee', 'collections', 'iot_management'], // Admin, HR manager, employees, collections, and IOT management see inbox
+  suggestions: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   attendance: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   payroll: ['admin', 'hr_manager'],
   epr: ['admin', 'hr_manager'],
   
   // IT Service Panel - Subscribe Now has access to IT Request Section
-  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   it_assets: ['admin', 'it_management'],
   it_tickets: ['admin'],
   request_inbox: ['admin', 'it_management'],
   
   // Todo List Panel - Subscribe Now has access to ALL sections
-  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
-  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
+  todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  task_management: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
+  my_tasks: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   
   // Customer Service Panel - CS Manager has full access
   customer_service: ['admin', 'cs_manager'],
@@ -253,6 +264,10 @@ export const FEATURE_ACCESS = {
   marketing_events: ['admin', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   marketing_analytics: ['admin', 'marketing_manager', 'marketing_management'],
   
+  // IOT Panel Features
+  iot_panel: ['admin', 'it_management', 'data_operator', 'iot_management'],
+  iot_record: ['admin', 'it_management', 'data_operator', 'iot_management'],
+  
   // Additional features
   calendar: ['admin'],
   tickets: ['admin'],
@@ -299,7 +314,7 @@ export const getRoleNavigationAccess = (userRole) => {
   
   const roleAccess = {
     admin: {
-      panels: ['main', 'admin', 'user_profile', 'hr_panel', 'customer_service', 'it_services', 'driver_management', 'operation_panel', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel', 'marketing_panel'],
+      panels: ['main', 'admin', 'user_profile', 'hr_panel', 'customer_service', 'it_services', 'driver_management', 'operation_panel', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel', 'marketing_panel', 'iot_panel'],
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         admin: ['admin_dashboard', 'user_management'],
@@ -316,11 +331,12 @@ export const getRoleNavigationAccess = (userRole) => {
         communication: ['communication'],
         subscribe_panel: ['subscribe_now', 'ltr_reporting'],
         collections_panel: ['collections'],
-        marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics']
+        marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics'],
+        iot_panel: ['iot_record']
       }
     },
     data_operator: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'driver_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'driver_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'iot_panel'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
@@ -331,7 +347,8 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        subscribe_panel: ['subscribe_now']
+        subscribe_panel: ['subscribe_now'],
+        iot_panel: ['iot_record']
       }
     },
     finance: {
@@ -350,7 +367,7 @@ export const getRoleNavigationAccess = (userRole) => {
       }
     },
     it_management: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'iot_panel'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
@@ -361,7 +378,8 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        subscribe_panel: ['subscribe_now']
+        subscribe_panel: ['subscribe_now'],
+        iot_panel: ['iot_record']
       }
     },
     employee: {
@@ -517,6 +535,18 @@ export const getRoleNavigationAccess = (userRole) => {
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
         marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics']
+      }
+    },
+    iot_management: {
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'iot_panel'],
+      items: {
+        main: ['home', 'calendar_view', 'organizational_hierarchy'],
+        user_profile: ['profile', 'settings'],
+        hr_panel: ['complaints', 'complaints_inbox', 'suggestions'],
+        it_services: ['it_requests'],
+        todo_list: ['todo_list', 'task_management', 'my_tasks'],
+        slice_of_life: ['events', 'memories', 'collections'],
+        iot_panel: ['iot_record']
       }
     }
   };
@@ -748,6 +778,7 @@ export const useRoleAccess = () => {
       isHRManager: false,
       isCSManager: false,
       isDriverManagement: false,
+      isIOTManagement: false,
       isEmployee: false
     };
   }
@@ -765,6 +796,7 @@ export const useRoleAccess = () => {
     isCSManager: userRole === 'cs_manager',
     isDriverManagement: userRole === 'driver_management',
     isOperationManagement: userRole === 'operation_management',
+    isIOTManagement: userRole === 'iot_management',
     isEmployee: userRole === 'employee'
   };
 };

@@ -87,6 +87,7 @@ const FleetDeliveryChecklist = React.lazy(() => import('./pages/FleetDeliveryChe
 const FleetMaintenanceRecord = React.lazy(() => import('./pages/FleetMaintenanceRecord'));
 const MarketingCalendar = React.lazy(() => import('./pages/MarketingCalendar'));
 const OrganizationalHierarchy = React.lazy(() => import('./pages/OrganizationalHierarchy'));
+const IOTRecord = React.lazy(() => import('./pages/IOTRecord'));
 const RoleDebugger = React.lazy(() => import('./components/RoleDebugger'));
 
 function App() {
@@ -620,6 +621,15 @@ function App() {
                           <ProtectedRoute requiredFeature="marketing_calendar">
                             <Layout>
                               <MarketingCalendar />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* IOT Record */}
+                        <Route path="/iot-record" element={
+                          <ProtectedRoute requiredFeature="iot_record">
+                            <Layout>
+                              <IOTRecord />
                             </Layout>
                           </ProtectedRoute>
                         } />

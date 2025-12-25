@@ -141,6 +141,26 @@ const config = {
         'subscribe_now'
       ],
     },
+    iot_management: {
+      name: 'iot_management',
+      displayName: 'IOT Management',
+      permissions: [
+        // Home Panel
+        'home', 'calendar_view', 'organizational_hierarchy',
+        // Slice of Life (All Sections)
+        'slice_of_life', 'memories', 'events', 'collections',
+        // User Profile
+        'user_profile',
+        // HR Panel
+        'complaints', 'complaints_inbox', 'suggestions',
+        // IT Services
+        'it_requests',
+        // Todo List Panel (All Sections)
+        'todo_list', 'task_management', 'my_tasks',
+        // IOT Panel (All)
+        'iot_panel', 'iot_record'
+      ],
+    },
   },
 
   // Departments

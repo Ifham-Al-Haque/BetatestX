@@ -30,7 +30,8 @@ import {
   Sparkles,
   MessageCircle,
   Bell,
-  Folder
+  Folder,
+  Cpu
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -82,7 +83,8 @@ const Sidebar = () => {
     communication: true,
     subscribe_panel: true,
     collections_panel: true,
-    marketing_panel: true
+    marketing_panel: true,
+    iot_panel: true
   });
 
   // Track prefetched routes to avoid duplicate calls
@@ -162,6 +164,7 @@ const Sidebar = () => {
       items: [
         { label: 'Events', path: '/events', icon: Calendar, feature: 'events' },
         { label: 'Memories', path: '/memories', icon: Heart, feature: 'memories' },
+        { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections' },
         { label: 'Picture Upload', path: '/event-picture-upload', icon: Camera, feature: 'events' }
       ]
     },
@@ -302,6 +305,14 @@ const Sidebar = () => {
         { label: 'Marketing Dashboard', path: '/marketing-dashboard', icon: BarChart3, feature: 'marketing_dashboard' },
         { label: 'Marketing Events', path: '/marketing-events', icon: Calendar, feature: 'marketing_events' },
         { label: 'Marketing Analytics', path: '/marketing-analytics', icon: BarChart3, feature: 'marketing_analytics' }
+      ]
+    },
+    {
+      key: 'iot_panel',
+      title: 'IOT',
+      icon: Cpu,
+      items: [
+        { label: 'IOT Record', path: '/iot-record', icon: Database, feature: 'iot_record' }
       ]
     }
   ];

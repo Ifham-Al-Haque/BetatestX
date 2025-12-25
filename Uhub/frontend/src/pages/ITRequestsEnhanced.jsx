@@ -113,19 +113,65 @@ const ITRequestsEnhanced = () => {
 
   const isAdminOrManager = userProfile?.role === 'admin' || userProfile?.role === 'hr_manager';
 
-  // Old fetchData removed - now using React Query hooks above
+  // React Query hooks for data fetching
+  const { data: requestsData, isLoading: requestsLoading, refetch: refetchRequests, isRefetching: isRefetchingRequests } = useQuery({
+    queryKey: ['itRequests', filters, user?.id, userProfile?.role],
+    queryFn: async () => {
+      const data = await itServicesApi.requests.getAll(filters, user?.id, userProfile?.role);
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['itRequestCategories'],
+    queryFn: async () => {
+      const data = await itServicesApi.categories.getAll();
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000, // Categories don't change often
+  });
+
+  const { data: prioritiesData, isLoading: prioritiesLoading } = useQuery({
+    queryKey: ['itRequestPriorities'],
+    queryFn: async () => {
+      const data = await itServicesApi.priorities.getAll();
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000, // Priorities don't change often
+  });
+
+  // Extract data from queries
+  const requests = requestsData || [];
+  const categories = categoriesData || [];
+  const priorities = prioritiesData || [];
+  const loading = requestsLoading || categoriesLoading || prioritiesLoading;
+  const refreshing = isRefetchingRequests;
+
+  // Calculate stats from requests
+  useEffect(() => {
+    if (requests && Array.isArray(requests)) {
+      setStats({
+        total: requests.length,
+        open: requests.filter(r => r.status === 'open').length,
+        inProgress: requests.filter(r => r.status === 'in_progress').length,
+        resolved: requests.filter(r => r.status === 'resolved').length,
+        pending: requests.filter(r => r.status === 'pending_user').length
+      });
+    }
+  }, [requests]);
 
   const handleRefresh = async () => {
-    setRefreshing(true);
     try {
-      // Force refresh by clearing any potential caches
-      await fetchData();
+      await refetchRequests();
+      queryClient.invalidateQueries(['itRequestCategories']);
+      queryClient.invalidateQueries(['itRequestPriorities']);
       success('Data refreshed successfully');
     } catch (error) {
       console.error('Error refreshing data:', error);
       showError('Failed to refresh data', error.message);
-    } finally {
-      setRefreshing(false);
     }
   };
 

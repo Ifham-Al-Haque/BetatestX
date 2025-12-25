@@ -103,6 +103,13 @@ const RoleManager = ({ user, onRoleUpdate }) => {
       permissions: ['Home & Calendar', 'Slice of Life', 'Team Chat', 'HR Panel', 'IT Requests', 'Fleet Operations', 'Todo List', 'Subscribe Now Panel']
     },
     { 
+      value: 'iot_management', 
+      label: 'IOT Management', 
+      description: 'IOT Management role with access to home, slice of life, user profile, HR complaints, IT requests, todo list, and IOT panel',
+      color: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+      permissions: ['Home & Calendar', 'Organizational Hierarchy', 'Slice of Life (All)', 'User Profile (All)', 'HR Complaints & Suggestions', 'IT Requests', 'Todo List (All)', 'IOT Panel (All)']
+    },
+    { 
       value: 'employee', 
       label: 'Employee', 
       description: 'Standard user with read-only access to main panel and personal data',

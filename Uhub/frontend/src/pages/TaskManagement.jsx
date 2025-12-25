@@ -2077,7 +2077,8 @@ const TaskManagement = () => {
                                 await taskApi.update(selectedTask.id, { status: status.value });
                                 const updatedTask = { ...selectedTask, status: status.value };
                                 setSelectedTask(updatedTask);
-                                setTasks(tasks.map(t => t.id === selectedTask.id ? updatedTask : t));
+                                // Invalidate queries to refresh data
+                                queryClient.invalidateQueries(['tasks']);
                                 success('Success', `Task status updated to ${status.label}`);
                               } catch (err) {
                                 console.error('Error updating status:', err);
@@ -2220,12 +2221,9 @@ const TaskManagement = () => {
                           }
                           try {
                             const comment = await taskApi.addComment(selectedTask.id, newComment.trim());
-                            const updatedComments = {
-                              ...taskComments,
-                              [selectedTask.id]: [...(taskComments[selectedTask.id] || []), comment]
-                            };
-                            setTaskComments(updatedComments);
                             setNewComment('');
+                            // Invalidate queries to refresh comments
+                            queryClient.invalidateQueries(['tasks']);
                             success('Success', 'Comment added successfully!');
                           } catch (err) {
                             console.error('Error adding comment:', err);
