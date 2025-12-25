@@ -285,6 +285,7 @@ const InvitationManager = () => {
                 <option value="data_operator">Data Operator</option>
                 <option value="finance">Finance</option>
                 <option value="it_management">IT Management</option>
+                <option value="iot_management">IOT Management</option>
                 <option value="manager">Manager</option>
                 <option value="driver_management">Driver Management</option>
                 <option value="operation_management">Operation Management</option>

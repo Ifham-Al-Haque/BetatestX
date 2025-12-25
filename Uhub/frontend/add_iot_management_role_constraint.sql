@@ -1,10 +1,10 @@
--- Update Users Table Role Check Constraint
--- This script adds the new marketing and subscribe_now roles to the existing constraint
+-- Add IOT Management Role to Users Table Role Check Constraint
+-- This script adds the 'iot_management' role to the existing constraint
 
 -- Step 1: Drop the existing check constraint
 ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_role_check;
 
--- Step 2: Add the new check constraint with all roles
+-- Step 2: Add the new check constraint with all roles including iot_management
 ALTER TABLE public.users ADD CONSTRAINT users_role_check 
 CHECK (role IN (
     'admin', 
@@ -44,4 +44,5 @@ GROUP BY role
 ORDER BY role;
 
 -- Success message
-SELECT '✅ Users table role constraint updated successfully! All new roles are now allowed.' as status;
+SELECT '✅ Users table role constraint updated successfully! IOT Management role is now allowed.' as status;
+

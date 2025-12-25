@@ -35,7 +35,7 @@ CREATE POLICY "iot_records_select_policy" ON iot_records
             EXISTS (
                 SELECT 1 FROM users 
                 WHERE auth_user_id = auth.uid() 
-                AND role IN ('admin', 'it_management', 'data_operator')
+                AND role IN ('admin', 'it_management', 'data_operator', 'iot_management')
             )
         )
     );
@@ -48,7 +48,7 @@ CREATE POLICY "iot_records_insert_policy" ON iot_records
             EXISTS (
                 SELECT 1 FROM users 
                 WHERE auth_user_id = auth.uid() 
-                AND role IN ('admin', 'it_management', 'data_operator')
+                AND role IN ('admin', 'it_management', 'data_operator', 'iot_management')
             )
         )
     );
@@ -61,7 +61,7 @@ CREATE POLICY "iot_records_update_policy" ON iot_records
             EXISTS (
                 SELECT 1 FROM users 
                 WHERE auth_user_id = auth.uid() 
-                AND role IN ('admin', 'it_management', 'data_operator')
+                AND role IN ('admin', 'it_management', 'data_operator', 'iot_management')
             )
         )
     )
@@ -70,12 +70,12 @@ CREATE POLICY "iot_records_update_policy" ON iot_records
             EXISTS (
                 SELECT 1 FROM users 
                 WHERE auth_user_id = auth.uid() 
-                AND role IN ('admin', 'it_management', 'data_operator')
+                AND role IN ('admin', 'it_management', 'data_operator', 'iot_management')
             )
         )
     );
 
--- Policy for DELETE: Allow only admin
+-- Policy for DELETE: Allow admin, it_management, data_operator, and iot_management
 CREATE POLICY "iot_records_delete_policy" ON iot_records
     FOR DELETE
     USING (
@@ -83,7 +83,7 @@ CREATE POLICY "iot_records_delete_policy" ON iot_records
             EXISTS (
                 SELECT 1 FROM users 
                 WHERE auth_user_id = auth.uid() 
-                AND role = 'admin'
+                AND role IN ('admin', 'it_management', 'data_operator', 'iot_management')
             )
         )
     );

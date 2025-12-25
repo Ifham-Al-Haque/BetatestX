@@ -35,6 +35,7 @@ export default function AccessManagement() {
     { value: "data_operator", label: "Data Operator" },
     { value: "finance", label: "Finance" },
     { value: "it_management", label: "IT Management" },
+    { value: "iot_management", label: "IOT Management" },
     { value: "driver_management", label: "Driver Management" },
     { value: "operation_management", label: "Operation Management" },
     { value: "hr_manager", label: "HR Manager" },

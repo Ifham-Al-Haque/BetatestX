@@ -4,7 +4,7 @@ import {
   Users, Plus, Edit, Trash, Eye, EyeOff, Shield, 
   UserCheck, UserX, Mail, Phone, MapPin, Briefcase,
   Search, Filter, MoreVertical, Save, X, Lock, 
-  TrendingUp, Activity, Clock, Star
+  TrendingUp, Activity, Clock, Star, Cpu
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -63,6 +63,7 @@ export default function UserManagement() {
     { value: 'data_operator', label: 'Data Operator', color: 'bg-gradient-to-r from-orange-500 to-amber-500', icon: Briefcase, bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
     { value: 'finance', label: 'Finance', color: 'bg-gradient-to-r from-emerald-500 to-green-500', icon: Briefcase, bgColor: 'bg-emerald-50', textColor: 'text-emerald-700' },
     { value: 'it_management', label: 'IT Management', color: 'bg-gradient-to-r from-cyan-500 to-blue-500', icon: Briefcase, bgColor: 'bg-cyan-50', textColor: 'text-cyan-700' },
+    { value: 'iot_management', label: 'IOT Management', color: 'bg-gradient-to-r from-cyan-500 to-teal-500', icon: Cpu, bgColor: 'bg-cyan-50', textColor: 'text-cyan-700' },
     { value: 'manager', label: 'Manager', color: 'bg-gradient-to-r from-blue-500 to-indigo-500', icon: Briefcase, bgColor: 'bg-blue-50', textColor: 'text-blue-700' },
     { value: 'driver_management', label: 'Driver Management', color: 'bg-gradient-to-r from-green-500 to-emerald-500', icon: MapPin, bgColor: 'bg-green-50', textColor: 'text-green-700' },
     { value: 'operation_management', label: 'Operation Management', color: 'bg-gradient-to-r from-teal-500 to-cyan-500', icon: MapPin, bgColor: 'bg-teal-50', textColor: 'text-teal-700' },
