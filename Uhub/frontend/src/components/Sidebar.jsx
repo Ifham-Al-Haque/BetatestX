@@ -31,7 +31,8 @@ import {
   MessageCircle,
   Bell,
   Folder,
-  Cpu
+  Cpu,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -39,7 +40,7 @@ import { useTheme } from '../context/ThemeContext';
 import { canSeePanel, hasFeatureAccess } from './RoleBasedRoute';
 
 const Sidebar = () => {
-  const { isCollapsed, toggleSidebar } = useSidebar();
+  const { isCollapsed, toggleSidebar, isMobile, isMobileOpen, closeMobileSidebar } = useSidebar();
   const { isDark } = useTheme();
   const location = useLocation();
   const { user, userProfile, signOut } = useAuth();
@@ -67,24 +68,36 @@ const Sidebar = () => {
     userExists: !!user
   });
   
-  const [expandedPanels, setExpandedPanels] = useState({
-    main: true,
-    admin: true,
-    user_profile: true,
-    hr_panel: true,
-    customer_service: true,
-    it_services: true,
-    driver_management: true,
-    operation_panel: true,
-    asset_management: true,
-    financial: true,
-    todo_list: true,
-    slice_of_life: true,
-    communication: true,
-    subscribe_panel: true,
-    collections_panel: true,
-    marketing_panel: true,
-    iot_panel: true
+  // Initialize expanded panels from localStorage or default to collapsed (only main panel expanded)
+  const [expandedPanels, setExpandedPanels] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sidebar-expanded-panels');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.warn('Error loading sidebar panel state:', error);
+    }
+    // Default: only main panel expanded, all others collapsed
+    return {
+      main: true,
+      admin: false,
+      user_profile: false,
+      hr_panel: false,
+      customer_service: false,
+      it_services: false,
+      driver_management: false,
+      operation_panel: false,
+      asset_management: false,
+      financial: false,
+      todo_list: false,
+      slice_of_life: false,
+      communication: false,
+      subscribe_panel: false,
+      collections_panel: false,
+      marketing_panel: false,
+      iot_panel: false
+    };
   });
 
   // Track prefetched routes to avoid duplicate calls
@@ -100,10 +113,19 @@ const Sidebar = () => {
   };
 
   const togglePanel = (panelKey) => {
-    setExpandedPanels(prev => ({
-      ...prev,
-      [panelKey]: !prev[panelKey]
-    }));
+    setExpandedPanels(prev => {
+      const newState = {
+        ...prev,
+        [panelKey]: !prev[panelKey]
+      };
+      // Save to localStorage
+      try {
+        localStorage.setItem('sidebar-expanded-panels', JSON.stringify(newState));
+      } catch (error) {
+        console.warn('Error saving sidebar panel state:', error);
+      }
+      return newState;
+    });
   };
 
   const isActive = (path) => location.pathname === path;
@@ -332,42 +354,61 @@ const Sidebar = () => {
     });
   };
 
+  // Enhanced animation variants with spring physics for smoother feel
   const panelVariants = {
-    hidden: { opacity: 0, height: 0 },
+    hidden: { 
+      opacity: 0, 
+      height: 0,
+      scale: 0.95
+    },
     visible: { 
       opacity: 1, 
       height: 'auto',
+      scale: 1,
       transition: {
-        duration: 0.3,
-        ease: "easeInOut"
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+        mass: 0.8
       }
     },
     exit: { 
       opacity: 0, 
       height: 0,
+      scale: 0.95,
       transition: {
-        duration: 0.2,
-        ease: "easeInOut"
+        type: "spring",
+        stiffness: 400,
+        damping: 35,
+        mass: 0.5
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, x: -10 },
+    hidden: { 
+      opacity: 0, 
+      x: -15,
+      scale: 0.9
+    },
     visible: { 
       opacity: 1, 
       x: 0,
+      scale: 1,
       transition: {
-        duration: 0.2,
-        ease: "easeOut"
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
+        mass: 0.5
       }
     },
     exit: { 
       opacity: 0, 
       x: -10,
+      scale: 0.95,
       transition: {
-        duration: 0.1,
-        ease: "easeIn"
+        duration: 0.15,
+        ease: [0.4, 0, 1, 1]
       }
     }
   };
@@ -376,46 +417,87 @@ const Sidebar = () => {
     return (
       <motion.div
         initial={{ width: isCollapsed ? 80 : 280 }}
-        animate={{ width: isCollapsed ? 80 : 280 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="h-full border-r shadow-lg transition-all duration-500"
+        animate={{ 
+          width: isMobile ? 280 : (isCollapsed ? 80 : 280),
+          x: isMobile && !isMobileOpen ? -280 : 0
+        }}
+        transition={{ 
+          type: "spring",
+          stiffness: 300,
+          damping: 30,
+          mass: 0.8
+        }}
+        className={`h-full border-r shadow-xl transition-all duration-500 ${
+          isMobile ? 'fixed left-0 top-0 z-50' : ''
+        }`}
         style={{
           background: 'var(--bg-sidebar)',
           borderColor: 'var(--border-primary)',
-          color: 'var(--text-primary)'
+          color: 'var(--text-primary)',
+          width: isMobile ? '280px' : undefined,
+          // iOS safe area insets
+          paddingTop: isMobile ? 'max(0px, env(safe-area-inset-top))' : undefined,
+          paddingBottom: isMobile ? 'max(0px, env(safe-area-inset-bottom))' : undefined,
+          maxHeight: isMobile ? '100vh' : undefined,
+          overflowY: isMobile ? 'auto' : undefined,
+          WebkitOverflowScrolling: isMobile ? 'touch' : undefined,
+          // Better shadow on mobile
+          boxShadow: isMobile ? '2px 0 8px rgba(0, 0, 0, 0.15)' : undefined
         }}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
           <div 
-            className="p-4 border-b transition-all duration-300"
+            className={`${isMobile ? 'p-3' : 'p-4'} border-b transition-all duration-300`}
             style={{
               borderColor: 'var(--border-primary)',
-              background: 'var(--gradient-primary)'
+              background: 'var(--gradient-primary)',
+              paddingTop: isMobile ? 'max(0.75rem, env(safe-area-inset-top))' : undefined
             }}
           >
             <div className="flex items-center justify-between">
               <motion.button
-                onClick={toggleSidebar}
-                className="p-2 rounded-lg text-white transition-colors duration-200"
+                onClick={isMobile ? closeMobileSidebar : toggleSidebar}
+                className={`${isMobile ? 'p-2.5' : 'p-2'} rounded-lg text-white touch-manipulation`}
                 style={{
                   background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)'
+                  backdropFilter: 'blur(10px)',
+                  minWidth: isMobile ? '44px' : undefined,
+                  minHeight: isMobile ? '44px' : undefined,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  WebkitTapHighlightColor: 'transparent'
                 }}
-                whileHover={{ 
+                whileHover={!isMobile ? { 
                   scale: 1.05,
-                  background: 'rgba(255, 255, 255, 0.2)'
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  transition: {
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 25
+                  }
+                } : {}}
+                whileTap={{ 
+                  scale: 0.95,
+                  transition: {
+                    type: "spring",
+                    stiffness: 600,
+                    damping: 30
+                  }
                 }}
-                whileTap={{ scale: 0.95 }}
+                aria-label={isMobile ? "Close menu" : "Toggle sidebar"}
               >
-                {isCollapsed ? (
+                {isMobile ? (
+                  <X className="w-5 h-5" />
+                ) : isCollapsed ? (
                   <ChevronRight className="w-5 h-5" />
                 ) : (
                   <ChevronLeft className="w-5 h-5" />
                 )}
               </motion.button>
               
-              {!isCollapsed && (
+              {(!isCollapsed || isMobile) && (
                 <motion.div
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: 'auto' }}
@@ -497,7 +579,13 @@ const Sidebar = () => {
           </div>
 
           {/* Navigation Panels */}
-          <div className="flex-1 overflow-y-auto p-2">
+          <div 
+            className={`flex-1 overflow-y-auto ${isMobile ? 'p-2' : 'p-2'}`}
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain'
+            }}
+          >
             <div className="space-y-2">
               {filteredPanels.map((panel) => {
                 const Icon = panel.icon;
@@ -510,27 +598,52 @@ const Sidebar = () => {
                 }
                 
                 return (
-                  <div 
+                  <motion.div 
                     key={panel.key} 
-                    className="rounded-lg shadow-sm border overflow-hidden transition-all duration-300"
+                    className="rounded-lg shadow-sm border overflow-hidden"
                     style={{
                       background: 'var(--card-bg)',
                       borderColor: 'var(--card-border)',
                       boxShadow: 'var(--shadow-sm)'
                     }}
+                    whileHover={!isMobile ? {
+                      boxShadow: 'var(--shadow-md)',
+                      borderColor: 'var(--border-accent)',
+                      transition: {
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 25
+                      }
+                    } : {}}
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 25
+                    }}
                   >
                     {/* Panel Header */}
-                    <button
+                    <motion.button
                       onClick={() => togglePanel(panel.key)}
-                      className="w-full p-3 flex items-center justify-between transition-colors duration-200"
+                      className="w-full p-3 flex items-center justify-between group relative"
                       style={{
                         background: 'transparent'
                       }}
-                      onMouseEnter={(e) => {
-                        e.target.style.background = 'var(--card-hover)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.background = 'transparent';
+                      title={isCollapsed && !isMobile ? panel.title : undefined}
+                      whileHover={!isMobile ? {
+                        background: 'var(--card-hover)',
+                        transition: {
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 30
+                        }
+                      } : {}}
+                      whileTap={{
+                        scale: 0.98,
+                        transition: {
+                          type: "spring",
+                          stiffness: 600,
+                          damping: 30
+                        }
                       }}
                     >
                       <div className="flex items-center space-x-3">
@@ -538,7 +651,7 @@ const Sidebar = () => {
                           className="w-5 h-5 transition-colors duration-300"
                           style={{ color: 'var(--text-secondary)' }}
                         />
-                        {!isCollapsed && (
+                        {(!isCollapsed || isMobile) && (
                           <span 
                             className="text-sm font-medium transition-colors duration-300"
                             style={{ color: 'var(--text-primary)' }}
@@ -547,18 +660,22 @@ const Sidebar = () => {
                           </span>
                         )}
                       </div>
-                      {!isCollapsed && (
+                      {(!isCollapsed || isMobile) && (
                         <motion.div
                           animate={{ rotate: isExpanded ? 180 : 0 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 25
+                          }}
                         >
                           <ChevronDown 
-                            className="w-4 h-4 transition-colors duration-300"
+                            className="w-4 h-4"
                             style={{ color: 'var(--text-muted)' }}
                           />
                         </motion.div>
                       )}
-                    </button>
+                    </motion.button>
 
                     {/* Panel Content */}
                     <AnimatePresence>
@@ -581,58 +698,138 @@ const Sidebar = () => {
                                   variants={itemVariants}
                                   initial="hidden"
                                   animate="visible"
-                                  transition={{ delay: index * 0.05 }}
+                                  transition={{ delay: index * 0.03 }}
                                 >
-                                  <Link
-                                    to={item.path}
-                                    className={`flex items-center px-3 py-2 rounded-lg text-sm transition-all duration-300 ${isCollapsed ? 'justify-center' : ''}`}
-                                    style={{
-                                      background: active ? 'var(--bg-sidebar-active)' : 'transparent',
-                                      color: active ? 'var(--text-accent)' : 'var(--text-secondary)',
-                                      border: active ? '1px solid var(--border-accent)' : '1px solid transparent'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (!active) {
-                                        e.target.style.background = 'var(--bg-sidebar-hover)';
-                                        e.target.style.color = 'var(--text-primary)';
-                                        
-                                        // Debounce prefetch to avoid rapid successive calls
-                                        if (prefetchTimeoutRef.current) {
-                                          clearTimeout(prefetchTimeoutRef.current);
-                                        }
-                                        
-                                        prefetchTimeoutRef.current = setTimeout(() => {
-                                          // Skip if already prefetched
-                                          if (!prefetchedRoutesRef.current.has(item.path)) {
-                                            prefetchedRoutesRef.current.add(item.path);
-                                            // Prefetch data for this route (non-blocking)
-                                            prefetchRoute(item.path).catch(err => {
-                                              // Remove from set on error so it can be retried
-                                              prefetchedRoutesRef.current.delete(item.path);
-                                              // Silently handle prefetch errors - they shouldn't affect UX
-                                              console.debug('Prefetch failed for', item.path, err);
-                                            });
-                                          }
-                                        }, 300); // 300ms debounce
+                                  <motion.div
+                                    className="relative"
+                                    whileHover={!isMobile && !active ? {
+                                      x: 4,
+                                      transition: {
+                                        type: "spring",
+                                        stiffness: 400,
+                                        damping: 25
                                       }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      if (!active) {
-                                        e.target.style.background = 'transparent';
-                                        e.target.style.color = 'var(--text-secondary)';
-                                      }
-                                    }}
+                                    } : {}}
                                   >
-                                    <ItemIcon 
-                                      className={`${isCollapsed ? 'w-6 h-6' : 'w-4 h-4 mr-3'}`}
-                                      style={{ 
-                                        color: active ? 'var(--text-accent)' : 'var(--text-muted)' 
+                                    <Link
+                                      to={item.path}
+                                      className={`flex items-center ${isMobile ? 'px-3 py-3' : 'px-3 py-2'} rounded-lg text-sm ${isCollapsed && !isMobile ? 'justify-center' : ''} touch-manipulation relative overflow-hidden group`}
+                                      style={{
+                                        background: active ? 'var(--bg-sidebar-active)' : 'transparent',
+                                        color: active ? 'var(--text-accent)' : 'var(--text-secondary)',
+                                        borderLeft: active ? '3px solid var(--border-accent)' : '3px solid transparent',
+                                        minHeight: isMobile ? '44px' : undefined,
+                                        WebkitTapHighlightColor: 'transparent',
+                                        touchAction: 'manipulation',
+                                        position: 'relative'
                                       }}
-                                    />
-                                    {!isCollapsed && (
-                                      <span>{item.label}</span>
-                                    )}
-                                  </Link>
+                                      title={isCollapsed && !isMobile ? item.label : undefined}
+                                      onClick={() => {
+                                        if (isMobile) {
+                                          closeMobileSidebar();
+                                        }
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        if (!active && !isMobile) {
+                                          // Debounce prefetch to avoid rapid successive calls
+                                          if (prefetchTimeoutRef.current) {
+                                            clearTimeout(prefetchTimeoutRef.current);
+                                          }
+                                          
+                                          prefetchTimeoutRef.current = setTimeout(() => {
+                                            // Skip if already prefetched
+                                            if (!prefetchedRoutesRef.current.has(item.path)) {
+                                              prefetchedRoutesRef.current.add(item.path);
+                                              // Prefetch data for this route (non-blocking)
+                                              prefetchRoute(item.path).catch(err => {
+                                                // Remove from set on error so it can be retried
+                                                prefetchedRoutesRef.current.delete(item.path);
+                                                // Silently handle prefetch errors - they shouldn't affect UX
+                                                console.debug('Prefetch failed for', item.path, err);
+                                              });
+                                            }
+                                          }, 300); // 300ms debounce
+                                        }
+                                      }}
+                                    >
+                                      {/* Active indicator glow effect */}
+                                      {active && (
+                                        <motion.div
+                                          className="absolute inset-0 rounded-lg"
+                                          style={{
+                                            background: 'linear-gradient(90deg, var(--border-accent) 0%, transparent 100%)',
+                                            opacity: 0.1
+                                          }}
+                                          initial={{ opacity: 0 }}
+                                          animate={{ opacity: 0.15 }}
+                                          transition={{
+                                            type: "spring",
+                                            stiffness: 300,
+                                            damping: 30
+                                          }}
+                                        />
+                                      )}
+                                      
+                                      {/* Hover background effect */}
+                                      <motion.div
+                                        className="absolute inset-0 rounded-lg"
+                                        style={{
+                                          background: active ? 'var(--bg-sidebar-active)' : 'var(--bg-sidebar-hover)',
+                                          opacity: 0
+                                        }}
+                                        whileHover={!isMobile ? {
+                                          opacity: active ? 1 : 0.6,
+                                          transition: {
+                                            type: "spring",
+                                            stiffness: 400,
+                                            damping: 25
+                                          }
+                                        } : {}}
+                                      />
+                                      
+                                      <div className="relative z-10 flex items-center w-full">
+                                        <motion.div
+                                          animate={active ? {
+                                            scale: 1.1,
+                                            transition: {
+                                              type: "spring",
+                                              stiffness: 400,
+                                              damping: 20
+                                            }
+                                          } : {
+                                            scale: 1
+                                          }}
+                                        >
+                                          <ItemIcon 
+                                            className={`${isCollapsed && !isMobile ? 'w-6 h-6' : 'w-4 h-4 mr-3'}`}
+                                            style={{ 
+                                              color: active ? 'var(--text-accent)' : 'var(--text-muted)',
+                                              filter: active ? 'drop-shadow(0 0 4px var(--border-accent))' : 'none'
+                                            }}
+                                          />
+                                        </motion.div>
+                                        {(!isCollapsed || isMobile) && (
+                                          <motion.span
+                                            animate={active ? {
+                                              fontWeight: 600,
+                                              transition: {
+                                                type: "spring",
+                                                stiffness: 400,
+                                                damping: 25
+                                              }
+                                            } : {
+                                              fontWeight: 400
+                                            }}
+                                            style={{
+                                              color: active ? 'var(--text-accent)' : 'var(--text-secondary)'
+                                            }}
+                                          >
+                                            {item.label}
+                                          </motion.span>
+                                        )}
+                                      </div>
+                                    </Link>
+                                  </motion.div>
                                 </motion.div>
                               );
                             })}
@@ -640,7 +837,7 @@ const Sidebar = () => {
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
@@ -648,31 +845,55 @@ const Sidebar = () => {
 
           {/* Footer */}
           <div 
-            className="p-4 border-t transition-all duration-300"
+            className={`${isMobile ? 'p-3' : 'p-4'} border-t transition-all duration-300`}
             style={{
               borderColor: 'var(--border-primary)',
-              background: 'var(--bg-secondary)'
+              background: 'var(--bg-secondary)',
+              paddingBottom: isMobile ? 'max(0.75rem, env(safe-area-inset-bottom))' : undefined
             }}
           >
-            <button
+            <motion.button
               onClick={handleSignOut}
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 w-full"
+              className={`flex items-center ${isMobile ? 'space-x-3 px-3 py-3' : 'space-x-3 px-3 py-2'} rounded-lg text-sm font-medium w-full touch-manipulation relative overflow-hidden`}
               style={{
                 color: 'var(--text-danger)',
-                background: 'transparent'
+                background: 'transparent',
+                minHeight: isMobile ? '44px' : undefined,
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation'
               }}
-              onMouseEnter={(e) => {
-                e.target.style.background = 'var(--accent-danger)';
-                e.target.style.color = 'white';
+              whileHover={!isMobile ? {
+                background: 'var(--accent-danger)',
+                color: 'white',
+                scale: 1.02,
+                transition: {
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25
+                }
+              } : {}}
+              whileTap={{
+                scale: 0.98,
+                transition: {
+                  type: "spring",
+                  stiffness: 600,
+                  damping: 30
+                }
               }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'transparent';
-                e.target.style.color = 'var(--text-danger)';
+              onTouchStart={(e) => {
+                e.currentTarget.style.background = 'var(--accent-danger)';
+                e.currentTarget.style.color = 'white';
+              }}
+              onTouchEnd={(e) => {
+                setTimeout(() => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'var(--text-danger)';
+                }, 150);
               }}
             >
               <Settings className="w-5 h-5" />
               <AnimatePresence>
-                {!isCollapsed && (
+                {(!isCollapsed || isMobile) && (
                   <motion.span
                     initial={{ opacity: 0, width: 0 }}
                     animate={{ opacity: 1, width: 'auto' }}
@@ -683,7 +904,7 @@ const Sidebar = () => {
                   </motion.span>
                 )}
               </AnimatePresence>
-            </button>
+            </motion.button>
           </div>
         </div>
       </motion.div>

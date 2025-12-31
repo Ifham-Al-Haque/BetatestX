@@ -857,3 +857,258 @@
     padding: 0;
   }
 }
+
+/* Mobile-First Responsive Utilities */
+
+/* Base mobile styles (applied to all screens) */
+* {
+  -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Mobile breakpoint: 0-767px */
+@media (max-width: 767px) {
+  /* Typography scaling for mobile */
+  h1 { font-size: 1.75rem; line-height: 1.2; }
+  h2 { font-size: 1.5rem; line-height: 1.3; }
+  h3 { font-size: 1.25rem; line-height: 1.4; }
+  h4 { font-size: 1.125rem; line-height: 1.4; }
+  h5 { font-size: 1rem; line-height: 1.5; }
+  h6 { font-size: 0.875rem; line-height: 1.5; }
+  
+  /* Container max-widths */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Better spacing on mobile */
+  .space-y-4 > * + * { margin-top: 1rem; }
+  .space-y-6 > * + * { margin-top: 1.5rem; }
+  .space-y-8 > * + * { margin-top: 2rem; }
+  
+  /* Stack flex items on mobile */
+  .flex-col-mobile {
+    flex-direction: column;
+  }
+  
+  /* Full width on mobile */
+  .w-full-mobile {
+    width: 100%;
+  }
+  
+  /* Hide on mobile */
+  .hidden-mobile {
+    display: none !important;
+  }
+  
+  /* Show only on mobile */
+  .block-mobile {
+    display: block !important;
+  }
+  
+  /* Grid adjustments */
+  .grid-responsive {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  /* Card adjustments */
+  .card-responsive {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Table overflow */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block;
+    width: 100%;
+  }
+  
+  .table-responsive table {
+    min-width: 600px;
+  }
+  
+  /* Modal adjustments */
+  .modal-responsive {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  
+  /* Form adjustments */
+  .form-responsive .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-responsive input,
+  .form-responsive textarea,
+  .form-responsive select {
+    width: 100%;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Button groups stack on mobile */
+  .button-group-responsive {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .button-group-responsive button,
+  .button-group-responsive .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .button-group-responsive button:last-child,
+  .button-group-responsive .btn:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* Tablet breakpoint: 768px-1023px */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Typography scaling for tablet */
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.5rem; }
+  
+  /* Grid adjustments for tablet */
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  /* Show tablet-specific elements */
+  .hidden-tablet {
+    display: none !important;
+  }
+  
+  .block-tablet {
+    display: block !important;
+  }
+  
+  /* Button groups can be horizontal on tablet */
+  .button-group-responsive {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .button-group-responsive button,
+  .button-group-responsive .btn {
+    width: auto;
+    margin-bottom: 0;
+  }
+}
+
+/* Desktop breakpoint: 1024px+ */
+@media (min-width: 1024px) {
+  /* Hide mobile/tablet specific elements */
+  .hidden-desktop {
+    display: none !important;
+  }
+  
+  .block-desktop {
+    display: block !important;
+  }
+  
+  /* Grid adjustments for desktop */
+  .grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+  
+  /* Full desktop features */
+  .desktop-only {
+    display: block !important;
+  }
+}
+
+/* Large desktop breakpoint: 1280px+ */
+@media (min-width: 1280px) {
+  .grid-responsive {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch targets */
+  button,
+  .btn,
+  a,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .hover\:scale-105:hover {
+    transform: none;
+  }
+  
+  /* Better focus states for touch */
+  *:focus {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 767px) and (orientation: landscape) {
+  /* Reduce padding in landscape */
+  .container {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Smaller headers in landscape */
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.25rem; }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders and shadows */
+  .card,
+  .border {
+    border-width: 0.5px;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Dark mode mobile optimizations */
+@media (max-width: 767px) {
+  .dark {
+    /* Better contrast on mobile dark mode */
+    --color-bg-primary: #0a0e14;
+    --color-bg-secondary: #151a23;
+  }
+  
+  /* Softer shadows on mobile dark mode */
+  .dark .shadow-md {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .dark .shadow-lg {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+}

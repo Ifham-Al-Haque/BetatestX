@@ -30,6 +30,7 @@ import {
   Clock,
   Target
 } from 'lucide-react';
+import WidgetNavigation from '../components/WidgetNavigation';
 
 const UserWelcome = () => {
   const { user, userProfile, role } = useAuth();
@@ -153,27 +154,27 @@ const UserWelcome = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* Enhanced Header with Glass Effect */}
-      <div className="relative z-10 p-6 mb-8">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-2xl flex items-center justify-center shadow-lg">
-              <Home className="w-6 h-6 text-white" />
+      {/* Enhanced Header with Glass Effect - Mobile Optimized */}
+      <div className="relative z-10 p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 md:mb-8">
+        <div className="flex justify-between items-center gap-2 sm:gap-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <Home className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent truncate">
                 UHub
               </h1>
-              <p className="text-sm text-blue-200">Unified platform for all departments</p>
+              <p className="text-xs sm:text-sm text-blue-200 truncate">Unified platform for all departments</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right text-white">
-              <p className="text-sm font-medium">{userProfile?.full_name || user?.email}</p>
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+            <div className="text-right text-white hidden sm:block">
+              <p className="text-sm font-medium truncate max-w-[120px]">{userProfile?.full_name || user?.email}</p>
               <p className="text-xs text-blue-200 capitalize">{role || 'User'}</p>
             </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-white font-semibold text-sm">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
+              <span className="text-white font-semibold text-xs sm:text-sm">
                 {(userProfile?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
               </span>
             </div>
@@ -181,113 +182,91 @@ const UserWelcome = () => {
         </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="relative px-6 pb-20">
+      {/* Hero Section - Mobile Optimized */}
+      <div className="relative px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20">
         <div className="max-w-7xl mx-auto text-center">
           {/* Animated welcome text */}
           <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <motion.div
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
-              className="w-24 h-24 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl"
+              className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 md:mb-8 shadow-2xl"
             >
-              <welcome.icon className="w-12 h-12 text-white" />
+              <welcome.icon className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
             </motion.div>
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-bold text-white mb-3 sm:mb-4 md:mb-6 leading-tight px-2">
               {welcome.title.split('!')[0]}!{' '}
               <span className="bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
                 {welcome.title.split('!')[1] || ''}
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-sm sm:text-base md:text-xl lg:text-2xl text-blue-100 mb-6 sm:mb-8 max-w-4xl mx-auto leading-relaxed px-2">
               {welcome.subtitle}
             </p>
           </div>
 
-          {/* Enhanced Quick Actions */}
-          <div className={`mb-16 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 max-w-6xl mx-auto">
-              {quickActions.map((action, index) => (
-                <motion.div
-                  key={action.path}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="group"
-                >
-                  <a
-                    href={action.path}
-                    className="block p-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl hover:bg-white/20 transition-all duration-300 text-center group-hover:shadow-2xl group-hover:shadow-blue-500/25"
-                  >
-                    <div className={`w-16 h-16 bg-gradient-to-r ${action.color} rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                      <action.icon className="w-8 h-8 text-white" />
-                    </div>
-                    <p className="text-sm font-semibold text-white mb-1 group-hover:text-emerald-300 transition-colors">
-                      {action.label}
-                    </p>
-                    <p className="text-xs text-blue-200 opacity-80">
-                      {action.description}
-                    </p>
-                  </a>
-                </motion.div>
-              ))}
+          {/* Enhanced Widget Navigation - Mobile Optimized */}
+          <div className={`mb-8 sm:mb-12 md:mb-16 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <div className="max-w-7xl mx-auto px-2 sm:px-4">
+              <WidgetNavigation userRole={role || userProfile?.role || user?.role} />
             </div>
           </div>
 
-          {/* Trust indicators */}
-          <div className={`flex flex-wrap justify-center items-center gap-8 text-white/70 transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-emerald-400" />
-              <span>Enterprise Security</span>
+          {/* Trust indicators - Mobile Optimized */}
+          <div className={`flex flex-wrap justify-center items-center gap-4 sm:gap-6 md:gap-8 text-white/70 transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 flex-shrink-0" />
+              <span className="text-xs sm:text-sm">Enterprise Security</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-blue-400" />
-              <span>Lightning Fast</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />
+              <span className="text-xs sm:text-sm">Lightning Fast</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-purple-400" />
-              <span>Global Access</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400 flex-shrink-0" />
+              <span className="text-xs sm:text-sm">Global Access</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Feature Showcase */}
-      <div className="relative px-6 pb-20">
+      {/* Feature Showcase - Mobile Optimized */}
+      <div className="relative px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4 md:mb-6 px-2">
               Powerful Features for{' '}
               <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
                 {role === 'admin' ? 'Administrators' : 'Team Members'}
               </span>
             </h2>
-            <p className="text-xl text-blue-100 max-w-3xl mx-auto">
+            <p className="text-sm sm:text-base md:text-xl text-blue-100 max-w-3xl mx-auto px-2">
               From analytics to task management, we provide comprehensive tools 
               that streamline your workflow and boost productivity.
             </p>
           </div>
           
-          {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          {/* Feature Cards - Mobile Optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-8 sm:mb-12 md:mb-16">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                className={`${feature.bgColor} rounded-2xl p-8 text-center hover:transform hover:scale-105 transition-all duration-300 cursor-pointer border border-white/10 backdrop-blur-sm ${
+                className={`${feature.bgColor} rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center hover:transform hover:scale-105 transition-all duration-300 cursor-pointer border border-white/10 backdrop-blur-sm touch-manipulation ${
                   index === currentFeature ? 'ring-2 ring-blue-500 shadow-xl shadow-blue-500/25' : ''
                 }`}
                 onClick={() => handleFeatureClick(index)}
+                style={{
+                  WebkitTapHighlightColor: 'transparent'
+                }}
               >
-                <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg`}>
-                  <feature.icon className="w-8 h-8 text-white" />
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r ${feature.color} rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 md:mb-6 shadow-lg`}>
+                  <feature.icon className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{feature.title}</h3>
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{feature.description}</p>
+                <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3">{feature.title}</h3>
+                <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </div>

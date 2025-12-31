@@ -742,6 +742,142 @@
   }
 }
 
+/* Enhanced Mobile Optimizations for Dashboard */
+@media (max-width: 768px) {
+  /* Welcome section mobile optimization */
+  .welcome-section {
+    padding: 1rem 0;
+    margin-bottom: 1.5rem;
+  }
+  
+  .welcome-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+  
+  .welcome-title {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    margin-bottom: 0.5rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding: 0 0.5rem;
+  }
+  
+  /* Quick actions mobile */
+  .quick-actions-bar {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+  
+  .quick-actions-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .quick-actions-title {
+    font-size: 1.125rem;
+  }
+  
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  /* Summary cards mobile */
+  .summary-card {
+    padding: 1rem !important;
+    min-height: 120px;
+  }
+  
+  .summary-card-content {
+    gap: 0.75rem;
+  }
+  
+  .summary-card-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0.5rem !important;
+  }
+  
+  .summary-card-icon svg {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+  }
+  
+  /* Dashboard grid mobile */
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .dashboard-grid.cols-2,
+  .dashboard-grid.cols-3,
+  .dashboard-grid.cols-4 {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Animated cards mobile */
+  .animated-card {
+    padding: 1rem !important;
+    min-height: auto;
+  }
+  
+  /* Section headers mobile */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .section-header-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .section-header-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  .section-header-title {
+    font-size: 1.125rem;
+  }
+  
+  .section-header-subtitle {
+    font-size: 0.75rem;
+  }
+  
+  /* Notifications mobile */
+  .dashboard-notifications {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+  
+  .notification-card {
+    padding: 0.75rem;
+  }
+  
+  /* Refresh button mobile */
+  .refresh-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    min-height: 40px;
+    width: 100%;
+  }
+  
+  /* Global filter mobile */
+  .global-filter-container {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+}
+
 /* Loading skeleton animations */
 @keyframes pulse {
   0%, 100% {
