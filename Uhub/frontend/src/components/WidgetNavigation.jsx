@@ -27,7 +27,8 @@ import {
   Bell,
   Folder,
   Cpu,
-  X
+  X,
+  Archive
 } from 'lucide-react';
 import { canSeePanel, hasFeatureAccess } from './RoleBasedRoute';
 
@@ -85,6 +86,7 @@ const widgetConfig = [
       { label: 'Employee Records', path: '/employee-records', icon: Users, feature: 'employees_view_only', description: 'View records' },
       { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding', description: 'Onboard staff' },
       { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding', description: 'Offboard staff' },
+      { label: 'Employee History', path: '/employee-history', icon: Archive, feature: 'employees', description: 'View archived employees' },
       { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance', description: 'Track attendance' },
       { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints', description: 'Issue tracking' },
       { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox', description: 'View complaints' },

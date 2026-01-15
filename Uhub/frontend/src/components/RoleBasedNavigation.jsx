@@ -5,7 +5,7 @@ import {
   Car, Headphones, FileText, Calendar, 
   UserCheck, Building, Database, Cog, AlertTriangle,
   CheckSquare, ClipboardList, Inbox, Lightbulb,
-  Truck, MapPin, Route
+  Truck, MapPin, Route, Archive
 } from 'lucide-react';
 import { useRoleAccess, ROLE_PERMISSIONS } from './RoleBasedRoute';
 import { useSidebar } from '../context/SidebarContext';
@@ -162,6 +162,14 @@ const NAVIGATION_ITEMS = {
     icon: FileText,
     roles: ['admin', 'manager', 'driver_management', 'hr_manager'],
     description: 'Add or edit employee information'
+  },
+
+  employee_history: {
+    path: '/employee-history',
+    label: 'Employee History',
+    icon: Archive,
+    roles: ['admin', 'manager', 'hr_manager'],
+    description: 'View archived employees who are no longer working'
   },
 
   // Sim Card Management

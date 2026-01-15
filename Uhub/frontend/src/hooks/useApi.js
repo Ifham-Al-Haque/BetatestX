@@ -66,6 +66,47 @@ export const useDeleteEmployee = () => {
   });
 };
 
+export const useArchiveEmployee = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: apiService.employees.archive,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['archived-employees']);
+    },
+    onError: (error) => {
+      console.error('Archive employee error:', error);
+      throw new Error(handleApiError(error));
+    },
+  });
+};
+
+export const useUnarchiveEmployee = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: apiService.employees.unarchive,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['archived-employees']);
+    },
+    onError: (error) => {
+      console.error('Unarchive employee error:', error);
+      throw new Error(handleApiError(error));
+    },
+  });
+};
+
+export const useArchivedEmployees = (page = 1, limit = 50, search = '') => {
+  return useQuery({
+    queryKey: ['archived-employees', page, limit, search],
+    queryFn: () => apiService.employees.getArchived(page, limit, search),
+    staleTime: 30 * 1000,
+    keepPreviousData: true,
+  });
+};
+
 // Asset hooks
 export const useAssets = (page = 1, limit = 50, filters = {}) => {
   return useQuery({

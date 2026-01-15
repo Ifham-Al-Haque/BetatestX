@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 export const apiService = {
   // Employee APIs
   employees: {
-    getAll: async (page = 1, limit = 50, search = '') => {
+    getAll: async (page = 1, limit = 50, search = '', includeArchived = false) => {
       let query = supabase
         .from('employees')
         .select(`
@@ -22,12 +22,20 @@ export const apiService = {
           created_at,
           performance_rating,
           termination_date,
+          is_archived,
+          archived_at,
+          status,
           reporting_manager:reporting_manager_id (
             full_name,
             employee_id
           )
         `)
         .order('created_at', { ascending: false });
+
+      // Exclude archived employees by default
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
+      }
 
       if (search) {
         query = query.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
@@ -37,9 +45,19 @@ export const apiService = {
       const to = from + limit - 1;
       
       // First get the total count
-      const { count: totalCount } = await supabase
+      let countQuery = supabase
         .from('employees')
         .select('*', { count: 'exact', head: true });
+      
+      if (!includeArchived) {
+        countQuery = countQuery.eq('is_archived', false);
+      }
+      
+      if (search) {
+        countQuery = countQuery.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
+      }
+      
+      const { count: totalCount } = await countQuery;
 
       // Then get the paginated data
       const { data, error } = await query.range(from, to);
@@ -47,6 +65,104 @@ export const apiService = {
       if (error) throw error;
       
       return { data, count: totalCount };
+    },
+
+    // Get only archived employees
+    getArchived: async (page = 1, limit = 50, search = '') => {
+      let query = supabase
+        .from('employees')
+        .select(`
+          id,
+          full_name,
+          employee_id,
+          department,
+          position,
+          email,
+          phone,
+          location,
+          hire_date,
+          profile_picture,
+          photo_url,
+          created_at,
+          performance_rating,
+          termination_date,
+          is_archived,
+          archived_at,
+          archived_by,
+          status,
+          reporting_manager:reporting_manager_id (
+            full_name,
+            employee_id
+          )
+        `)
+        .eq('is_archived', true)
+        .order('archived_at', { ascending: false });
+
+      if (search) {
+        query = query.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
+      }
+
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
+      // Get total count
+      let countQuery = supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_archived', true);
+      
+      if (search) {
+        countQuery = countQuery.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
+      }
+      
+      const { count: totalCount } = await countQuery;
+
+      const { data, error } = await query.range(from, to);
+      
+      if (error) throw error;
+      
+      return { data, count: totalCount };
+    },
+
+    // Archive an employee
+    archive: async (id) => {
+      const { data: user } = await supabase.auth.getUser();
+      const archivedBy = user?.user?.id || null;
+
+      const { data, error } = await supabase
+        .from('employees')
+        .update({
+          is_archived: true,
+          archived_at: new Date().toISOString(),
+          archived_by: archivedBy,
+          status: 'terminated',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    // Unarchive an employee
+    unarchive: async (id) => {
+      const { data, error } = await supabase
+        .from('employees')
+        .update({
+          is_archived: false,
+          archived_at: null,
+          archived_by: null,
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
 
     getById: async (id) => {

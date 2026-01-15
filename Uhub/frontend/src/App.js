@@ -44,6 +44,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const UserManagement = React.lazy(() => import('./pages/UserManagement'));
 const Employees = React.lazy(() => import('./pages/Employees'));
+const EmployeeHistory = React.lazy(() => import('./pages/EmployeeHistory'));
 const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
 const EmployeeForm = React.lazy(() => import('./pages/EmployeeForm'));
 const EmployeeOnboarding = React.lazy(() => import('./pages/EmployeeOnboarding'));
@@ -257,6 +258,15 @@ function App() {
                           <ProtectedRoute requiredFeature="employee_offboarding">
                             <Layout>
                               <EmployeeOffboarding />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Employee History Route */}
+                        <Route path="/employee-history" element={
+                          <ProtectedRoute requiredFeature="employees">
+                            <Layout>
+                              <EmployeeHistory />
                             </Layout>
                           </ProtectedRoute>
                         } />

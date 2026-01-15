@@ -2,12 +2,12 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
-import { useEmployees, useDeleteEmployee } from "../hooks/useApi";
+import { useEmployees, useDeleteEmployee, useArchiveEmployee } from "../hooks/useApi";
 import { 
   ChevronRight, Trash2, Pencil, Plus, Search, Filter, 
   Users, Building, Star, Activity, Eye, Edit, Trash,
   Mail, Phone, MapPin, Calendar, Briefcase, Award,
-  ChevronDown, ChevronUp, X, Download, Upload, Shield, UserCheck
+  ChevronDown, ChevronUp, X, Download, Upload, Shield, UserCheck, Archive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -41,6 +41,7 @@ export default function Employees() {
   // Use React Query hooks
   const { data: employeesData, isLoading, error, refetch } = useEmployees(currentPage, pageSize, search);
   const deleteEmployeeMutation = useDeleteEmployee();
+  const archiveEmployeeMutation = useArchiveEmployee();
 
   const employees = employeesData?.data || [];
   const totalCount = employeesData?.count || 0;
@@ -56,6 +57,19 @@ export default function Employees() {
       showError("Delete Failed", err.message);
     }
   }, [deleteEmployeeMutation, success, showError]);
+
+  const handleArchive = useCallback(async (id, employeeName) => {
+    const confirm = window.confirm(`Are you sure you want to archive ${employeeName || 'this employee'}? They will be moved to Employee History.`);
+    if (!confirm) return;
+
+    try {
+      await archiveEmployeeMutation.mutateAsync(id);
+      success("Success", "Employee archived successfully. They can be found in Employee History.");
+      refetch();
+    } catch (err) {
+      showError("Archive Failed", err.message);
+    }
+  }, [archiveEmployeeMutation, success, showError, refetch]);
 
   const filteredAndSortedEmployees = useMemo(() => {
     let filtered = employees;
@@ -291,6 +305,13 @@ export default function Employees() {
                   Add Employee
                 </button>
               )}
+              <button
+                onClick={() => navigate("/employee-history")}
+                className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Archive className="w-4 h-4" />
+                Employee History
+              </button>
             </div>
           </div>
         </div>
@@ -753,15 +774,26 @@ export default function Employees() {
                             </button>
                           )}
                           {canDeleteEmployee() && (
-                            <button
-                              onClick={() => handleDelete(employee.id)}
-                              className="flex-1 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                              title="Delete Employee"
-                              disabled={deleteEmployeeMutation.isLoading}
-                            >
-                              <Trash className="w-4 h-4" />
-                              <span className="text-sm">Delete</span>
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleArchive(employee.id, employee.full_name || employee.name)}
+                                className="flex-1 p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                title="Archive Employee"
+                                disabled={archiveEmployeeMutation.isLoading}
+                              >
+                                <Archive className="w-4 h-4" />
+                                <span className="text-sm">Archive</span>
+                              </button>
+                              <button
+                                onClick={() => handleDelete(employee.id)}
+                                className="flex-1 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                title="Delete Employee"
+                                disabled={deleteEmployeeMutation.isLoading}
+                              >
+                                <Trash className="w-4 h-4" />
+                                <span className="text-sm">Delete</span>
+                              </button>
+                            </>
                           )}
                         </div>
                       )}
@@ -900,14 +932,24 @@ export default function Employees() {
                                     </button>
                                   )}
                                   {canDeleteEmployee() && (
-                                    <button
-                                      onClick={() => handleDelete(employee.id)}
-                                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
-                                      title="Delete Employee"
-                                      disabled={deleteEmployeeMutation.isLoading}
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={() => handleArchive(employee.id, employee.full_name || employee.name)}
+                                        className="p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg transition-all duration-200"
+                                        title="Archive Employee"
+                                        disabled={archiveEmployeeMutation.isLoading}
+                                      >
+                                        <Archive className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(employee.id)}
+                                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                        title="Delete Employee"
+                                        disabled={deleteEmployeeMutation.isLoading}
+                                      >
+                                        <Trash className="w-4 h-4" />
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                               ) : (
