@@ -1215,6 +1215,146 @@ export const itServicesApi = {
     }
   },
 
+  // IT Assets
+  assets: {
+    getAll: async (filters = {}) => {
+      try {
+        let query = supabase
+          .from('it_assets')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (filters.status) {
+          query = query.eq('status', filters.status);
+        }
+        if (filters.type) {
+          query = query.eq('type', filters.type);
+        }
+        if (filters.search) {
+          const searchTerm = filters.search.toLowerCase();
+          query = query.or(`name.ilike.%${searchTerm}%,asset_tag.ilike.%${searchTerm}%,serial_number.ilike.%${searchTerm}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return { data: data || [] };
+      } catch (error) {
+        console.error('Error fetching assets:', error);
+        throw error;
+      }
+    },
+
+    getById: async (id) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_assets')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error fetching asset:', error);
+        throw error;
+      }
+    },
+
+    create: async (assetData) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_assets')
+          .insert(assetData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error creating asset:', error);
+        throw error;
+      }
+    },
+
+    update: async (id, assetData) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_assets')
+          .update(assetData)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error updating asset:', error);
+        throw error;
+      }
+    },
+
+    delete: async (id) => {
+      try {
+        const { error } = await supabase
+          .from('it_assets')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+        return true;
+      } catch (error) {
+        console.error('Error deleting asset:', error);
+        throw error;
+      }
+    },
+
+    assign: async (assetId, employeeId, assignedBy) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_assets')
+          .update({
+            assigned_to: employeeId,
+            assigned_by: assignedBy,
+            assigned_at: new Date().toISOString(),
+            status: 'assigned'
+          })
+          .eq('id', assetId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error assigning asset:', error);
+        throw error;
+      }
+    },
+
+    return: async (assetId, returnedBy) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_assets')
+          .update({
+            assigned_to: null,
+            assigned_by: null,
+            assigned_at: null,
+            returned_at: new Date().toISOString(),
+            returned_by: returnedBy,
+            status: 'available'
+          })
+          .eq('id', assetId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Error returning asset:', error);
+        throw error;
+      }
+    }
+  },
+
   // Users and Staff Management
   users: {
     // Get IT staff users for assignment

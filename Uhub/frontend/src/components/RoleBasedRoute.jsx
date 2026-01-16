@@ -372,7 +372,7 @@ export const getRoleNavigationAccess = (userRole) => {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
         hr_panel: ['employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'suggestions'],
-        it_services: ['it_requests', 'request_inbox'],
+        it_services: ['it_requests', 'request_inbox', 'it_tools'],
         asset_management: ['assets', 'simcards'],
         financial: ['payment_calendar', 'upcoming_payments', 'analytics'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],

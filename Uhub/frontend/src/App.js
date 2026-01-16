@@ -89,6 +89,7 @@ const FleetMaintenanceRecord = React.lazy(() => import('./pages/FleetMaintenance
 const MarketingCalendar = React.lazy(() => import('./pages/MarketingCalendar'));
 const OrganizationalHierarchy = React.lazy(() => import('./pages/OrganizationalHierarchy'));
 const IOTRecord = React.lazy(() => import('./pages/IOTRecord'));
+const ITTools = React.lazy(() => import('./pages/ITTools'));
 const RoleDebugger = React.lazy(() => import('./components/RoleDebugger'));
 
 function App() {
@@ -340,6 +341,14 @@ function App() {
                           <ProtectedRoute requiredFeature="it_requests" requiredRoles={['admin', 'it_management']}>
                             <Layout>
                               <RequestInbox />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/it-tools" element={
+                          <ProtectedRoute requiredFeature="it_requests" requiredRoles={['admin', 'it_management']}>
+                            <Layout>
+                              <ITTools />
                             </Layout>
                           </ProtectedRoute>
                         } />

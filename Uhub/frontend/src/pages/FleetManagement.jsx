@@ -46,23 +46,6 @@ const FleetManagement = () => {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
 
-  useEffect(() => {
-    loadFleetData();
-    loadDepartments();
-    loadStatistics();
-  }, [loadFleetData, loadDepartments, loadStatistics]);
-
-  useEffect(() => {
-    if (searchTerm || Object.values(filters).some(f => f)) {
-      loadFleetData();
-    }
-  }, [searchTerm, filters, loadFleetData]);
-
-  const handleRefresh = () => {
-    loadFleetData(true);
-    loadStatistics();
-  };
-
   const loadFleetData = useCallback(async (forceRefresh = false) => {
     try {
       if (forceRefresh) {
@@ -122,6 +105,23 @@ const FleetManagement = () => {
       showError('Failed to load fleet statistics');
     }
   }, [showError]);
+
+  useEffect(() => {
+    loadFleetData();
+    loadDepartments();
+    loadStatistics();
+  }, [loadFleetData, loadDepartments, loadStatistics]);
+
+  useEffect(() => {
+    if (searchTerm || Object.values(filters).some(f => f)) {
+      loadFleetData();
+    }
+  }, [searchTerm, filters, loadFleetData]);
+
+  const handleRefresh = () => {
+    loadFleetData(true);
+    loadStatistics();
+  };
 
   const handleAddVehicle = () => {
     setSelectedVehicle(null);

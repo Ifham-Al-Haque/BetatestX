@@ -100,7 +100,8 @@ const widgetConfig = [
     color: 'from-teal-500 to-cyan-600',
     items: [
       { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests', description: 'Tech support' },
-      { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox', description: 'View requests' }
+      { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox', description: 'View requests' },
+      { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_requests', description: 'Analytics & reports' }
     ]
   },
   {

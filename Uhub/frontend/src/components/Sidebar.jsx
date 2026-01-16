@@ -245,7 +245,8 @@ const Sidebar = () => {
       icon: Cog,
       items: [
         { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests' },
-        { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox' }
+        { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox' },
+        { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_requests' }
       ]
     },
     {
