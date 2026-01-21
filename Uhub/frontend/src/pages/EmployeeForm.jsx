@@ -486,8 +486,8 @@ export default function EmployeeForm() {
       if (id) {
         // Clear any cached profile pictures
         if (oldProfilePicture || oldPhotoUrl) {
-          // Force refresh all images for this employee
-          forceRefreshEmployeeImages(id, oldProfilePicture || oldPhotoUrl);
+          // Force refresh all images for this employee (without page reload)
+          forceRefreshEmployeeImages(id, oldProfilePicture || oldPhotoUrl, false);
         } else {
           setTimeout(() => navigate("/employees"), 1500);
         }

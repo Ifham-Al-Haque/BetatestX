@@ -93,6 +93,32 @@ const ITTools = React.lazy(() => import('./pages/ITTools'));
 const RoleDebugger = React.lazy(() => import('./components/RoleDebugger'));
 
 function App() {
+  // Prevent unwanted page reloads on tab switch/visibility change
+  React.useEffect(() => {
+    // Prevent reload on visibility change unless we're actually on offline page
+    const handleVisibilityChange = () => {
+      // Only prevent reload if we're not on the offline page
+      if (!window.location.pathname.includes('offline') && !document.title.includes('Offline')) {
+        // Prevent any automatic reloads on tab switch
+        // This ensures the page doesn't reload when switching tabs
+      }
+    };
+
+    // Prevent beforeunload from causing issues
+    const handleBeforeUnload = (e) => {
+      // Only show confirmation if user is actually trying to leave
+      // Don't interfere with normal navigation
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

@@ -183,8 +183,23 @@
 
     <script>
         // Check online status and auto-reload when back online
+        // Only reload if we're actually on the offline page and connection is restored
+        let isReloading = false;
         window.addEventListener('online', () => {
-            window.location.reload();
+            // Prevent multiple reloads
+            if (isReloading) return;
+            
+            // Only reload if we're actually offline and connection is restored
+            // Add a small delay to prevent reload on tab switch
+            setTimeout(() => {
+                if (navigator.onLine && !isReloading) {
+                    isReloading = true;
+                    // Check if we're still on the offline page before reloading
+                    if (window.location.pathname.includes('offline') || document.title.includes('Offline')) {
+                        window.location.reload();
+                    }
+                }
+            }, 1000); // 1 second delay to prevent reload on tab switch
         });
 
         // Show connection status

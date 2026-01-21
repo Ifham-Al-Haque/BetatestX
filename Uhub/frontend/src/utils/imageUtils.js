@@ -75,8 +75,9 @@ export const getCacheBustingUrl = (imageUrl) => {
  * Forces a complete refresh of all profile pictures for an employee
  * @param {string} employeeId - The employee ID
  * @param {string} oldImageUrl - The old image URL to clear
+ * @param {boolean} forcePageReload - Whether to force a full page reload (default: false)
  */
-export const forceRefreshEmployeeImages = (employeeId, oldImageUrl) => {
+export const forceRefreshEmployeeImages = (employeeId, oldImageUrl, forcePageReload = false) => {
   if (!oldImageUrl) return;
   
   // Clear the specific image cache
@@ -90,8 +91,11 @@ export const forceRefreshEmployeeImages = (employeeId, oldImageUrl) => {
     }
   });
   
-  // Force a page refresh if needed
-  setTimeout(() => {
-    window.location.reload();
-  }, 100);
+  // Only force a page refresh if explicitly requested
+  // This prevents unnecessary reloads when switching tabs
+  if (forcePageReload) {
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  }
 };
