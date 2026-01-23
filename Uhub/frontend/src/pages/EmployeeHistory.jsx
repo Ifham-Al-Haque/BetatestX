@@ -4,9 +4,8 @@ import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { useArchivedEmployees, useUnarchiveEmployee } from "../hooks/useApi";
 import { 
-  Archive, Search, Filter, Users, Building, Star, Activity, 
-  Eye, Edit, RotateCcw, ChevronDown, ChevronUp, X, Download,
-  Mail, Phone, MapPin, Calendar, Briefcase, UserCheck
+  Archive, Search, Filter, Users, Building, Activity, 
+  Eye, RotateCcw, Calendar, UserCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,7 +15,6 @@ export default function EmployeeHistory() {
   const [sortOrder, setSortOrder] = useState("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [viewMode, setViewMode] = useState("table");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     department: "",
@@ -38,7 +36,7 @@ export default function EmployeeHistory() {
   const { data: employeesData, isLoading, error, refetch } = useArchivedEmployees(currentPage, pageSize, search);
   const unarchiveEmployeeMutation = useUnarchiveEmployee();
 
-  const employees = employeesData?.data || [];
+  const employees = useMemo(() => employeesData?.data || [], [employeesData?.data]);
   const totalCount = employeesData?.count || 0;
 
   const handleUnarchive = useCallback(async (id, employeeName) => {
@@ -86,15 +84,6 @@ export default function EmployeeHistory() {
     setSearch(value);
     setCurrentPage(1);
   }, []);
-
-  const handleSort = useCallback((key) => {
-    if (sortKey === key) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortOrder("asc");
-    }
-  }, [sortKey, sortOrder]);
 
   const clearFilters = useCallback(() => {
     setFilters({

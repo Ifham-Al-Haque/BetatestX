@@ -4,10 +4,10 @@ import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { useEmployees, useDeleteEmployee, useArchiveEmployee } from "../hooks/useApi";
 import { 
-  ChevronRight, Trash2, Pencil, Plus, Search, Filter, 
+  Plus, Search, Filter, 
   Users, Building, Star, Activity, Eye, Edit, Trash,
-  Mail, Phone, MapPin, Calendar, Briefcase, Award,
-  ChevronDown, ChevronUp, X, Download, Upload, Shield, UserCheck, Archive
+  Phone, MapPin, Briefcase,
+  ChevronDown, ChevronUp, Download, Shield, UserCheck, Archive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -43,7 +43,7 @@ export default function Employees() {
   const deleteEmployeeMutation = useDeleteEmployee();
   const archiveEmployeeMutation = useArchiveEmployee();
 
-  const employees = employeesData?.data || [];
+  const employees = useMemo(() => employeesData?.data || [], [employeesData?.data]);
   const totalCount = employeesData?.count || 0;
 
   const handleDelete = useCallback(async (id) => {
@@ -193,55 +193,6 @@ export default function Employees() {
     return colors[department] || 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600';
   };
 
-  const getRoleBadge = (role) => {
-    const roleConfig = {
-      'admin': {
-        color: 'bg-red-100 text-red-800 border-red-200',
-        icon: Shield,
-        label: 'Administrator'
-      },
-      'hr_manager': {
-        color: 'bg-purple-100 text-purple-800 border-purple-200',
-        icon: Users,
-        label: 'HR Manager'
-      },
-      'cs_manager': {
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
-        icon: Phone,
-        label: 'CS Manager'
-      },
-      'driver_management': {
-        color: 'bg-green-100 text-green-800 border-green-200',
-        icon: MapPin,
-        label: 'Driver Management'
-      },
-      'manager': {
-        color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-        icon: Briefcase,
-        label: 'Manager'
-      },
-      'employee': {
-        color: 'bg-gray-100 text-gray-800 border-gray-200',
-        icon: UserCheck,
-        label: 'Employee'
-      },
-      'viewer': {
-        color: 'bg-orange-100 text-orange-800 border-orange-200',
-        icon: Eye,
-        label: 'Viewer'
-      }
-    };
-
-    const config = roleConfig[role] || roleConfig['employee'];
-    const IconComponent = config.icon;
-
-    return (
-      <span className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-full border ${config.color}`}>
-        <IconComponent className="w-4 h-4" />
-        {config.label}
-      </span>
-    );
-  };
 
   if (error) {
     return (

@@ -640,7 +640,6 @@ export const apiService = {
         
         try {
           let authUserId = null;
-          let authError = null;
 
                 // If password is provided, create the auth user first
         if (userData.password) {
@@ -669,7 +668,6 @@ export const apiService = {
                 details: signUpError.details,
                 hint: signUpError.hint
               });
-              authError = signUpError;
             } else         if (authData.user) {
           console.log('✅ Auth user created successfully:', authData.user.id);
           console.log('📧 User email confirmed:', authData.user.email_confirmed_at);
@@ -681,7 +679,6 @@ export const apiService = {
         }
           } catch (authException) {
             console.error('💥 Exception during auth signup:', authException);
-            authError = authException;
           }
         }
 
@@ -947,7 +944,7 @@ export const apiService = {
           profile_picture,
           status,
           created_at
-        `)
+        `, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       if (search) {
@@ -959,14 +956,14 @@ export const apiService = {
       
       const { data, error, count } = await query.range(from, to);
       
-      console.log('🔍 API: drivers.getAll result:', { data, error, count });
+      console.log('🔍 API: drivers.getAll result:', { data, error, count, dataLength: data?.length });
       
       if (error) {
         console.error('🔍 API: drivers.getAll error:', error);
         throw error;
       }
       
-      return { data, count };
+      return { data: data || [], count: count || 0 };
     },
 
     getById: async (id) => {

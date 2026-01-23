@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../context/AuthContext';
 import collectionService from '../services/collectionService';
 import { 
   AddPaymentModal, 
@@ -15,7 +14,6 @@ import {
   CheckSquare,
   Plus,
   Search,
-  Filter,
   Calendar,
   AlertCircle,
   Clock,
@@ -26,20 +24,15 @@ import {
   TrendingDown,
   Eye,
   Edit,
-  Trash,
   Check,
-  X,
   AlertTriangle,
   FileText,
   Activity,
   Target,
-  BarChart3,
-  Folder,
   ListChecks
 } from 'lucide-react';
 
 const Collections = () => {
-  const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('payments'); // 'payments', 'reminders', 'checklist'
   

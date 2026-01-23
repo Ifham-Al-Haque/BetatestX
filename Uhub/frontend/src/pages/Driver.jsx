@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import { useDrivers, useDeleteDriver } from "../hooks/useApi";
@@ -7,9 +8,51 @@ import {
   User, MapPin, Phone, Mail, Calendar, Shield, Eye, 
   TrendingUp, AlertCircle, CheckCircle, Clock, Star, Building,
   Download, Upload, MoreHorizontal, BarChart3, Activity, 
-  Users, Zap, Globe, Award, Target, RefreshCw
+  Users, Zap, Globe, Award, Target, RefreshCw, Grid3x3, List
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Helper functions for className generation (moved outside component to avoid recreation)
+const getStatusBarClass = (status) => {
+  if (status === 'active') return 'bg-gradient-to-r from-green-400 to-emerald-500';
+  if (status === 'inactive') return 'bg-gradient-to-r from-gray-400 to-gray-500';
+  return 'bg-gradient-to-r from-red-400 to-red-500';
+};
+
+const getStatusBadgeClass = (status) => {
+  if (status === 'active') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+  if (status === 'inactive') return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+};
+
+const getShiftBadgeClass = (shiftType) => {
+  if (shiftType === 'Day') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+  return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+};
+
+const getViewToggleClass = (isActive) => {
+  return isActive
+    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
+    : "text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
+};
+
+const getSortButtonClass = (isActive) => {
+  return isActive
+    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg"
+    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600";
+};
+
+const getFilterButtonClass = (isActive) => {
+  return isActive
+    ? 'bg-blue-600 text-white'
+    : 'bg-gray-100 text-gray-700 hover:bg-gray-200';
+};
+
+const getPaginationButtonClass = (isActive) => {
+  return isActive
+    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600';
+};
 
 export default function Driver() {
   const [search, setSearch] = useState("");
@@ -23,17 +66,20 @@ export default function Driver() {
   const [designationFilter, setDesignationFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState("table"); // "table" or "grid"
   
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
   
   // Use React Query hooks
-  const { data: driversData, isLoading, error } = useDrivers(currentPage, pageSize, search);
+  const { data: driversData, isLoading, error, refetch } = useDrivers(currentPage, pageSize, search);
   const deleteDriverMutation = useDeleteDriver();
+  const queryClient = useQueryClient();
 
-  const drivers = driversData?.data || [];
-  // Use the length of drivers array if count is not available or is 0
-  const totalCount = driversData?.count || drivers.length;
+  // Memoize drivers array to prevent unnecessary re-renders
+  const drivers = useMemo(() => driversData?.data || [], [driversData?.data]);
+  // Use the count from API, fallback to array length if count is not available
+  const totalCount = driversData?.count ?? drivers.length;
 
   // Debug logging for driver data
   console.log('🔍 Driver component data:', {
@@ -55,11 +101,13 @@ export default function Driver() {
 
     try {
       await deleteDriverMutation.mutateAsync(id);
+      // Invalidate queries to refresh the list
+      queryClient.invalidateQueries(['drivers']);
       success("Success", "Driver deleted successfully.");
     } catch (err) {
       showError("Delete Failed", err.message);
     }
-  }, [deleteDriverMutation, success, showError]);
+  }, [deleteDriverMutation, success, showError, queryClient]);
 
   const filteredAndSortedDrivers = useMemo(() => {
     let filtered = drivers;
@@ -306,11 +354,7 @@ export default function Driver() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-200 font-medium ${
-                  showFilters 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={"flex items-center gap-2 px-4 py-3 rounded-lg transition-all duration-200 font-medium " + getFilterButtonClass(showFilters)}
               >
                 <Filter className="w-4 h-4" />
                 Advanced Filters
@@ -335,12 +379,13 @@ export default function Driver() {
               )}
               
               <motion.button
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, rotate: 180 }}
                 whileTap={{ scale: 0.95 }}
-                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200"
+                onClick={() => refetch()}
+                className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg transition-all duration-200"
                 title="Refresh Data"
               >
-                <RefreshCw className="w-5 h-5 text-gray-600" />
+                <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </motion.button>
             </div>
           </div>
@@ -472,17 +517,35 @@ export default function Driver() {
               </div>
               
               <div className="flex items-center gap-3">
+                {/* View Toggle */}
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setViewMode("grid")}
+                    className={"p-2 rounded-lg transition-all duration-200 " + getViewToggleClass(viewMode === "grid")}
+                    title="Grid View"
+                  >
+                    <Grid3x3 className="w-4 h-4" />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setViewMode("table")}
+                    className={"p-2 rounded-lg transition-all duration-200 " + getViewToggleClass(viewMode === "table")}
+                    title="Table View"
+                  >
+                    <List className="w-4 h-4" />
+                  </motion.button>
+                </div>
+                
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Sort by:</span>
                 <div className="flex gap-2">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleSort("full_name")}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
-                      sortKey === "full_name" 
-                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg" 
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
+                    className={"px-4 py-2 rounded-xl font-medium transition-all duration-200 " + getSortButtonClass(sortKey === "full_name")}
                   >
                     Name {sortKey === "full_name" && (sortOrder === "asc" ? "↑" : "↓")}
                   </motion.button>
@@ -490,11 +553,7 @@ export default function Driver() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleSort("status")}
-                    className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
-                      sortKey === "status" 
-                        ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg" 
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
+                    className={"px-4 py-2 rounded-xl font-medium transition-all duration-200 " + getSortButtonClass(sortKey === "status")}
                   >
                     Status {sortKey === "status" && (sortOrder === "asc" ? "↑" : "↓")}
                   </motion.button>
@@ -541,7 +600,156 @@ export default function Driver() {
                 </motion.button>
               )}
             </div>
+          ) : viewMode === "grid" ? (
+            // Grid/Card View
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <AnimatePresence>
+                  {filteredAndSortedDrivers.map((driver, index) => (
+                    <motion.div
+                      key={driver.id}
+                      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: index * 0.05, type: "spring", stiffness: 100 }}
+                      whileHover={{ y: -8, scale: 1.02 }}
+                      className="group relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300"
+                    >
+                      {/* Status Indicator Bar */}
+                      <div className={"absolute top-0 left-0 right-0 h-1 " + getStatusBarClass(driver.status)} />
+                      
+                      {/* Card Content */}
+                      <div className="p-6">
+                        {/* Profile Section */}
+                        <div className="flex flex-col items-center mb-4">
+                          <div className="relative mb-4">
+                            {driver.profile_picture ? (
+                              <div className="relative">
+                                <img
+                                  src={driver.profile_picture}
+                                  alt={driver.full_name}
+                                  className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-xl"
+                                />
+                                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full border-4 border-white dark:border-gray-800 flex items-center justify-center shadow-lg">
+                                  {driver.status === 'active' ? (
+                                    <CheckCircle className="w-4 h-4 text-white" />
+                                  ) : driver.status === 'inactive' ? (
+                                    <Clock className="w-4 h-4 text-white" />
+                                  ) : (
+                                    <AlertCircle className="w-4 h-4 text-white" />
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="relative">
+                                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center border-4 border-white dark:border-gray-700 shadow-xl">
+                                  <User className="w-12 h-12 text-white" />
+                                </div>
+                                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full border-4 border-white dark:border-gray-800 flex items-center justify-center shadow-lg">
+                                  <Car className="w-4 h-4 text-white" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-1">
+                            {driver.full_name}
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-2">
+                            {driver.designation || 'Driver'}
+                          </p>
+                          
+                          {/* Status Badges */}
+                          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+                            <span className={"inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold " + getStatusBadgeClass(driver.status)}>
+                              {driver.status === 'active' && <CheckCircle className="w-3 h-3 mr-1" />}
+                              {driver.status === 'inactive' && <Clock className="w-3 h-3 mr-1" />}
+                              {driver.status === 'suspended' && <AlertCircle className="w-3 h-3 mr-1" />}
+                              {driver.status}
+                            </span>
+                            <span className={"inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold " + getShiftBadgeClass(driver.shift_type)}>
+                              <Clock className="w-3 h-3 mr-1" />
+                              {driver.shift_type} Shift
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Driver Info */}
+                        <div className="space-y-3 mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                          <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3">
+                              <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <span className="truncate">{driver.udrive_email || 'No email'}</span>
+                          </div>
+                          
+                          <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mr-3">
+                              <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <span>{driver.company_mobile || driver.personal_mobile || 'No phone'}</span>
+                          </div>
+                          
+                          <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                            <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mr-3">
+                              <Building className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <span className="truncate">{driver.team_type || 'N/A'}</span>
+                          </div>
+                          
+                          {driver.employee_id && (
+                            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                              <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center mr-3">
+                                <Shield className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                              </div>
+                              <span>ID: {driver.employee_id}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate(`/driver/${driver.id}`)}
+                            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </motion.button>
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => navigate(`/driver/${driver.id}/edit`)}
+                            className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Edit
+                          </motion.button>
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleDelete(driver.id)}
+                            className="p-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </motion.button>
+                        </div>
+                      </div>
+                      
+                      {/* Hover Effect Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-300 pointer-events-none rounded-2xl" />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
           ) : (
+            // Table View
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
@@ -621,21 +829,14 @@ export default function Driver() {
 
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="space-y-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            driver.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                            driver.status === 'inactive' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
-                            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          }`}>
+                          <span className={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium " + getStatusBadgeClass(driver.status)}>
                             {driver.status === 'active' && <CheckCircle className="w-3 h-3 mr-1" />}
                             {driver.status === 'inactive' && <Clock className="w-3 h-3 mr-1" />}
                             {driver.status === 'suspended' && <AlertCircle className="w-3 h-3 mr-1" />}
                             {driver.status}
                           </span>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                              driver.shift_type === 'Day' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                              'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                            }`}>
+                            <span className={"inline-flex items-center px-2 py-1 rounded text-xs font-medium " + getShiftBadgeClass(driver.shift_type)}>
                               <Clock className="w-3 h-3 mr-1" />
                               {driver.shift_type} Shift
                             </span>
@@ -728,11 +929,7 @@ export default function Driver() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handlePageChange(page)}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                          currentPage === page
-                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
+                        className={"px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 " + getPaginationButtonClass(currentPage === page)}
                       >
                         {page}
                       </motion.button>

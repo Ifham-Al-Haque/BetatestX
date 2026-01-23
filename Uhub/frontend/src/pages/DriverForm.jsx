@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
-
+import { useQueryClient } from "@tanstack/react-query";
 
 import { motion } from "framer-motion";
 import { 
@@ -53,6 +53,7 @@ export default function DriverForm() {
   const [uploading, setUploading] = useState(false);
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Fetch driver data for editing
   useEffect(() => {
@@ -457,6 +458,12 @@ export default function DriverForm() {
         }
       }
 
+      // Invalidate and refetch drivers query to show new/updated driver in the list
+      queryClient.invalidateQueries(['drivers']);
+      if (driverId) {
+        queryClient.invalidateQueries(['driver', driverId]);
+      }
+      
       setSuccess("Driver saved successfully!");
       setTimeout(() => {
         navigate("/drivers");
