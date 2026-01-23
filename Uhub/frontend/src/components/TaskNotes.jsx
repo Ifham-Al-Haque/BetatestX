@@ -49,6 +49,7 @@ const TaskNotes = ({ taskId, allUsers = [] }) => {
     if (taskId) {
       loadNotes();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
   const loadNotes = async () => {

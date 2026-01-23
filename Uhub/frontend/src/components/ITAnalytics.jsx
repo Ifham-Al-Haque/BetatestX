@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  BarChart3, TrendingUp, TrendingDown, Clock, Users, 
-  AlertTriangle, CheckCircle, XCircle, Calendar, Target,
-  Download, RefreshCw, Filter, ChevronDown, ChevronUp,
-  Activity, Award, Timer, Globe, Zap, Flag
+  BarChart3, TrendingUp, Clock, 
+  CheckCircle, XCircle, Target,
+  Download, RefreshCw, Award, Timer
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -16,7 +15,6 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 const ITAnalytics = ({ onClose }) => {
   const { user, userProfile } = useAuth();
-  const { isDark } = useTheme();
   
   const [analytics, setAnalytics] = useState({
     totalRequests: 0,
@@ -38,13 +36,8 @@ const ITAnalytics = ({ onClose }) => {
   
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('30'); // days
-  const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [dateRange]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = React.useCallback(async () => {
     try {
       setLoading(true);
       const stats = await itServicesApi.requests.getStats(user?.id, userProfile?.role);
@@ -52,7 +45,6 @@ const ITAnalytics = ({ onClose }) => {
       // Calculate additional metrics
       const now = new Date();
       const daysAgo = parseInt(dateRange);
-      const cutoffDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
       
       setAnalytics({
         totalRequests: stats.total_requests,
@@ -103,7 +95,11 @@ const ITAnalytics = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange, user?.id, userProfile?.role]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const exportData = () => {
     // Mock export functionality

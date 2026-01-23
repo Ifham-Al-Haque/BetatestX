@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Filter, X, Save, Bookmark, ChevronDown, ChevronUp,
-  FileText, Package, Ticket, Calendar, User, Tag, Building
+  FileText, Package, Ticket, Tag, Building
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { itServicesApi } from '../services/itServicesApi';

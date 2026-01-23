@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit, Trash, Save, X, Building } from 'lucide-react';
+import { Plus, Edit, Trash, X, Building } from 'lucide-react';
 import { DEPARTMENTS } from '../config/departments';
 
 const DepartmentManager = ({ onDepartmentsChange, isOpen, onClose }) => {
@@ -33,18 +33,6 @@ const DepartmentManager = ({ onDepartmentsChange, isOpen, onClose }) => {
     setEditingId(id);
   };
 
-  const handleSaveEdit = (id) => {
-    const updatedDepartments = departments.map(dept => 
-      dept.value === id ? { ...dept, ...editingId } : dept
-    );
-    setDepartments(updatedDepartments);
-    setEditingId(null);
-    
-    if (onDepartmentsChange) {
-      onDepartmentsChange(updatedDepartments);
-    }
-  };
-
   const handleDeleteDepartment = (value) => {
     if (window.confirm(`Are you sure you want to delete the department "${value}"?`)) {
       const updatedDepartments = departments.filter(dept => dept.value !== value);
@@ -54,10 +42,6 @@ const DepartmentManager = ({ onDepartmentsChange, isOpen, onClose }) => {
         onDepartmentsChange(updatedDepartments);
       }
     }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
   };
 
   if (!isOpen) return null;

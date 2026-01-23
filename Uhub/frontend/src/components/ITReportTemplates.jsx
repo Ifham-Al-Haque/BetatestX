@@ -1,23 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FileText, Calendar, Mail, Download, X, Play, Clock, CheckCircle,
+  Calendar, Download, X, Play, CheckCircle,
   BarChart3, TrendingUp, Users, Package, AlertTriangle, Target
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { itServicesApi } from '../services/itServicesApi';
-import { Card, CardContent, CardHeader } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
-import { emailService } from '../services/emailService';
 
 const ITReportTemplates = ({ onClose }) => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
-
-  const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);

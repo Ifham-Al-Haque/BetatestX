@@ -1,7 +1,7 @@
 // frontend/src/components/InvitationManager.jsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, UserPlus, Copy, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { UserPlus, Copy, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
 import { useUserInvitation } from '../hooks/useUserInvitation';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../supabaseClient';
@@ -46,6 +46,7 @@ const InvitationManager = () => {
   // Load invitations on component mount
   useEffect(() => {
     fetchInvitations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e) => {

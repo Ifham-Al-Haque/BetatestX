@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Building2, User, ChevronDown, 
-  Mail, Phone, MapPin, Crown, 
+  Mail, Phone, Crown, 
   TrendingUp, UserCheck, Shield, Zap, Search,
   Grid, List
 } from 'lucide-react';

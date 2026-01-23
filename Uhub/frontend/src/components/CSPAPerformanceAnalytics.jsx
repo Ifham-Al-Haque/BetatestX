@@ -180,25 +180,14 @@ const CSPAPerformanceAnalytics = ({ data, selectedPeriod = 'month' }) => {
   ];
 
   const getMetricData = (metricKey) => {
-    try {
-      // Return empty data structure since we removed mock data
-      return {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        data: [0, 0, 0, 0, 0, 0],
-        unit: '',
-        trend: 'up',
-        change: '0%'
-      };
-    } catch (err) {
-      console.error('Error in getMetricData:', err);
-      return {
-        labels: [],
-        data: [],
-        unit: '',
-        trend: 'up',
-        change: '0%'
-      };
-    }
+    // Return empty data structure since we removed mock data
+    return {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+      data: [0, 0, 0, 0, 0, 0],
+      unit: '',
+      trend: 'up',
+      change: '0%'
+    };
   };
 
   const getTrendIcon = (trend) => {

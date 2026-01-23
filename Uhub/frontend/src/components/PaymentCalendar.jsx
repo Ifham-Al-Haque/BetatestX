@@ -3,8 +3,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, ChevronLeft, ChevronRight, Clock, DollarSign, 
-  TrendingUp, TrendingDown, CheckCircle, AlertTriangle, XCircle,
-  Plus, Eye, Filter, Search, Sparkles, Zap, X
+  CheckCircle, AlertTriangle, XCircle,
+  Filter, Search, X
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 

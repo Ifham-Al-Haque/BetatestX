@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Clock, Timer, Tag, CheckCircle, AlertCircle, XCircle,
-  User, Building, Calendar, Edit, Trash2, Eye, 
+  Clock,
+  User, Building, Calendar, Eye, 
   StickyNote, Share2, Plus, X, Lock, Unlock, AtSign
 } from 'lucide-react';
 import taskNotesApi from '../services/taskNotesApi';
@@ -105,10 +105,6 @@ const MyTaskCard = ({
       return email.substring(0, 2).toUpperCase();
     }
     return 'U';
-  };
-
-  const isMyNote = (note) => {
-    return note.created_by_user_id === currentUserId;
   };
 
   return (

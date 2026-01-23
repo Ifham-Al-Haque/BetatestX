@@ -14,7 +14,6 @@ const OrgChart = ({ employees = [], loading = false }) => {
     });
 
     // Build hierarchy
-    const hierarchy = {};
     const topLevel = [];
 
     employees.forEach(emp => {

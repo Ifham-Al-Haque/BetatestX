@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Download, FileText, FileSpreadsheet, FileJson, X, CheckCircle,
-  Filter, Calendar, Users, Package, Ticket
+  Download, FileText, FileSpreadsheet, FileJson, X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { itServicesApi } from '../services/itServicesApi';
-import { Card, CardContent } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
@@ -29,7 +27,7 @@ const ITDataExport = ({ onClose, initialData = null, dataType = 'requests' }) =>
   const [data, setData] = useState(initialData || []);
 
   // Field options based on data type
-  const fieldOptions = {
+  const fieldOptions = useMemo(() => ({
     requests: [
       { id: 'id', label: 'ID', default: true },
       { id: 'request_number', label: 'Request Number', default: true },
@@ -68,22 +66,15 @@ const ITDataExport = ({ onClose, initialData = null, dataType = 'requests' }) =>
       { id: 'created_at', label: 'Created Date', default: true },
       { id: 'resolved_at', label: 'Resolved Date', default: false }
     ]
-  };
+  }), [dataType]);
 
   // Initialize selected fields with defaults
-  React.useEffect(() => {
+  useEffect(() => {
     const defaults = fieldOptions[dataType]?.filter(f => f.default).map(f => f.id) || [];
     setSelectedFields(defaults);
-  }, [dataType]);
+  }, [dataType, fieldOptions]);
 
-  // Fetch data if not provided
-  React.useEffect(() => {
-    if (!initialData && data.length === 0) {
-      fetchData();
-    }
-  }, [filters]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       let result;
@@ -103,7 +94,14 @@ const ITDataExport = ({ onClose, initialData = null, dataType = 'requests' }) =>
     } finally {
       setLoading(false);
     }
-  };
+  }, [dataType, filters, user?.id, userProfile?.role, showError]);
+
+  // Fetch data if not provided
+  useEffect(() => {
+    if (!initialData && data.length === 0) {
+      fetchData();
+    }
+  }, [filters, initialData, data.length, fetchData]);
 
   const toggleField = (fieldId) => {
     setSelectedFields(prev =>

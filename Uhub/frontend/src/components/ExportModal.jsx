@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Download, FileText, FileSpreadsheet, 
-  Filter, Calendar, Users, CreditCard,
-  CheckCircle, AlertCircle, Loader2, BarChart3
+  Loader2, BarChart3
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { exportFilteredData, getExportStats } from '../utils/exportUtils';

@@ -1,9 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Eye, Edit, Trash2, Users, User, Building, Calendar, 
-  Clock, Timer, Tag, CheckCircle, AlertCircle, XCircle,
-  ArrowRight, UserCircle
+  Eye, Edit, Trash2, Users, Building, Calendar, 
+  Clock, Timer, Tag, CheckCircle, AlertCircle, XCircle
 } from 'lucide-react';
 
 // User Avatar Component

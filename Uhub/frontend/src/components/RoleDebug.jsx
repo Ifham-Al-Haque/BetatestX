@@ -48,13 +48,9 @@ const RoleDebug = () => {
     }
   };
 
-  const forceRefresh = async () => {
-    await refreshProfile();
-    setTimeout(checkUserRole, 1000); // Check again after refresh
-  };
-
   React.useEffect(() => {
     checkUserRole();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const testProfileCreation = async () => {
