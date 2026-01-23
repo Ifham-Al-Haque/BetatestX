@@ -145,5 +145,6 @@ class LTRReportingService {
   }
 }
 
-export default new LTRReportingService();
+const ltrReportingService = new LTRReportingService();
+export default ltrReportingService;
 

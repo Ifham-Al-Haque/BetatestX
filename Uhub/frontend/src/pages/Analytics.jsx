@@ -1071,6 +1071,10 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
         case 'last-year':
           cutoffDate.setFullYear(now.getFullYear() - 1);
           break;
+          
+        default:
+          // No time range filter for unknown values
+          break;
       }
       filteredExpenses = filteredExpenses.filter(expense => {
         const expenseDate = new Date(expense.date_paid);

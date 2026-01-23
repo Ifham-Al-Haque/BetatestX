@@ -1,10 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Users, Building2, User, ChevronDown, ChevronRight, 
-  Mail, Phone, MapPin, Calendar, Award, Crown, 
-  TrendingUp, UserCheck, Shield, Star, Zap, Search,
-  Filter, Eye, EyeOff, Grid, List, ArrowUpDown
+  Users, Building2, User, ChevronDown, 
+  Mail, Phone, MapPin, Crown, 
+  TrendingUp, UserCheck, Shield, Zap, Search,
+  Grid, List
 } from 'lucide-react';
 
 const CompleteOrgChart = ({ employees = [], loading = false, onEmployeeClick }) => {

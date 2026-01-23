@@ -414,6 +414,10 @@ class DeliveryService {
           // Keep current state but mark as not completed
           checklistUpdates.all_items_completed = false;
           break;
+          
+        default:
+          // No changes for unknown status
+          break;
       }
 
       checklistUpdates.updated_at = new Date().toISOString();
@@ -904,4 +908,5 @@ class DeliveryService {
   }
 }
 
-export default new DeliveryService();
+const deliveryService = new DeliveryService();
+export default deliveryService;

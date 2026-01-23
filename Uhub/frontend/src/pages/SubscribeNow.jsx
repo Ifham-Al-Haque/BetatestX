@@ -636,7 +636,7 @@ const SubscribeNow = () => {
     let parsedDate = null;
 
     // Handle DD/MM/YYYY or DD-MM-YYYY format (e.g., "22/04/2024" or "22-04-2024")
-    const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/);
+    const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/);
     if (ddmmyyyyMatch) {
       const day = parseInt(ddmmyyyyMatch[1], 10);
       const month = parseInt(ddmmyyyyMatch[2], 10);
@@ -660,7 +660,7 @@ const SubscribeNow = () => {
 
     // Handle MM/DD/YYYY or MM-DD-YYYY format (e.g., "04/22/2024")
     if (!parsedDate || isNaN(parsedDate.getTime())) {
-      const mmddyyyyMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/);
+      const mmddyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/);
       if (mmddyyyyMatch) {
         const month = parseInt(mmddyyyyMatch[1], 10);
         const day = parseInt(mmddyyyyMatch[2], 10);

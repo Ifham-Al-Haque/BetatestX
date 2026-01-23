@@ -218,6 +218,10 @@ const RentalAgreementModal = ({ isOpen, onClose, rental = null, onSuccess }) => 
       case 3:
         // Optional validation for final step
         break;
+      
+      default:
+        // No validation for unknown steps
+        break;
     }
 
     setErrors(newErrors);

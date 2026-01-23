@@ -979,4 +979,5 @@ class SubscribeNowService {
   }
 }
 
-export default new SubscribeNowService();
+const subscribeNowService = new SubscribeNowService();
+export default subscribeNowService;

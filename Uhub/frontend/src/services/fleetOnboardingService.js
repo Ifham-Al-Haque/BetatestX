@@ -413,4 +413,5 @@ class FleetOnboardingService {
   }
 }
 
-export default new FleetOnboardingService();
+const fleetOnboardingService = new FleetOnboardingService();
+export default fleetOnboardingService;

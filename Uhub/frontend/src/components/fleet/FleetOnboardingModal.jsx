@@ -172,6 +172,10 @@ const FleetOnboardingModal = ({ isOpen, onClose, vehicle = null, onSuccess }) =>
           newErrors.purchase_price = 'Purchase price must be a valid number';
         }
         break;
+      
+      default:
+        // No validation for unknown steps
+        break;
     }
 
     setErrors(newErrors);

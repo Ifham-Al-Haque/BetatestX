@@ -41,6 +41,7 @@ class ChatServiceImproved {
       console.log('🔄 Conversations fetch disabled to prevent database errors');
       return [];
       
+      // eslint-disable-next-line no-unreachable
       const currentUser = await this.getCurrentUser();
       if (!currentUser) {
         console.warn('No current user found, returning empty array');
@@ -333,6 +334,7 @@ class ChatServiceImproved {
       console.log('🔄 User status update disabled to prevent database errors');
       return;
       
+      // eslint-disable-next-line no-unreachable
       const currentUser = await this.getCurrentUser();
       if (!currentUser) {
         console.warn('No current user found');
@@ -384,6 +386,7 @@ class ChatServiceImproved {
       console.log('🔄 Online users fetch disabled to prevent database errors');
       return [];
       
+      // eslint-disable-next-line no-unreachable
       // First try to get user status data
       const { data: userStatusData, error: statusError } = await supabase
         .from('user_status')

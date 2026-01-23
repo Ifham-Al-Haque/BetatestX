@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BarChart3, 
@@ -9,13 +9,11 @@ import {
   Clock,
   Star,
   MessageSquare,
-  Users,
   Activity,
   CheckCircle,
   Phone,
   PhoneIncoming,
   PhoneOutgoing,
-  User,
   Calendar,
   XCircle,
   AlertCircle
@@ -27,7 +25,6 @@ const CSPAPerformanceAnalytics = ({ data, selectedPeriod = 'month' }) => {
   const [selectedCallType, setSelectedCallType] = useState('all'); // all, inbound, outbound
   const [selectedWeek, setSelectedWeek] = useState(null);
   const [showAgentDetails, setShowAgentDetails] = useState(false);
-  const [selectedBarData, setSelectedBarData] = useState(null);
   const [error, setError] = useState(null);
 
   // Call analytics data structure
@@ -38,21 +35,8 @@ const CSPAPerformanceAnalytics = ({ data, selectedPeriod = 'month' }) => {
     agentData: []
   });
 
-  // Initialize call analytics with real data
-  useEffect(() => {
-    try {
-      if (data && data.processedData && data.dataType === 'callCenter') {
-        const realCallData = generateCallAnalyticsFromData(data.processedData);
-        setCallAnalytics(realCallData);
-      }
-    } catch (err) {
-      console.error('Error in useEffect:', err);
-      setError(err.message);
-    }
-  }, [data]);
-
   // Generate call analytics from real imported data
-  const generateCallAnalyticsFromData = (processedData) => {
+  const generateCallAnalyticsFromData = useCallback((processedData) => {
     try {
       if (!processedData || processedData.length === 0) {
         return {
@@ -134,7 +118,20 @@ const CSPAPerformanceAnalytics = ({ data, selectedPeriod = 'month' }) => {
         agentData: []
       };
     }
-  };
+  }, []);
+
+  // Initialize call analytics with real data
+  useEffect(() => {
+    try {
+      if (data && data.processedData && data.dataType === 'callCenter') {
+        const realCallData = generateCallAnalyticsFromData(data.processedData);
+        setCallAnalytics(realCallData);
+      }
+    } catch (err) {
+      console.error('Error in useEffect:', err);
+      setError(err.message);
+    }
+  }, [data, generateCallAnalyticsFromData]);
 
   const calculateAgentPerformance = (agent) => {
     try {

@@ -142,5 +142,6 @@ class IOTService {
   }
 }
 
-export default new IOTService();
+const iotService = new IOTService();
+export default iotService;
 

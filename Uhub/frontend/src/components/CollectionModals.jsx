@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, DollarSign, Bell, CheckSquare, Calendar } from 'lucide-react';
+import { X, Save, DollarSign, Bell, CheckSquare } from 'lucide-react';
 import collectionService from '../services/collectionService';
 import { useAuth } from '../context/AuthContext';
 

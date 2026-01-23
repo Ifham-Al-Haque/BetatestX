@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Users, Building2, User, ChevronDown, ChevronRight, 
-  Mail, Phone, MapPin, Calendar, Award, Crown, 
-  TrendingUp, UserCheck, Shield, Star, Zap
+  Users, Building2, User, ChevronDown, 
+  Mail, Phone, MapPin, Crown, 
+  TrendingUp, UserCheck, Shield, Zap
 } from 'lucide-react';
 
 const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) => {
@@ -30,7 +30,6 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
     });
 
     // Build hierarchy and calculate levels
-    const hierarchy = [];
     const topLevel = [];
 
     // First pass: Build the hierarchy structure

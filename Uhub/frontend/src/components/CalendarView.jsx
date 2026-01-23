@@ -1,5 +1,5 @@
 // src/components/CalendarView.jsx
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -10,27 +10,22 @@ import {
   Clock, 
   CheckCircle, 
   AlertTriangle, 
-  XCircle,
   Filter,
   Search,
-  Eye,
   TrendingUp,
   Plus,
-  Settings,
   Download,
   Share2,
   Bell,
   Star,
   Users,
   MapPin,
-  Tag,
   X,
   ChevronLeft,
   ChevronRight,
   Grid,
   List,
   CalendarDays,
-  BarChart3,
   Zap,
   Sparkles
 } from "lucide-react";
@@ -495,13 +490,6 @@ export default function CalendarView({ events = [], onEventClick, onAddEvent }) 
     showMore: (total) => `+ Show more (${total})`,
     yesterday: 'Yesterday',
     tomorrow: 'Tomorrow',
-    noEventsInRange: 'No events scheduled for this period.',
-    allDay: 'All Day Event',
-    date: 'Date',
-    time: 'Time',
-    event: 'Event',
-    noEventsInRange: 'No events in this range.',
-    showMore: (total) => `+ Show more (${total})`,
   };
 
   // Calculate calendar statistics
