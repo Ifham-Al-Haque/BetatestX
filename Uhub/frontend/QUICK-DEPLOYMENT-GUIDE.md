@@ -17,9 +17,10 @@ Your UHub code has been successfully pushed to: [https://github.com/Ifham-Al-Haq
 3. Click **"Import"**
 
 ### Step 3: Configure Project
-Vercel should auto-detect these settings:
+- **Important:** This Vercel project is for **UHub only**. Do **not** connect or deploy the **All-in-One** branch here — All-in-One Hub is a separate product and should use **separate hosting** (e.g. a different Vercel project). See `DEPLOYMENT-BRANCHES.md` for branch and deployment separation.
+
+If your repo root is the repo root (e.g. IT-Project with `Uhub/frontend` inside), leave **Root Directory** empty so the repo’s `vercel.json` is used. Otherwise set **Root Directory** to `Uhub/frontend` and use:
 - **Framework Preset:** Create React App ✅
-- **Root Directory:** `./` (leave empty) ✅
 - **Build Command:** `npm run build` ✅
 - **Output Directory:** `build` ✅
 
@@ -96,9 +97,11 @@ After deployment, test these features:
 ## 📞 **Need Help?**
 
 If you encounter any issues:
-1. Check Vercel deployment logs
-2. Verify environment variables are set correctly
-3. Check Supabase database setup
-4. Review the detailed guide: `README-VERCEL-DEPLOYMENT.md`
+1. Check Vercel deployment logs for the exact error
+2. Ensure the **correct branch** is deploying (UHub only — not the All-in-One branch). Use **Settings → Git → Production Branch** and optionally **Ignored Build Step** so only `main` (or your UHub branch) builds. See `DEPLOYMENT-BRANCHES.md`
+3. If repo root contains `Uhub/frontend`, either leave Root Directory empty (use repo `vercel.json`) or set Root Directory to `Uhub/frontend`
+4. Verify environment variables are set correctly
+5. Check Supabase database setup
+6. Review the detailed guide: `README-VERCEL-DEPLOYMENT.md`
 
 **Your UHub application is ready for production deployment! 🚀**
