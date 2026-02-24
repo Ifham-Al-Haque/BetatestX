@@ -276,13 +276,39 @@ const ITRequests = () => {
   };
 
   const handleDelete = async (requestId) => {
-    if (window.confirm('Are you sure you want to delete this request?')) {
+    if (window.confirm('Are you sure you want to delete this request? It will be removed from your view but kept in the system.')) {
       try {
+        // Optimistically remove from UI immediately
+        setRequests(prevRequests => prevRequests.filter(req => req.id !== requestId));
+        
+        // Update analytics optimistically
+        setAnalytics(prevAnalytics => {
+          const request = requests.find(r => r.id === requestId);
+          if (!request) return prevAnalytics;
+          
+          const newAnalytics = { ...prevAnalytics };
+          if (request.status === 'open') {
+            newAnalytics.openRequests = Math.max(0, newAnalytics.openRequests - 1);
+          } else if (request.status === 'in_progress') {
+            newAnalytics.inProgressRequests = Math.max(0, newAnalytics.inProgressRequests - 1);
+          } else if (request.status === 'resolved') {
+            newAnalytics.resolvedRequests = Math.max(0, newAnalytics.resolvedRequests - 1);
+          }
+          newAnalytics.totalRequests = Math.max(0, newAnalytics.totalRequests - 1);
+          return newAnalytics;
+        });
+        
+        // Perform soft delete in background
         await itServicesApi.requests.delete(requestId);
-        success('Success', 'Request deleted successfully!');
+        success('Success', 'Request deleted successfully! It has been removed from your view.');
+        
+        // Refresh data to ensure consistency (but UI already updated)
         fetchData();
       } catch (err) {
         console.error('Error deleting request:', err);
+        
+        // Revert optimistic update on error
+        fetchData();
         showError('Error', 'Failed to delete request. Please try again.');
       }
     }
@@ -564,131 +590,152 @@ const ITRequests = () => {
   return (
     <MobileOptimized currentPage="it-requests">
       <div 
-        className="min-h-screen p-6 transition-all duration-500"
+        className="min-h-screen p-4 md:p-6 transition-all duration-500"
         style={{
-          background: 'var(--bg-primary)',
+          background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)',
           color: 'var(--text-primary)'
         }}
       >
       <div className="max-w-7xl mx-auto">
-        {/* Enhanced Header */}
+        {/* Enhanced Header with Gradient Background */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           className="mb-8"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-4">
-                <div 
-                  className="p-3 rounded-xl"
+                <motion.div 
+                  className="p-4 rounded-2xl shadow-lg"
                   style={{
-                    background: 'var(--gradient-primary)',
-                    boxShadow: 'var(--shadow-md)'
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
                   }}
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                 >
                   <FileText className="w-8 h-8 text-white" />
-                </div>
+                </motion.div>
             <div>
-                  <h1 
-                    className="text-4xl font-bold mb-2"
-                    style={{ color: 'var(--text-primary)' }}
+                  <motion.h1 
+                    className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1 }}
                   >
                     Submit IT Request
-                  </h1>
-                  <p 
-                    className="text-lg"
+                  </motion.h1>
+                  <motion.p 
+                    className="text-lg md:text-xl"
                     style={{ color: 'var(--text-muted)' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
                   >
                     Create a new IT service request for hardware, software, or technical support
-                  </p>
+                  </motion.p>
             </div>
               </div>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={refreshData}
-                disabled={refreshing}
-                className="flex items-center gap-2"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </Button>
-              
-              {isAdminOrITManager && (
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
                   variant="outline"
-                  onClick={() => setShowAnalytics(!showAnalytics)}
-                  className="flex items-center gap-2"
+                  onClick={refreshData}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 transition-all duration-200 hover:shadow-md"
                   style={{
                     background: 'var(--card-bg)',
                     borderColor: 'var(--card-border)',
                     color: 'var(--text-primary)'
                   }}
                 >
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Analytics</span>
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
                 </Button>
+              </motion.div>
+              
+              {isAdminOrITManager && (
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAnalytics(!showAnalytics)}
+                    className="flex items-center gap-2 transition-all duration-200 hover:shadow-md"
+                    style={{
+                      background: 'var(--card-bg)',
+                      borderColor: 'var(--card-border)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Analytics</span>
+                  </Button>
+                </motion.div>
               )}
               
-            <Button
-              onClick={() => {
-                setEditingRequest(null);
-                resetForm();
-                setShowForm(true);
-              }}
-                className="flex items-center gap-2"
-                style={{
-                  background: 'var(--gradient-primary)',
-                  color: 'white',
-                  boxShadow: 'var(--shadow-md)'
-                }}
+            <motion.div 
+              whileHover={{ scale: 1.05 }} 
+              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
             >
-              <Plus className="w-4 h-4" />
-              <span>New Request</span>
-            </Button>
+              <Button
+                onClick={() => {
+                  setEditingRequest(null);
+                  resetForm();
+                  setShowForm(true);
+                }}
+                className="flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)'
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Request</span>
+              </Button>
+            </motion.div>
             </div>
           </div>
 
-          {/* Enhanced Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Enhanced Stats Cards with Gradient Backgrounds */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 100 }}
+              whileHover={{ y: -5 }}
             >
               <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                className="cursor-pointer group overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                 style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)'
                 }}
                 onClick={() => setFilters({ ...filters, status: 'open' })}
               >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
+                      <motion.div 
+                        className="p-3 rounded-xl shadow-md"
                         style={{
-                          background: 'var(--accent-primary)',
-                          boxShadow: 'var(--shadow-sm)'
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
                         }}
+                        whileHover={{ rotate: 360 }}
+                        transition={{ duration: 0.6 }}
                       >
                         <AlertCircle className="w-6 h-6 text-white" />
-                  </div>
+                  </motion.div>
                   <div>
                         <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
+                          className="text-3xl font-bold mb-1 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
                         >
                           {analytics.openRequests}
                         </p>
@@ -700,7 +747,13 @@ const ITRequests = () => {
                         </p>
                   </div>
                     </div>
-                    <TrendingUp className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      whileHover={{ opacity: 1, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200 }}
+                    >
+                      <TrendingUp className="w-5 h-5 text-green-500" />
+                    </motion.div>
                 </div>
               </CardContent>
             </Card>
@@ -709,33 +762,34 @@ const ITRequests = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 100 }}
+              whileHover={{ y: -5 }}
             >
               <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                className="cursor-pointer group overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                 style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
+                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%)',
+                  border: '1px solid rgba(251, 191, 36, 0.2)'
                 }}
                 onClick={() => setFilters({ ...filters, status: 'in_progress' })}
               >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
+                      <motion.div 
+                        className="p-3 rounded-xl shadow-md"
                         style={{
-                          background: 'var(--accent-warning)',
-                          boxShadow: 'var(--shadow-sm)'
+                          background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                         }}
+                        animate={{ rotate: [0, 10, -10, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                       >
                         <Activity className="w-6 h-6 text-white" />
-                  </div>
+                  </motion.div>
                   <div>
                         <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
+                          className="text-3xl font-bold mb-1 bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent"
                         >
                           {analytics.inProgressRequests}
                         </p>
@@ -747,7 +801,13 @@ const ITRequests = () => {
                         </p>
                   </div>
                     </div>
-                    <Timer className="w-5 h-5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      whileHover={{ opacity: 1, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200 }}
+                    >
+                      <Timer className="w-5 h-5 text-blue-500" />
+                    </motion.div>
                 </div>
               </CardContent>
             </Card>
@@ -756,33 +816,34 @@ const ITRequests = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
+              whileHover={{ y: -5 }}
             >
               <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                className="cursor-pointer group overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                 style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.1) 100%)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)'
                 }}
                 onClick={() => setFilters({ ...filters, status: 'resolved' })}
               >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-emerald-500"></div>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
+                      <motion.div 
+                        className="p-3 rounded-xl shadow-md"
                         style={{
-                          background: 'var(--accent-success)',
-                          boxShadow: 'var(--shadow-sm)'
+                          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                         }}
+                        whileHover={{ scale: 1.1 }}
+                        transition={{ type: "spring", stiffness: 300 }}
                       >
                         <CheckCircle className="w-6 h-6 text-white" />
-                  </div>
+                  </motion.div>
                   <div>
                         <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
+                          className="text-3xl font-bold mb-1 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
                         >
                           {analytics.resolvedRequests}
                         </p>
@@ -794,7 +855,13 @@ const ITRequests = () => {
                         </p>
                   </div>
                     </div>
-                    <Award className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      whileHover={{ opacity: 1, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200 }}
+                    >
+                      <Award className="w-5 h-5 text-green-500" />
+                    </motion.div>
                 </div>
               </CardContent>
             </Card>
@@ -803,33 +870,34 @@ const ITRequests = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.4, type: "spring", stiffness: 100 }}
+              whileHover={{ y: -5 }}
             >
               <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                className="cursor-pointer group overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300"
                 style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%)',
+                  border: '1px solid rgba(139, 92, 246, 0.2)'
                 }}
                 onClick={() => setFilters({ ...filters, status: '' })}
               >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-400 to-violet-500"></div>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
+                      <motion.div 
+                        className="p-3 rounded-xl shadow-md"
                         style={{
-                          background: 'var(--accent-secondary)',
-                          boxShadow: 'var(--shadow-sm)'
+                          background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
                         }}
+                        whileHover={{ rotate: 360 }}
+                        transition={{ duration: 0.6 }}
                       >
                         <FileText className="w-6 h-6 text-white" />
-                  </div>
+                  </motion.div>
                   <div>
                         <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
+                          className="text-3xl font-bold mb-1 bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent"
                         >
                           {analytics.totalRequests}
                         </p>
@@ -841,7 +909,13 @@ const ITRequests = () => {
                         </p>
                   </div>
                     </div>
-                    <Target className="w-5 h-5 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      whileHover={{ opacity: 1, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200 }}
+                    >
+                      <Target className="w-5 h-5 text-purple-500" />
+                    </motion.div>
                 </div>
               </CardContent>
             </Card>
@@ -1176,51 +1250,81 @@ const ITRequests = () => {
           className="space-y-6"
         >
           {filteredAndSortedRequests.length === 0 ? (
-            <Card 
-              className="text-center py-12"
-              style={{
-                background: 'var(--card-bg)',
-                borderColor: 'var(--card-border)',
-                boxShadow: 'var(--shadow-md)'
-              }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 100 }}
             >
-              <CardContent className="p-8">
-                <div 
-                  className="w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center"
-                  style={{
-                    background: 'var(--bg-tertiary)',
-                    border: '2px solid var(--border-primary)'
-                  }}
-                >
-                  <FileText className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />
-                </div>
-                <h3 
-                  className="text-xl font-semibold mb-3"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  No requests found
-                </h3>
-                <p 
-                  className="text-lg mb-6"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {filters.search || filters.status || filters.category_id || filters.priority_id
-                    ? 'No requests match your current filters. Try adjusting your search criteria.'
-                    : 'You haven\'t submitted any IT service requests yet.'}
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button
-                  onClick={() => setShowForm(true)}
-                    className="flex items-center gap-2"
+              <Card 
+                className="text-center py-16 border-0 shadow-xl overflow-hidden relative"
+                style={{
+                  background: 'linear-gradient(135deg, var(--card-bg) 0%, var(--bg-secondary) 100%)',
+                  borderColor: 'var(--card-border)',
+                }}
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                <CardContent className="p-8">
+                  <motion.div 
+                    className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center relative"
                     style={{
-                      background: 'var(--gradient-primary)',
-                      color: 'white',
-                      boxShadow: 'var(--shadow-md)'
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                      border: '3px solid rgba(102, 126, 234, 0.3)'
+                    }}
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.05, 1]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity, 
+                      repeatDelay: 2 
                     }}
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>Submit Your First Request</span>
-                </Button>
+                    <FileText className="w-12 h-12" style={{ color: 'var(--text-muted)' }} />
+                  </motion.div>
+                  <motion.h3 
+                    className="text-2xl md:text-3xl font-bold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    No requests found
+                  </motion.h3>
+                  <motion.p 
+                    className="text-lg mb-8 max-w-md mx-auto"
+                    style={{ color: 'var(--text-muted)' }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    {filters.search || filters.status || filters.category_id || filters.priority_id
+                      ? 'No requests match your current filters. Try adjusting your search criteria.'
+                      : 'You haven\'t submitted any IT service requests yet. Get started by creating your first request!'}
+                  </motion.p>
+                  <motion.div 
+                    className="flex flex-col sm:flex-row gap-3 justify-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Button
+                        onClick={() => {
+                          setEditingRequest(null);
+                          resetForm();
+                          setShowForm(true);
+                        }}
+                        className="flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                        style={{
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          color: 'white',
+                          boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)'
+                        }}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Submit Your First Request</span>
+                      </Button>
+                    </motion.div>
                   {(filters.search || filters.status || filters.category_id || filters.priority_id) && (
                     <Button
                       variant="outline"
@@ -1262,83 +1366,99 @@ const ITRequests = () => {
                     key={request.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.05, type: "spring", stiffness: 100 }}
+                    whileHover={{ y: -8, scale: 1.01 }}
+                    layout
                   >
                     <Card 
-                      className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                      className="cursor-pointer group overflow-hidden border-0 shadow-md hover:shadow-2xl transition-all duration-300 relative"
                       style={{
                         background: 'var(--card-bg)',
-                        borderColor: 'var(--card-border)',
-                        boxShadow: 'var(--shadow-md)'
+                        border: '1px solid var(--card-border)',
                       }}
                       onClick={() => setSelectedRequest(request)}
                     >
-                  <CardContent className="p-6">
+                      {/* Gradient accent bar */}
+                      <div 
+                        className="absolute top-0 left-0 w-full h-1"
+                        style={{
+                          background: `linear-gradient(90deg, ${statusColor.bg} 0%, ${priorityColor.bg} 100%)`
+                        }}
+                      ></div>
+                  <CardContent className="p-6 pt-7">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                           {/* Main Content */}
                       <div className="flex-1">
                             {/* Header */}
                             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                              <div className="flex items-center gap-3">
-                                <h3 
-                                  className="text-xl font-semibold group-hover:underline"
+                              <div className="flex items-center gap-3 flex-1">
+                                <motion.h3 
+                                  className="text-xl font-bold group-hover:text-blue-600 transition-colors duration-200"
                                   style={{ color: 'var(--text-primary)' }}
+                                  whileHover={{ x: 5 }}
                                 >
                             {request.title}
-                          </h3>
+                          </motion.h3>
                                 {request.request_number && (
-                                  <span 
-                                    className="px-2 py-1 text-xs font-mono rounded-md"
+                                  <motion.span 
+                                    className="px-3 py-1 text-xs font-mono rounded-lg font-semibold shadow-sm"
                                     style={{
-                                      background: 'var(--bg-tertiary)',
-                                      color: 'var(--text-muted)',
-                                      border: '1px solid var(--border-primary)'
+                                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+                                      color: 'var(--text-primary)',
+                                      border: '1px solid rgba(99, 102, 241, 0.3)'
                                     }}
+                                    whileHover={{ scale: 1.05 }}
                                   >
-                                    {request.request_number}
-                          </span>
+                                    #{request.request_number}
+                          </motion.span>
                                 )}
                               </div>
                               
                               {/* Status and Priority Badges */}
                               <div className="flex flex-wrap items-center gap-2">
-                                <span 
-                                  className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
+                                <motion.span 
+                                  className="px-3 py-1.5 text-sm font-semibold rounded-full flex items-center gap-2 shadow-md"
                                   style={{
                                     background: statusColor.bg,
                                     color: statusColor.text,
                                     border: `1px solid ${statusColor.border}`
                                   }}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
                                 >
                                   <StatusIcon className="w-4 h-4" />
                                   {request.status.replace('_', ' ').toUpperCase()}
-                          </span>
+                          </motion.span>
                                 
-                                <span 
-                                  className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
+                                <motion.span 
+                                  className="px-3 py-1.5 text-sm font-semibold rounded-full flex items-center gap-2 shadow-md"
                                   style={{
                                     background: priorityColor.bg,
                                     color: priorityColor.text,
                                     border: `1px solid ${priorityColor.border}`
                                   }}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
                                 >
                                   <PriorityIcon className="w-4 h-4" />
                                   {request.priority?.name || 'Unknown'}
-                                </span>
+                                </motion.span>
                                 
                           {sla && (
-                                  <span 
-                                    className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2 ${
-                                      sla.status === 'overdue' ? 'bg-red-500 text-white' :
-                                      sla.status === 'warning' ? 'bg-yellow-500 text-white' :
-                                      'bg-green-500 text-white'
+                                  <motion.span 
+                                    className={`px-3 py-1.5 text-sm font-semibold rounded-full flex items-center gap-2 shadow-md ${
+                                      sla.status === 'overdue' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white animate-pulse' :
+                                      sla.status === 'warning' ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white' :
+                                      'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                                     }`}
+                                    animate={sla.status === 'overdue' ? { scale: [1, 1.05, 1] } : {}}
+                                    transition={{ duration: 2, repeat: Infinity }}
                                   >
                                     <Timer className="w-4 h-4" />
                               {sla.status === 'overdue' ? `Overdue ${sla.hours}h` :
                                sla.status === 'warning' ? `${sla.hours}h left` :
                                `${sla.hours}h left`}
-                            </span>
+                            </motion.span>
                           )}
                               </div>
                         </div>
@@ -1416,35 +1536,38 @@ const ITRequests = () => {
                       </div>
                       
                           {/* Actions */}
-                          <div className="flex flex-col sm:flex-row lg:flex-col gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedRequest(request);
-                              }}
-                              className="flex items-center gap-2"
-                              style={{
-                                background: 'var(--bg-tertiary)',
-                                borderColor: 'var(--border-primary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            >
-                              <Eye className="w-4 h-4" />
-                              <span>View</span>
-                            </Button>
+                          <div className="flex flex-col sm:flex-row lg:flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRequest(request);
+                                }}
+                                className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-md"
+                                style={{
+                                  background: 'var(--bg-tertiary)',
+                                  borderColor: 'var(--border-primary)',
+                                  color: 'var(--text-primary)'
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                                <span>View</span>
+                              </Button>
+                            </motion.div>
                             
                             {request.status === 'open' && request.requester_id === user?.id && (
                           <>
-                            <Button
-                              variant="outline"
-                              size="sm"
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleEdit(request);
                                   }}
-                                  className="flex items-center gap-2"
+                                  className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-md"
                                   style={{
                                     background: 'var(--bg-tertiary)',
                                     borderColor: 'var(--border-primary)',
@@ -1453,15 +1576,17 @@ const ITRequests = () => {
                                 >
                                   <Edit className="w-4 h-4" />
                                   <span>Edit</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
+                              </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDelete(request.id);
                                   }}
-                                  className="flex items-center gap-2 text-red-500 hover:text-red-600"
+                                  className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-md text-red-500 hover:text-red-600 hover:bg-red-50"
                                   style={{
                                     background: 'var(--bg-tertiary)',
                                     borderColor: 'var(--border-primary)'
@@ -1469,28 +1594,31 @@ const ITRequests = () => {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                   <span>Delete</span>
-                            </Button>
+                              </Button>
+                            </motion.div>
                           </>
                         )}
                             
                             {isAdminOrITManager && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Handle admin actions
-                                }}
-                                className="flex items-center gap-2"
-                                style={{
-                                  background: 'var(--gradient-primary)',
-                                  color: 'white',
-                                  border: 'none'
-                                }}
-                              >
-                                <Settings className="w-4 h-4" />
-                                <span>Manage</span>
-                              </Button>
+                              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Handle admin actions
+                                  }}
+                                  className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-lg"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    color: 'white',
+                                    border: 'none'
+                                  }}
+                                >
+                                  <Settings className="w-4 h-4" />
+                                  <span>Manage</span>
+                                </Button>
+                              </motion.div>
                         )}
                       </div>
                     </div>
@@ -1506,61 +1634,105 @@ const ITRequests = () => {
         {/* Enhanced Request Form Modal */}
         <AnimatePresence>
           {showForm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div 
+              className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowForm(false);
+                setEditingRequest(null);
+                resetForm();
+              }}
+            >
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
                 style={{
                   background: 'var(--card-bg)',
                   border: '1px solid var(--card-border)',
-                  boxShadow: 'var(--shadow-xl)'
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
                 }}
+                onClick={(e) => e.stopPropagation()}
               >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
+                {/* Header with gradient */}
+                <div 
+                  className="p-6 border-b relative overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                    borderColor: 'var(--card-border)'
+                  }}
+                >
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500"></div>
+                  <div className="flex items-center justify-between relative z-10">
                     <div>
-                      <h2 
-                        className="text-2xl font-bold"
-                        style={{ color: 'var(--text-primary)' }}
+                      <motion.h2 
+                        className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 }}
                       >
-                      {editingRequest ? 'Edit Request' : 'New IT Service Request'}
-                    </h2>
-                      <p 
-                        className="text-sm mt-1"
+                        {editingRequest ? 'Edit Request' : 'New IT Service Request'}
+                      </motion.h2>
+                      <motion.p 
+                        className="text-sm md:text-base mt-2"
                         style={{ color: 'var(--text-muted)' }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 }}
                       >
                         {editingRequest ? 'Update your request details' : 'Submit a new IT service request with optional attachments and comments'}
-                      </p>
+                      </motion.p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditingRequest(null);
-                        resetForm();
-                      }}
-                      className="p-2"
-                      style={{
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-muted)'
-                      }}
+                    <motion.div
+                      whileHover={{ rotate: 90, scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                     >
-                      <XCircle className="w-5 h-5" />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowForm(false);
+                          setEditingRequest(null);
+                          resetForm();
+                        }}
+                        className="p-2 rounded-full hover:bg-red-100 transition-colors"
+                        style={{
+                          background: 'var(--bg-tertiary)',
+                          color: 'var(--text-muted)'
+                        }}
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </Button>
+                    </motion.div>
                   </div>
+                </div>
+                
+                {/* Scrollable content */}
+                <div className="overflow-y-auto flex-1 p-6">
                   
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Basic Information */}
-                    <div className="space-y-4">
-                      <h3 
-                        className="text-lg font-semibold"
-                        style={{ color: 'var(--text-primary)' }}
-                      >
-                        Basic Information
-                      </h3>
+                    <motion.div 
+                      className="space-y-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500">
+                          <FileText className="w-4 h-4 text-white" />
+                        </div>
+                        <h3 
+                          className="text-lg font-semibold"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Basic Information
+                        </h3>
+                      </div>
                       
                     <div>
                         <Label 
@@ -1719,23 +1891,35 @@ const ITRequests = () => {
                       </div>
                     </div>
                     
-                    </div>
+                    </motion.div>
                     
                     {/* File Attachments */}
-                    <div className="space-y-4">
-                      <h3 
-                        className="text-lg font-semibold"
-                        style={{ color: 'var(--text-primary)' }}
-                      >
-                        File Attachments (Optional)
-                      </h3>
+                    <motion.div 
+                      className="space-y-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500">
+                          <Paperclip className="w-4 h-4 text-white" />
+                        </div>
+                        <h3 
+                          className="text-lg font-semibold"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          File Attachments (Optional)
+                        </h3>
+                      </div>
                       
-                      <div 
-                        className="border-2 border-dashed rounded-lg p-6 text-center"
+                      <motion.div 
+                        className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 hover:border-blue-500 hover:bg-blue-50/50"
                         style={{
                           borderColor: 'var(--border-primary)',
                           background: 'var(--bg-tertiary)'
                         }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
                         <input
                           type="file"
@@ -1773,11 +1957,16 @@ const ITRequests = () => {
                             </p>
                           </div>
                         </label>
-                      </div>
+                      </motion.div>
                       
                       {/* Attached Files */}
                       {attachments.length > 0 && (
-                        <div className="space-y-2">
+                        <motion.div 
+                          className="space-y-2"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          transition={{ duration: 0.3 }}
+                        >
                           <h4 
                             className="text-sm font-medium"
                             style={{ color: 'var(--text-primary)' }}
@@ -1785,14 +1974,18 @@ const ITRequests = () => {
                             Attached Files ({attachments.length})
                           </h4>
                           <div className="space-y-2">
-                            {attachments.map((file) => (
-                              <div
+                            {attachments.map((file, idx) => (
+                              <motion.div
                                 key={file.id}
-                                className="flex items-center justify-between p-3 rounded-lg"
+                                className="flex items-center justify-between p-3 rounded-lg hover:shadow-md transition-all duration-200"
                                 style={{
                                   background: 'var(--bg-secondary)',
                                   border: '1px solid var(--border-primary)'
                                 }}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                whileHover={{ x: 5 }}
                               >
                                 <div className="flex items-center gap-3">
                                   <Paperclip className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
@@ -1819,21 +2012,31 @@ const ITRequests = () => {
                                 >
                                   <XCircle className="w-4 h-4" />
                                 </Button>
-                              </div>
+                              </motion.div>
                             ))}
                           </div>
-                        </div>
+                        </motion.div>
                       )}
-                    </div>
+                    </motion.div>
 
                     {/* Comments */}
-                    <div className="space-y-4">
-                      <h3 
-                        className="text-lg font-semibold"
-                        style={{ color: 'var(--text-primary)' }}
-                      >
-                        Additional Comments (Optional)
-                      </h3>
+                    <motion.div 
+                      className="space-y-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500">
+                          <MessageCircle className="w-4 h-4 text-white" />
+                        </div>
+                        <h3 
+                          className="text-lg font-semibold"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          Additional Comments (Optional)
+                        </h3>
+                      </div>
                       
                       <div>
                         <Textarea
@@ -1898,40 +2101,53 @@ const ITRequests = () => {
                     </div>
                     
                     {/* Form Actions */}
-                    <div className="flex justify-end space-x-3 pt-6 border-t" style={{ borderColor: 'var(--border-primary)' }}>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setShowForm(false);
-                          setEditingRequest(null);
-                          resetForm();
-                        }}
-                        className="px-6 py-3"
-                        style={{
-                          background: 'var(--bg-tertiary)',
-                          borderColor: 'var(--border-primary)',
-                          color: 'var(--text-primary)'
-                        }}
+                    <motion.div 
+                      className="flex justify-end gap-3 pt-6 border-t sticky bottom-0 bg-white dark:bg-gray-900 pb-0"
+                      style={{ borderColor: 'var(--border-primary)' }}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.6 }}
+                    >
+                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowForm(false);
+                            setEditingRequest(null);
+                            resetForm();
+                          }}
+                          className="px-6 py-3 transition-all duration-200 hover:shadow-md"
+                          style={{
+                            background: 'var(--bg-tertiary)',
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-primary)'
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </motion.div>
+                      <motion.div 
+                        whileHover={{ scale: 1.05 }} 
+                        whileTap={{ scale: 0.95 }}
                       >
-                        Cancel
-                      </Button>
-                      <Button 
-                        type="submit"
-                        className="px-6 py-3"
-                        style={{
-                          background: 'var(--gradient-primary)',
-                          color: 'white',
-                          boxShadow: 'var(--shadow-md)'
-                        }}
-                      >
-                        {editingRequest ? 'Update Request' : 'Submit Request'}
-                      </Button>
-                    </div>
+                        <Button 
+                          type="submit"
+                          className="px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+                          style={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)'
+                          }}
+                        >
+                          {editingRequest ? 'Update Request' : 'Submit Request'}
+                        </Button>
+                      </motion.div>
+                    </motion.div>
                   </form>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
 

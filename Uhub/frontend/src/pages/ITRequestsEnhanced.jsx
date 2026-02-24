@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
 import { itServicesApi } from '../services/itServicesApiFixed';
+import udriveAccessService from '../services/udriveAccessService';
 import { supabase } from '../supabaseClient';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
@@ -75,15 +76,31 @@ const ITRequestsEnhanced = () => {
   const queryClient = useQueryClient();
   
   // UI state
+  const [activeSection, setActiveSection] = useState('requests'); // 'requests' | 'udrive-access'
   const [showForm, setShowForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [editingRequest, setEditingRequest] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // grid, list, kanban
+
+  // UDRIVE ACCESS state
+  const [udriveAccessRecords, setUdriveAccessRecords] = useState([]);
+  const [udriveAccessLoading, setUdriveAccessLoading] = useState(false);
+  const [udriveAccessShowForm, setUdriveAccessShowForm] = useState(false);
+  const [udriveAccessEditingRecord, setUdriveAccessEditingRecord] = useState(null);
+  const [udriveAccessFormData, setUdriveAccessFormData] = useState({
+    access_platform_name: '',
+    platform_purpose: '',
+    department_uses: '',
+    infrastructure_level: '',
+    original_amount: '',
+    amount_in_aed: '',
+    remark: ''
+  });
   
-  // Enhanced filters
-  const [filters, setFilters] = useState({
+  // Enhanced filters - use functional update to prevent reference changes
+  const [filters, setFilters] = useState(() => ({
     status: '',
     category_id: '',
     priority_id: '',
@@ -91,7 +108,7 @@ const ITRequestsEnhanced = () => {
     dateRange: '',
     sortBy: 'created_at',
     sortOrder: 'desc'
-  });
+  }));
 
   // Enhanced form data
   const [formData, setFormData] = useState({
@@ -102,25 +119,71 @@ const ITRequestsEnhanced = () => {
     request_type: 'it_service'
   });
 
-  // Statistics
-  const [stats, setStats] = useState({
-    total: 0,
-    open: 0,
-    inProgress: 0,
-    resolved: 0,
-    pending: 0
-  });
+  // Statistics - now calculated via useMemo, no longer need state
 
-  const isAdminOrManager = userProfile?.role === 'admin' || userProfile?.role === 'hr_manager';
+  // Extract stable values to prevent infinite loops - use primitive values directly
+  // This prevents object reference changes from causing re-renders
+  const userId = user?.id ?? null;
+  const userRole = userProfile?.role ?? null;
+  const isAdminOrManager = useMemo(() => 
+    userRole === 'admin' || userRole === 'hr_manager', 
+    [userRole]
+  );
+
+  // Memoize filters object to prevent reference changes - create new object from values
+  const memoizedFilters = useMemo(() => ({
+    status: filters.status,
+    category_id: filters.category_id,
+    priority_id: filters.priority_id,
+    search: filters.search,
+    dateRange: filters.dateRange,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder
+  }), [
+    filters.status,
+    filters.category_id,
+    filters.priority_id,
+    filters.search,
+    filters.dateRange,
+    filters.sortBy,
+    filters.sortOrder
+  ]);
+
+  // Memoize query key to prevent infinite loops - use individual filter values instead of object
+  const queryKey = useMemo(() => [
+    'itRequests',
+    memoizedFilters.status,
+    memoizedFilters.category_id,
+    memoizedFilters.priority_id,
+    memoizedFilters.search,
+    memoizedFilters.dateRange,
+    memoizedFilters.sortBy,
+    memoizedFilters.sortOrder,
+    userId,
+    userRole
+  ], [
+    memoizedFilters.status,
+    memoizedFilters.category_id,
+    memoizedFilters.priority_id,
+    memoizedFilters.search,
+    memoizedFilters.dateRange,
+    memoizedFilters.sortBy,
+    memoizedFilters.sortOrder,
+    userId,
+    userRole
+  ]);
+
+  // Memoize query function to prevent recreation on every render
+  const fetchRequests = useCallback(async () => {
+    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole);
+    return data || [];
+  }, [memoizedFilters, userId, userRole]);
 
   // React Query hooks for data fetching
   const { data: requestsData, isLoading: requestsLoading, refetch: refetchRequests, isRefetching: isRefetchingRequests } = useQuery({
-    queryKey: ['itRequests', filters, user?.id, userProfile?.role],
-    queryFn: async () => {
-      const data = await itServicesApi.requests.getAll(filters, user?.id, userProfile?.role);
-      return data || [];
-    },
-    enabled: !!user?.id,
+    queryKey,
+    queryFn: fetchRequests,
+    enabled: !!userId,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -143,24 +206,32 @@ const ITRequestsEnhanced = () => {
     staleTime: 10 * 60 * 1000, // Priorities don't change often
   });
 
-  // Extract data from queries
-  const requests = requestsData || [];
-  const categories = categoriesData || [];
-  const priorities = prioritiesData || [];
+  // Extract data from queries - memoize to prevent infinite loops
+  const requests = useMemo(() => requestsData || [], [requestsData]);
+  const categories = useMemo(() => categoriesData || [], [categoriesData]);
+  const priorities = useMemo(() => prioritiesData || [], [prioritiesData]);
   const loading = requestsLoading || categoriesLoading || prioritiesLoading;
   const refreshing = isRefetchingRequests;
 
-  // Calculate stats from requests
-  useEffect(() => {
-    if (requests && Array.isArray(requests)) {
-      setStats({
-        total: requests.length,
-        open: requests.filter(r => r.status === 'open').length,
-        inProgress: requests.filter(r => r.status === 'in_progress').length,
-        resolved: requests.filter(r => r.status === 'resolved').length,
-        pending: requests.filter(r => r.status === 'pending_user').length
-      });
+  // Calculate stats from requests using useMemo instead of useEffect
+  const stats = useMemo(() => {
+    if (!requests || !Array.isArray(requests)) {
+      return {
+        total: 0,
+        open: 0,
+        inProgress: 0,
+        resolved: 0,
+        pending: 0
+      };
     }
+    
+    return {
+      total: requests.length,
+      open: requests.filter(r => r.status === 'open').length,
+      inProgress: requests.filter(r => r.status === 'in_progress').length,
+      resolved: requests.filter(r => r.status === 'resolved').length,
+      pending: requests.filter(r => r.status === 'pending_user').length
+    };
   }, [requests]);
 
   const handleRefresh = async () => {
@@ -172,6 +243,81 @@ const ITRequestsEnhanced = () => {
     } catch (error) {
       console.error('Error refreshing data:', error);
       showError('Failed to refresh data', error.message);
+    }
+  };
+
+  // UDRIVE ACCESS: fetch records when section is active
+  const fetchUdriveAccessRecords = useCallback(async () => {
+    setUdriveAccessLoading(true);
+    try {
+      const data = await udriveAccessService.getRecords();
+      setUdriveAccessRecords(data || []);
+    } catch (err) {
+      console.error('Error fetching UDRIVE ACCESS records:', err);
+      showError('Error', err.message || 'Failed to load UDRIVE ACCESS data');
+      setUdriveAccessRecords([]);
+    } finally {
+      setUdriveAccessLoading(false);
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    if (activeSection === 'udrive-access') fetchUdriveAccessRecords();
+  }, [activeSection, fetchUdriveAccessRecords]);
+
+  const resetUdriveAccessForm = () => {
+    setUdriveAccessFormData({
+      access_platform_name: '',
+      platform_purpose: '',
+      department_uses: '',
+      infrastructure_level: '',
+      original_amount: '',
+      amount_in_aed: '',
+      remark: ''
+    });
+    setUdriveAccessEditingRecord(null);
+    setUdriveAccessShowForm(false);
+  };
+
+  const handleUdriveAccessSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (udriveAccessEditingRecord) {
+        await udriveAccessService.updateRecord(udriveAccessEditingRecord.id, udriveAccessFormData);
+        success('Record updated successfully');
+      } else {
+        await udriveAccessService.createRecord(udriveAccessFormData);
+        success('Record added successfully');
+      }
+      resetUdriveAccessForm();
+      fetchUdriveAccessRecords();
+    } catch (err) {
+      showError('Error', err.message || 'Failed to save record');
+    }
+  };
+
+  const handleUdriveAccessEdit = (record) => {
+    setUdriveAccessEditingRecord(record);
+    setUdriveAccessFormData({
+      access_platform_name: record.access_platform_name ?? '',
+      platform_purpose: record.platform_purpose ?? '',
+      department_uses: record.department_uses ?? '',
+      infrastructure_level: record.infrastructure_level ?? '',
+      original_amount: record.original_amount != null ? String(record.original_amount) : '',
+      amount_in_aed: record.amount_in_aed != null ? String(record.amount_in_aed) : '',
+      remark: record.remark ?? ''
+    });
+    setUdriveAccessShowForm(true);
+  };
+
+  const handleUdriveAccessDelete = async (id) => {
+    if (!window.confirm('Delete this record?')) return;
+    try {
+      await udriveAccessService.deleteRecord(id);
+      success('Record deleted');
+      fetchUdriveAccessRecords();
+    } catch (err) {
+      showError('Error', err.message || 'Failed to delete record');
     }
   };
 
@@ -200,8 +346,8 @@ const ITRequestsEnhanced = () => {
       setShowForm(false);
       setEditingRequest(null);
       resetForm();
-      // Invalidate and refetch queries
-      queryClient.invalidateQueries(['itRequests']);
+      // Invalidate and refetch queries - use exact query key prefix
+      queryClient.invalidateQueries({ queryKey: ['itRequests'] });
     } catch (error) {
       console.error('Error saving request:', error);
       showError('Failed to save request', error.message);
@@ -209,14 +355,20 @@ const ITRequestsEnhanced = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this request?')) return;
+    if (!window.confirm('Are you sure you want to delete this request? It will be removed from your view but kept in the system.')) return;
     
     try {
       console.log('Deleting request with ID:', id);
       const request = requests.find(r => r.id === id);
       console.log('Found request to delete:', request);
       
-      // Try to delete from database
+      // Optimistically remove from UI immediately
+      queryClient.setQueryData(queryKey, (oldData) => {
+        if (!oldData) return oldData;
+        return oldData.filter((req) => req.id !== id);
+      });
+      
+      // Try to soft delete from database
       const deleteResult = await itServicesApi.requests.delete(id);
       console.log('Delete result:', deleteResult);
       
@@ -230,27 +382,29 @@ const ITRequestsEnhanced = () => {
           // Don't fail the deletion if activity logging fails
         }
         
-        // Invalidate queries to refresh data
-        queryClient.invalidateQueries(['itRequests']);
+        // Invalidate queries to refresh data - use exact query key prefix
+        queryClient.invalidateQueries({ queryKey: ['itRequests'] });
         console.log('Queries invalidated, data will refresh');
         
-        success('Request deleted successfully');
+        success('Request deleted successfully! It has been removed from your view.');
       } else {
+        // Revert optimistic update on failure
+        queryClient.invalidateQueries({ queryKey: ['itRequests'] });
         throw new Error('Delete operation returned false');
       }
       
     } catch (error) {
       console.error('Error deleting request:', error);
       
+      // Revert optimistic update on error
+      queryClient.invalidateQueries({ queryKey: ['itRequests'] });
+      
       // Check if it's an RLS permission error
       if (error.message?.includes('permission') || error.message?.includes('RLS') || error.code === 'PGRST301') {
         showError('Permission denied', 'You do not have permission to delete this request. Please contact your administrator.');
       } else {
-        showError('Failed to delete request', error.message);
+        showError('Failed to delete request', error.message || 'An unknown error occurred');
       }
-      
-      // Always invalidate queries to show current state, even on error
-      queryClient.invalidateQueries(['itRequests']);
     }
   };
 
@@ -336,56 +490,106 @@ const ITRequestsEnhanced = () => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4">
             <div className="flex items-center space-x-4">
               <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl">
                 <Wrench className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  IT Service Requests
+                  IT Services Panel
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Manage and track your IT service requests
+                  {activeSection === 'requests' ? 'Manage and track your IT service requests' : 'UDRIVE ACCESS — platforms, departments, amounts'}
                 </p>
               </div>
             </div>
+
+            {/* Section tabs */}
+            <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden bg-gray-50 dark:bg-gray-700">
+              <button
+                type="button"
+                onClick={() => setActiveSection('requests')}
+                className={`px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'requests' ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+              >
+                <FileText className="w-4 h-4" />
+                IT Requests
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('udrive-access')}
+                className={`px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'udrive-access' ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+              >
+                <Key className="w-4 h-4" />
+                UDRIVE ACCESS
+              </button>
+            </div>
             
             <div className="flex items-center space-x-3">
-              <Button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              
-              <Button
-                onClick={() => setShowStats(!showStats)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                {showStats ? 'Hide' : 'Show'} Stats
-              </Button>
-              
-              <Button
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-              >
-                <Plus className="w-4 h-4" />
-                New Request
-              </Button>
+              {activeSection === 'requests' && (
+                <>
+                  <Button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    onClick={() => setShowStats(!showStats)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    {showStats ? 'Hide' : 'Show'} Stats
+                  </Button>
+                  <Button
+                    onClick={() => setShowForm(true)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Request
+                  </Button>
+                </>
+              )}
+              {activeSection === 'udrive-access' && (
+                <>
+                  <Button
+                    onClick={fetchUdriveAccessRecords}
+                    disabled={udriveAccessLoading}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${udriveAccessLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setUdriveAccessEditingRecord(null);
+                      setUdriveAccessFormData({ access_platform_name: '', platform_purpose: '', department_uses: '', infrastructure_level: '', original_amount: '', amount_in_aed: '', remark: '' });
+                      setUdriveAccessShowForm(true);
+                    }}
+                    className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Row
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* IT Requests section */}
+        {activeSection === 'requests' && (
+          <>
         {/* Statistics Cards */}
         <AnimatePresence>
           {showStats && (
@@ -631,7 +835,7 @@ const ITRequestsEnhanced = () => {
                           <Eye className="w-4 h-4" />
                         </Button>
                         
-                        {(isAdminOrManager || request.requester_id === user?.id) && (
+                        {(isAdminOrManager || request.requester_id === userId) && (
                           <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
@@ -751,6 +955,79 @@ const ITRequestsEnhanced = () => {
               Create New Request
             </Button>
           </motion.div>
+        )}
+          </>
+        )}
+
+        {/* UDRIVE ACCESS section */}
+        {activeSection === 'udrive-access' && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-900/20 dark:to-emerald-900/20 rounded-xl border border-teal-100 dark:border-teal-800">
+                  <Key className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">UDRIVE ACCESS</h2>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">Access / Platform Name, Purpose, Department, Infrastructure, Amounts & Remark</p>
+                </div>
+              </div>
+
+              {udriveAccessLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <LoadingSpinner />
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-600">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Access / Platform Name</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Platform Purpose</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Department Uses</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Infrastructure Level</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Original Amount</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Amount in AED</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Remark</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300 w-24">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                      {udriveAccessRecords.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                            No records yet. Click &quot;Add Row&quot; to add one.
+                          </td>
+                        </tr>
+                      ) : (
+                        udriveAccessRecords.map((row) => (
+                          <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{row.access_platform_name ?? '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.platform_purpose ?? '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.department_uses ?? '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.infrastructure_level ?? '—'}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">{row.original_amount != null ? Number(row.original_amount).toLocaleString() : '—'}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">{row.amount_in_aed != null ? Number(row.amount_in_aed).toLocaleString() : '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.remark ?? ''}>{row.remark ?? '—'}</td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => handleUdriveAccessEdit(row)} className="p-2">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleUdriveAccessDelete(row.id)} className="p-2 text-red-500 hover:text-red-600">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
@@ -1004,6 +1281,109 @@ const ITRequestsEnhanced = () => {
                   </div>
 
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* UDRIVE ACCESS Form Modal */}
+      <AnimatePresence>
+        {udriveAccessShowForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {udriveAccessEditingRecord ? 'Edit UDRIVE ACCESS' : 'Add UDRIVE ACCESS'}
+                  </h2>
+                  <Button variant="ghost" size="sm" onClick={resetUdriveAccessForm} className="p-2">
+                    <XCircle className="w-5 h-5" />
+                  </Button>
+                </div>
+                <form onSubmit={handleUdriveAccessSubmit} className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Access / Platform Name</Label>
+                    <Input
+                      value={udriveAccessFormData.access_platform_name}
+                      onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, access_platform_name: e.target.value })}
+                      placeholder="e.g. UDrive Portal"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Platform Purpose</Label>
+                    <Input
+                      value={udriveAccessFormData.platform_purpose}
+                      onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, platform_purpose: e.target.value })}
+                      placeholder="Purpose of the platform"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Department Uses</Label>
+                    <Input
+                      value={udriveAccessFormData.department_uses}
+                      onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, department_uses: e.target.value })}
+                      placeholder="Departments that use it"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Infrastructure Level</Label>
+                    <Input
+                      value={udriveAccessFormData.infrastructure_level}
+                      onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, infrastructure_level: e.target.value })}
+                      placeholder="e.g. Production, Staging"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Original Amount</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={udriveAccessFormData.original_amount}
+                        onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, original_amount: e.target.value })}
+                        placeholder="0"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Amount in AED</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={udriveAccessFormData.amount_in_aed}
+                        onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, amount_in_aed: e.target.value })}
+                        placeholder="0"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Remark</Label>
+                    <Textarea
+                      value={udriveAccessFormData.remark}
+                      onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, remark: e.target.value })}
+                      placeholder="Optional notes"
+                      rows={3}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <Button type="button" variant="outline" onClick={resetUdriveAccessForm}>Cancel</Button>
+                    <Button type="submit" className="bg-teal-600 hover:bg-teal-700">
+                      {udriveAccessEditingRecord ? 'Update' : 'Add'} Record
+                    </Button>
+                  </div>
+                </form>
               </div>
             </motion.div>
           </div>

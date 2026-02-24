@@ -176,6 +176,7 @@ export const itServicesApi = {
         let query = supabase
           .from('it_requests_with_details')
           .select('*')
+          .neq('status', 'deleted') // Exclude soft-deleted items
           .order('created_at', { ascending: false });
 
         const { data, error } = await query;
@@ -196,6 +197,7 @@ export const itServicesApi = {
                 role
               )
             `)
+            .neq('status', 'deleted') // Exclude soft-deleted items
             .order('created_at', { ascending: false });
 
           // Apply role-based filtering - non-IT users see only their own requests
@@ -738,48 +740,45 @@ export const itServicesApi = {
 
     delete: async (id) => {
       try {
-        console.log('Attempting to delete IT request with ID:', id);
+        console.log('Attempting to soft delete IT request with ID:', id);
         
-        // Try using the custom delete function first (bypasses RLS)
-        const { data: deleteResult, error: deleteError } = await supabase
-          .rpc('delete_it_request', { request_id: id });
-        
-        if (deleteError) {
-          console.error('Custom delete function error:', deleteError);
-          
-          // Fallback to standard delete
-          console.log('Falling back to standard delete...');
-          const { data, error } = await supabase
-            .from('it_requests')
-            .delete()
-            .eq('id', id)
-            .select();
+        // Soft delete: Update status to 'deleted' and set deleted_at timestamp
+        // This keeps the record in the database but marks it as deleted
+        const updateData = {
+          status: 'deleted',
+          updated_at: new Date().toISOString()
+        };
 
-          if (error) {
-            console.error('Standard delete also failed:', error);
-            throw error;
-          }
-          
-          console.log('Standard delete successful. Rows affected:', data?.length || 0);
-          
-          if (data && data.length === 0) {
-            throw new Error('No rows were deleted. You may not have permission to delete this request or it may not exist.');
-          }
-          
-          return true;
+        // Try to add deleted_at timestamp if the column exists
+        try {
+          updateData.deleted_at = new Date().toISOString();
+        } catch (e) {
+          // Column might not exist, that's okay
+          console.log('deleted_at column may not exist, continuing with status update only');
+        }
+
+        const { data, error } = await supabase
+          .from('it_requests')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Soft delete error:', error);
+          throw error;
         }
         
-        console.log('Custom delete function result:', deleteResult);
+        console.log('Request soft deleted successfully. Status set to deleted:', data);
         
-        if (deleteResult) {
-          console.log('Request deleted successfully using custom function');
-          return true;
-        } else {
-          throw new Error('Delete operation returned false - no rows were deleted');
+        if (!data) {
+          throw new Error('No rows were updated. The request may not exist or you may not have permission.');
         }
+        
+        return data;
         
       } catch (error) {
-        console.error('Error deleting request:', error);
+        console.error('Error soft deleting request:', error);
         throw error;
       }
     },
@@ -802,7 +801,8 @@ export const itServicesApi = {
         try {
           let query = supabase
             .from('it_requests')
-            .select('*');
+            .select('*')
+            .neq('status', 'deleted'); // Exclude soft-deleted items
 
           // Apply role-based filtering for statistics - non-IT users see only their own requests
           if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
@@ -858,6 +858,11 @@ export const itServicesApi = {
           .eq('status', status)
           .order('created_at', { ascending: false });
 
+        // Only exclude deleted items if we're not specifically looking for deleted status
+        if (status !== 'deleted') {
+          query = query.neq('status', 'deleted');
+        }
+
         const { data, error } = await query;
         
         if (error && (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01')) {
@@ -872,6 +877,11 @@ export const itServicesApi = {
             `)
             .eq('status', status)
             .order('created_at', { ascending: false });
+
+          // Only exclude deleted items if we're not specifically looking for deleted status
+          if (status !== 'deleted') {
+            query = query.neq('status', 'deleted');
+          }
 
           // Apply role-based filtering - non-IT users see only their own requests
           if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {

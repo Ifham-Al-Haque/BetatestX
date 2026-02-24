@@ -383,9 +383,9 @@ const RequestInbox = () => {
 
   return (
     <div 
-      className="min-h-screen p-6 transition-all duration-500"
+      className="min-h-screen p-4 md:p-6 transition-all duration-500"
       style={{
-        background: 'var(--bg-primary)',
+        background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)',
         color: 'var(--text-primary)'
       }}
     >
@@ -394,66 +394,78 @@ const RequestInbox = () => {
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           className="mb-8"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-4">
-                <div 
-                  className="p-3 rounded-xl"
+                <motion.div 
+                  className="p-4 rounded-2xl shadow-lg"
                   style={{
-                    background: 'var(--gradient-primary)',
-                    boxShadow: 'var(--shadow-md)'
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
                   }}
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                 >
                   <Inbox className="w-8 h-8 text-white" />
-            </div>
+            </motion.div>
             <div>
-                  <h1 
-                    className="text-4xl font-bold mb-2"
-                    style={{ color: 'var(--text-primary)' }}
+                  <motion.h1 
+                    className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1 }}
                   >
                     Request Inbox
-                  </h1>
-                  <p 
-                    className="text-lg"
+                  </motion.h1>
+                  <motion.p 
+                    className="text-lg md:text-xl"
                     style={{ color: 'var(--text-muted)' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
                   >
                     Manage all IT service requests across the organization
-                  </p>
+                  </motion.p>
                 </div>
             </div>
           </div>
           
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={refreshData}
-                disabled={refreshing}
-                className="flex items-center gap-2"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  variant="outline"
+                  onClick={refreshData}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 transition-all duration-200 hover:shadow-md"
+                  style={{
+                    background: 'var(--card-bg)',
+                    borderColor: 'var(--card-border)',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </Button>
+              </motion.div>
               
-              <Button
-                variant="outline"
-                onClick={() => setShowAnalytics(!showAnalytics)}
-                className="flex items-center gap-2"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <BarChart3 className="w-4 h-4" />
-                <span>Analytics</span>
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAnalytics(!showAnalytics)}
+                  className="flex items-center gap-2 transition-all duration-200 hover:shadow-md"
+                  style={{
+                    background: 'var(--card-bg)',
+                    borderColor: 'var(--card-border)',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Analytics</span>
+                </Button>
+              </motion.div>
             </div>
           </div>
 
@@ -1126,15 +1138,21 @@ const RequestInbox = () => {
                     transition={{ delay: index * 0.1 }}
                   >
                     <Card 
-                      className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
+                      className="cursor-pointer group overflow-hidden border-0 shadow-md hover:shadow-2xl transition-all duration-300 relative"
                       style={{
                         background: 'var(--card-bg)',
-                        borderColor: 'var(--card-border)',
-                        boxShadow: 'var(--shadow-md)'
+                        border: '1px solid var(--card-border)',
                       }}
                       onClick={() => setSelectedRequest(request)}
                     >
-                  <CardContent className="p-6">
+                      {/* Gradient accent bar */}
+                      <div 
+                        className="absolute top-0 left-0 w-full h-1"
+                        style={{
+                          background: `linear-gradient(90deg, ${statusColor.bg} 0%, ${priorityColor.bg} 100%)`
+                        }}
+                      ></div>
+                  <CardContent className="p-6 pt-7">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                           {/* Main Content */}
                       <div className="flex-1">
@@ -1299,15 +1317,16 @@ const RequestInbox = () => {
                       </div>
                       
                           {/* Actions */}
-                          <div className="flex flex-col sm:flex-row lg:flex-col gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
+                          <div className="flex flex-col sm:flex-row lg:flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <Button
+                            variant="outline"
+                            size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
                             setSelectedRequest(request);
                               }}
-                              className="flex items-center gap-2"
+                              className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-md"
                               style={{
                                 background: 'var(--bg-tertiary)',
                                 borderColor: 'var(--border-primary)',
@@ -1316,25 +1335,28 @@ const RequestInbox = () => {
                             >
                               <Eye className="w-4 h-4" />
                               <span>View</span>
-                        </Button>
-                        
-                          <Button
-                            variant="outline"
-                            size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Handle assignment
-                              }}
-                              className="flex items-center gap-2"
-                              style={{
-                                background: 'var(--gradient-primary)',
-                                color: 'white',
-                                border: 'none'
-                              }}
-                            >
-                              <Settings className="w-4 h-4" />
-                              <span>Manage</span>
                           </Button>
+                        </motion.div>
+                        
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRequest(request);
+                                }}
+                                className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-lg"
+                                style={{
+                                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                  color: 'white',
+                                  border: 'none'
+                                }}
+                              >
+                                <Settings className="w-4 h-4" />
+                                <span>Manage</span>
+                            </Button>
+                          </motion.div>
                       </div>
                     </div>
                   </CardContent>

@@ -16,7 +16,6 @@ import {
   Eye,
   Edit,
   Trash,
-  Download,
   Upload,
   Target,
   Award,
@@ -48,7 +47,6 @@ import {
   CheckCircle,
   XCircle,
   Loader,
-  PieChart as PieChartIcon,
   X,
   Save,
   ChevronDown,
@@ -56,6 +54,8 @@ import {
 } from 'lucide-react';
 import subscribeNowService from '../services/subscribeNowService';
 import ltrReportingService from '../services/ltrReportingService';
+import ltrCustomerLeadService from '../services/ltrCustomerLeadService';
+import ltrCustomerReviewService from '../services/ltrCustomerReviewService';
 import RentalAgreementModal from '../components/subscribeNow/RentalAgreementModal';
 import DeliveryChecklistModal from '../components/subscribeNow/DeliveryChecklistModal';
 import * as XLSX from 'xlsx';
@@ -72,6 +72,28 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+
+// Download icon alias (lucide Download can be undefined in some builds)
+const Download = FileText;
+
+// Normalize LTR Customer Lead date (Excel serial or string) to YYYY-MM-DD for storage/display
+function normalizeLtrLeadDateStorage(value) {
+  if (value == null || value === '') return '';
+  const s = String(value).trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const asNum = parseFloat(s);
+  if (!isNaN(asNum) && asNum >= 10000 && asNum <= 1000000) {
+    const d = new Date((Math.floor(asNum) - 25569) * 86400 * 1000);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+  }
+  return s;
+}
 
 const SubscribeNow = () => {
   const { userProfile } = useAuth();
@@ -114,7 +136,60 @@ const SubscribeNow = () => {
   const ltrFileInputRef = useRef(null);
   const ltrImportFileInputRef = useRef(null);
   const ltrSearchTimeoutRef = useRef(null);
-  
+
+  // LTR Customer lead state (Date, Current Trip, Trip Ended, New Trip, Renew Trip) — loaded from database
+  const LTR_LEAD_STORAGE_KEY = 'subscribe_now_ltr_lead';
+  const [ltrLeadRecords, setLtrLeadRecords] = useState([]);
+  const [ltrLeadLoading, setLtrLeadLoading] = useState(false);
+  const [ltrLeadUseLocalStorage, setLtrLeadUseLocalStorage] = useState(false); // fallback if DB table missing
+  const [ltrLeadImportModalOpen, setLtrLeadImportModalOpen] = useState(false);
+  const [ltrLeadImportFile, setLtrLeadImportFile] = useState(null);
+  const [ltrLeadImportPreview, setLtrLeadImportPreview] = useState(null);
+  const [ltrLeadImporting, setLtrLeadImporting] = useState(false);
+  const [ltrLeadColumnMapping, setLtrLeadColumnMapping] = useState({ date: '', current_trip: '', trip_ended: '', new_trip: '', renew_trip: '' });
+  const [ltrLeadExcelHeaders, setLtrLeadExcelHeaders] = useState([]);
+  const [ltrLeadExcelRows, setLtrLeadExcelRows] = useState([]);
+  const [ltrLeadShowForm, setLtrLeadShowForm] = useState(false);
+  const [ltrLeadEditingRecord, setLtrLeadEditingRecord] = useState(null);
+  const [ltrLeadFormData, setLtrLeadFormData] = useState({
+    date: '',
+    current_trip: '',
+    trip_ended: '',
+    new_trip: '',
+    renew_trip: ''
+  });
+  const [ltrLeadTrendView, setLtrLeadTrendView] = useState('monthly'); // 'monthly' | 'yearly'
+  const ltrLeadFileInputRef = useRef(null);
+
+  // LTR Customer Review state (Customer Name, Rental Duration, Rental Renew, Rental No longer Continue, Remark)
+  const [ltrReviewRecords, setLtrReviewRecords] = useState([]);
+  const [ltrReviewLoading, setLtrReviewLoading] = useState(false);
+  const [ltrReviewUseLocalStorage, setLtrReviewUseLocalStorage] = useState(false);
+  const [ltrReviewShowForm, setLtrReviewShowForm] = useState(false);
+  const [ltrReviewEditingRecord, setLtrReviewEditingRecord] = useState(null);
+  const [ltrReviewFormData, setLtrReviewFormData] = useState({
+    customer_name: '',
+    rental_duration: '',
+    rental_renew: '',
+    rental_no_longer_continue: '',
+    remark: ''
+  });
+  const [ltrReviewChartCustomer, setLtrReviewChartCustomer] = useState(''); // selected customer for per-customer chart
+  const [ltrReviewImportModalOpen, setLtrReviewImportModalOpen] = useState(false);
+  const [ltrReviewImportFile, setLtrReviewImportFile] = useState(null);
+  const [ltrReviewExcelHeaders, setLtrReviewExcelHeaders] = useState([]);
+  const [ltrReviewExcelRows, setLtrReviewExcelRows] = useState([]);
+  const [ltrReviewColumnMapping, setLtrReviewColumnMapping] = useState({
+    customer_name: '',
+    rental_duration: '',
+    rental_renew: '',
+    rental_no_longer_continue: '',
+    remark: ''
+  });
+  const [ltrReviewImportPreview, setLtrReviewImportPreview] = useState(null);
+  const [ltrReviewImporting, setLtrReviewImporting] = useState(false);
+  const ltrReviewFileInputRef = useRef(null);
+
   const { success, error: showError } = useToast();
 
   const [ltrFormData, setLtrFormData] = useState({
@@ -132,8 +207,73 @@ const SubscribeNow = () => {
     const hash = window.location.hash;
     if (hash === '#ltr-reporting') {
       setActiveTab('ltr-reporting');
+    } else if (hash === '#ltr-customer-lead') {
+      setActiveTab('ltr-customer-lead');
+    } else if (hash === '#ltr-customer-review') {
+      setActiveTab('ltr-customer-review');
     }
   }, []);
+
+  // Persist LTR Customer lead to localStorage only when using fallback (no DB)
+  useEffect(() => {
+    if (ltrLeadUseLocalStorage && ltrLeadRecords && ltrLeadRecords.length >= 0) {
+      try {
+        localStorage.setItem(LTR_LEAD_STORAGE_KEY, JSON.stringify(ltrLeadRecords));
+      } catch (_) {}
+    }
+  }, [ltrLeadUseLocalStorage, ltrLeadRecords]);
+
+  // Load LTR Customer Lead from database (or fallback to localStorage)
+  const fetchLtrLeadRecords = async () => {
+    if (ltrLeadUseLocalStorage) {
+      try {
+        const stored = localStorage.getItem(LTR_LEAD_STORAGE_KEY);
+        const arr = stored ? (JSON.parse(stored) || []) : [];
+        setLtrLeadRecords(arr.map(r => ({ ...r, date: normalizeLtrLeadDateStorage(r.date) || r.date })));
+      } catch (_) {
+        setLtrLeadRecords([]);
+      }
+      return;
+    }
+    setLtrLeadLoading(true);
+    try {
+      const data = await ltrCustomerLeadService.getRecords();
+      setLtrLeadRecords((data || []).map(r => ({
+        id: r.id,
+        date: r.date ? (typeof r.date === 'string' ? r.date.slice(0, 10) : r.date) : '',
+        current_trip: r.current_trip ?? 0,
+        trip_ended: r.trip_ended ?? 0,
+        new_trip: r.new_trip ?? 0,
+        renew_trip: r.renew_trip ?? 0
+      })));
+    } catch (err) {
+      console.error('LTR Customer Lead fetch failed (table may not exist yet):', err);
+      setLtrLeadUseLocalStorage(true);
+      try {
+        const stored = localStorage.getItem(LTR_LEAD_STORAGE_KEY);
+        const arr = stored ? (JSON.parse(stored) || []) : [];
+        setLtrLeadRecords(arr.map(r => ({ ...r, date: normalizeLtrLeadDateStorage(r.date) || r.date })));
+      } catch (_) {
+        setLtrLeadRecords([]);
+      }
+    } finally {
+      setLtrLeadLoading(false);
+    }
+  };
+
+  const fetchLtrReviewRecords = async () => {
+    setLtrReviewLoading(true);
+    try {
+      const data = await ltrCustomerReviewService.getRecords();
+      setLtrReviewRecords(data || []);
+    } catch (err) {
+      console.error('LTR Customer Review fetch failed:', err);
+      setLtrReviewRecords([]);
+      setLtrReviewUseLocalStorage(true);
+    } finally {
+      setLtrReviewLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'fleet-delivery') {
@@ -142,6 +282,10 @@ const SubscribeNow = () => {
       loadFleetServiceData();
     } else if (activeTab === 'ltr-reporting') {
       fetchLTRRecords();
+    } else if (activeTab === 'ltr-customer-lead') {
+      fetchLtrLeadRecords();
+    } else if (activeTab === 'ltr-customer-review') {
+      fetchLtrReviewRecords();
     }
   }, [activeTab]);
 
@@ -612,7 +756,16 @@ const SubscribeNow = () => {
     setLtrShowForm(false);
   };
 
-  // Helper function to parse and normalize date strings to ISO 8601 format
+  // LTR Customer lead: Excel serial date conversion and display
+  const excelSerialToYYYYMMDD = (serial) => {
+    const n = Math.floor(Number(serial));
+    if (isNaN(n) || n < 1000 || n > 1000000) return null;
+    const d = new Date((n - 25569) * 86400 * 1000);
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+  };
+
+  // Helper: parse date strings to ISO 8601 (used by normalizeLtrLeadDate and LTR form)
   const parseDateToISO = (dateString) => {
     if (!dateString || typeof dateString !== 'string') {
       return null;
@@ -625,40 +778,50 @@ const SubscribeNow = () => {
 
     // If already in ISO format, return as is
     if (/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?/.test(trimmed)) {
-      // If it's just a date, add time component
       if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
         return `${trimmed}T00:00:00`;
       }
       return trimmed;
     }
 
-    // Try to parse various date formats
+    const expandTwoDigitYear = (yy) => {
+      const n = parseInt(yy, 10);
+      if (isNaN(n)) return null;
+      return n <= 49 ? 2000 + n : 1900 + n;
+    };
+
     let parsedDate = null;
 
-    // Handle DD/MM/YYYY or DD-MM-YYYY format (e.g., "22/04/2024" or "22-04-2024")
-    const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/);
-    if (ddmmyyyyMatch) {
-      const day = parseInt(ddmmyyyyMatch[1], 10);
-      const month = parseInt(ddmmyyyyMatch[2], 10);
-      const year = parseInt(ddmmyyyyMatch[3], 10);
-      const hour = ddmmyyyyMatch[5] ? parseInt(ddmmyyyyMatch[5], 10) : 0;
-      const minute = ddmmyyyyMatch[6] ? parseInt(ddmmyyyyMatch[6], 10) : 0;
-      const second = ddmmyyyyMatch[8] ? parseInt(ddmmyyyyMatch[8], 10) : 0;
-      
-      // Check if day > 12, then it's definitely DD/MM/YYYY, otherwise assume DD/MM/YYYY
-      if (day > 12 || month > 12) {
-        parsedDate = new Date(year, month - 1, day, hour, minute, second);
-      } else {
-        // Ambiguous - try DD/MM/YYYY first (more common internationally)
-        parsedDate = new Date(year, month - 1, day, hour, minute, second);
-        if (isNaN(parsedDate.getTime())) {
-          // If invalid, try MM/DD/YYYY
-          parsedDate = new Date(year, day - 1, month, hour, minute, second);
+    const ddmmyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?$/);
+    if (ddmmyyMatch) {
+      const day = parseInt(ddmmyyMatch[1], 10);
+      const month = parseInt(ddmmyyMatch[2], 10);
+      const year = expandTwoDigitYear(ddmmyyMatch[3]);
+      if (year !== null && day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+        parsedDate = new Date(year, month - 1, day);
+      }
+    }
+
+    if (!parsedDate || isNaN(parsedDate.getTime())) {
+      const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/);
+      if (ddmmyyyyMatch) {
+        const day = parseInt(ddmmyyyyMatch[1], 10);
+        const month = parseInt(ddmmyyyyMatch[2], 10);
+        const year = parseInt(ddmmyyyyMatch[3], 10);
+        const hour = ddmmyyyyMatch[5] ? parseInt(ddmmyyyyMatch[5], 10) : 0;
+        const minute = ddmmyyyyMatch[6] ? parseInt(ddmmyyyyMatch[6], 10) : 0;
+        const second = ddmmyyyyMatch[8] ? parseInt(ddmmyyyyMatch[8], 10) : 0;
+        if (day > 12 || month > 12) {
+          parsedDate = new Date(year, month - 1, day, hour, minute, second);
+        } else {
+          parsedDate = new Date(year, month - 1, day, hour, minute, second);
+          if (isNaN(parsedDate.getTime())) {
+            parsedDate = new Date(year, day - 1, month, hour, minute, second);
+          }
         }
       }
     }
 
-    // Handle MM/DD/YYYY or MM-DD-YYYY format (e.g., "04/22/2024")
     if (!parsedDate || isNaN(parsedDate.getTime())) {
       const mmddyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(\s+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/);
       if (mmddyyyyMatch) {
@@ -672,18 +835,539 @@ const SubscribeNow = () => {
       }
     }
 
-    // Try standard Date parsing as fallback
     if (!parsedDate || isNaN(parsedDate.getTime())) {
       parsedDate = new Date(trimmed);
     }
 
-    // If still invalid, return null
     if (!parsedDate || isNaN(parsedDate.getTime())) {
       return null;
     }
 
-    // Convert to ISO 8601 format
     return parsedDate.toISOString();
+  };
+
+  const normalizeLtrLeadDate = (value) => {
+    if (value == null || value === '') return '';
+    const s = String(value).trim();
+    if (!s) return '';
+    const asNum = parseFloat(s);
+    if (!isNaN(asNum)) {
+      // Common cases from Excel/CSV:
+      // - Year-only (e.g. 2026) should NOT be treated as an Excel serial date (2026 -> 1905-07-18)
+      if (/^\d{4}$/.test(s) && asNum >= 1900 && asNum <= 2100) {
+        return `${Math.floor(asNum)}-01-01`;
+      }
+
+      // - YYYYMMDD numeric (e.g. 20260718)
+      if (/^\d{8}$/.test(s)) {
+        const yyyy = s.slice(0, 4);
+        const mm = s.slice(4, 6);
+        const dd = s.slice(6, 8);
+        const iso = `${yyyy}-${mm}-${dd}`;
+        const parsed = parseDateToISO(iso);
+        if (parsed) return parsed.slice(0, 10);
+      }
+
+      // - Excel serial dates for modern years are typically >= 20000 (around 1954+)
+      if (asNum >= 20000 && asNum <= 1000000) {
+        const iso = excelSerialToYYYYMMDD(asNum);
+        if (iso) return iso;
+      }
+
+      // - Epoch milliseconds (e.g. 1700000000000)
+      if (asNum >= 1000000000000) {
+        const d = new Date(asNum);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      }
+    }
+    const iso = parseDateToISO(s);
+    return iso ? iso.slice(0, 10) : s;
+  };
+
+  const formatLtrLeadDateDisplay = (value) => {
+    const yyyymmdd = normalizeLtrLeadDate(value);
+    if (!yyyymmdd) return '-';
+    const [y, m, d] = yyyymmdd.split('-');
+    return [d, m, y].join('/');
+  };
+
+  // LTR Customer lead: chart data and totals
+  // Current Trip = value from the record with the latest date (not summed). Trip Ended / New / Renew = sums.
+  const ltrLeadTotals = useMemo(() => {
+    const totals = { current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0 };
+    const records = ltrLeadRecords || [];
+    records.forEach(r => {
+      totals.trip_ended += Number(r.trip_ended) || 0;
+      totals.new_trip += Number(r.new_trip) || 0;
+      totals.renew_trip += Number(r.renew_trip) || 0;
+    });
+    // Current Trip: latest by date (record with most recent date)
+    if (records.length > 0) {
+      const withDate = records.map(r => ({ ...r, _normDate: normalizeLtrLeadDate(r.date) || '' })).filter(r => r._normDate && r._normDate !== 'No date');
+      if (withDate.length > 0) {
+        const latest = withDate.sort((a, b) => (b._normDate).localeCompare(a._normDate))[0];
+        totals.current_trip = Number(latest.current_trip) || 0;
+      }
+    }
+    return totals;
+  }, [ltrLeadRecords]);
+
+  // Per date: trip_ended/new/renew summed; current_trip = value from latest record on that date (not summed)
+  const ltrLeadChartByDate = useMemo(() => {
+    if (!ltrLeadRecords || ltrLeadRecords.length === 0) return [];
+    const byDate = {};
+    ltrLeadRecords.forEach(r => {
+      const d = normalizeLtrLeadDate(r.date) || 'No date';
+      if (!byDate[d]) byDate[d] = { date: d, current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0, _currentTripCandidates: [] };
+      byDate[d]._currentTripCandidates.push({ date: d, current_trip: Number(r.current_trip) || 0 });
+      byDate[d].trip_ended += Number(r.trip_ended) || 0;
+      byDate[d].new_trip += Number(r.new_trip) || 0;
+      byDate[d].renew_trip += Number(r.renew_trip) || 0;
+    });
+    const result = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+    result.forEach(row => {
+      const cand = row._currentTripCandidates;
+      if (cand && cand.length > 0) {
+        row.current_trip = cand[cand.length - 1].current_trip;
+      }
+      delete row._currentTripCandidates;
+    });
+    return result;
+  }, [ltrLeadRecords]);
+
+  // Trend: trip_ended/new/renew summed per period; current_trip = value from latest date in that period (not summed)
+  const ltrLeadTrendMonthly = useMemo(() => {
+    if (!ltrLeadChartByDate.length) return [];
+    const byMonth = {};
+    ltrLeadChartByDate.forEach((row) => {
+      const d = row.date;
+      if (!d || d === 'No date') return;
+      const monthKey = d.length >= 7 ? d.slice(0, 7) : d;
+      const label = d.length >= 7 ? `${d.slice(5, 7)}/${d.slice(-2)}` : d;
+      if (!byMonth[monthKey]) byMonth[monthKey] = { period: monthKey, label, current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0, _latestDate: '' };
+      byMonth[monthKey].trip_ended += row.trip_ended || 0;
+      byMonth[monthKey].new_trip += row.new_trip || 0;
+      byMonth[monthKey].renew_trip += row.renew_trip || 0;
+      if (d > (byMonth[monthKey]._latestDate || '')) {
+        byMonth[monthKey]._latestDate = d;
+        byMonth[monthKey].current_trip = row.current_trip || 0;
+      }
+    });
+    return Object.values(byMonth).sort((a, b) => a.period.localeCompare(b.period)).map(({ _latestDate, ...rest }) => rest);
+  }, [ltrLeadChartByDate]);
+
+  const ltrLeadTrendYearly = useMemo(() => {
+    if (!ltrLeadChartByDate.length) return [];
+    const byYear = {};
+    ltrLeadChartByDate.forEach((row) => {
+      const d = row.date;
+      if (!d || d === 'No date') return;
+      const yearKey = d.length >= 4 ? d.slice(0, 4) : d;
+      if (!byYear[yearKey]) byYear[yearKey] = { period: yearKey, label: yearKey, current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0, _latestDate: '' };
+      byYear[yearKey].trip_ended += row.trip_ended || 0;
+      byYear[yearKey].new_trip += row.new_trip || 0;
+      byYear[yearKey].renew_trip += row.renew_trip || 0;
+      if (d > (byYear[yearKey]._latestDate || '')) {
+        byYear[yearKey]._latestDate = d;
+        byYear[yearKey].current_trip = row.current_trip || 0;
+      }
+    });
+    return Object.values(byYear).sort((a, b) => a.period.localeCompare(b.period)).map(({ _latestDate, ...rest }) => rest);
+  }, [ltrLeadChartByDate]);
+
+  // LTR Lead chart series config (single source of truth for colors and keys)
+  const LTR_LEAD_SERIES = [
+    { key: 'current_trip', name: 'Current Trip', color: '#6366F1' },
+    { key: 'trip_ended', name: 'Trip Ended', color: '#0EA5E9' },
+    { key: 'new_trip', name: 'New Trip', color: '#10B981' },
+    { key: 'renew_trip', name: 'Renew Trip', color: '#F59E0B' }
+  ];
+
+  const formatChartDate = (v) => {
+    if (!v || typeof v !== 'string') return v;
+    if (v.length >= 10) return [v.slice(8, 10), v.slice(5, 7), v.slice(0, 4)].join('/');
+    return v;
+  };
+
+  // Pie: distribution of total trips only (Trip Ended, New Trip, Renew Trip). Current Trip is not counted in total.
+  const ltrLeadPieData = useMemo(() => {
+    const { trip_ended, new_trip, renew_trip } = ltrLeadTotals;
+    const total = trip_ended + new_trip + renew_trip;
+    if (total === 0) return [];
+    return LTR_LEAD_SERIES.filter(s => s.key !== 'current_trip').map(s => ({ name: s.name, value: ltrLeadTotals[s.key] || 0, color: s.color })).filter(d => d.value > 0);
+  }, [ltrLeadTotals]);
+
+  const resetLtrLeadForm = () => {
+    setLtrLeadFormData({ date: '', current_trip: '', trip_ended: '', new_trip: '', renew_trip: '' });
+    setLtrLeadEditingRecord(null);
+    setLtrLeadShowForm(false);
+  };
+
+  const handleLtrLeadSubmit = async (e) => {
+    e.preventDefault();
+    const dateVal = ltrLeadFormData.date ? (ltrLeadFormData.date.includes('T') ? ltrLeadFormData.date.slice(0, 10) : ltrLeadFormData.date) : '';
+    const record = {
+      date: dateVal,
+      current_trip: Number(ltrLeadFormData.current_trip) || 0,
+      trip_ended: Number(ltrLeadFormData.trip_ended) || 0,
+      new_trip: Number(ltrLeadFormData.new_trip) || 0,
+      renew_trip: Number(ltrLeadFormData.renew_trip) || 0
+    };
+    if (ltrLeadUseLocalStorage) {
+      if (ltrLeadEditingRecord) {
+        setLtrLeadRecords(prev => prev.map(r => r.id === ltrLeadEditingRecord.id ? { ...record, id: r.id } : r));
+        success('Success', 'Lead record updated');
+      } else {
+        setLtrLeadRecords(prev => [...prev, { ...record, id: String(Date.now()) + Math.random().toString(36).slice(2) }]);
+        success('Success', 'Lead record added');
+      }
+      resetLtrLeadForm();
+      return;
+    }
+    try {
+      if (ltrLeadEditingRecord) {
+        await ltrCustomerLeadService.updateRecord(ltrLeadEditingRecord.id, record);
+        success('Success', 'Lead record updated');
+      } else {
+        await ltrCustomerLeadService.createRecord(record);
+        success('Success', 'Lead record added');
+      }
+      resetLtrLeadForm();
+      fetchLtrLeadRecords();
+    } catch (err) {
+      showError('Error', err.message || 'Failed to save lead record');
+    }
+  };
+
+  const handleLtrLeadEdit = (record) => {
+    setLtrLeadEditingRecord(record);
+    setLtrLeadFormData({
+      date: normalizeLtrLeadDate(record.date) || '',
+      current_trip: String(record.current_trip ?? ''),
+      trip_ended: String(record.trip_ended ?? ''),
+      new_trip: String(record.new_trip ?? ''),
+      renew_trip: String(record.renew_trip ?? '')
+    });
+    setLtrLeadShowForm(true);
+  };
+
+  const handleLtrLeadDelete = async (id) => {
+    if (!window.confirm('Delete this record?')) return;
+    if (ltrLeadUseLocalStorage) {
+      setLtrLeadRecords(prev => prev.filter(r => r.id !== id));
+      success('Success', 'Record deleted');
+      return;
+    }
+    try {
+      await ltrCustomerLeadService.deleteRecord(id);
+      success('Success', 'Record deleted');
+      fetchLtrLeadRecords();
+    } catch (err) {
+      showError('Error', err.message || 'Failed to delete record');
+    }
+  };
+
+  const handleLtrLeadImportFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls') && !fileName.endsWith('.csv')) {
+      showError('Invalid File', 'Please select an Excel or CSV file (.xlsx, .xls, .csv)');
+      return;
+    }
+    setLtrLeadImportFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        if (jsonData.length < 1) {
+          showError('Invalid File', 'File must have at least a header row');
+          return;
+        }
+        const headers = (jsonData[0] || []).map(h => String(h ?? '').trim());
+        setLtrLeadExcelHeaders(headers);
+        setLtrLeadExcelRows(jsonData.slice(1));
+        setLtrLeadColumnMapping({
+          date: headers.findIndex(h => /date/i.test(h)) >= 0 ? String(headers.findIndex(h => /date/i.test(h))) : '',
+          current_trip: headers.findIndex(h => /current|trip/i.test(h) && /current/i.test(h)) >= 0 ? String(headers.findIndex(h => /current|trip/i.test(h) && /current/i.test(h))) : '',
+          trip_ended: headers.findIndex(h => /trip.*end|ended/i.test(h)) >= 0 ? String(headers.findIndex(h => /trip.*end|ended/i.test(h))) : '',
+          new_trip: headers.findIndex(h => /new.*trip|new trip/i.test(h)) >= 0 ? String(headers.findIndex(h => /new.*trip|new trip/i.test(h))) : '',
+          renew_trip: headers.findIndex(h => /renew/i.test(h)) >= 0 ? String(headers.findIndex(h => /renew/i.test(h))) : ''
+        });
+        setLtrLeadImportPreview(null);
+        setLtrLeadImportModalOpen(true);
+      } catch (err) {
+        showError('Parse Error', err.message || 'Failed to read file');
+      }
+    };
+    reader.onerror = () => showError('File Error', 'Failed to read file');
+    reader.readAsArrayBuffer(file);
+  };
+
+  const applyLtrLeadMapping = () => {
+    const map = ltrLeadColumnMapping;
+    const dateCol = map.date !== '' ? parseInt(map.date, 10) : -1;
+    const getVal = (row, col) => {
+      if (col < 0 || !Array.isArray(row)) return '';
+      const v = row[col];
+      return v === null || v === undefined ? '' : String(v).trim();
+    };
+    const toNum = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+    const parsed = [];
+    ltrLeadExcelRows.forEach((row, i) => {
+      const dateVal = dateCol >= 0 ? getVal(row, dateCol) : '';
+      const current_trip = toNum(getVal(row, parseInt(map.current_trip, 10)));
+      const trip_ended = toNum(getVal(row, parseInt(map.trip_ended, 10)));
+      const new_trip = toNum(getVal(row, parseInt(map.new_trip, 10)));
+      const renew_trip = toNum(getVal(row, parseInt(map.renew_trip, 10)));
+      if (dateVal || current_trip || trip_ended || new_trip || renew_trip) {
+        const normalizedDate = dateVal ? normalizeLtrLeadDate(dateVal) : '';
+        parsed.push({
+          id: `import-${i}-${Date.now()}`,
+          date: normalizedDate || dateVal,
+          current_trip,
+          trip_ended,
+          new_trip,
+          renew_trip
+        });
+      }
+    });
+    setLtrLeadImportPreview(parsed);
+  };
+
+  const handleLtrLeadImportConfirm = async () => {
+    if (!ltrLeadImportPreview || ltrLeadImportPreview.length === 0) {
+      showError('No Data', 'No records to import. Apply column mapping first.');
+      return;
+    }
+    setLtrLeadImporting(true);
+    const toAdd = ltrLeadImportPreview.map(({ id, ...r }) => ({ ...r }));
+    try {
+      if (ltrLeadUseLocalStorage) {
+        const withIds = toAdd.map(r => ({ ...r, id: String(Date.now()) + Math.random().toString(36).slice(2) }));
+        setLtrLeadRecords(prev => [...prev, ...withIds]);
+        success('Success', `Imported ${withIds.length} record(s)`);
+      } else {
+        await ltrCustomerLeadService.bulkInsert(toAdd);
+        success('Success', `Imported ${toAdd.length} record(s) to database`);
+        fetchLtrLeadRecords();
+      }
+    } catch (err) {
+      showError('Error', err.message || 'Failed to import records');
+    } finally {
+      setLtrLeadImporting(false);
+      setLtrLeadImportModalOpen(false);
+      setLtrLeadImportPreview(null);
+      setLtrLeadImportFile(null);
+      if (ltrLeadFileInputRef.current) ltrLeadFileInputRef.current.value = '';
+    }
+  };
+
+  const closeLtrLeadImportModal = () => {
+    if (ltrLeadImporting) return;
+    setLtrLeadImportModalOpen(false);
+    setLtrLeadImportPreview(null);
+    setLtrLeadImportFile(null);
+    setLtrLeadExcelHeaders([]);
+    setLtrLeadExcelRows([]);
+    if (ltrLeadFileInputRef.current) ltrLeadFileInputRef.current.value = '';
+  };
+
+  // LTR Customer Review: unique customer names and chart data (renewals by rental duration for selected customer)
+  const ltrReviewCustomerNames = useMemo(() => {
+    const names = [...new Set((ltrReviewRecords || []).map(r => (r.customer_name || '').trim()).filter(Boolean))].sort();
+    return names;
+  }, [ltrReviewRecords]);
+
+  const ltrReviewChartData = useMemo(() => {
+    if (!ltrReviewChartCustomer) return [];
+    const forCustomer = (ltrReviewRecords || []).filter(r => (r.customer_name || '').trim() === ltrReviewChartCustomer);
+    const byDuration = {};
+    forCustomer.forEach(r => {
+      const d = (r.rental_duration || '').trim() || '—';
+      if (!byDuration[d]) byDuration[d] = 0;
+      byDuration[d] += Number(r.rental_renew) || 0;
+    });
+    return Object.entries(byDuration).map(([duration, renewals]) => ({ duration, renewals })).sort((a, b) => a.duration.localeCompare(b.duration));
+  }, [ltrReviewRecords, ltrReviewChartCustomer]);
+
+  const resetLtrReviewForm = () => {
+    setLtrReviewFormData({ customer_name: '', rental_duration: '', rental_renew: '', rental_no_longer_continue: '', remark: '' });
+    setLtrReviewEditingRecord(null);
+    setLtrReviewShowForm(false);
+  };
+
+  const handleLtrReviewSubmit = async (e) => {
+    e.preventDefault();
+    const record = {
+      customer_name: ltrReviewFormData.customer_name.trim(),
+      rental_duration: ltrReviewFormData.rental_duration.trim(),
+      rental_renew: Number(ltrReviewFormData.rental_renew) || 0,
+      rental_no_longer_continue: Number(ltrReviewFormData.rental_no_longer_continue) || 0,
+      remark: ltrReviewFormData.remark.trim()
+    };
+    if (ltrReviewUseLocalStorage) {
+      if (ltrReviewEditingRecord) {
+        setLtrReviewRecords(prev => prev.map(r => r.id === ltrReviewEditingRecord.id ? { ...record, id: r.id } : r));
+        success('Success', 'Record updated');
+      } else {
+        setLtrReviewRecords(prev => [...prev, { ...record, id: String(Date.now()) + Math.random().toString(36).slice(2) }]);
+        success('Success', 'Record added');
+      }
+      resetLtrReviewForm();
+      return;
+    }
+    try {
+      if (ltrReviewEditingRecord) {
+        await ltrCustomerReviewService.updateRecord(ltrReviewEditingRecord.id, record);
+        success('Success', 'Record updated');
+      } else {
+        await ltrCustomerReviewService.createRecord(record);
+        success('Success', 'Record added');
+      }
+      resetLtrReviewForm();
+      fetchLtrReviewRecords();
+    } catch (err) {
+      showError('Error', err.message || 'Failed to save record');
+    }
+  };
+
+  const handleLtrReviewEdit = (rec) => {
+    setLtrReviewEditingRecord(rec);
+    setLtrReviewFormData({
+      customer_name: rec.customer_name ?? '',
+      rental_duration: rec.rental_duration ?? '',
+      rental_renew: rec.rental_renew != null ? String(rec.rental_renew) : '',
+      rental_no_longer_continue: rec.rental_no_longer_continue != null ? String(rec.rental_no_longer_continue) : '',
+      remark: rec.remark ?? ''
+    });
+    setLtrReviewShowForm(true);
+  };
+
+  const handleLtrReviewDelete = async (id) => {
+    if (!window.confirm('Delete this record?')) return;
+    if (ltrReviewUseLocalStorage) {
+      setLtrReviewRecords(prev => prev.filter(r => r.id !== id));
+      success('Success', 'Record deleted');
+      return;
+    }
+    try {
+      await ltrCustomerReviewService.deleteRecord(id);
+      success('Success', 'Record deleted');
+      fetchLtrReviewRecords();
+    } catch (err) {
+      showError('Error', err.message || 'Failed to delete record');
+    }
+  };
+
+  const handleLtrReviewImportFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls') && !fileName.endsWith('.csv')) {
+      showError('Invalid File', 'Please select an Excel or CSV file (.xlsx, .xls, .csv)');
+      return;
+    }
+    setLtrReviewImportFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        if (jsonData.length < 1) {
+          showError('Invalid File', 'File must have at least a header row');
+          return;
+        }
+        const headers = (jsonData[0] || []).map(h => String(h ?? '').trim());
+        setLtrReviewExcelHeaders(headers);
+        setLtrReviewExcelRows(jsonData.slice(1));
+        setLtrReviewColumnMapping({
+          customer_name: headers.findIndex(h => /customer|name/i.test(h)) >= 0 ? String(headers.findIndex(h => /customer|name/i.test(h))) : '',
+          rental_duration: headers.findIndex(h => /rental.*duration|duration/i.test(h)) >= 0 ? String(headers.findIndex(h => /rental.*duration|duration/i.test(h))) : '',
+          rental_renew: headers.findIndex(h => /rental.*renew|renew/i.test(h)) >= 0 ? String(headers.findIndex(h => /rental.*renew|renew/i.test(h))) : '',
+          rental_no_longer_continue: headers.findIndex(h => /no longer|continue|no_longer/i.test(h)) >= 0 ? String(headers.findIndex(h => /no longer|continue|no_longer/i.test(h))) : '',
+          remark: headers.findIndex(h => /remark|note|comment/i.test(h)) >= 0 ? String(headers.findIndex(h => /remark|note|comment/i.test(h))) : ''
+        });
+        setLtrReviewImportPreview(null);
+        setLtrReviewImportModalOpen(true);
+      } catch (err) {
+        showError('Parse Error', err.message || 'Failed to read file');
+      }
+    };
+    reader.onerror = () => showError('File Error', 'Failed to read file');
+    reader.readAsArrayBuffer(file);
+  };
+
+  const applyLtrReviewMapping = () => {
+    const map = ltrReviewColumnMapping;
+    const getVal = (row, col) => {
+      if (col < 0 || col === undefined || !Array.isArray(row)) return '';
+      const v = row[col];
+      return v === null || v === undefined ? '' : String(v).trim();
+    };
+    const toNum = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+    const parsed = [];
+    ltrReviewExcelRows.forEach((row, i) => {
+      const customer_name = getVal(row, parseInt(map.customer_name, 10));
+      const rental_duration = getVal(row, parseInt(map.rental_duration, 10));
+      const rental_renew = toNum(getVal(row, parseInt(map.rental_renew, 10)));
+      const rental_no_longer_continue = toNum(getVal(row, parseInt(map.rental_no_longer_continue, 10)));
+      const remark = getVal(row, parseInt(map.remark, 10));
+      if (customer_name || rental_duration || rental_renew || rental_no_longer_continue || remark) {
+        parsed.push({
+          id: `import-${i}-${Date.now()}`,
+          customer_name,
+          rental_duration,
+          rental_renew,
+          rental_no_longer_continue,
+          remark
+        });
+      }
+    });
+    setLtrReviewImportPreview(parsed);
+  };
+
+  const handleLtrReviewImportConfirm = async () => {
+    if (!ltrReviewImportPreview || ltrReviewImportPreview.length === 0) {
+      showError('No Data', 'No records to import. Apply column mapping first.');
+      return;
+    }
+    setLtrReviewImporting(true);
+    const toAdd = ltrReviewImportPreview.map(({ id, ...r }) => ({ ...r }));
+    try {
+      if (ltrReviewUseLocalStorage) {
+        const withIds = toAdd.map(r => ({ ...r, id: String(Date.now()) + Math.random().toString(36).slice(2) }));
+        setLtrReviewRecords(prev => [...prev, ...withIds]);
+        success('Success', `Imported ${withIds.length} record(s)`);
+      } else {
+        await ltrCustomerReviewService.bulkInsert(toAdd);
+        success('Success', `Imported ${toAdd.length} record(s) to database`);
+        fetchLtrReviewRecords();
+      }
+    } catch (err) {
+      showError('Error', err.message || 'Failed to import records');
+    } finally {
+      setLtrReviewImporting(false);
+      setLtrReviewImportModalOpen(false);
+      setLtrReviewImportPreview(null);
+      setLtrReviewImportFile(null);
+      if (ltrReviewFileInputRef.current) ltrReviewFileInputRef.current.value = '';
+    }
+  };
+
+  const closeLtrReviewImportModal = () => {
+    if (ltrReviewImporting) return;
+    setLtrReviewImportModalOpen(false);
+    setLtrReviewImportPreview(null);
+    setLtrReviewImportFile(null);
+    setLtrReviewExcelHeaders([]);
+    setLtrReviewExcelRows([]);
+    if (ltrReviewFileInputRef.current) ltrReviewFileInputRef.current.value = '';
   };
 
   // File Import Functions (CSV and Excel)
@@ -1103,6 +1787,28 @@ const SubscribeNow = () => {
                   <BarChart3 className="w-4 h-4 inline mr-2" />
                   LTR Reporting
                 </button>
+                <button
+                  onClick={() => setActiveTab('ltr-customer-lead')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'ltr-customer-lead'
+                      ? 'border-purple-500 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Target className="w-4 h-4 inline mr-2" />
+                  LTR Customer Lead
+                </button>
+                <button
+                  onClick={() => setActiveTab('ltr-customer-review')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'ltr-customer-review'
+                      ? 'border-purple-500 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Star className="w-4 h-4 inline mr-2" />
+                  LTR Customer Review
+                </button>
               </nav>
             </div>
           </div>
@@ -1490,7 +2196,7 @@ const SubscribeNow = () => {
                               Edit
                             </button>
                             <button className="text-gray-600 hover:text-gray-800 flex items-center text-sm font-medium transition-colors">
-                              <Download className="w-4 h-4 mr-1" />
+                              <FileText className="w-4 h-4 mr-1" />
                               Export
                             </button>
                           </div>
@@ -1606,7 +2312,7 @@ const SubscribeNow = () => {
                       disabled={filteredLTRRecords.length === 0}
                       title={(ltrSearchTerm || hasActiveLTRFilters) ? `Export ${filteredLTRRecords.length} filtered record(s) as CSV` : 'Export all records as CSV'}
                     >
-                      <Download className="w-4 h-4" />
+                      <FileText className="w-4 h-4" />
                       Export CSV
                     </button>
                   </div>
@@ -1617,7 +2323,7 @@ const SubscribeNow = () => {
                       disabled={filteredLTRRecords.length === 0}
                       title={(ltrSearchTerm || hasActiveLTRFilters) ? `Export ${filteredLTRRecords.length} filtered record(s) as Excel` : 'Export all records as Excel'}
                     >
-                      <Download className="w-4 h-4" />
+                      <FileText className="w-4 h-4" />
                       Export Excel
                     </button>
                   </div>
@@ -2380,6 +3086,709 @@ const SubscribeNow = () => {
                                   Import {ltrImportPreview.length} Record(s)
                                 </>
                               )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {activeTab === 'ltr-customer-lead' && (
+          <div className="space-y-8">
+            {/* Hero header */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-600 via-teal-500 to-emerald-600 p-8 shadow-xl"
+            >
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.06\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-80" />
+              <div className="relative flex flex-wrap items-center justify-between gap-6">
+                <div className="flex items-center gap-5">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 shadow-lg backdrop-blur-sm">
+                    <Target className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">LTR Customer Lead</h1>
+                    <p className="mt-1 text-sm text-teal-100">Track leads by date, current trip, trip ended, new trip, and renew trip</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input ref={ltrLeadFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleLtrLeadImportFileSelect} />
+                  <button
+                    type="button"
+                    onClick={() => ltrLeadFileInputRef.current?.click()}
+                    className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/25"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Import from Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLtrLeadEditingRecord(null); setLtrLeadFormData({ date: '', current_trip: '', trip_ended: '', new_trip: '', renew_trip: '' }); setLtrLeadShowForm(true); }}
+                    className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 shadow-md transition hover:bg-teal-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Row
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Summary cards with icons */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                { label: 'Date entries', value: ltrLeadRecords.length, color: 'text-slate-700', bg: 'from-slate-50 to-gray-50', border: 'border-slate-200', Icon: Calendar },
+                { label: 'Current Trip (latest)', value: ltrLeadTotals.current_trip, color: 'text-violet-600', bg: 'from-violet-50 to-purple-50', border: 'border-violet-200', Icon: TrendingUp },
+                { label: 'Trip Ended', value: ltrLeadTotals.trip_ended, color: 'text-blue-600', bg: 'from-blue-50 to-sky-50', border: 'border-blue-200', Icon: CheckCircle },
+                { label: 'New Trip', value: ltrLeadTotals.new_trip, color: 'text-emerald-600', bg: 'from-emerald-50 to-green-50', border: 'border-emerald-200', Icon: Zap },
+                { label: 'Renew Trip', value: ltrLeadTotals.renew_trip, color: 'text-amber-600', bg: 'from-amber-50 to-orange-50', border: 'border-amber-200', Icon: RefreshCw }
+              ].map((card, i) => {
+                const Icon = card.Icon;
+                return (
+                  <motion.div
+                    key={card.label}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className={`flex items-center gap-4 rounded-2xl border bg-gradient-to-br ${card.bg} ${card.border} p-5 shadow-sm transition hover:shadow-md`}
+                  >
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${card.color} bg-white/80 shadow-sm`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{card.label}</p>
+                      <p className={`text-2xl font-bold tabular-nums ${card.color}`}>{card.value}</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Charts — professional LTR Lead visualizations */}
+            {ltrLeadRecords.length > 0 && (
+              <>
+                {/* Main chart: Leads by Date (stacked bar) */}
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-teal-500 to-emerald-500" />
+                  <div className="pl-2">
+                    <div className="mb-1 flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-teal-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">Leads by Date</h3>
+                    </div>
+                    <p className="text-sm text-gray-500">Daily breakdown: Current Trip, Trip Ended, New Trip, Renew Trip</p>
+                  </div>
+                  <div className="mt-4">
+                  <ResponsiveContainer width="100%" height={340}>
+                    <BarChart data={ltrLeadChartByDate} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        tickFormatter={formatChartDate}
+                        axisLine={{ stroke: '#e2e8f0' }}
+                        tickLine={false}
+                        angle={-28}
+                        textAnchor="end"
+                        height={48}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        axisLine={false}
+                        tickLine={false}
+                        label={{ value: 'Number of Leads', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#64748b' } }}
+                        width={40}
+                      />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', padding: '10px 14px' }}
+                        labelFormatter={formatChartDate}
+                        formatter={(value, name) => [Number(value).toLocaleString(), name]}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: 12 }} iconType="circle" iconSize={8} iconAlign="center" />
+                      {LTR_LEAD_SERIES.map((s) => (
+                        <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} stackId="a" radius={[4, 4, 0, 0]} />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                  </div>
+                </motion.div>
+
+                {/* Current Trip over dates — bar chart (LineChart/Line undefined in this build) */}
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }} className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-indigo-500 to-violet-500" />
+                  <div className="pl-2">
+                    <div className="mb-1 flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-indigo-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">Current Trip over Dates</h3>
+                    </div>
+                    <p className="text-sm text-gray-500">Latest value per date</p>
+                  </div>
+                  <div className="mt-4">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={ltrLeadChartByDate} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        tickFormatter={formatChartDate}
+                        axisLine={{ stroke: '#e2e8f0' }}
+                        tickLine={false}
+                        angle={-28}
+                        textAnchor="end"
+                        height={48}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        axisLine={false}
+                        tickLine={false}
+                        label={{ value: 'Current Trip', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#64748b' } }}
+                        width={40}
+                      />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', padding: '10px 14px' }}
+                        labelFormatter={formatChartDate}
+                        formatter={(value) => [Number(value).toLocaleString(), 'Current Trip']}
+                      />
+                      <Bar dataKey="current_trip" name="Current Trip" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  </div>
+                </motion.div>
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {/* Lead Trend — Monthly / Yearly */}
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-sky-500 to-blue-500" />
+                    <div className="pl-2">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-sky-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">Lead Trend</h3>
+                      </div>
+                      <div className="flex rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+                        <button
+                          type="button"
+                          onClick={() => setLtrLeadTrendView('monthly')}
+                          className={`px-3 py-2 text-sm font-medium transition-all ${ltrLeadTrendView === 'monthly' ? 'bg-white text-indigo-600 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          Monthly
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLtrLeadTrendView('yearly')}
+                          className={`px-3 py-2 text-sm font-medium transition-all ${ltrLeadTrendView === 'yearly' ? 'bg-white text-indigo-600 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          Yearly
+                        </button>
+                      </div>
+                    </div>
+                    {(() => {
+                      const trendData = ltrLeadTrendView === 'monthly' ? ltrLeadTrendMonthly : ltrLeadTrendYearly;
+                      if (trendData.length === 0) {
+                        return <div className="flex items-center justify-center h-[300px] text-gray-500 text-sm">No trend data for {ltrLeadTrendView} view</div>;
+                      }
+                      return (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={trendData} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                            <XAxis
+                              dataKey="label"
+                              tick={{ fontSize: 11, fill: '#64748b' }}
+                              axisLine={{ stroke: '#e2e8f0' }}
+                              tickLine={false}
+                              angle={ltrLeadTrendView === 'yearly' ? 0 : -22}
+                              textAnchor={ltrLeadTrendView === 'yearly' ? 'middle' : 'end'}
+                              height={44}
+                            />
+                            <YAxis
+                              tick={{ fontSize: 11, fill: '#64748b' }}
+                              axisLine={false}
+                              tickLine={false}
+                              label={{ value: 'Total Leads', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#64748b' } }}
+                              width={40}
+                            />
+                            <Tooltip
+                              contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', padding: '10px 14px' }}
+                              formatter={(value, name) => [Number(value).toLocaleString(), name]}
+                            />
+                            <Legend wrapperStyle={{ paddingTop: 10 }} iconType="circle" iconSize={8} />
+                            {LTR_LEAD_SERIES.map((s) => (
+                              <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} stackId="a" radius={[4, 4, 0, 0]} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                    </div>
+                  </motion.div>
+
+                  {/* Lead mix — donut (share of totals) */}
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-amber-500 to-orange-500" />
+                    <div className="pl-2">
+                    <div className="mb-1 flex items-center gap-2">
+                      <Circle className="h-5 w-5 text-amber-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">Lead Mix</h3>
+                    </div>
+                    <p className="text-sm text-gray-500">Share of total leads (Trip Ended, New, Renew)</p>
+                    </div>
+                    <div className="mt-2">
+                    {ltrLeadPieData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={ltrLeadPieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={64}
+                            outerRadius={100}
+                            paddingAngle={2}
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
+                          >
+                            {ltrLeadPieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} stroke="#fff" strokeWidth={2} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(value, name, props) => {
+                              const total = (ltrLeadPieData || []).reduce((s, d) => s + d.value, 0);
+                              const pct = total ? ((value / total) * 100).toFixed(1) : 0;
+                              return [`${Number(value).toLocaleString()} (${pct}%)`, name];
+                            }}
+                            contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', padding: '10px 14px' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-[300px] items-center justify-center rounded-xl bg-gray-50/50 text-sm text-gray-500">No data to display</div>
+                    )}
+                    </div>
+                  </motion.div>
+                </div>
+              </>
+            )}
+
+            {/* Data table */}
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50">
+                      <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Date</th>
+                      <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Current Trip</th>
+                      <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Trip Ended</th>
+                      <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">New Trip</th>
+                      <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Renew Trip</th>
+                      <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {ltrLeadLoading ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-12 text-center text-gray-500">
+                          <span className="inline-flex items-center gap-2"><Loader className="h-4 w-4 animate-spin" /> Loading lead data…</span>
+                        </td>
+                      </tr>
+                    ) : ltrLeadRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-12">
+                          <div className="flex flex-col items-center justify-center rounded-xl bg-gray-50/80 py-10 text-center">
+                            <Target className="mb-3 h-12 w-12 text-gray-300" />
+                            <p className="text-sm font-medium text-gray-600">No lead data yet</p>
+                            <p className="mt-1 text-xs text-gray-500">Add rows manually or import from Excel. {!ltrLeadUseLocalStorage && 'Data is saved to the database.'}</p>
+                            <div className="mt-4 flex gap-3">
+                              <button type="button" onClick={() => { setLtrLeadEditingRecord(null); setLtrLeadFormData({ date: '', current_trip: '', trip_ended: '', new_trip: '', renew_trip: '' }); setLtrLeadShowForm(true); }} className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700">Add first row</button>
+                              <button type="button" onClick={() => ltrLeadFileInputRef.current?.click()} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Import Excel</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      ltrLeadRecords.map((record, idx) => (
+                        <tr key={record.id} className={`transition hover:bg-teal-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="whitespace-nowrap px-5 py-3 text-sm font-medium text-gray-900">{formatLtrLeadDateDisplay(record.date)}</td>
+                          <td className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-gray-900">{record.current_trip ?? '—'}</td>
+                          <td className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-gray-900">{record.trip_ended ?? '—'}</td>
+                          <td className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-gray-900">{record.new_trip ?? '—'}</td>
+                          <td className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-gray-900">{record.renew_trip ?? '—'}</td>
+                          <td className="whitespace-nowrap px-5 py-3 text-right">
+                            <button type="button" onClick={() => handleLtrLeadEdit(record)} className="rounded-lg p-2 text-indigo-600 transition hover:bg-indigo-50" title="Edit"><Edit className="h-4 w-4" /></button>
+                            <button type="button" onClick={() => handleLtrLeadDelete(record.id)} className="rounded-lg p-2 text-red-600 transition hover:bg-red-50" title="Delete"><Trash className="h-4 w-4" /></button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+
+            {/* Add/Edit form */}
+            {ltrLeadShowForm && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-hidden rounded-2xl border-2 border-teal-100 bg-white shadow-md">
+                <div className="border-b border-gray-100 bg-gradient-to-r from-teal-50 to-emerald-50 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">{ltrLeadEditingRecord ? 'Edit Record' : 'Add Record'}</h3>
+                    <button type="button" onClick={resetLtrLeadForm} className="rounded-lg p-1.5 text-gray-500 transition hover:bg-white hover:text-gray-700"><X className="h-5 w-5" /></button>
+                  </div>
+                </div>
+                <form onSubmit={handleLtrLeadSubmit} className="grid grid-cols-1 gap-4 p-6 md:grid-cols-5">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Date</label>
+                    <input type="date" value={ltrLeadFormData.date} onChange={(e) => setLtrLeadFormData({ ...ltrLeadFormData, date: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Current Trip</label>
+                    <input type="number" min={0} value={ltrLeadFormData.current_trip} onChange={(e) => setLtrLeadFormData({ ...ltrLeadFormData, current_trip: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Trip Ended</label>
+                    <input type="number" min={0} value={ltrLeadFormData.trip_ended} onChange={(e) => setLtrLeadFormData({ ...ltrLeadFormData, trip_ended: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">New Trip</label>
+                    <input type="number" min={0} value={ltrLeadFormData.new_trip} onChange={(e) => setLtrLeadFormData({ ...ltrLeadFormData, new_trip: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Renew Trip</label>
+                    <input type="number" min={0} value={ltrLeadFormData.renew_trip} onChange={(e) => setLtrLeadFormData({ ...ltrLeadFormData, renew_trip: e.target.value })} className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20" placeholder="0" />
+                  </div>
+                  <div className="flex gap-3 md:col-span-5">
+                    <button type="submit" className="rounded-xl bg-teal-600 px-5 py-2.5 font-medium text-white shadow-sm transition hover:bg-teal-700">{ltrLeadEditingRecord ? 'Update' : 'Add'}</button>
+                    <button type="button" onClick={resetLtrLeadForm} className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 font-medium text-gray-700 transition hover:bg-gray-50">Cancel</button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {/* LTR Customer Lead Import Modal with column mapping */}
+            <AnimatePresence>
+              {ltrLeadImportModalOpen && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeLtrLeadImportModal}>
+                  <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                      <h2 className="text-xl font-bold text-gray-900">Import LTR Customer Lead from Excel</h2>
+                      <button onClick={closeLtrLeadImportModal} disabled={ltrLeadImporting} className="text-gray-400 hover:text-gray-600 disabled:opacity-50"><X className="w-6 h-6" /></button>
+                    </div>
+                    <div className="p-6">
+                      {ltrLeadExcelHeaders.length > 0 && (
+                        <div className="space-y-4">
+                          <p className="text-sm text-gray-600">Map your Excel columns to the lead parameters:</p>
+                          <div className="grid grid-cols-1 gap-3">
+                            {['date', 'current_trip', 'trip_ended', 'new_trip', 'renew_trip'].map((param) => (
+                              <div key={param} className="flex items-center gap-3">
+                                <label className="w-36 text-sm font-medium text-gray-700 capitalize">{param.replace('_', ' ')}</label>
+                                <select
+                                  value={ltrLeadColumnMapping[param]}
+                                  onChange={(e) => setLtrLeadColumnMapping(prev => ({ ...prev, [param]: e.target.value }))}
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                >
+                                  <option value="">— Skip / Not in file —</option>
+                                  {ltrLeadExcelHeaders.map((h, idx) => (
+                                    <option key={idx} value={String(idx)}>{h || `Column ${idx + 1}`}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                          <button type="button" onClick={applyLtrLeadMapping} className="w-full py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">
+                            Apply mapping & preview
+                          </button>
+                        </div>
+                      )}
+                      {ltrLeadImportPreview && ltrLeadImportPreview.length > 0 && (
+                        <div className="mt-6">
+                          <p className="text-sm font-medium text-gray-700 mb-2">Preview: {ltrLeadImportPreview.length} row(s)</p>
+                          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg mb-4">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50 sticky top-0">
+                                <tr>
+                                  <th className="px-3 py-2 text-left">Date</th>
+                                  <th className="px-3 py-2 text-left">Current Trip</th>
+                                  <th className="px-3 py-2 text-left">Trip Ended</th>
+                                  <th className="px-3 py-2 text-left">New Trip</th>
+                                  <th className="px-3 py-2 text-left">Renew Trip</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ltrLeadImportPreview.slice(0, 8).map((row, i) => (
+                                  <tr key={row.id} className="border-t">
+                                    <td className="px-3 py-2">{formatLtrLeadDateDisplay(row.date)}</td>
+                                    <td className="px-3 py-2">{row.current_trip}</td>
+                                    <td className="px-3 py-2">{row.trip_ended}</td>
+                                    <td className="px-3 py-2">{row.new_trip}</td>
+                                    <td className="px-3 py-2">{row.renew_trip}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {ltrLeadImportPreview.length > 8 && <p className="p-2 text-center text-xs text-gray-500">… and {ltrLeadImportPreview.length - 8} more</p>}
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <button type="button" onClick={closeLtrLeadImportModal} disabled={ltrLeadImporting} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                            <button type="button" onClick={handleLtrLeadImportConfirm} disabled={ltrLeadImporting} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2">
+                              {ltrLeadImporting ? <><Loader className="w-4 h-4 animate-spin" /> Importing…</> : <>Import {ltrLeadImportPreview.length} record(s)</>}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {activeTab === 'ltr-customer-review' && (
+          <div className="space-y-6">
+            {/* Section header */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-100">
+                    <Star className="w-8 h-8 text-amber-600" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">LTR Customer Review</h1>
+                    <p className="text-gray-500 mt-0.5">Customer Name, Rental Duration, Rental Renew, Rental No longer Continue, Remark</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input ref={ltrReviewFileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleLtrReviewImportFileSelect} />
+                  <button
+                    type="button"
+                    onClick={() => ltrReviewFileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm hover:shadow"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Import from Excel
+                  </button>
+                  <button
+                    onClick={() => { setLtrReviewEditingRecord(null); setLtrReviewFormData({ customer_name: '', rental_duration: '', rental_renew: '', rental_no_longer_continue: '', remark: '' }); setLtrReviewShowForm(true); }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-sm hover:shadow"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Row
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Per-customer chart: renewals by rental duration */}
+            {ltrReviewRecords.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Renewals by Rental Duration (per customer)</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">Select a customer to see how many times they renewed and for which rental duration</p>
+                </div>
+                <div className="mb-4 max-w-xs">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                  <select
+                    value={ltrReviewChartCustomer}
+                    onChange={(e) => setLtrReviewChartCustomer(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  >
+                    <option value="">— Select customer —</option>
+                    {ltrReviewCustomerNames.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                {ltrReviewChartCustomer && (
+                  ltrReviewChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={ltrReviewChartData} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <XAxis
+                          dataKey="duration"
+                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          axisLine={{ stroke: '#e2e8f0' }}
+                          tickLine={false}
+                          label={{ value: 'Rental Duration', position: 'insideBottom', offset: -4, style: { fontSize: 11, fill: '#64748b' } }}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          axisLine={false}
+                          tickLine={false}
+                          label={{ value: 'Number of Renewals', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#64748b' } }}
+                          width={42}
+                        />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', padding: '10px 14px' }}
+                          formatter={(value) => [Number(value).toLocaleString(), 'Renewals']}
+                        />
+                        <Bar dataKey="renewals" name="Renewals" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-gray-500 text-sm py-8">No renewal data for this customer.</p>
+                  )
+                )}
+              </motion.div>
+            )}
+
+            {/* Data table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50/80 border-b border-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Customer Name</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rental Duration</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rental Renew</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rental No longer Continue</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Remark</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {ltrReviewLoading ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">Loading…</td>
+                      </tr>
+                    ) : ltrReviewRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                          No data yet. Add rows to track customer reviews. {!ltrReviewUseLocalStorage && 'Data is saved to the database.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      ltrReviewRecords.map((record) => (
+                        <tr key={record.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900">{record.customer_name ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{record.rental_duration ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{record.rental_renew ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{record.rental_no_longer_continue ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={record.remark ?? ''}>{record.remark ?? '—'}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button onClick={() => handleLtrReviewEdit(record)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded" title="Edit"><Edit className="w-4 h-4 inline" /></button>
+                            <button onClick={() => handleLtrReviewDelete(record.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded ml-1" title="Delete"><Trash className="w-4 h-4 inline" /></button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Add/Edit form */}
+            {ltrReviewShowForm && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">{ltrReviewEditingRecord ? 'Edit Record' : 'Add Record'}</h3>
+                  <button onClick={resetLtrReviewForm} className="text-gray-500 hover:text-gray-700"><X className="w-5 h-5" /></button>
+                </div>
+                <form onSubmit={handleLtrReviewSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+                    <input type="text" value={ltrReviewFormData.customer_name} onChange={(e) => setLtrReviewFormData({ ...ltrReviewFormData, customer_name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Customer name" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rental Duration</label>
+                    <input type="text" value={ltrReviewFormData.rental_duration} onChange={(e) => setLtrReviewFormData({ ...ltrReviewFormData, rental_duration: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="e.g. 6 months, 12 months" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rental Renew</label>
+                    <input type="number" min={0} value={ltrReviewFormData.rental_renew} onChange={(e) => setLtrReviewFormData({ ...ltrReviewFormData, rental_renew: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rental No longer Continue</label>
+                    <input type="number" min={0} value={ltrReviewFormData.rental_no_longer_continue} onChange={(e) => setLtrReviewFormData({ ...ltrReviewFormData, rental_no_longer_continue: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="0" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Remark</label>
+                    <textarea value={ltrReviewFormData.remark} onChange={(e) => setLtrReviewFormData({ ...ltrReviewFormData, remark: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Optional notes" />
+                  </div>
+                  <div className="md:col-span-2 flex gap-2">
+                    <button type="submit" className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700">{ltrReviewEditingRecord ? 'Update' : 'Add'}</button>
+                    <button type="button" onClick={resetLtrReviewForm} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Cancel</button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {/* LTR Customer Review Import Modal with column mapping */}
+            <AnimatePresence>
+              {ltrReviewImportModalOpen && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeLtrReviewImportModal}>
+                  <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                      <h2 className="text-xl font-bold text-gray-900">Import LTR Customer Review from Excel</h2>
+                      <button type="button" onClick={closeLtrReviewImportModal} disabled={ltrReviewImporting} className="text-gray-400 hover:text-gray-600 disabled:opacity-50"><X className="w-6 h-6" /></button>
+                    </div>
+                    <div className="p-6">
+                      {ltrReviewExcelHeaders.length > 0 && (
+                        <div className="space-y-4">
+                          <p className="text-sm text-gray-600">Map your Excel columns to the review parameters:</p>
+                          <div className="grid grid-cols-1 gap-3">
+                            {[
+                              { key: 'customer_name', label: 'Customer Name' },
+                              { key: 'rental_duration', label: 'Rental Duration' },
+                              { key: 'rental_renew', label: 'Rental Renew' },
+                              { key: 'rental_no_longer_continue', label: 'Rental No longer Continue' },
+                              { key: 'remark', label: 'Remark' }
+                            ].map(({ key, label }) => (
+                              <div key={key} className="flex items-center gap-3">
+                                <label className="w-48 text-sm font-medium text-gray-700">{label}</label>
+                                <select
+                                  value={ltrReviewColumnMapping[key]}
+                                  onChange={(e) => setLtrReviewColumnMapping(prev => ({ ...prev, [key]: e.target.value }))}
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                                >
+                                  <option value="">— Skip / Not in file —</option>
+                                  {ltrReviewExcelHeaders.map((h, idx) => (
+                                    <option key={idx} value={String(idx)}>{h || `Column ${idx + 1}`}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                          <button type="button" onClick={applyLtrReviewMapping} className="w-full py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700">
+                            Apply mapping &amp; preview
+                          </button>
+                        </div>
+                      )}
+                      {ltrReviewImportPreview && ltrReviewImportPreview.length > 0 && (
+                        <div className="mt-6">
+                          <p className="text-sm font-medium text-gray-700 mb-2">Preview: {ltrReviewImportPreview.length} row(s)</p>
+                          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg mb-4">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50 sticky top-0">
+                                <tr>
+                                  <th className="px-3 py-2 text-left">Customer Name</th>
+                                  <th className="px-3 py-2 text-left">Rental Duration</th>
+                                  <th className="px-3 py-2 text-left">Rental Renew</th>
+                                  <th className="px-3 py-2 text-left">No longer Continue</th>
+                                  <th className="px-3 py-2 text-left">Remark</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ltrReviewImportPreview.slice(0, 8).map((row, i) => (
+                                  <tr key={row.id} className="border-t">
+                                    <td className="px-3 py-2">{row.customer_name || '—'}</td>
+                                    <td className="px-3 py-2">{row.rental_duration || '—'}</td>
+                                    <td className="px-3 py-2">{row.rental_renew}</td>
+                                    <td className="px-3 py-2">{row.rental_no_longer_continue}</td>
+                                    <td className="px-3 py-2 truncate max-w-[120px]" title={row.remark || ''}>{row.remark || '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {ltrReviewImportPreview.length > 8 && <p className="p-2 text-center text-xs text-gray-500">… and {ltrReviewImportPreview.length - 8} more</p>}
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <button type="button" onClick={closeLtrReviewImportModal} disabled={ltrReviewImporting} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                            <button type="button" onClick={handleLtrReviewImportConfirm} disabled={ltrReviewImporting} className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2">
+                              {ltrReviewImporting ? <><Loader className="w-4 h-4 animate-spin" /> Importing…</> : <><CheckCircle className="w-4 h-4" /> Import {ltrReviewImportPreview.length} record(s)</>}
                             </button>
                           </div>
                         </div>

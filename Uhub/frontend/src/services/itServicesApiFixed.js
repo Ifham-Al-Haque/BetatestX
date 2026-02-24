@@ -180,10 +180,11 @@ export const itServicesApi = {
       try {
         console.log('Fetching requests with filters:', filters, 'userId:', userId, 'userRole:', userRole);
         
-        // Simple query to base table only
+        // Simple query to base table only - exclude soft-deleted items
         let query = supabase
           .from('it_requests')
           .select('*')
+          .neq('status', 'deleted') // Exclude soft-deleted items
           .order('created_at', { ascending: false });
 
         // Apply filters
@@ -296,18 +297,45 @@ export const itServicesApi = {
 
     delete: async (id) => {
       try {
-        const { error } = await supabase
+        console.log('Attempting to soft delete IT request with ID:', id);
+        
+        // Soft delete: Update status to 'deleted' and set deleted_at timestamp
+        // This keeps the record in the database but marks it as deleted
+        const updateData = {
+          status: 'deleted',
+          updated_at: new Date().toISOString()
+        };
+
+        // Try to add deleted_at timestamp if the column exists
+        try {
+          updateData.deleted_at = new Date().toISOString();
+        } catch (e) {
+          // Column might not exist, that's okay
+          console.log('deleted_at column may not exist, continuing with status update only');
+        }
+
+        const { data, error } = await supabase
           .from('it_requests')
-          .delete()
-          .eq('id', id);
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
 
         if (error) {
-          console.error('Request deletion error:', error);
+          console.error('Soft delete error:', error);
           throw error;
         }
-        return true;
+        
+        console.log('Request soft deleted successfully. Status set to deleted:', data);
+        
+        if (!data) {
+          throw new Error('No rows were updated. The request may not exist or you may not have permission.');
+        }
+        
+        return data;
+        
       } catch (error) {
-        console.error('Error deleting request:', error);
+        console.error('Error soft deleting request:', error);
         throw error;
       }
     },
