@@ -44,7 +44,6 @@ const categoryIcons = {
   'wifi': Wifi,
   'key': Key,
   'mail': Mail,
-  'printer': Printer,
   'shield': Shield,
   'hard-drive': HardDrive,
   'help-circle': HelpCircle
