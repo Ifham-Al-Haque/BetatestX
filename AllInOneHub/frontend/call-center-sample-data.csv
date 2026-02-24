@@ -1,0 +1,13 @@
+Direction,Start Date,Call Result,Agent,Queue,Talk Time,Time spent in Queue,Abandoned,Lost in IVR,Survey Rating,On hold Duration,Repeats,Call ID
+inbound,7/20/25 11:57:15 PM,cancel,,,0:00:00,,FALSE,TRUE,,0:00:00,0,5cbbbca9-f8eb-4a54-8c2a-1e3e5dbb8007
+inbound,7/20/25 11:52:16 PM,answered,Omar Abdelhamid,9PM-Emergency_Only_Queue,0:01:20,0:00:02,FALSE,FALSE,,0:00:00,0,d3931ff9-3188-437a-b12f-4483eff0b3f8
+inbound,7/20/25 11:48:22 PM,cancel,,Option3_Only_Emergency,0:00:00,0:00:47,FALSE,FALSE,,0:00:00,0,daf4dca9-25fa-4345-9a55-1f7539ac58bb
+inbound,7/20/25 11:42:12 PM,answered,Deleted Agent,9PM-Emergency_Only_Queue,0:06:39,0:00:02,FALSE,FALSE,,0:00:00,0,380c3e51-50b6-43ec-baab-a673427e6ba7
+inbound,7/20/25 11:29:25 PM,answered,Gulfam Javed,9PM-Emergency_Only_Queue,0:01:54,0:00:02,FALSE,FALSE,,0:00:00,0,d9a8c8e1-82a4-4612-8169-69449986731e
+inbound,7/20/25 11:27:29 PM,answered,Omar Abdelhamid,9PM-Emergency_Only_Queue,0:01:03,0:00:03,FALSE,FALSE,,0:00:00,0,66f8a46c-6ce6-4d20-8f08-ad10c1de38bb
+internal,7/20/25 11:03:41 PM,answered,Deleted Agent,,0:00:05,,FALSE,FALSE,,0:00:00,0,03881f97-435e-4ecd-8ba3-64490547930c
+inbound,7/20/25 11:03:33 PM,answered,Deleted Agent,9PM-Emergency_Only_Queue,0:01:15,0:00:02,FALSE,FALSE,,0:00:00,0,b59d8db1-74c0-4517-b662-17a2bccba276
+inbound,7/20/25 11:02:37 PM,answered,Gulfam Javed,9PM-Emergency_Only_Queue,0:00:57,0:00:02,FALSE,FALSE,,0:00:00,0,71961c25-6821-4ddd-8ef6-1d803e234816
+outbound,7/20/25 10:49:45 PM,answered,Gulfam Javed,,0:00:58,,FALSE,FALSE,,0:00:00,0,de13e93b-ef50-4390-a0d9-26b169853e8f
+
+
