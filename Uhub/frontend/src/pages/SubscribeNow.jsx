@@ -70,7 +70,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  ScatterChart,
+  Scatter
 } from 'recharts';
 
 // Download icon alias (lucide Download can be undefined in some builds)
@@ -891,51 +893,54 @@ const SubscribeNow = () => {
     return [d, m, y].join('/');
   };
 
-  // LTR Customer lead: chart data and totals
-  // Current Trip = value from the record with the latest date (not summed). Trip Ended / New / Renew = sums.
+  // LTR Customer lead: totals from the single record with the latest date (all fields from latest, not summed)
   const ltrLeadTotals = useMemo(() => {
     const totals = { current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0 };
     const records = ltrLeadRecords || [];
-    records.forEach(r => {
-      totals.trip_ended += Number(r.trip_ended) || 0;
-      totals.new_trip += Number(r.new_trip) || 0;
-      totals.renew_trip += Number(r.renew_trip) || 0;
-    });
-    // Current Trip: latest by date (record with most recent date)
     if (records.length > 0) {
       const withDate = records.map(r => ({ ...r, _normDate: normalizeLtrLeadDate(r.date) || '' })).filter(r => r._normDate && r._normDate !== 'No date');
       if (withDate.length > 0) {
         const latest = withDate.sort((a, b) => (b._normDate).localeCompare(a._normDate))[0];
         totals.current_trip = Number(latest.current_trip) || 0;
+        totals.trip_ended = Number(latest.trip_ended) || 0;
+        totals.new_trip = Number(latest.new_trip) || 0;
+        totals.renew_trip = Number(latest.renew_trip) || 0;
       }
     }
     return totals;
   }, [ltrLeadRecords]);
 
-  // Per date: trip_ended/new/renew summed; current_trip = value from latest record on that date (not summed)
+  // Per date: all values (current_trip, trip_ended, new_trip, renew_trip) from the latest record on that date (not summed)
   const ltrLeadChartByDate = useMemo(() => {
     if (!ltrLeadRecords || ltrLeadRecords.length === 0) return [];
     const byDate = {};
     ltrLeadRecords.forEach(r => {
       const d = normalizeLtrLeadDate(r.date) || 'No date';
-      if (!byDate[d]) byDate[d] = { date: d, current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0, _currentTripCandidates: [] };
-      byDate[d]._currentTripCandidates.push({ date: d, current_trip: Number(r.current_trip) || 0 });
-      byDate[d].trip_ended += Number(r.trip_ended) || 0;
-      byDate[d].new_trip += Number(r.new_trip) || 0;
-      byDate[d].renew_trip += Number(r.renew_trip) || 0;
+      if (!byDate[d]) byDate[d] = { date: d, _candidates: [] };
+      byDate[d]._candidates.push({
+        current_trip: Number(r.current_trip) || 0,
+        trip_ended: Number(r.trip_ended) || 0,
+        new_trip: Number(r.new_trip) || 0,
+        renew_trip: Number(r.renew_trip) || 0
+      });
     });
-    const result = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
-    result.forEach(row => {
-      const cand = row._currentTripCandidates;
-      if (cand && cand.length > 0) {
-        row.current_trip = cand[cand.length - 1].current_trip;
-      }
-      delete row._currentTripCandidates;
-    });
+    const result = Object.values(byDate)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(row => {
+        const cand = row._candidates;
+        const latest = cand && cand.length > 0 ? cand[cand.length - 1] : { current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0 };
+        return {
+          date: row.date,
+          current_trip: latest.current_trip,
+          trip_ended: latest.trip_ended,
+          new_trip: latest.new_trip,
+          renew_trip: latest.renew_trip
+        };
+      });
     return result;
   }, [ltrLeadRecords]);
 
-  // Trend: trip_ended/new/renew summed per period; current_trip = value from latest date in that period (not summed)
+  // Trend: all values from the latest date in each period (not summed)
   const ltrLeadTrendMonthly = useMemo(() => {
     if (!ltrLeadChartByDate.length) return [];
     const byMonth = {};
@@ -945,12 +950,12 @@ const SubscribeNow = () => {
       const monthKey = d.length >= 7 ? d.slice(0, 7) : d;
       const label = d.length >= 7 ? `${d.slice(5, 7)}/${d.slice(-2)}` : d;
       if (!byMonth[monthKey]) byMonth[monthKey] = { period: monthKey, label, current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0, _latestDate: '' };
-      byMonth[monthKey].trip_ended += row.trip_ended || 0;
-      byMonth[monthKey].new_trip += row.new_trip || 0;
-      byMonth[monthKey].renew_trip += row.renew_trip || 0;
       if (d > (byMonth[monthKey]._latestDate || '')) {
         byMonth[monthKey]._latestDate = d;
         byMonth[monthKey].current_trip = row.current_trip || 0;
+        byMonth[monthKey].trip_ended = row.trip_ended || 0;
+        byMonth[monthKey].new_trip = row.new_trip || 0;
+        byMonth[monthKey].renew_trip = row.renew_trip || 0;
       }
     });
     return Object.values(byMonth).sort((a, b) => a.period.localeCompare(b.period)).map(({ _latestDate, ...rest }) => rest);
@@ -964,12 +969,12 @@ const SubscribeNow = () => {
       if (!d || d === 'No date') return;
       const yearKey = d.length >= 4 ? d.slice(0, 4) : d;
       if (!byYear[yearKey]) byYear[yearKey] = { period: yearKey, label: yearKey, current_trip: 0, trip_ended: 0, new_trip: 0, renew_trip: 0, _latestDate: '' };
-      byYear[yearKey].trip_ended += row.trip_ended || 0;
-      byYear[yearKey].new_trip += row.new_trip || 0;
-      byYear[yearKey].renew_trip += row.renew_trip || 0;
       if (d > (byYear[yearKey]._latestDate || '')) {
         byYear[yearKey]._latestDate = d;
         byYear[yearKey].current_trip = row.current_trip || 0;
+        byYear[yearKey].trip_ended = row.trip_ended || 0;
+        byYear[yearKey].new_trip = row.new_trip || 0;
+        byYear[yearKey].renew_trip = row.renew_trip || 0;
       }
     });
     return Object.values(byYear).sort((a, b) => a.period.localeCompare(b.period)).map(({ _latestDate, ...rest }) => rest);
@@ -982,6 +987,8 @@ const SubscribeNow = () => {
     { key: 'new_trip', name: 'New Trip', color: '#10B981' },
     { key: 'renew_trip', name: 'Renew Trip', color: '#F59E0B' }
   ];
+  // For "Lead by trip" stacked charts: only Trip Ended, New Trip, Renew Trip (no Current Trip)
+  const LTR_LEAD_SERIES_LEAD_BY_TRIP = LTR_LEAD_SERIES.filter((s) => s.key !== 'current_trip');
 
   const formatChartDate = (v) => {
     if (!v || typeof v !== 'string') return v;
@@ -3180,7 +3187,7 @@ const SubscribeNow = () => {
                       <BarChart3 className="h-5 w-5 text-teal-600" />
                       <h3 className="text-lg font-semibold text-gray-900">Leads by Date</h3>
                     </div>
-                    <p className="text-sm text-gray-500">Daily breakdown: Current Trip, Trip Ended, New Trip, Renew Trip</p>
+                    <p className="text-sm text-gray-500">Daily breakdown: Trip Ended, New Trip, Renew Trip</p>
                   </div>
                   <div className="mt-4">
                   <ResponsiveContainer width="100%" height={340}>
@@ -3209,7 +3216,7 @@ const SubscribeNow = () => {
                         formatter={(value, name) => [Number(value).toLocaleString(), name]}
                       />
                       <Legend wrapperStyle={{ paddingTop: 12 }} iconType="circle" iconSize={8} iconAlign="center" />
-                      {LTR_LEAD_SERIES.map((s) => (
+                      {LTR_LEAD_SERIES_LEAD_BY_TRIP.map((s) => (
                         <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} stackId="a" radius={[4, 4, 0, 0]} />
                       ))}
                     </BarChart>
@@ -3217,7 +3224,7 @@ const SubscribeNow = () => {
                   </div>
                 </motion.div>
 
-                {/* Current Trip over dates — bar chart (LineChart/Line undefined in this build) */}
+                {/* Current Trip over dates — scatter chart */}
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }} className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
                   <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-indigo-500 to-violet-500" />
                   <div className="pl-2">
@@ -3229,10 +3236,11 @@ const SubscribeNow = () => {
                   </div>
                   <div className="mt-4">
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={ltrLeadChartByDate} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                    <ScatterChart data={ltrLeadChartByDate} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                       <XAxis
                         dataKey="date"
+                        type="category"
                         tick={{ fontSize: 11, fill: '#64748b' }}
                         tickFormatter={formatChartDate}
                         axisLine={{ stroke: '#e2e8f0' }}
@@ -3242,6 +3250,9 @@ const SubscribeNow = () => {
                         height={48}
                       />
                       <YAxis
+                        type="number"
+                        dataKey="current_trip"
+                        name="Current Trip"
                         tick={{ fontSize: 11, fill: '#64748b' }}
                         axisLine={false}
                         tickLine={false}
@@ -3252,9 +3263,10 @@ const SubscribeNow = () => {
                         contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)', padding: '10px 14px' }}
                         labelFormatter={formatChartDate}
                         formatter={(value) => [Number(value).toLocaleString(), 'Current Trip']}
+                        cursor={{ strokeDasharray: '3 3', stroke: '#94a3b8' }}
                       />
-                      <Bar dataKey="current_trip" name="Current Trip" fill="#6366F1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                      <Scatter name="Current Trip" dataKey="current_trip" fill="#6366F1" fillOpacity={0.85} shape="circle" />
+                    </ScatterChart>
                   </ResponsiveContainer>
                   </div>
                 </motion.div>
@@ -3316,7 +3328,7 @@ const SubscribeNow = () => {
                               formatter={(value, name) => [Number(value).toLocaleString(), name]}
                             />
                             <Legend wrapperStyle={{ paddingTop: 10 }} iconType="circle" iconSize={8} />
-                            {LTR_LEAD_SERIES.map((s) => (
+                            {LTR_LEAD_SERIES_LEAD_BY_TRIP.map((s) => (
                               <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} stackId="a" radius={[4, 4, 0, 0]} />
                             ))}
                           </BarChart>
