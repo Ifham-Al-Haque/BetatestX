@@ -1,13 +1,14 @@
 // src/pages/ExpenseTracker.jsx
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
 import { DEPARTMENTS, getDepartmentLabel } from "../config/departments";
+import { parseExpenseFile, mapRowToExpense, getExpenseImportTemplateCsv } from "../utils/expenseImportUtils";
 
 import { motion } from "framer-motion";
-import { Plus, Edit, Trash, Save, X, Filter, Search, Calendar, DollarSign, Building } from "lucide-react";
+import { Plus, Edit, Trash, Save, X, Filter, Search, Calendar, DollarSign, Building, Upload, FileSpreadsheet, Download } from "lucide-react";
 
 export default function ExpenseTracker() {
   const { user } = useAuth();
@@ -43,6 +44,14 @@ export default function ExpenseTracker() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+
+  // Import state
+  const [importFile, setImportFile] = useState(null);
+  const [parsedRows, setParsedRows] = useState([]);
+  const [importPreview, setImportPreview] = useState([]); // { expense, rowErrors }[]
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const fileInputRef = useRef(null);
 
   // Use React Query hooks
   const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
@@ -204,6 +213,103 @@ export default function ExpenseTracker() {
     });
   }, []);
 
+  const handleImportFileChange = useCallback(async (e) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    setImportError("");
+    setImportFile(null);
+    setParsedRows([]);
+    setImportPreview([]);
+    const name = (file.name || "").toLowerCase();
+    if (!name.endsWith(".csv") && !name.endsWith(".xlsx") && !name.endsWith(".xls")) {
+      setImportError("Please select a CSV or Excel (.xlsx, .xls) file.");
+      return;
+    }
+    try {
+      const { rows, errors } = await parseExpenseFile(file);
+      if (errors.length) {
+        setImportError(errors.join(" "));
+        return;
+      }
+      if (!rows.length) {
+        setImportError("No data rows found in the file.");
+        return;
+      }
+      const preview = rows.map((row) => {
+        const { expense, errors: rowErrors } = mapRowToExpense(row);
+        return { expense, rowErrors };
+      });
+      setImportFile(file);
+      setParsedRows(rows);
+      setImportPreview(preview);
+    } catch (err) {
+      setImportError(err?.message || "Failed to parse file.");
+    }
+    e.target.value = "";
+  }, []);
+
+  const validImportCount = useMemo(
+    () => importPreview.filter((p) => p.rowErrors.length === 0).length,
+    [importPreview]
+  );
+  const invalidImportCount = importPreview.length - validImportCount;
+
+  const handleImportConfirm = useCallback(async () => {
+    if (!user) {
+      showError("Error", "User not logged in");
+      return;
+    }
+    const toImport = importPreview.filter((p) => p.rowErrors.length === 0).map((p) => ({ ...p.expense, user_id: user.id }));
+    if (!toImport.length) {
+      showError("Import", "No valid rows to import. Fix errors and try again.");
+      return;
+    }
+    setImporting(true);
+    let imported = 0;
+    const failed = [];
+    for (let i = 0; i < toImport.length; i++) {
+      try {
+        await createExpenseMutation.mutateAsync(toImport[i]);
+        imported++;
+      } catch (err) {
+        failed.push({ row: i + 1, message: err?.message || "Failed" });
+      }
+    }
+    setImporting(false);
+    setImportFile(null);
+    setParsedRows([]);
+    setImportPreview([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imported > 0) {
+      success("Import complete", `Imported ${imported} expense(s).`);
+    }
+    if (failed.length > 0) {
+      showError(
+        "Import partial",
+        `${failed.length} row(s) failed: ${failed.slice(0, 3).map((f) => `Row ${f.row}: ${f.message}`).join("; ")}${failed.length > 3 ? "…" : ""}`
+      );
+    }
+  }, [user, importPreview, createExpenseMutation, success, showError]);
+
+  const handleImportCancel = useCallback(() => {
+    setImportFile(null);
+    setParsedRows([]);
+    setImportPreview([]);
+    setImportError("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const downloadTemplate = useCallback(() => {
+    const csv = getExpenseImportTemplateCsv();
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "expense_import_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
@@ -327,6 +433,115 @@ export default function ExpenseTracker() {
                 {createExpenseMutation.isLoading ? "Adding..." : "Add Expense"}
               </button>
             </form>
+          </motion.div>
+
+          {/* Import from CSV / Excel */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6"
+          >
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              Import from Excel or CSV
+            </h3>
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleImportFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+              >
+                <Upload className="w-4 h-4" />
+                Choose file
+              </button>
+              <button
+                type="button"
+                onClick={downloadTemplate}
+                className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <Download className="w-4 h-4" />
+                Download template (CSV)
+              </button>
+            </div>
+            {importError && (
+              <p className="text-sm text-red-600 dark:text-red-400 mb-4">{importError}</p>
+            )}
+            {importPreview.length > 0 && (
+              <>
+                <div className="flex items-center gap-4 mb-3 text-sm text-gray-600 dark:text-gray-400">
+                  <span>
+                    <strong>{validImportCount}</strong> valid row(s) ready to import
+                    {invalidImportCount > 0 && (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        {" "}({invalidImportCount} skipped due to errors)
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="overflow-x-auto max-h-48 border border-gray-200 dark:border-gray-600 rounded-lg mb-4">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Service</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Amount</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Date Paid</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Department</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Issues</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {importPreview.slice(0, 10).map((item, idx) => (
+                        <tr
+                          key={idx}
+                          className={item.rowErrors.length > 0 ? "bg-amber-50 dark:bg-amber-900/20" : ""}
+                        >
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.service_name || "—"}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.amount_aed ? `AED ${item.expense.amount_aed}` : "—"}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.date_paid || "—"}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.department || "—"}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.service_status || "—"}</td>
+                          <td className="px-3 py-2 text-amber-600 dark:text-amber-400 text-xs">
+                            {item.rowErrors.length > 0 ? item.rowErrors.join(", ") : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {importPreview.length > 10 && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    Showing first 10 of {importPreview.length} rows. All valid rows will be imported.
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleImportConfirm}
+                    disabled={importing || validImportCount === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {importing ? "Importing…" : `Import ${validImportCount} expense(s)`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleImportCancel}
+                    disabled={importing}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </motion.div>
 
           {/* Filters Section */}

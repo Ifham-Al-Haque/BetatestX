@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Car, User, Building } from 'lucide-react';
+import { X, Save, Car, User, Building, Search } from 'lucide-react';
 import fleetService from '../../services/fleetService';
+import { decodeVin } from '../../services/vinDecodeService';
 
 const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -31,6 +32,8 @@ const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
   const [departments, setDepartments] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [vinDecoding, setVinDecoding] = useState(false);
+  const [vinError, setVinError] = useState('');
   const [errors, setErrors] = useState({});
 
   const isEditMode = !!vehicle;
@@ -322,19 +325,54 @@ const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 VIN
               </label>
-              <input
-                type="text"
-                name="vin"
-                value={formData.vin}
-                onChange={handleInputChange}
-                maxLength="17"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.vin ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="17-character VIN"
-              />
-              {errors.vin && (
-                <p className="text-red-600 text-sm mt-1">{errors.vin}</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="vin"
+                  value={formData.vin}
+                  onChange={(e) => { handleInputChange(e); setVinError(''); }}
+                  maxLength="17"
+                  className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.vin ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="17-character VIN"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!formData.vin || formData.vin.trim().length < 10) {
+                      setVinError('Enter at least 10 characters to decode');
+                      return;
+                    }
+                    setVinDecoding(true);
+                    setVinError('');
+                    try {
+                      const decoded = await decodeVin(formData.vin);
+                      setFormData((prev) => ({
+                        ...prev,
+                        make: decoded.make || prev.make,
+                        model: decoded.model || prev.model,
+                        year: decoded.year || prev.year,
+                        engine_size: decoded.engine_size || prev.engine_size,
+                        fuel_type: decoded.fuel_type || prev.fuel_type,
+                        notes: decoded.notes ? (prev.notes ? `${prev.notes}; ${decoded.notes}` : decoded.notes) : prev.notes,
+                      }));
+                    } catch (e) {
+                      setVinError(e?.message || 'Decode failed');
+                    } finally {
+                      setVinDecoding(false);
+                    }
+                  }}
+                  disabled={vinDecoding}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                  title="Decode VIN to fill Make, Model, Year"
+                >
+                  <Search className="w-4 h-4" />
+                  {vinDecoding ? '…' : 'Decode'}
+                </button>
+              </div>
+              {(errors.vin || vinError) && (
+                <p className="text-red-600 text-sm mt-1">{errors.vin || vinError}</p>
               )}
             </div>
 

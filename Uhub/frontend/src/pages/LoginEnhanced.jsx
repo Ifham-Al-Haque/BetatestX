@@ -12,6 +12,7 @@ import { useToast } from "../context/ToastContext";
 import config from "../config";
 import Logo from "../components/ui/logo";
 import activityService from "../services/activityService";
+import { emailService } from "../services/emailService";
 
 export default function LoginEnhanced() {
   const [email, setEmail] = useState("");
@@ -114,7 +115,9 @@ export default function LoginEnhanced() {
         if (data.user) {
           setInfoMsg("Login successful! Redirecting...");
           success("Login Successful", "Welcome back!");
-          
+          // Notify user by email about this login (e.g. for security awareness)
+          emailService.sendLoginNotification(data.user.email, new Date()).catch(() => {});
+
           await checkUserRoleAndRedirect(data.user);
         }
       }

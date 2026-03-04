@@ -65,6 +65,7 @@ const Tasks = React.lazy(() => import('./pages/Tasks'));
 const CalendarView = React.lazy(() => import('./pages/CalendarView'));
 const Analytics = React.lazy(() => import('./pages/Analytics'));
 const FleetManagement = React.lazy(() => import('./pages/FleetManagement'));
+const FleetDashboard = React.lazy(() => import('./pages/FleetDashboard'));
 const DeliveryManagement = React.lazy(() => import('./pages/DeliveryManagement'));
 const DeliveryTracking = React.lazy(() => import('./pages/DeliveryTracking'));
 const DeliveryRoutes = React.lazy(() => import('./pages/DeliveryRoutes'));
@@ -86,6 +87,7 @@ const FleetOnboarding = React.lazy(() => import('./pages/FleetOnboarding'));
 const FleetOffboarding = React.lazy(() => import('./pages/FleetOffboarding'));
 const FleetDeliveryChecklist = React.lazy(() => import('./pages/FleetDeliveryChecklist'));
 const FleetMaintenanceRecord = React.lazy(() => import('./pages/FleetMaintenanceRecord'));
+const FleetDriverCalendar = React.lazy(() => import('./pages/FleetDriverCalendar'));
 const MarketingCalendar = React.lazy(() => import('./pages/MarketingCalendar'));
 const OrganizationalHierarchy = React.lazy(() => import('./pages/OrganizationalHierarchy'));
 const IOTRecord = React.lazy(() => import('./pages/IOTRecord'));
@@ -403,6 +405,14 @@ function App() {
                           </ProtectedRoute>
                         } />
 
+                        <Route path="/fleet-dashboard" element={
+                          <ProtectedRoute requiredFeature="fleet_management">
+                            <Layout>
+                              <FleetDashboard />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
                         {/* Delivery Management Routes */}
                         <Route path="/delivery-management" element={
                           <ProtectedRoute requiredFeature="delivery_management">
@@ -488,18 +498,6 @@ function App() {
                               <div className="p-8">
                                 <h1 className="text-2xl font-bold mb-4">CS Tickets</h1>
                                 <p>Customer service tickets functionality coming soon...</p>
-                              </div>
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
-
-                        {/* Request Inbox */}
-                        <Route path="/request-inbox" element={
-                          <ProtectedRoute requiredFeature="request_inbox">
-                            <Layout>
-                              <div className="p-8">
-                                <h1 className="text-2xl font-bold mb-4">Request Inbox</h1>
-                                <p>Request inbox functionality coming soon...</p>
                               </div>
                             </Layout>
                           </ProtectedRoute>
@@ -639,6 +637,14 @@ function App() {
                           <ProtectedRoute requiredFeature="fleet_maintenance_record">
                             <Layout>
                               <FleetMaintenanceRecord />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/fleet-driver-calendar" element={
+                          <ProtectedRoute requiredFeature="fleet_management">
+                            <Layout>
+                              <FleetDriverCalendar />
                             </Layout>
                           </ProtectedRoute>
                         } />

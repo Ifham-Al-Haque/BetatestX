@@ -14,6 +14,7 @@ import config from "../config";
 import Logo from "../components/ui/logo";
 import DarkModeToggle from "../components/DarkModeToggle";
 import activityService from "../services/activityService";
+import { emailService } from "../services/emailService";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -163,7 +164,9 @@ export default function Login() {
         
         // Log successful login activity
         await activityService.logLogin('email');
-        
+        // Notify user by email about this login (e.g. for security awareness)
+        emailService.sendLoginNotification(data.user.email, new Date()).catch(() => {});
+
         await checkUserRoleAndRedirect(data.user);
       }
     } catch (err) {

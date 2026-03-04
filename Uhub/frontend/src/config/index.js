@@ -17,7 +17,7 @@ const config = {
   // Feature Flags
   features: {
     enableAnalytics: process.env.REACT_APP_ENABLE_ANALYTICS === 'true',
-    enableDebugMode: process.env.REACT_APP_ENABLE_DEBUG_MODE === 'false', // Disabled for production
+    enableDebugMode: process.env.REACT_APP_ENABLE_DEBUG_MODE === 'true', // Only enabled when explicitly set
     enableUserRegistration: false, // Disabled for security
   },
 

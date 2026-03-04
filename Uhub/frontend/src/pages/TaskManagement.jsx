@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { apiService } from '../services/api';
 import { taskApi } from '../services/taskApi';
+import { emailService } from '../services/emailService';
 import { supabase } from '../supabaseClient';
 import { DEPARTMENTS } from '../config/departments';
 
@@ -699,6 +700,19 @@ const TaskManagement = () => {
         queryClient.invalidateQueries(['tasks']);
         queryClient.invalidateQueries(['taskStats']);
         success('Success', 'Task created and assigned successfully!');
+
+        // Send assignment email(s) to assignee(s) – fire-and-forget so UI is not blocked
+        const assigneeUserIds = assignmentType === 'coordinated' && assignees.length > 0 ? assignees : (assignedToId ? [assignedToId] : []);
+        const assignedByName = userProfile?.full_name || user?.email || 'A colleague';
+        assigneeUserIds.forEach((uid) => {
+          const assignee = allUsers.find((u) => u.id === uid);
+          if (!assignee?.email) return;
+          emailService.sendTaskAssignedNotification(
+            { id: newTask.id, title: newTask.title, description: newTask.description, priority: newTask.priority, due_date: newTask.due_date, department: newTask.department },
+            assignee.email,
+            assignedByName
+          ).catch((err) => console.warn('Task assignment email failed (non-critical):', err));
+        });
       }
 
       setShowForm(false);
