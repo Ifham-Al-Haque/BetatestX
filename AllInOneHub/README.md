@@ -1,8 +1,8 @@
 # All in One Hub
 
-**All in One Hub** is a standalone product (not part of Udrive). It is your own personalized hub, built from the same working codebase as Uhub.
+**All in One Hub** is a standalone unified platform for all departments. It is a separate product with its own branding and theme.
 
-This folder contains the full frontend application. The code was copied from the working Uhub frontend so you can evolve it independently for the All in One Hub product.
+This folder contains the full frontend application.
 
 ## Quick start
 
@@ -13,23 +13,34 @@ This folder contains the full frontend application. The code was copied from the
 
 2. **Configure environment**
    - Copy `env.template` or `env.example` to `.env` in the `frontend` folder.
-   - Fill in your Supabase (or other) credentials.
+   - Set `REACT_APP_SUPABASE_URL`, `REACT_APP_SUPABASE_ANON_KEY`, and optionally `REACT_APP_APP_NAME=All in One Hub`.
 
-3. **Run locally**
+3. **Logo**
+   - Add your logo as `frontend/public/logo.png` (used in header, login, PWA).  
+   - Replace `frontend/public/favicon.ico` for the browser tab icon.
+
+4. **Run locally**
    ```bash
    npm start
    ```
 
-4. **Build for production**
+5. **Build for production**
    ```bash
    npm run build
    ```
 
-## Deployment (e.g. Vercel)
+## Theme and branding
 
-- **Root build**: If this repo root is deployed, point the build to `AllInOneHub/frontend` (e.g. set `buildCommand` to `cd AllInOneHub/frontend && npm ci && npm run build` and `outputDirectory` to `AllInOneHub/frontend/build`).
-- **Monorepo**: You can also deploy only the `AllInOneHub/frontend` directory as a separate project.
+- **Colors**: Edit `frontend/src/config/theme.js` and, if needed, `frontend/src/context/ThemeContext.jsx` and `frontend/tailwind.config.js`. See **`frontend/THEME.md`** for details.
+- **Tailwind**: Theme utilities use the `hub-*` namespace (e.g. `bg-hub-primary`, `text-hub-accent-primary`).
+
+## Deployment
+
+Deploy to **Vercel** (recommended), **Netlify**, or **Firebase Hosting**. Full comparison and steps are in **`frontend/DEPLOYMENT.md`**.
+
+- **Vercel**: Use the included `frontend/vercel.json`; connect the repo and set env vars.
+- **Netlify**: Use `frontend/netlify.toml` when the site root is `AllInOneHub/frontend`.
 
 ## Branch
 
-This product lives on the **`all-in-one-hub`** Git branch. The main Uhub/Udrive app remains on `main`.
+This product is developed on the **`all-in-one-hub`** branch. The main Uhub/Udrive app remains on `main`.

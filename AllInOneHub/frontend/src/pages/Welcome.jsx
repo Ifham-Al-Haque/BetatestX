@@ -76,7 +76,7 @@ const Welcome = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#083554] via-[#0d4268] to-[#11278C] overflow-hidden">
       {/* Navigation */}
       <nav className="absolute top-0 left-0 right-0 z-50 p-6">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -105,8 +105,8 @@ const Welcome = () => {
           <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
               Welcome to{' '}
-              <span className="bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Uhub
+              <span className="bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                Corevanta
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-4xl mx-auto leading-relaxed">
@@ -119,7 +119,7 @@ const Welcome = () => {
           <div className={`flex flex-col sm:flex-row gap-4 justify-center mb-16 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <button
               onClick={() => navigate('/login')}
-              className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-emerald-600 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-emerald-500/25 flex items-center justify-center gap-3"
+              className="bg-[#11278C] text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-[#1a32a8] transition-all duration-300 transform hover:scale-105 shadow-2xl flex items-center justify-center gap-3"
             >
               Start Your Journey
               <ArrowRight className="w-5 h-5" />
@@ -162,7 +162,7 @@ const Welcome = () => {
             </h2>
             <p className="text-xl text-blue-100 max-w-3xl mx-auto">
               From Fleet Management to HR Operations, this is the comprehensive tools 
-              that streamline Udrive Work processes and boost productivity.
+              that streamline work processes and boost productivity.
             </p>
           </div>
           
@@ -209,7 +209,7 @@ const Welcome = () => {
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
               Why Choose{' '}
               <span className="bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-                Uhub?
+                Corevanta?
               </span>
             </h2>
             <p className="text-xl text-blue-100 max-w-3xl mx-auto">
@@ -245,7 +245,7 @@ const Welcome = () => {
               </span>
             </h2>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of organizations already using Uhub to streamline their 
+              Join thousands of organizations already using Corevanta to streamline their 
               operations and boost productivity.
             </p>
             <button
@@ -266,7 +266,7 @@ const Welcome = () => {
             <Logo size="md" showText={true} className="text-white" />
           </div>
           <p className="text-white/60 mb-4">
-            © 2024 Uhub. All rights reserved. Your unified management platform.
+            © 2024 Corevanta. All rights reserved. Your unified management platform.
           </p>
           <div className="flex justify-center items-center gap-6 text-white/60">
             <span className="flex items-center gap-2">

@@ -1300,7 +1300,7 @@ const ITRequestsEnhanced = () => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {udriveAccessEditingRecord ? 'Edit UDRIVE ACCESS' : 'Add UDRIVE ACCESS'}
+                    {udriveAccessEditingRecord ? 'Edit Platform Access' : 'Add Platform Access'}
                   </h2>
                   <Button variant="ghost" size="sm" onClick={resetUdriveAccessForm} className="p-2">
                     <XCircle className="w-5 h-5" />
@@ -1312,7 +1312,7 @@ const ITRequestsEnhanced = () => {
                     <Input
                       value={udriveAccessFormData.access_platform_name}
                       onChange={(e) => setUdriveAccessFormData({ ...udriveAccessFormData, access_platform_name: e.target.value })}
-                      placeholder="e.g. UDrive Portal"
+                      placeholder="e.g. Company Portal"
                       className="mt-1"
                     />
                   </div>

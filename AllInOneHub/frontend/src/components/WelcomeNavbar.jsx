@@ -43,14 +43,14 @@ const WelcomeNavbar = () => {
     <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* Logo - Corevanta */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#2FF9B5] to-[#2562CF] rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-r from-[#083554] to-[#11278C] rounded-xl flex items-center justify-center">
               <Car className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">UDrive</h1>
-              <p className="text-[#2FF9B5] text-xs font-medium">Hub</p>
+              <h1 className="text-xl font-bold text-gray-900">Corevanta</h1>
+              <p className="text-[#11278C] text-xs font-medium">Unified platform</p>
             </div>
           </div>
 
@@ -61,19 +61,19 @@ const WelcomeNavbar = () => {
               <>
                 <button
                   onClick={() => navigate('/dashboard')}
-                  className="text-gray-600 hover:text-[#2FF9B5] transition-colors font-medium"
+                  className="text-gray-600 hover:text-[#11278C] transition-colors font-medium"
                 >
                   Dashboard
                 </button>
                 <button
                   onClick={handleProfile}
-                  className="text-gray-600 hover:text-[#2FF9B5] transition-colors font-medium"
+                  className="text-gray-600 hover:text-[#11278C] transition-colors font-medium"
                 >
                   Profile
                 </button>
                 <button
                   onClick={handleSettings}
-                  className="text-gray-600 hover:text-[#2FF9B5] transition-colors font-medium"
+                  className="text-gray-600 hover:text-[#11278C] transition-colors font-medium"
                 >
                   Settings
                 </button>
@@ -82,7 +82,7 @@ const WelcomeNavbar = () => {
                     <Bell className="w-5 h-5" />
                   </button>
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-[#2FF9B5] to-[#2562CF] rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-to-r from-[#083554] to-[#11278C] rounded-full flex items-center justify-center">
                       <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="text-right">
@@ -102,18 +102,18 @@ const WelcomeNavbar = () => {
             ) : (
               // Non-logged in user navigation
               <>
-                <button className="text-gray-600 hover:text-[#2FF9B5] transition-colors font-medium">
+                <button className="text-gray-600 hover:text-[#11278C] transition-colors font-medium">
                   Features
                 </button>
-                <button className="text-gray-600 hover:text-[#2FF9B5] transition-colors font-medium">
+                <button className="text-gray-600 hover:text-[#11278C] transition-colors font-medium">
                   About
                 </button>
-                <button className="text-gray-600 hover:text-[#2FF9B5] transition-colors font-medium">
+                <button className="text-gray-600 hover:text-[#11278C] transition-colors font-medium">
                   Contact
                 </button>
                 <button
                   onClick={handleLogin}
-                  className="px-6 py-2 bg-gradient-to-r from-[#2FF9B5] to-[#2562CF] text-white rounded-xl hover:from-[#2562CF] hover:to-[#2FF9B5] transition-all duration-300 transform hover:scale-105 font-semibold shadow-lg"
+                  className="px-6 py-2 bg-gradient-to-r from-[#083554] to-[#11278C] text-white rounded-xl hover:from-[#11278C] hover:to-[#1a32a8] transition-all duration-300 transform hover:scale-105 font-semibold shadow-lg"
                 >
                   Sign In
                 </button>
@@ -149,7 +149,7 @@ const WelcomeNavbar = () => {
                     navigate('/dashboard');
                     setMobileMenuOpen(false);
                   }}
-                  className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#2FF9B5] hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                  className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#11278C] hover:bg-gray-50 rounded-lg transition-colors font-medium"
                 >
                   Dashboard
                 </button>
@@ -158,7 +158,7 @@ const WelcomeNavbar = () => {
                     handleProfile();
                     setMobileMenuOpen(false);
                   }}
-                  className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#2FF9B5] hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                  className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#11278C] hover:bg-gray-50 rounded-lg transition-colors font-medium"
                 >
                   Profile
                 </button>
@@ -167,13 +167,13 @@ const WelcomeNavbar = () => {
                     handleSettings();
                     setMobileMenuOpen(false);
                   }}
-                  className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#2FF9B5] hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                  className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#11278C] hover:bg-gray-50 rounded-lg transition-colors font-medium"
                 >
                   Settings
                 </button>
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex items-center space-x-3 px-4 py-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-[#2FF9B5] to-[#2562CF] rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gradient-to-r from-[#083554] to-[#11278C] rounded-full flex items-center justify-center">
                       <User className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1">
@@ -195,13 +195,13 @@ const WelcomeNavbar = () => {
             ) : (
               // Non-logged in user mobile navigation
               <>
-                <button className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#2FF9B5] hover:bg-gray-50 rounded-lg transition-colors font-medium">
+                <button className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#11278C] hover:bg-gray-50 rounded-lg transition-colors font-medium">
                   Features
                 </button>
-                <button className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#2FF9B5] hover:bg-gray-50 rounded-lg transition-colors font-medium">
+                <button className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#11278C] hover:bg-gray-50 rounded-lg transition-colors font-medium">
                   About
                 </button>
-                <button className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#2FF9B5] hover:bg-gray-50 rounded-lg transition-colors font-medium">
+                <button className="block w-full text-left px-4 py-3 text-gray-600 hover:text-[#11278C] hover:bg-gray-50 rounded-lg transition-colors font-medium">
                   Contact
                 </button>
                 <button
@@ -209,7 +209,7 @@ const WelcomeNavbar = () => {
                     handleLogin();
                     setMobileMenuOpen(false);
                   }}
-                  className="block w-full px-4 py-3 bg-gradient-to-r from-[#2FF9B5] to-[#2562CF] text-white rounded-xl font-semibold text-center"
+                  className="block w-full px-4 py-3 bg-gradient-to-r from-[#083554] to-[#11278C] text-white rounded-xl font-semibold text-center"
                 >
                   Sign In
                 </button>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import activityService from "../services/activityService";
+import config from "../config";
 
 const AuthContext = createContext();
 
@@ -41,7 +42,7 @@ export const AuthProvider = ({ children }) => {
       
       console.log("Auth user email:", authUser.email);
       
-      // Check if user exists in users table (for Uhub application roles only)
+      // Check if user exists in users table (for application roles only)
       console.log("🔍 Checking users table for auth_user_id:", userId);
       const { data: userData, error: userError } = await supabase
         .from("users")
@@ -63,7 +64,7 @@ export const AuthProvider = ({ children }) => {
         if (userData.employee_id) {
           console.log("🔗 User is linked to employee record, fetching employee data...");
           
-          // Fetch employee data from employees table (for Udrive Company data)
+          // Fetch employee data from employees table (for organization data)
           const { data: employeeData, error: employeeError } = await supabase
             .from("employees")
             .select("id, full_name, department, position, status")
@@ -88,7 +89,7 @@ export const AuthProvider = ({ children }) => {
             return profile;
           }
           
-          // Create profile with employee data (Udrive Company data)
+          // Create profile with employee data (organization data)
           const profile = {
             id: employeeData.id,
             auth_user_id: userId,
@@ -181,7 +182,7 @@ export const AuthProvider = ({ children }) => {
 
       
       // If no user record found, check if it's an admin user
-      const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
+      const adminEmails = config.app.adminEmails || [];
       if (adminEmails.includes(authUser.email)) {
         console.log("👑 Admin user detected, creating admin profile...");
         
@@ -399,11 +400,10 @@ export const AuthProvider = ({ children }) => {
       console.log("🔄 Creating fallback profile due to database issues...");
       try {
         // Check if user is admin based on email patterns or specific admin emails
-        const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
-        const isAdmin = adminEmails.includes(authUser.email) || 
-                       authUser.email.includes('admin') || 
-                       authUser.email.includes('manager') ||
-                       authUser.email.endsWith('@udrive.ae'); // All @udrive.ae emails get admin access as fallback
+        const adminEmails = config.app.adminEmails || [];
+        const isAdmin = adminEmails.length > 0
+          ? adminEmails.includes(authUser.email)
+          : (authUser.email.includes('admin') || authUser.email.includes('manager'));
         
         const fallbackProfile = {
           id: `fallback_${Date.now()}`,
@@ -704,7 +704,7 @@ export const AuthProvider = ({ children }) => {
     // Add a function to create profile without database operations (for testing)
     createSimpleProfile: (email) => {
       console.log("🔧 Creating simple profile for:", email);
-      const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
+      const adminEmails = config.app.adminEmails || [];
       const simpleProfile = {
         id: `simple_${Date.now()}`,
         auth_user_id: user?.id,

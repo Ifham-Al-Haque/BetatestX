@@ -20,12 +20,12 @@ export default function DriverProfile() {
   const [driver, setDriver] = useState(null);
   const [documents, setDocuments] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showUdrivePassword, setShowUdrivePassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showZimyoPassword, setShowZimyoPassword] = useState(false);
   const [documentUrls, setDocumentUrls] = useState({});
 
-  const toggleUdrivePassword = useCallback(() => {
-    setShowUdrivePassword(prev => !prev);
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
   }, []);
 
   const toggleZimyoPassword = useCallback(() => {
@@ -431,7 +431,7 @@ export default function DriverProfile() {
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">U Drive Password</p>
                         <div className="flex items-center gap-2 pr-1">
                           <input
-                            type={showUdrivePassword ? "text" : "password"}
+                            type={showPassword ? "text" : "password"}
                             value={driver.udrive_password || ''}
                             readOnly
                             className="flex-1 px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono min-w-0"
@@ -439,11 +439,11 @@ export default function DriverProfile() {
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={toggleUdrivePassword}
+                            onClick={togglePasswordVisibility}
                             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex-shrink-0"
                             aria-label="Toggle password visibility"
                           >
-                            {showUdrivePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </motion.button>
                           <motion.button
                             whileHover={{ scale: 1.1 }}

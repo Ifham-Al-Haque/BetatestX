@@ -45,7 +45,7 @@ export default function Login() {
         redirectToRolePage(userData.role);
       } else {
         // User not in users table, check if it's an admin user
-        const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
+        const adminEmails = (process.env.REACT_APP_ADMIN_EMAILS || process.env.REACT_APP_ADMIN_EMAIL || '').split(',').map((e) => e.trim()).filter(Boolean);
         if (adminEmails.includes(user.email)) {
           // First check if employee already exists
           const { data: existingEmployee } = await supabase
@@ -266,7 +266,7 @@ export default function Login() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-2xl font-bold text-white mb-2"
         >
-          Welcome to Uhub
+          Welcome to Corevanta
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: -20 }}

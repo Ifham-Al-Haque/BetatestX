@@ -18,6 +18,7 @@ import { useToast } from '../context/ToastContext';
 import { supabase } from '../supabaseClient';
 
 import InvitationManager from '../components/InvitationManager';
+import config from '../config';
 
 export default function UserManagement() {
   const { user } = useAuth();
@@ -31,8 +32,8 @@ export default function UserManagement() {
   const [showPassword, setShowPassword] = useState(false);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
   
-  // Check if current user is authorized admin (ifham@udrive.ae)
-  const isAuthorizedAdmin = user?.email === 'ifham@udrive.ae';
+  const adminEmails = config.app.adminEmails || [];
+  const isAuthorizedAdmin = adminEmails.length > 0 && adminEmails.includes(user?.email);
   
   // Password strength indicator
   const getPasswordStrength = (password) => {

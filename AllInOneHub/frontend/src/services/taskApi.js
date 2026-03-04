@@ -440,7 +440,7 @@ class TaskApi {
 
       // Validate that assigned_to is a valid UUID
       if (taskInsertData.assigned_to && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(taskInsertData.assigned_to)) {
-        throw new Error('Invalid user ID format. Please select a valid UHub user.');
+        throw new Error('Invalid user ID format. Please select a valid user.');
       }
 
       // Validate that assigned_to user exists in the users table
@@ -457,7 +457,7 @@ class TaskApi {
             userId: taskInsertData.assigned_to,
             error: userCheckError
           });
-          throw new Error('Invalid user selected. The selected user does not exist in the users table. Please select a valid UHub user from the dropdown.');
+          throw new Error('Invalid user selected. The selected user does not exist in the users table. Please select a valid user from the dropdown.');
         }
         
         // Verify the user ID matches (data consistency check)

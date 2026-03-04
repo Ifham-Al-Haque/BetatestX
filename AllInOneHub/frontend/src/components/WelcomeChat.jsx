@@ -19,7 +19,7 @@ const WelcomeChat = () => {
 
   // Sample welcome messages
   const welcomeMessages = [
-    { id: 1, user: 'System', message: 'Welcome to UDrive Hub! 🚀', timestamp: new Date(), isSystem: true },
+    { id: 1, user: 'System', message: 'Welcome to Corevanta! 🚀', timestamp: new Date(), isSystem: true },
     { id: 2, user: 'System', message: 'This is a demo chat - in production, you\'ll have real-time messaging with your team! 💬', timestamp: new Date(), isSystem: true },
     { id: 3, user: 'System', message: 'Try sending a message below! 👇', timestamp: new Date(), isSystem: true }
   ];
@@ -60,7 +60,7 @@ const WelcomeChat = () => {
     setTimeout(() => {
       const botResponse = {
         id: Date.now() + 1,
-        user: 'UDrive Bot',
+        user: 'Hub Assistant',
         message: getBotResponse(newMessage),
         timestamp: new Date(),
         isBot: true

@@ -1,5 +1,6 @@
 import React from 'react';
 
+/** Corevanta logo – uses logo.png; add your own to public/logo.png */
 const Logo = ({ 
   size = 'md', 
   variant = 'default', 
@@ -19,9 +20,9 @@ const Logo = ({
   };
 
   const logoSource = {
-    default: '/uDriveLogo.png',
-    positive: '/uDriveLogoPos.png',
-    negative: '/uDriveLogoNeg.png'
+    default: '/logo.png',
+    positive: '/logo.png',
+    negative: '/logo.png'
   };
 
   const textSizes = {
@@ -41,12 +42,13 @@ const Logo = ({
     <div className={containerClasses}>
       <img 
         src={logoSource[variant]} 
-        alt="U Drive Logo" 
+        alt="Corevanta" 
         className={logoClasses}
+        onError={(e) => { e.target.onerror = null; e.target.src = '/favicon.ico'; }}
       />
       {showText && (
         <span className={textClasses}>
-          hub
+          Corevanta
         </span>
       )}
     </div>

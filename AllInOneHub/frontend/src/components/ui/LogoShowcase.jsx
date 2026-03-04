@@ -8,7 +8,7 @@ const LogoShowcase = () => {
 
   return (
     <div className="p-8 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Uhub Logo System</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Corevanta Logo System</h2>
       <p className="text-gray-600 mb-6">Unified platform branding for all departments</p>
       
       {/* Main Logo Variants */}
@@ -102,7 +102,7 @@ const LogoShowcase = () => {
             <h4 className="text-sm font-medium text-gray-700 mb-2">Login Page</h4>
             <div className="text-center p-6 bg-white border border-gray-200 rounded">
               <Logo size="xl" showText={true} centered={true} className="mb-4" />
-              <p className="text-gray-600">Welcome to Uhub</p>
+              <p className="text-gray-600">Welcome to Corevanta</p>
             </div>
           </div>
         </div>

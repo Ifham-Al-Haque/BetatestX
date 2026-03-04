@@ -202,14 +202,14 @@ export default function LoginEnhanced() {
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">U</span>
+                <span className="text-2xl font-bold bg-gradient-to-r from-[#083554] to-[#11278C] bg-clip-text text-transparent">C</span>
               </div>
-              <span className="text-3xl font-bold">hub</span>
+              <span className="text-3xl font-bold">orevanta</span>
             </div>
             <h1 className="text-5xl font-bold mb-4">
               Welcome to{" "}
-              <span className="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">
-                Uhub
+              <span className="bg-gradient-to-r from-[#083554] to-[#11278C] bg-clip-text text-transparent">
+                Corevanta
               </span>
             </h1>
             <p className="text-xl text-blue-100 leading-relaxed">
@@ -233,7 +233,7 @@ export default function LoginEnhanced() {
             </h2>
             <p className="text-lg text-blue-100">
               From Fleet Management to HR Operations, comprehensive tools that streamline 
-              Udrive work processes and boost productivity.
+              work processes and boost productivity.
             </p>
 
             {/* Feature Cards */}

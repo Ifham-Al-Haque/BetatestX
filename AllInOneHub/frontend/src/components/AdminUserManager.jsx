@@ -355,7 +355,7 @@ export default function AdminUserManager() {
                   value={formData.email}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="user@udrive.ae"
+                  placeholder="user@yourcompany.com"
                   required
                   disabled={!!editingUser}
                 />
@@ -571,7 +571,7 @@ export default function AdminUserManager() {
                 value={bulkImportData}
                 onChange={(e) => setBulkImportData(e.target.value)}
                 className="w-full h-64 p-3 border border-gray-300 rounded-lg font-mono text-sm"
-                placeholder="email,role,full_name,department,position,phone,location,bio&#10;user1@udrive.ae,employee,John Doe,IT,Developer,+971501234567,Dubai,Software developer&#10;user2@udrive.ae,hr_manager,Jane Smith,HR,Manager,+971502345678,Abu Dhabi,HR Manager"
+                placeholder="email,role,full_name,department,position,phone,location,bio&#10;user1@yourcompany.com,employee,John Doe,IT,Developer,+971501234567,Dubai,Software developer&#10;user2@yourcompany.com,hr_manager,Jane Smith,HR,Manager,+971502345678,Abu Dhabi,HR Manager"
               />
             </div>
 

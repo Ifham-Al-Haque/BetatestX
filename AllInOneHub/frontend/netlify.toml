@@ -1,0 +1,12 @@
+# All in One Hub – Netlify
+# Use when deploying this folder as the Netlify site root.
+
+[build]
+  command = "npm ci && npm run build"
+  publish = "build"
+
+# SPA: serve index.html for all routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

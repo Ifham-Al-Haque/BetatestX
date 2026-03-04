@@ -8,7 +8,7 @@ import Logo from "./ui/logo";
 import { NotificationContainer } from "./notifications";
 import { Menu } from "lucide-react";
 
-const Layout = ({ children, pageTitle = "Uhub Dashboard", pageDescription = "Unified platform for all departments" }) => {
+const Layout = ({ children, pageTitle = "Corevanta Dashboard", pageDescription = "Unified platform for all departments" }) => {
   const { sidebarWidth, isCollapsed, isMobile, isMobileOpen, toggleSidebar } = useSidebar();
   const { isDark } = useTheme();
   

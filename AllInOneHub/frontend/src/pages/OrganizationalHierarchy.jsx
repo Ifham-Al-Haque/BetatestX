@@ -179,7 +179,7 @@ const OrganizationalHierarchy = () => {
                     </div>
                   </div>
                   <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
-                    Comprehensive organizational structure and team relationship analysis for Udrive Company
+                    Comprehensive organizational structure and team relationship analysis for your organization
                   </p>
                   <div className="flex items-center gap-6 text-sm">
                     <div className="flex items-center gap-2">
@@ -619,7 +619,7 @@ const OrganizationalHierarchy = () => {
                 </div>
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-4">
-                Udrive Company Organizational Chart
+                Organizational Chart
               </h2>
               <p className="text-gray-600 dark:text-gray-400 text-center mb-8">
                 Interactive organizational structure showing reporting relationships and team hierarchy

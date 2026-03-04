@@ -151,7 +151,7 @@ const Sidebar = () => {
               background: 'var(--gradient-primary)'
             }}
           >
-            <div className="text-white font-semibold text-lg">UHub</div>
+            <div className="text-white font-semibold text-lg">Corevanta</div>
           </div>
           <div className="flex-1 flex items-center justify-center">
             <div 
@@ -506,7 +506,7 @@ const Sidebar = () => {
                   transition={{ duration: 0.3 }}
                   className="text-white font-semibold text-lg"
                 >
-                  UHub
+                  Corevanta
                 </motion.div>
               )}
             </div>

@@ -7,11 +7,12 @@ import {
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import config from '../config';
 
 /**
  * AdminPasswordReset Component
  * 
- * Allows ONLY the authorized admin (ifham@udrive.ae) to reset passwords for other users
+ * Allows ONLY authorized admins (from REACT_APP_ADMIN_EMAILS) to reset passwords for other users
  * 
  * Security Features:
  * - Only accessible by authorized admin users
@@ -33,8 +34,8 @@ export default function AdminPasswordReset() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   
-  // Check if current user is authorized (only ifham@udrive.ae)
-  const isAuthorized = user?.email === 'ifham@udrive.ae';
+  const adminEmails = config.app.adminEmails || [];
+  const isAuthorized = adminEmails.length > 0 && adminEmails.includes(user?.email);
   
   // Password strength checker
   const getPasswordStrength = (password) => {

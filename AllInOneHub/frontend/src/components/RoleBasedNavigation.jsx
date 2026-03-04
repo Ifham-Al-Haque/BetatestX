@@ -366,7 +366,7 @@ const NAVIGATION_ITEMS = {
     description: 'Test invitation system functionality'
   },
 
-  // Additional UDrive specific features
+  // Additional platform-specific features
   breakdowns: {
     path: '/breakdowns',
     label: 'Breakdowns',

@@ -101,12 +101,12 @@ const TaskManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      console.log('🔄 Fetching real UHub users for task assignment...');
+      console.log('🔄 Fetching real Corevanta users for task assignment...');
       
       // Fetch users from the users table
       const users = await apiService.userManagement.getAll();
       
-      console.log('📊 Raw users data from UHub database:', users);
+      console.log('📊 Raw users data from Corevanta database:', users);
       
       if (users && users.length > 0) {
         // Process and filter users for task assignment
@@ -135,23 +135,23 @@ const TaskManagement = () => {
             location: user.location || 'N/A'
           }));
         
-        console.log('✅ Valid UHub users for task assignment:', validUsers);
+        console.log('✅ Valid Corevanta users for task assignment:', validUsers);
         console.log('🏢 Available departments:', [...new Set(validUsers.map(u => u.department))]);
         
         if (validUsers.length > 0) {
-          console.log('🎉 Successfully loaded real UHub users!');
+          console.log('🎉 Successfully loaded real Corevanta users!');
           setAllUsers(validUsers);
           return;
         } else {
-          console.warn('⚠️ No valid users found in UHub database');
+          console.warn('⚠️ No valid users found in Corevanta database');
           console.log('🔍 All users were filtered out. Check department assignments and status.');
         }
       } else {
-        console.warn('⚠️ No users found in UHub database');
+        console.warn('⚠️ No users found in Corevanta database');
       }
       
       // If no valid users found, show error message
-      console.error('🚨 No active users with valid departments found in UHub database');
+      console.error('🚨 No active users with valid departments found in Corevanta database');
       console.log('💡 Please check:');
       console.log('   1. Users have proper department assignments');
       console.log('   2. Users are marked as active');
@@ -161,7 +161,7 @@ const TaskManagement = () => {
       setAllUsers([]);
       
     } catch (err) {
-      console.error('❌ Error fetching UHub users:', err);
+      console.error('❌ Error fetching Corevanta users:', err);
       console.log('🔧 This might be due to:');
       console.log('   1. Database connection issues');
       console.log('   2. RLS policies blocking access');
@@ -1094,7 +1094,7 @@ const TaskManagement = () => {
                       ) : (
                         <div className="flex items-center gap-1 px-2 py-1 bg-green-500/30 text-green-200 text-xs rounded">
                           <CheckCircle className="w-3 h-3" />
-                          Real UHub Users
+                          Real Corevanta Users
                         </div>
                       )}
                       <button
@@ -1295,7 +1295,7 @@ const TaskManagement = () => {
           <AlertTriangle className="w-4 h-4 text-red-500" />
           <div>
             <p className="text-sm text-red-600 font-medium">
-              No UHub users found in database
+              No Corevanta users found in database
             </p>
             <p className="text-xs text-red-500 mt-1">
               Run the populate_users_database.sql script to create sample users for testing.
@@ -1328,10 +1328,10 @@ const TaskManagement = () => {
                         <CheckCircle className="w-4 h-4 text-green-500" />
                         <div>
                           <p className="text-sm text-green-600 font-medium">
-                            {departmentUsers.length} UHub user(s) available in {formData.department}
+                            {departmentUsers.length} Corevanta user(s) available in {formData.department}
                           </p>
                           <p className="text-xs text-green-500 mt-1">
-                            Real users from your UHub database - they will receive task notifications
+                            Real users from your Corevanta database - they will receive task notifications
                           </p>
                         </div>
                       </div>
@@ -1940,7 +1940,7 @@ const TaskManagement = () => {
                           <AlertTriangle className="w-4 h-4 text-red-500" />
                           <div>
                             <p className="text-sm text-red-600 font-medium">
-                              No UHub users found in database
+                              No Corevanta users found in database
                             </p>
                             <p className="text-xs text-red-500 mt-1">
                               Run the populate_users_database.sql script to create sample users for testing.
@@ -1973,10 +1973,10 @@ const TaskManagement = () => {
                           <CheckCircle className="w-4 h-4 text-green-500" />
                           <div>
                             <p className="text-sm text-green-600 font-medium">
-                              {departmentUsers.length} UHub user(s) available in {formData.department}
+                              {departmentUsers.length} Corevanta user(s) available in {formData.department}
                             </p>
                             <p className="text-xs text-green-500 mt-1">
-                              Real users from your UHub database - they will receive task notifications
+                              Real users from your Corevanta database - they will receive task notifications
                             </p>
                           </div>
                         </div>

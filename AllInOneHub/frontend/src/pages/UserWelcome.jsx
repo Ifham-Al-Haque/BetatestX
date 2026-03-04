@@ -163,7 +163,7 @@ const UserWelcome = () => {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent truncate">
-                UHub
+                Corevanta
               </h1>
               <p className="text-xs sm:text-sm text-blue-200 truncate">Unified platform for all departments</p>
             </div>

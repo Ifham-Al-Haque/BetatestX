@@ -7,9 +7,9 @@ const LogoTest = () => {
     <Layout>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Uhub Logo System Test Page</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Corevanta Logo System Test Page</h1>
           <p className="text-gray-600">
-            This page demonstrates all available logo variants, sizes, and usage examples for the Uhub unified platform branding system.
+            This page demonstrates all available logo variants, sizes, and usage examples for the Corevanta unified platform branding system.
           </p>
         </div>
         
@@ -24,7 +24,7 @@ const LogoTest = () => {
             <li>• Available variants: default, positive, negative</li>
             <li>• Use <code className="bg-blue-100 px-1 rounded">centered</code> prop for center alignment</li>
             <li>• Use <code className="bg-blue-100 px-1 rounded">compact</code> prop for tighter spacing</li>
-            <li>• Branding reflects Uhub as a unified platform for all departments</li>
+            <li>• Branding reflects Corevanta as a unified platform for all departments</li>
           </ul>
         </div>
       </div>

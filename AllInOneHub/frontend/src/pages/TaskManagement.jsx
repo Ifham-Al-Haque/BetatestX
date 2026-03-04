@@ -197,12 +197,12 @@ const TaskManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      console.log('🔄 Fetching real UHub users for task assignment...');
+      console.log('🔄 Fetching real Corevanta users for task assignment...');
       
       // Fetch users from the users table
       const users = await apiService.userManagement.getAll();
       
-      console.log('📊 Raw users data from UHub database:', users);
+      console.log('📊 Raw users data from Corevanta database:', users);
       
       if (users && users.length > 0) {
         // First, filter users with basic criteria
@@ -247,24 +247,24 @@ const TaskManagement = () => {
           location: user.location || 'N/A'
         }));
         
-        console.log(`✅ Valid UHub users for task assignment: ${finalUsers.length} users`);
+        console.log(`✅ Valid Corevanta users for task assignment: ${finalUsers.length} users`);
         console.log('🏢 Available departments:', [...new Set(finalUsers.map(u => u.department))]);
         console.log('🔑 User IDs (users.id) for task assignment:', finalUsers.map(u => ({ id: u.id, email: u.email, users_table_id: u.users_table_id })));
         
         if (finalUsers.length > 0) {
-          console.log('🎉 Successfully loaded real UHub users!');
+          console.log('🎉 Successfully loaded real Corevanta users!');
           setAllUsers(finalUsers);
           return;
         } else {
-          console.warn('⚠️ No valid users found in UHub database after auth verification');
+          console.warn('⚠️ No valid users found in Corevanta database after auth verification');
           console.log('🔍 All users were filtered out. Check department assignments, status, and auth accounts.');
         }
       } else {
-        console.warn('⚠️ No users found in UHub database');
+        console.warn('⚠️ No users found in Corevanta database');
       }
       
       // If no valid users found, show error message
-      console.error('🚨 No active users with valid departments found in UHub database');
+      console.error('🚨 No active users with valid departments found in Corevanta database');
       console.log('💡 Please check:');
       console.log('   1. Users have proper department assignments');
       console.log('   2. Users are marked as active');
@@ -274,7 +274,7 @@ const TaskManagement = () => {
       setAllUsers([]);
       
     } catch (err) {
-      console.error('❌ Error fetching UHub users:', err);
+      console.error('❌ Error fetching Corevanta users:', err);
       console.log('🔧 This might be due to:');
       console.log('   1. Database connection issues');
       console.log('   2. RLS policies blocking access');
@@ -551,7 +551,7 @@ const TaskManagement = () => {
 
   // Comments are now loaded with tasks via React Query, no separate useEffect needed
 
-  // Note: Department filtering removed - users are now selected from all UHub account holders
+  // Note: Department filtering removed - users are now selected from all Corevanta account holders
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -720,7 +720,7 @@ const TaskManagement = () => {
         if (err.message.includes('duplicate') || err.message.includes('unique')) {
           errorMessage = 'A task with this title already exists. Please use a different title.';
         } else if (err.message.includes('foreign key') || err.message.includes('constraint')) {
-          errorMessage = 'Invalid user selected. Please select a valid UHub user.';
+          errorMessage = 'Invalid user selected. Please select a valid Corevanta user.';
         } else if (err.message.includes('permission') || err.message.includes('policy')) {
           errorMessage = 'You do not have permission to create tasks. Please contact your administrator.';
         } else if (err.message.includes('null value') || err.message.includes('not null')) {
@@ -1370,7 +1370,7 @@ const TaskManagement = () => {
                       ) : (
                         <div className="flex items-center gap-1 px-2 py-1 bg-green-500/30 text-green-200 text-xs rounded">
                           <CheckCircle className="w-3 h-3" />
-                          Real UHub Users
+                          Real Corevanta Users
                         </div>
                       )}
                       <button
@@ -1571,7 +1571,7 @@ const TaskManagement = () => {
                   )}
                 </motion.div>
 
-                {/* Assignment Section - Show all UHub account holders */}
+                {/* Assignment Section - Show all Corevanta account holders */}
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1585,15 +1585,15 @@ const TaskManagement = () => {
                       <User className="w-4 h-4 text-blue-500" />
                     )}
                     {formData.assignmentType === 'coordinated'
-                      ? 'Select Multiple UHub Users *'
-                      : 'Assign To UHub User *'}
+                      ? 'Select Multiple Corevanta Users *'
+                      : 'Assign To Corevanta User *'}
                   </Label>
                   
                   {formData.assignmentType === 'coordinated' ? (
                     <div className="space-y-3">
                       <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl p-3 bg-white">
                         {allUsers.length === 0 ? (
-                          <p className="text-sm text-gray-500 text-center py-4">No UHub users available</p>
+                          <p className="text-sm text-gray-500 text-center py-4">No Corevanta users available</p>
                         ) : (
                           <div className="space-y-2">
                             {allUsers.map(user => {
@@ -1644,7 +1644,7 @@ const TaskManagement = () => {
                         <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                           <Users className="w-4 h-4 text-purple-500" />
                           <p className="text-sm text-purple-600 font-medium">
-                            {formData.assigned_to_multiple.length} UHub user(s) selected for coordination
+                            {formData.assigned_to_multiple.length} Corevanta user(s) selected for coordination
                           </p>
                         </div>
                       )}
@@ -1667,7 +1667,7 @@ const TaskManagement = () => {
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
                         required={formData.assignmentType === 'single'}
                       >
-                        <option value="">Select UHub User</option>
+                        <option value="">Select Corevanta User</option>
                         {allUsers.map(user => (
                           <option key={user.id} value={user.id}>
                             {user.full_name} - {user.email} {user.department && `(${user.department})`}
@@ -1687,10 +1687,10 @@ const TaskManagement = () => {
                     <AlertTriangle className="w-4 h-4 text-red-500" />
                     <div>
                       <p className="text-sm text-red-600 font-medium">
-                        No UHub users found in database
+                        No Corevanta users found in database
                       </p>
                       <p className="text-xs text-red-500 mt-1">
-                        Please ensure users are registered in the UHub system.
+                        Please ensure users are registered in the Corevanta system.
                       </p>
                     </div>
                   </div>
@@ -2420,19 +2420,19 @@ const TaskManagement = () => {
                       )}
                     </div>
                     
-                    {/* Assignment Section - Show all UHub account holders */}
+                    {/* Assignment Section - Show all Corevanta account holders */}
                     <div className="md:col-span-2">
                       <Label className="text-sm font-medium text-gray-700 mb-2 block">
                         {formData.assignmentType === 'coordinated'
-                          ? 'Select Multiple UHub Users *'
-                          : 'Assign To UHub User *'}
+                          ? 'Select Multiple Corevanta Users *'
+                          : 'Assign To Corevanta User *'}
                       </Label>
                       
                       {formData.assignmentType === 'coordinated' ? (
                         <div className="space-y-3">
                           <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl p-3 bg-white">
                             {allUsers.length === 0 ? (
-                              <p className="text-sm text-gray-500 text-center py-4">No UHub users available</p>
+                              <p className="text-sm text-gray-500 text-center py-4">No Corevanta users available</p>
                             ) : (
                               <div className="space-y-2">
                                 {allUsers.map(user => {
@@ -2482,7 +2482,7 @@ const TaskManagement = () => {
                             <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                               <Users className="w-4 h-4 text-purple-500" />
                               <p className="text-sm text-purple-600 font-medium">
-                                {formData.assigned_to_multiple.length} UHub user(s) selected for coordination
+                                {formData.assigned_to_multiple.length} Corevanta user(s) selected for coordination
                               </p>
                             </div>
                           )}
@@ -2504,7 +2504,7 @@ const TaskManagement = () => {
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
                             required={formData.assignmentType === 'single'}
                           >
-                            <option value="">Select UHub User</option>
+                            <option value="">Select Corevanta User</option>
                             {allUsers.map(user => (
                               <option key={user.id} value={user.id}>
                                 {user.full_name} - {user.email} {user.department && `(${user.department})`}
@@ -2521,7 +2521,7 @@ const TaskManagement = () => {
                         <div className="flex items-center gap-2 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                           <AlertTriangle className="w-4 h-4 text-red-500" />
                           <p className="text-sm text-red-600 font-medium">
-                            No UHub users found in database
+                            No Corevanta users found in database
                           </p>
                         </div>
                       )}

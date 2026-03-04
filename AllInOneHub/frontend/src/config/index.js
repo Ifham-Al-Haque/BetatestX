@@ -6,12 +6,17 @@ const config = {
     anonKey: process.env.REACT_APP_SUPABASE_ANON_KEY,
   },
 
-  // Application Settings
+  // Application Settings - Corevanta
   app: {
-    name: process.env.REACT_APP_APP_NAME || 'Uhub',
+    name: process.env.REACT_APP_APP_NAME || 'Corevanta',
     version: process.env.REACT_APP_APP_VERSION || '1.0.0',
-    adminEmail: process.env.REACT_APP_ADMIN_EMAIL || 'ifham@udrive.ae',
-    supportEmail: process.env.REACT_APP_SUPPORT_EMAIL || 'support@udrive.ae',
+    adminEmail: process.env.REACT_APP_ADMIN_EMAIL || '',
+    supportEmail: process.env.REACT_APP_SUPPORT_EMAIL || '',
+    // Comma-separated list for admin access (e.g. REACT_APP_ADMIN_EMAILS=admin@company.com,other@company.com)
+    adminEmails: (process.env.REACT_APP_ADMIN_EMAILS || process.env.REACT_APP_ADMIN_EMAIL || '')
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean),
   },
 
   // Feature Flags
@@ -232,7 +237,6 @@ const validateConfig = () => {
   const required = [
     'supabase.url',
     'supabase.anonKey',
-    'app.adminEmail',
   ];
 
   const missing = required.filter(key => {

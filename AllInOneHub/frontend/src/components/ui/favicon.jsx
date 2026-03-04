@@ -14,17 +14,18 @@ const Favicon = ({
   };
 
   const logoSource = {
-    default: '/uDriveLogo.png',
-    positive: '/uDriveLogoPos.png',
-    negative: '/uDriveLogoNeg.png',
+    default: '/logo.png',
+    positive: '/logo.png',
+    negative: '/logo.png',
     favicon: '/favicon.ico'
   };
 
   return (
     <img 
       src={logoSource[variant]} 
-      alt="Uhub Icon" 
+      alt="Corevanta" 
       className={`${sizeClasses[size]} ${className}`}
+      onError={(e) => { e.target.onerror = null; e.target.src = '/favicon.ico'; }}
     />
   );
 };

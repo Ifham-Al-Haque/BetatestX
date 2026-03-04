@@ -1,10 +1,10 @@
 // User Creation Service - Creates application users (not employees)
-// This service handles UHub application access control
+// This service handles Corevanta application access control
 import { supabase } from '../supabaseClient';
 
 class UserCreationService {
   /**
-   * Create a complete user account for UHub application access
+   * Create a complete user account for application access
    * @param {Object} userData - User information
    * @param {string} userData.email - User email
    * @param {string} userData.password - User password
@@ -15,7 +15,7 @@ class UserCreationService {
    */
   static async createCompleteUser(userData) {
     try {
-      console.log('🔧 Creating UHub application user:', userData.email);
+      console.log('🔧 Creating application user:', userData.email);
 
       // Step 1: Check if user already exists
       const existingUser = await this.checkUserExists(userData.email);
