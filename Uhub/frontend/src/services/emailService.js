@@ -193,5 +193,79 @@ export const emailService = {
       'cancelled': '#ef4444'
     };
     return colors[status] || '#6b7280';
+  },
+
+  /**
+   * Send email when a task is assigned to a user (Uhub Task Management).
+   * @param {object} task - { id, title, description?, priority, due_date, department }
+   * @param {string} assigneeEmail - Email of the assigned user
+   * @param {string} assignedByName - Full name (or email) of the assigner
+   */
+  sendTaskAssignedNotification: async (task, assigneeEmail, assignedByName) => {
+    if (!assigneeEmail || !task?.title) {
+      return { success: false, message: 'Missing assignee email or task title.' };
+    }
+    const taskUrl = `${window.location.origin}/task-management${task.id ? `?task=${task.id}` : ''}`;
+    const subject = `Uhub: New task assigned to you – ${task.title}`;
+    const body = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 22px;">New Task Assigned</h1>
+          <p style="margin: 8px 0 0 0; opacity: 0.95;">Uhub – Unified Platform</p>
+        </div>
+        <div style="padding: 24px; background: #f8fafc;">
+          <p style="margin: 0 0 16px 0; color: #374151;">You have been assigned a new task.</p>
+          <p style="margin: 0 0 8px 0;"><strong>Task:</strong> ${task.title || 'Untitled'}</p>
+          ${task.description ? `<p style="margin: 0 0 8px 0;"><strong>Description:</strong></p><div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 12px;">${task.description}</div>` : ''}
+          <p style="margin: 0 0 4px 0;"><strong>Assigned by:</strong> ${assignedByName || 'A colleague'}</p>
+          ${task.due_date ? `<p style="margin: 0 0 4px 0;"><strong>Due date:</strong> ${new Date(task.due_date).toLocaleDateString()}</p>` : ''}
+          ${task.priority ? `<p style="margin: 0 0 16px 0;"><strong>Priority:</strong> ${task.priority}</p>` : ''}
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${taskUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View task in Uhub</a>
+          </div>
+        </div>
+        <div style="padding: 12px; text-align: center; color: #6b7280; font-size: 12px;">
+          This is an automated notification from Uhub. Please do not reply to this email.
+        </div>
+      </div>
+    `;
+    return emailService.sendNotification(assigneeEmail, subject, body);
+  },
+
+  /**
+   * Send email when a user logs in to Uhub (security / awareness).
+   * @param {string} userEmail - Email of the user who logged in
+   * @param {Date} [timestamp] - Login time
+   */
+  sendLoginNotification: async (userEmail, timestamp = new Date()) => {
+    if (!userEmail) return { success: false, message: 'Missing user email.' };
+    const subject = `Uhub: You logged in successfully`;
+    const timeStr = timestamp instanceof Date ? timestamp.toLocaleString() : new Date(timestamp).toLocaleString();
+    const body = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%); color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 22px;">Login to Uhub</h1>
+          <p style="margin: 8px 0 0 0; opacity: 0.95;">Unified Platform</p>
+        </div>
+        <div style="padding: 24px; background: #f8fafc;">
+          <p style="margin: 0 0 8px 0; color: #374151;">You successfully logged in to your Uhub account.</p>
+          <p style="margin: 0 0 8px 0;"><strong>Account:</strong> ${userEmail}</p>
+          <p style="margin: 0 0 16px 0;"><strong>Time:</strong> ${timeStr}</p>
+          <p style="margin: 0; color: #6b7280; font-size: 14px;">If this wasn’t you, please change your password and contact your administrator.</p>
+        </div>
+        <div style="padding: 12px; text-align: center; color: #6b7280; font-size: 12px;">
+          This is an automated notification from Uhub.
+        </div>
+      </div>
+    `;
+    return emailService.sendNotification(userEmail, subject, body);
   }
 };
+
+/**
+ * PRODUCTION EMAIL: To send real emails, use a Supabase Edge Function (or your backend).
+ * 1. Create an Edge Function that accepts { to, subject, body } and calls your email provider (Resend, SendGrid, SES).
+ * 2. In sendNotification(), uncomment and use:
+ *    const { data, error } = await supabase.functions.invoke('send-email', { body: { to, subject, body } });
+ * 3. Ensure the function has the provider API key in secrets. Do not put API keys in the client.
+ */

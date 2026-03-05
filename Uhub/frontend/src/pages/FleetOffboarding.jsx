@@ -1,93 +1,131 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Car, 
-  UserX, 
-  Plus, 
-  Search, 
-  Filter, 
-  Calendar,
-  FileText,
-  TrendingUp,
-  ChevronRight,
-  Eye,
-  Edit,
-  Trash,
-  Download,
-  Upload,
-  Target,
-  Award,
-  Building,
-  Shield,
-  Monitor,
-  Briefcase,
-  Key,
-  CreditCard,
-  AlertTriangle,
-  Clock,
-  CheckSquare
+import {
+  Car, UserX, Plus, Search, Filter, Calendar, FileText, TrendingUp, ChevronRight,
+  Eye, Edit, Trash, Download, AlertTriangle, Clock, CheckSquare
 } from 'lucide-react';
+import fleetService from '../services/fleetService';
+import fleetOffboardingService, { OFFBOARDING_REASONS } from '../services/fleetOffboardingService';
+import { useToast } from '../context/ToastContext';
 
 const FleetOffboarding = () => {
   const { userProfile } = useAuth();
+  const { success, error: showError } = useToast();
   const [offboardingRecords, setOffboardingRecords] = useState([]);
+  const [statistics, setStatistics] = useState({ total: 0, completed: 0, in_progress: 0, not_started: 0, on_hold: 0 });
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showStartModal, setShowStartModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [startForm, setStartForm] = useState({
+    vehicle_id: '',
+    reason: '',
+    offboarding_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadFleetOffboardingData();
+  const loadVehicles = useCallback(async () => {
+    try {
+      const data = await fleetService.getVehicles({ status: 'Active' });
+      setVehicles(data || []);
+    } catch (e) {
+      console.warn('Load vehicles for offboarding:', e);
+      setVehicles([]);
+    }
   }, []);
 
-  const loadFleetOffboardingData = async () => {
+  const loadFleetOffboardingData = useCallback(async () => {
     try {
       setLoading(true);
-      // TODO: Implement API call to fetch fleet offboarding records
-      // const data = await fleetOffboardingApi.getAll();
-      // setOffboardingRecords(data);
-      
-      // Mock data for now
-      setOffboardingRecords([
-        {
-          id: '1',
-          vehicle_id: 'VH001',
-          vehicle_number: 'ABC-123',
-          make: 'Toyota',
-          model: 'Camry',
-          offboarding_date: '2024-01-20',
-          last_service_date: '2024-01-15',
-          status: 'in_progress',
-          progress_percentage: 60,
-          assigned_driver: 'John Doe',
-          department: 'Delivery',
-          reason: 'Vehicle replacement',
-          checklist_items: [
-            { id: '1', item: 'Driver Return Vehicle', completed: true, completed_by: 'Driver', completed_at: '2024-01-20' },
-            { id: '2', item: 'Remove GPS Tracking', completed: true, completed_by: 'IT Team', completed_at: '2024-01-21' },
-            { id: '3', item: 'Insurance Cancellation', completed: false, assigned_to: 'Admin' },
-            { id: '4', item: 'Final Inspection', completed: false, assigned_to: 'Fleet Manager' },
-            { id: '5', item: 'Documentation Update', completed: false, assigned_to: 'HR Manager' }
-          ]
-        }
+      const [records, stats] = await Promise.all([
+        fleetOffboardingService.getRecords({
+          status: statusFilter || undefined,
+          date_from: dateFilter || undefined,
+          date_to: dateFilter || undefined,
+          search: searchTerm.trim() || undefined,
+        }),
+        fleetOffboardingService.getStatistics(),
       ]);
-    } catch (error) {
-      console.error('Error loading fleet offboarding data:', error);
+      setOffboardingRecords(records);
+      setStatistics(stats);
+    } catch (err) {
+      console.error('Error loading fleet offboarding data:', err);
+      showError('Failed to load offboarding records');
+      setOffboardingRecords([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, dateFilter, searchTerm, showError]);
+
+  useEffect(() => {
+    loadFleetOffboardingData();
+  }, [loadFleetOffboardingData]);
+
+  useEffect(() => {
+    if (showStartModal) loadVehicles();
+  }, [showStartModal, loadVehicles]);
 
   const handleStartOffboarding = () => {
+    setStartForm({
+      vehicle_id: '',
+      reason: '',
+      offboarding_date: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
     setShowStartModal(true);
   };
 
-  const handleBackToDashboard = () => {
-    // Navigate back to dashboard or main page
-    window.history.back();
+  const handleSubmitStart = async () => {
+    if (!startForm.vehicle_id) {
+      showError('Please select a vehicle');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await fleetOffboardingService.startOffboarding({
+        vehicle_id: startForm.vehicle_id,
+        reason: startForm.reason,
+        offboarding_date: startForm.offboarding_date,
+        notes: startForm.notes,
+        started_by: userProfile?.id || null,
+      });
+      success('Offboarding started');
+      setShowStartModal(false);
+      loadFleetOffboardingData();
+    } catch (err) {
+      showError(err?.message || 'Failed to start offboarding');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleViewDetails = async (record) => {
+    try {
+      const full = await fleetOffboardingService.getRecordById(record.id);
+      setSelectedRecord(full);
+    } catch (e) {
+      showError('Failed to load details');
+    }
+  };
+
+  const handleToggleChecklistItem = async (item, recordId) => {
+    try {
+      await fleetOffboardingService.updateChecklistItem(item.id, {
+        completed: !item.completed,
+        completed_by: userProfile?.id,
+      });
+      const updated = await fleetOffboardingService.getRecordById(recordId);
+      setOffboardingRecords((prev) => prev.map((r) => (r.id === recordId ? { ...r, ...updated, checklist_items: updated.checklist_items } : r)));
+      if (selectedRecord?.id === recordId) setSelectedRecord(updated);
+      success('Checklist updated');
+    } catch (e) {
+      showError('Failed to update item');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -110,11 +148,11 @@ const FleetOffboarding = () => {
     }
   };
 
-  if (loading) {
+  if (loading && offboardingRecords.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading Fleet Offboarding Data...</p>
         </div>
       </div>
@@ -124,7 +162,6 @@ const FleetOffboarding = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -132,9 +169,7 @@ const FleetOffboarding = () => {
                 <UserX className="w-8 h-8 mr-3 text-red-600" />
                 Fleet Offboarding
               </h1>
-              <p className="text-gray-600 mt-2">
-                Manage fleet vehicle offboarding processes and asset returns
-              </p>
+              <p className="text-gray-600 mt-2">Manage fleet vehicle offboarding processes and asset returns</p>
             </div>
             <button
               onClick={handleStartOffboarding}
@@ -146,7 +181,6 @@ const FleetOffboarding = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
@@ -155,11 +189,10 @@ const FleetOffboarding = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Offboarding</p>
-                <p className="text-2xl font-bold text-gray-900">12</p>
+                <p className="text-2xl font-bold text-gray-900">{statistics.total}</p>
               </div>
             </div>
           </div>
-          
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-green-100">
@@ -167,11 +200,10 @@ const FleetOffboarding = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">8</p>
+                <p className="text-2xl font-bold text-gray-900">{statistics.completed}</p>
               </div>
             </div>
           </div>
-          
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-yellow-100">
@@ -179,25 +211,23 @@ const FleetOffboarding = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold text-gray-900">3</p>
+                <p className="text-2xl font-bold text-gray-900">{statistics.in_progress}</p>
               </div>
             </div>
           </div>
-          
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-orange-100">
                 <AlertTriangle className="w-6 h-6 text-orange-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">1</p>
+                <p className="text-sm font-medium text-gray-600">Not Started / On Hold</p>
+                <p className="text-2xl font-bold text-gray-900">{statistics.not_started + statistics.on_hold}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filters and Search */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="p-6 border-b border-gray-200">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -212,7 +242,6 @@ const FleetOffboarding = () => {
                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-64"
                   />
                 </div>
-                
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -224,7 +253,6 @@ const FleetOffboarding = () => {
                   <option value="completed">Completed</option>
                   <option value="on_hold">On Hold</option>
                 </select>
-                
                 <input
                   type="date"
                   value={dateFilter}
@@ -232,7 +260,6 @@ const FleetOffboarding = () => {
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              
               <div className="flex items-center gap-2">
                 <Filter className="w-5 h-5 text-gray-400" />
                 <span className="text-sm text-gray-600">Filters</span>
@@ -241,11 +268,9 @@ const FleetOffboarding = () => {
           </div>
         </div>
 
-        {/* Offboarding Records List */}
         <div className="bg-white rounded-lg shadow">
           <div className="p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Fleet Offboarding Records</h2>
-            
             {offboardingRecords.length === 0 ? (
               <div className="text-center py-12">
                 <UserX className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -277,25 +302,22 @@ const FleetOffboarding = () => {
                           </div>
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900">
-                              {record.vehicle_number} - {record.make} {record.model}
+                              {record.vehicle_number || 'Vehicle'} – {record.make} {record.model}
                             </h3>
-                            <p className="text-gray-600">Vehicle ID: {record.vehicle_id}</p>
+                            <p className="text-gray-600">Vehicle ID: {record.vehicle_id?.slice(0, 8)}…</p>
                           </div>
                         </div>
-                        
                         <div className="flex items-center space-x-4">
                           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(record.status)}`}>
                             <StatusIcon className="w-4 h-4 inline mr-1" />
                             {record.status.replace('_', ' ')}
                           </span>
-                          
                           <div className="text-right">
                             <p className="text-sm text-gray-600">Progress</p>
                             <p className="text-lg font-semibold text-gray-900">{record.progress_percentage}%</p>
                           </div>
                         </div>
                       </div>
-                      
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                         <div>
                           <p className="text-sm text-gray-600">Offboarding Date</p>
@@ -303,34 +325,21 @@ const FleetOffboarding = () => {
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Last Service Date</p>
-                          <p className="font-medium text-gray-900">{record.last_service_date}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Assigned Driver</p>
-                          <p className="font-medium text-gray-900">{record.assigned_driver}</p>
+                          <p className="font-medium text-gray-900">{record.last_service_date || '—'}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Reason</p>
-                          <p className="font-medium text-gray-900">{record.reason}</p>
+                          <p className="font-medium text-gray-900">{OFFBOARDING_REASONS.find((r) => r.value === record.reason)?.label || record.reason || '—'}</p>
                         </div>
                       </div>
-                      
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <button className="text-blue-600 hover:text-blue-800 flex items-center">
-                            <Eye className="w-4 h-4 mr-1" />
-                            View Details
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-800 flex items-center">
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-800 flex items-center">
-                            <Download className="w-4 h-4 mr-1" />
-                            Export
-                          </button>
-                        </div>
-                        
+                        <button
+                          onClick={() => handleViewDetails(record)}
+                          className="text-blue-600 hover:text-blue-800 flex items-center"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View Details
+                        </button>
                         <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
                     </motion.div>
@@ -341,69 +350,66 @@ const FleetOffboarding = () => {
           </div>
         </div>
 
-        {/* Start Fleet Offboarding Modal */}
         {showStartModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">Start Fleet Offboarding</h2>
               </div>
-              
               <div className="p-6">
                 <p className="text-gray-600 mb-6">
-                  Start the offboarding process for a fleet vehicle. This will create a comprehensive checklist to ensure all necessary steps are completed and assets are properly returned.
+                  Start the offboarding process for a fleet vehicle. A checklist will be created to track completion.
                 </p>
-                
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Vehicle
-                    </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Vehicle</label>
+                    <select
+                      value={startForm.vehicle_id}
+                      onChange={(e) => setStartForm((f) => ({ ...f, vehicle_id: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
                       <option value="">Select Vehicle to Offboard</option>
-                      <option value="VH001">ABC-123 - Toyota Camry</option>
-                      <option value="VH002">XYZ-456 - Honda Civic</option>
-                      <option value="VH003">DEF-789 - Ford Focus</option>
+                      {vehicles.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.vehicle_number} – {v.make} {v.model}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason for Offboarding
-                    </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Offboarding</label>
+                    <select
+                      value={startForm.reason}
+                      onChange={(e) => setStartForm((f) => ({ ...f, reason: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
                       <option value="">Select Reason</option>
-                      <option value="vehicle_replacement">Vehicle Replacement</option>
-                      <option value="end_of_service">End of Service</option>
-                      <option value="damage">Vehicle Damage</option>
-                      <option value="upgrade">Fleet Upgrade</option>
-                      <option value="other">Other</option>
+                      {OFFBOARDING_REASONS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
                     </select>
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Offboarding Date
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Offboarding Date</label>
                     <input
                       type="date"
+                      value={startForm.offboarding_date}
+                      onChange={(e) => setStartForm((f) => ({ ...f, offboarding_date: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Notes
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                     <textarea
                       rows={3}
-                      placeholder="Additional notes about the offboarding process..."
+                      placeholder="Additional notes..."
+                      value={startForm.notes}
+                      onChange={(e) => setStartForm((f) => ({ ...f, notes: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 </div>
               </div>
-              
               <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
                 <button
                   onClick={() => setShowStartModal(false)}
@@ -412,14 +418,47 @@ const FleetOffboarding = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    // TODO: Implement start offboarding logic
-                    setShowStartModal(false);
-                  }}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  onClick={handleSubmitStart}
+                  disabled={submitting}
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
-                  Start Offboarding
+                  {submitting ? 'Starting…' : 'Start Offboarding'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedRecord && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSelectedRecord(null)}>
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {selectedRecord.vehicle_number} – {selectedRecord.make} {selectedRecord.model}
+                </h2>
+                <button onClick={() => setSelectedRecord(null)} className="text-gray-500 hover:text-gray-700">×</button>
+              </div>
+              <div className="p-6">
+                <p className="text-sm text-gray-600 mb-4">Checklist – tick items when done.</p>
+                <ul className="space-y-2">
+                  {(selectedRecord.checklist_items || []).map((item) => (
+                    <li key={item.id} className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleChecklistItem(item, selectedRecord.id)}
+                        className={`w-6 h-6 rounded border-2 flex items-center justify-center ${item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300'}`}
+                      >
+                        {item.completed ? <CheckSquare className="w-4 h-4" /> : null}
+                      </button>
+                      <span className={item.completed ? 'text-gray-500 line-through' : ''}>{item.title}</span>
+                      {item.completed_at && (
+                        <span className="text-xs text-gray-400">
+                          {new Date(item.completed_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

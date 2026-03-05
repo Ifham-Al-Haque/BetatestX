@@ -408,6 +408,48 @@ class FleetService {
     }
   }
 
+  // Get all driver assignments (for calendar view)
+  async getAllDriverAssignments() {
+    try {
+      const { data, error } = await supabase
+        .from('fleet_drivers')
+        .select('*')
+        .order('assigned_date', { ascending: true });
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+      const vehicleIds = [...new Set(data.map((a) => a.vehicle_id))];
+      const { data: vehicles } = await supabase
+        .from('fleet_vehicles')
+        .select('id, vehicle_number, make, model')
+        .in('id', vehicleIds);
+      const vehicleMap = {};
+      (vehicles || []).forEach((v) => { vehicleMap[v.id] = v; });
+      const employeeIds = [...new Set(data.map((a) => a.driver_id).filter(Boolean))];
+      let employeeMap = {};
+      if (employeeIds.length > 0) {
+        const { data: employees } = await supabase
+          .from('employees')
+          .select('id, full_name')
+          .in('id', employeeIds);
+        (employees || []).forEach((e) => { employeeMap[e.id] = e; });
+      }
+      return data.map((a) => {
+        const v = vehicleMap[a.vehicle_id];
+        const e = employeeMap[a.driver_id];
+        const vehicleLabel = v ? `${v.vehicle_number} – ${v.make} ${v.model}` : a.vehicle_id;
+        const driverLabel = e?.full_name || 'Driver';
+        return {
+          ...a,
+          vehicle_label: vehicleLabel,
+          driver_label: driverLabel,
+        };
+      });
+    } catch (err) {
+      console.error('getAllDriverAssignments:', err);
+      return [];
+    }
+  }
+
   // Assign driver to vehicle
   async assignDriver(assignmentData) {
     try {
@@ -446,6 +488,61 @@ class FleetService {
     } catch (error) {
       console.error('Error fetching fleet statistics:', error);
       throw error;
+    }
+  }
+
+  // Cost per mile / TCO: aggregate by vehicle and fleet-wide from maintenance + vehicles (purchase, mileage)
+  async getCostPerMileAndTCO() {
+    try {
+      const { data: vehicles, error: vErr } = await supabase
+        .from('fleet_vehicles')
+        .select('id, vehicle_number, make, model, mileage, purchase_price');
+      if (vErr) throw vErr;
+
+      const { data: maintenance, error: mErr } = await supabase
+        .from('fleet_maintenance')
+        .select('vehicle_id, cost');
+      if (mErr) throw mErr;
+
+      const maintenanceByVehicle = {};
+      (maintenance || []).forEach((r) => {
+        const id = r.vehicle_id;
+        if (!id) return;
+        maintenanceByVehicle[id] = (maintenanceByVehicle[id] || 0) + (parseFloat(r.cost) || 0);
+      });
+
+      const perVehicle = (vehicles || []).map((v) => {
+        const maintCost = maintenanceByVehicle[v.id] || 0;
+        const purchase = parseFloat(v.purchase_price) || 0;
+        const mileage = parseInt(v.mileage, 10) || 0;
+        const totalCost = purchase + maintCost;
+        const costPerMile = mileage > 0 ? totalCost / mileage : null;
+        return {
+          id: v.id,
+          vehicle_number: v.vehicle_number,
+          make: v.make,
+          model: v.model,
+          mileage,
+          purchase_price: purchase,
+          maintenance_cost: maintCost,
+          total_cost: totalCost,
+          cost_per_mile: costPerMile,
+        };
+      });
+
+      const fleetTotalMileage = perVehicle.reduce((s, v) => s + v.mileage, 0);
+      const fleetTotalCost = perVehicle.reduce((s, v) => s + v.total_cost, 0);
+      return {
+        perVehicle,
+        fleet: {
+          totalMileage: fleetTotalMileage,
+          totalCost: fleetTotalCost,
+          costPerMile: fleetTotalMileage > 0 ? fleetTotalCost / fleetTotalMileage : null,
+        },
+      };
+    } catch (err) {
+      console.error('getCostPerMileAndTCO:', err);
+      return { perVehicle: [], fleet: { totalMileage: 0, totalCost: 0, costPerMile: null } };
     }
   }
 
