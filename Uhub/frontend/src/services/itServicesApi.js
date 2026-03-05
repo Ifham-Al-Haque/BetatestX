@@ -176,7 +176,7 @@ export const itServicesApi = {
         let query = supabase
           .from('it_requests_with_details')
           .select('*')
-          .neq('status', 'deleted') // Exclude soft-deleted items
+          .neq('status', 'cancelled') // Exclude soft-deleted items
           .order('created_at', { ascending: false });
 
         const { data, error } = await query;
@@ -197,7 +197,7 @@ export const itServicesApi = {
                 role
               )
             `)
-            .neq('status', 'deleted') // Exclude soft-deleted items
+            .neq('status', 'cancelled') // Exclude soft-deleted items
             .order('created_at', { ascending: false });
 
           // Apply role-based filtering - non-IT users see only their own requests
@@ -739,48 +739,34 @@ export const itServicesApi = {
     },
 
     delete: async (id) => {
-      try {
-        console.log('Attempting to soft delete IT request with ID:', id);
-        
-        // Soft delete: Update status to 'deleted' and set deleted_at timestamp
-        // This keeps the record in the database but marks it as deleted
-        const updateData = {
-          status: 'deleted',
-          updated_at: new Date().toISOString()
-        };
+      const updatePayload = (status) => ({
+        status,
+        updated_at: new Date().toISOString()
+      });
 
-        // Try to add deleted_at timestamp if the column exists
+      for (const tryStatus of ['cancelled', 'closed']) {
         try {
-          updateData.deleted_at = new Date().toISOString();
-        } catch (e) {
-          // Column might not exist, that's okay
-          console.log('deleted_at column may not exist, continuing with status update only');
-        }
+          const { data, error } = await supabase
+            .from('it_requests')
+            .update(updatePayload(tryStatus))
+            .eq('id', id)
+            .select()
+            .single();
 
-        const { data, error } = await supabase
-          .from('it_requests')
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Soft delete error:', error);
-          throw error;
+          if (error) {
+            const isCheckConstraint = (error.message || '').includes('it_requests_status_check') || (error.message || '').includes('check constraint');
+            if (isCheckConstraint && tryStatus === 'cancelled') continue;
+            throw error;
+          }
+          if (!data) throw new Error('No rows were updated. The request may not exist or you may not have permission.');
+          return data;
+        } catch (err) {
+          if (tryStatus === 'closed') throw err;
+          const isCheckConstraint = (err.message || '').includes('it_requests_status_check') || (err.message || '').includes('check constraint');
+          if (!isCheckConstraint) throw err;
         }
-        
-        console.log('Request soft deleted successfully. Status set to deleted:', data);
-        
-        if (!data) {
-          throw new Error('No rows were updated. The request may not exist or you may not have permission.');
-        }
-        
-        return data;
-        
-      } catch (error) {
-        console.error('Error soft deleting request:', error);
-        throw error;
       }
+      throw new Error('Failed to soft delete: status check constraint rejected both cancelled and closed.');
     },
 
     // Get request statistics
@@ -802,7 +788,7 @@ export const itServicesApi = {
           let query = supabase
             .from('it_requests')
             .select('*')
-            .neq('status', 'deleted'); // Exclude soft-deleted items
+            .neq('status', 'cancelled'); // Exclude soft-deleted items
 
           // Apply role-based filtering for statistics - non-IT users see only their own requests
           if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
@@ -858,9 +844,9 @@ export const itServicesApi = {
           .eq('status', status)
           .order('created_at', { ascending: false });
 
-        // Only exclude deleted items if we're not specifically looking for deleted status
-        if (status !== 'deleted') {
-          query = query.neq('status', 'deleted');
+        // Only exclude cancelled (soft-deleted) items if we're not specifically looking for that status
+        if (status !== 'cancelled') {
+          query = query.neq('status', 'cancelled');
         }
 
         const { data, error } = await query;
@@ -878,9 +864,9 @@ export const itServicesApi = {
             .eq('status', status)
             .order('created_at', { ascending: false });
 
-          // Only exclude deleted items if we're not specifically looking for deleted status
-          if (status !== 'deleted') {
-            query = query.neq('status', 'deleted');
+          // Only exclude cancelled (soft-deleted) items if we're not specifically looking for that status
+          if (status !== 'cancelled') {
+            query = query.neq('status', 'cancelled');
           }
 
           // Apply role-based filtering - non-IT users see only their own requests

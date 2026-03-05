@@ -58,10 +58,12 @@ const priorityConfig = {
   'Planning': { color: '#6B7280', bgColor: '#F3F4F6', icon: Calendar }
 };
 
-// Status colors and icons
+// Status colors and icons (covers all DB status values)
 const statusConfig = {
   'open': { color: '#3B82F6', bgColor: '#DBEAFE', icon: FileText, label: 'Open' },
+  'assigned': { color: '#0EA5E9', bgColor: '#E0F2FE', icon: User, label: 'Assigned' },
   'in_progress': { color: '#F59E0B', bgColor: '#FEF3C7', icon: Clock, label: 'In Progress' },
+  'pending_approval': { color: '#8B5CF6', bgColor: '#EDE9FE', icon: AlertCircle, label: 'Pending Approval' },
   'pending_user': { color: '#8B5CF6', bgColor: '#EDE9FE', icon: User, label: 'Pending User' },
   'resolved': { color: '#10B981', bgColor: '#D1FAE5', icon: CheckCircle, label: 'Resolved' },
   'closed': { color: '#6B7280', bgColor: '#F3F4F6', icon: Archive, label: 'Closed' },
@@ -117,6 +119,17 @@ const ITRequestsEnhanced = () => {
     priority_id: '',
     request_type: 'it_service'
   });
+
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+
+  // Debounce search input → filters.search (smoother typing)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setFilters((prev) => (prev.search === searchInput ? prev : { ...prev, search: searchInput }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Statistics - now calculated via useMemo, no longer need state
 
@@ -322,7 +335,7 @@ const ITRequestsEnhanced = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setFormSubmitting(true);
     try {
       // Get the current authenticated user
       const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -345,11 +358,12 @@ const ITRequestsEnhanced = () => {
       setShowForm(false);
       setEditingRequest(null);
       resetForm();
-      // Invalidate and refetch queries - use exact query key prefix
       queryClient.invalidateQueries({ queryKey: ['itRequests'] });
     } catch (error) {
       console.error('Error saving request:', error);
       showError('Failed to save request', error.message);
+    } finally {
+      setFormSubmitting(false);
     }
   };
 
@@ -476,13 +490,13 @@ const ITRequestsEnhanced = () => {
     return filtered;
   }, [requests, filters]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
-  }
+  const closeFormModal = () => {
+    setShowForm(false);
+    setEditingRequest(null);
+    resetForm();
+  };
+
+  const closeDetailModal = () => setSelectedRequest(null);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
@@ -596,73 +610,38 @@ const ITRequestsEnhanced = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-8"
             >
-              <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-100 text-sm font-medium">Total Requests</p>
-                      <p className="text-3xl font-bold">{stats.total}</p>
-                    </div>
-                    <FileText className="w-8 h-8 text-blue-200" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-orange-100 text-sm font-medium">Open</p>
-                      <p className="text-3xl font-bold">{stats.open}</p>
-                    </div>
-                    <AlertCircle className="w-8 h-8 text-orange-200" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-yellow-100 text-sm font-medium">In Progress</p>
-                      <p className="text-3xl font-bold">{stats.inProgress}</p>
-                    </div>
-                    <Clock className="w-8 h-8 text-yellow-200" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-100 text-sm font-medium">Resolved</p>
-                      <p className="text-3xl font-bold">{stats.resolved}</p>
-                    </div>
-                    <CheckCircle className="w-8 h-8 text-green-200" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100 text-sm font-medium">Pending User</p>
-                      <p className="text-3xl font-bold">{stats.pending}</p>
-                    </div>
-                    <User className="w-8 h-8 text-purple-200" />
-                  </div>
-                </CardContent>
-              </Card>
+              {[
+                { label: 'Total', value: stats.total, icon: FileText, from: 'from-blue-500', to: 'to-blue-600', sub: 'text-blue-100', iconCl: 'text-blue-200' },
+                { label: 'Open', value: stats.open, icon: AlertCircle, from: 'from-orange-500', to: 'to-orange-600', sub: 'text-orange-100', iconCl: 'text-orange-200' },
+                { label: 'In Progress', value: stats.inProgress, icon: Clock, from: 'from-amber-500', to: 'to-amber-600', sub: 'text-amber-100', iconCl: 'text-amber-200' },
+                { label: 'Resolved', value: stats.resolved, icon: CheckCircle, from: 'from-emerald-500', to: 'to-emerald-600', sub: 'text-emerald-100', iconCl: 'text-emerald-200' },
+                { label: 'Pending User', value: stats.pending, icon: User, from: 'from-violet-500', to: 'to-violet-600', sub: 'text-violet-100', iconCl: 'text-violet-200' },
+              ].map((stat, i) => {
+                const Icon = stat.icon;
+                return (
+                  <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                    <Card className={`bg-gradient-to-r ${stat.from} ${stat.to} text-white border-0 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5`}>
+                      <CardContent className="p-5 sm:p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className={`${stat.sub} text-sm font-medium`}>{stat.label}</p>
+                            <p className="text-2xl sm:text-3xl font-bold mt-0.5">{stat.value}</p>
+                          </div>
+                          <Icon className={`w-8 h-8 ${stat.iconCl} flex-shrink-0`} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Filters and Search */}
-        <Card className="mb-8 bg-white dark:bg-gray-800 shadow-lg">
+        <Card className="mb-8 bg-white dark:bg-gray-800 shadow-lg rounded-2xl">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -679,15 +658,15 @@ const ITRequestsEnhanced = () => {
               </Button>
             </div>
 
-            {/* Search Bar */}
+            {/* Search Bar (debounced for smoother typing) */}
             <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
               <Input
                 type="text"
                 placeholder="Search requests by title or description..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="pl-10 h-12 text-lg"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-10 h-12 text-lg transition-shadow focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
 
@@ -710,7 +689,9 @@ const ITRequestsEnhanced = () => {
                     >
                       <option value="">All Statuses</option>
                       <option value="open">Open</option>
+                      <option value="assigned">Assigned</option>
                       <option value="in_progress">In Progress</option>
+                      <option value="pending_approval">Pending Approval</option>
                       <option value="pending_user">Pending User</option>
                       <option value="resolved">Resolved</option>
                       <option value="closed">Closed</option>
@@ -776,25 +757,63 @@ const ITRequestsEnhanced = () => {
           </CardContent>
         </Card>
 
-        {/* Requests Grid */}
+        {/* Requests Grid (skeleton when loading) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRequests.map((request) => {
+          {loading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <motion.div
+                key={`skeleton-${i}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.06 }}
+                className="rounded-2xl border-0 bg-white dark:bg-gray-800 shadow-lg overflow-hidden"
+              >
+                <div className="h-1 w-full bg-gray-200 dark:bg-gray-600 rounded-full" />
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-600 animate-pulse" />
+                      <div className="space-y-1">
+                        <div className="h-4 w-48 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
+                        <div className="h-3 w-24 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 w-full bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-3 w-4/5 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-3 w-2/3 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-gray-600 animate-pulse" />
+                    <div className="h-6 w-20 rounded-full bg-gray-200 dark:bg-gray-600 animate-pulse" />
+                    <div className="h-6 w-14 rounded-full bg-gray-200 dark:bg-gray-600 animate-pulse" />
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <div className="h-3 w-24 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-3 w-16 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          ) : filteredRequests.map((request, index) => {
             const category = categories.find(c => c.id === request.category_id);
             const priority = priorities.find(p => p.id === request.priority_id);
             const CategoryIcon = getCategoryIcon(category);
             const priorityConfig = getPriorityConfig(priority);
-            const statusConfig = getStatusConfig(request.status);
-            const StatusIcon = statusConfig.icon;
+            const statusConfigItem = getStatusConfig(request.status);
+            const StatusIcon = statusConfigItem.icon;
 
             return (
               <motion.div
                 key={request.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+                transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.35) }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
                 className="group"
               >
-                <Card className="h-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border-0 overflow-hidden">
+                <Card className="h-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border-0 overflow-hidden rounded-2xl">
                   {/* Priority Banner */}
                   <div 
                     className="h-1 w-full"
@@ -829,13 +848,14 @@ const ITRequestsEnhanced = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => setSelectedRequest(request)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                          aria-label="View details"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
                         
                         {(isAdminOrManager || request.requester_id === userId) && (
-                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -877,12 +897,12 @@ const ITRequestsEnhanced = () => {
                       <span 
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
                         style={{ 
-                          backgroundColor: statusConfig.bgColor,
-                          color: statusConfig.color 
+                          backgroundColor: statusConfigItem.bgColor,
+                          color: statusConfigItem.color 
                         }}
                       >
                         <StatusIcon className="w-3 h-3" />
-                        {statusConfig.label}
+                        {statusConfigItem.label}
                       </span>
                       
                       <span 
@@ -928,27 +948,31 @@ const ITRequestsEnhanced = () => {
         </div>
 
         {/* Empty State */}
-        {filteredRequests.length === 0 && (
+        {!loading && filteredRequests.length === 0 && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="text-center py-16 px-4"
           >
-            <div className="mx-auto w-24 h-24 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-6">
-              <Wrench className="w-12 h-12 text-white" />
-            </div>
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="mx-auto w-28 h-28 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl"
+            >
+              <Wrench className="w-14 h-14 text-white" />
+            </motion.div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               No requests found
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-sm mx-auto">
               {filters.search || filters.status || filters.category_id || filters.priority_id
-                ? "Try adjusting your filters to see more results"
-                : "Get started by creating your first IT service request"
-              }
+                ? 'Try adjusting your filters or search to see more results.'
+                : 'Create your first IT request and we’ll get back to you soon.'}
             </p>
             <Button
               onClick={() => setShowForm(true)}
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create New Request
@@ -1033,11 +1057,15 @@ const ITRequestsEnhanced = () => {
       {/* Request Form Modal */}
       <AnimatePresence>
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={closeFormModal}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6">
@@ -1053,11 +1081,7 @@ const ITRequestsEnhanced = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingRequest(null);
-                      resetForm();
-                    }}
+                    onClick={closeFormModal}
                     className="p-2"
                   >
                     <XCircle className="w-5 h-5" />
@@ -1145,18 +1169,17 @@ const ITRequestsEnhanced = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditingRequest(null);
-                        resetForm();
-                      }}
+                      onClick={closeFormModal}
+                      disabled={formSubmitting}
                     >
                       Cancel
                     </Button>
                     <Button
                       type="submit"
-                      className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                      disabled={formSubmitting}
+                      className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 flex items-center gap-2"
                     >
+                      {formSubmitting && <RefreshCw className="w-4 h-4 animate-spin" />}
                       {editingRequest ? 'Update Request' : 'Submit Request'}
                     </Button>
                   </div>
@@ -1170,11 +1193,15 @@ const ITRequestsEnhanced = () => {
       {/* Request Details Modal */}
       <AnimatePresence>
         {selectedRequest && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={closeDetailModal}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6">
@@ -1190,7 +1217,7 @@ const ITRequestsEnhanced = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedRequest(null)}
+                    onClick={closeDetailModal}
                     className="p-2"
                   >
                     <XCircle className="w-5 h-5" />
@@ -1277,6 +1304,27 @@ const ITRequestsEnhanced = () => {
                         {new Date(selectedRequest.created_at).toLocaleString()}
                       </p>
                     </div>
+
+                    {(selectedRequest.requester?.full_name || selectedRequest.requester?.email) && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">Requester</h4>
+                        <p className="text-gray-600 dark:text-gray-300">
+                          {selectedRequest.requester?.full_name || selectedRequest.requester?.email}
+                          {selectedRequest.requester?.department && (
+                            <span className="text-gray-500 dark:text-gray-400 text-sm"> · {selectedRequest.requester.department}</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedRequest.resolution_notes && (
+                      <div className="md:col-span-2">
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">Resolution notes</h4>
+                        <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                          {selectedRequest.resolution_notes}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                 </div>

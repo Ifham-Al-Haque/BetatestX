@@ -184,7 +184,7 @@ export const itServicesApi = {
         let query = supabase
           .from('it_requests')
           .select('*')
-          .neq('status', 'deleted') // Exclude soft-deleted items
+          .neq('status', 'cancelled') // Exclude soft-deleted items
           .order('created_at', { ascending: false });
 
         // Apply filters
@@ -296,48 +296,41 @@ export const itServicesApi = {
     },
 
     delete: async (id) => {
-      try {
-        console.log('Attempting to soft delete IT request with ID:', id);
-        
-        // Soft delete: Update status to 'deleted' and set deleted_at timestamp
-        // This keeps the record in the database but marks it as deleted
-        const updateData = {
-          status: 'deleted',
-          updated_at: new Date().toISOString()
-        };
+      const updatePayload = (status) => ({
+        status,
+        updated_at: new Date().toISOString()
+      });
 
-        // Try to add deleted_at timestamp if the column exists
+      // Prefer 'cancelled' for soft delete; fallback to 'closed' if DB constraint doesn't allow 'cancelled'
+      for (const tryStatus of ['cancelled', 'closed']) {
         try {
-          updateData.deleted_at = new Date().toISOString();
-        } catch (e) {
-          // Column might not exist, that's okay
-          console.log('deleted_at column may not exist, continuing with status update only');
-        }
+          const { data, error } = await supabase
+            .from('it_requests')
+            .update(updatePayload(tryStatus))
+            .eq('id', id)
+            .select()
+            .single();
 
-        const { data, error } = await supabase
-          .from('it_requests')
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
+          if (error) {
+            const isCheckConstraint = (error.message || '').includes('it_requests_status_check') || (error.message || '').includes('check constraint');
+            if (isCheckConstraint && tryStatus === 'cancelled') continue; // retry with 'closed'
+            throw error;
+          }
 
-        if (error) {
-          console.error('Soft delete error:', error);
-          throw error;
+          if (!data) {
+            throw new Error('No rows were updated. The request may not exist or you may not have permission.');
+          }
+          return data;
+        } catch (err) {
+          if (tryStatus === 'closed') {
+            console.error('Error soft deleting request:', err);
+            throw err;
+          }
+          const isCheckConstraint = (err.message || '').includes('it_requests_status_check') || (err.message || '').includes('check constraint');
+          if (!isCheckConstraint) throw err;
         }
-        
-        console.log('Request soft deleted successfully. Status set to deleted:', data);
-        
-        if (!data) {
-          throw new Error('No rows were updated. The request may not exist or you may not have permission.');
-        }
-        
-        return data;
-        
-      } catch (error) {
-        console.error('Error soft deleting request:', error);
-        throw error;
       }
+      throw new Error('Failed to soft delete: status check constraint rejected both cancelled and closed.');
     },
 
     // Get requests by status
