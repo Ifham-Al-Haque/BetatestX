@@ -11,9 +11,11 @@ import {
   GraduationCap, BookOpen, Clock3, AlertTriangle,
   ChevronDown, ChevronRight, Eye, EyeOff, Globe,
   Zap, Crown, Trophy, CalendarDays, MapPinIcon,
-  Car, Package, CreditCard
+  Car, Package, CreditCard, ExternalLink, Laptop,
+  Smartphone, LogIn, KeyRound, LayoutGrid
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import { useAssets } from "../hooks/useApi";
 import UserDropdown from "../components/UserDropdown";
 import DarkModeToggle from "../components/DarkModeToggle";
 
@@ -22,6 +24,15 @@ export default function EmployeeProfile() {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Fetch assets assigned to this employee from Asset Management (linked data)
+  const { data: assignedAssetsData, isLoading: assetsLoading } = useAssets(
+    1,
+    200,
+    { assigned_to: id || '' },
+    { enabled: !!id }
+  );
+  const assignedAssets = assignedAssetsData?.data ?? [];
 
   const fetchEmployee = useCallback(async () => {
     setLoading(true);
@@ -350,251 +361,386 @@ export default function EmployeeProfile() {
     </div>
   );
 
-  const renderSystemAccess = () => (
+  const renderSystemAccess = () => {
+    const isVerified = employee.auth_user?.is_verified;
+    const accountActive = employee.account_status !== 'inactive';
+    const role = employee.auth_user?.role || 'employee';
+    const accessList = getArrayData(employee.access_list);
+
+    return (
     <div className="space-y-6">
-      {/* Authentication & Role Information */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-blue-600" />
-          System Access & Permissions
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* User Account Information */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-700 dark:text-gray-300">Account Details</h4>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400">User ID:</span>
-                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {employee.auth_user_id || 'Not assigned'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Email:</span>
-                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {employee.email || 'Not provided'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Role:</span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getAccessLevelColor(employee.auth_user?.role || 'employee')}`}>
-                  {employee.auth_user?.role || 'employee'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Verification:</span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  employee.auth_user?.is_verified ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
-                }`}>
-                  {employee.auth_user?.is_verified ? 'Verified' : 'Not Verified'}
-                </span>
-              </div>
+      {/* Status banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl overflow-hidden bg-gradient-to-r from-slate-800 to-slate-700 dark:from-slate-700 dark:to-slate-800 p-6 text-white shadow-lg border border-slate-600/50"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold">System Access & Permissions</h3>
+              <p className="text-slate-300 text-sm mt-0.5">Account and access overview</p>
             </div>
           </div>
-
-          {/* Access Permissions */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-700 dark:text-gray-300">Access Permissions</h4>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Access Level:</span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getAccessLevelColor(employee.access_level || 'viewer')}`}>
-                  {employee.access_level || 'viewer'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Last Login:</span>
-                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {employee.last_login ? new Date(employee.last_login).toLocaleDateString() : 'Never'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Account Status:</span>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  employee.account_status === 'active' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
-                }`}>
-                  {employee.account_status || 'active'}
-                </span>
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${
+              isVerified ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30' : 'bg-amber-500/20 text-amber-200 border border-amber-400/30'
+            }`}>
+              <CheckCircle className="w-4 h-4" />
+              {isVerified ? 'Verified' : 'Not verified'}
+            </span>
+            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${
+              accountActive ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30' : 'bg-red-500/20 text-red-200 border border-red-400/30'
+            }`}>
+              <Zap className="w-4 h-4" />
+              {accountActive ? 'Active' : 'Inactive'}
+            </span>
+            <span className={`px-4 py-2 rounded-xl text-sm font-medium capitalize ${getAccessLevelColor(role)} border border-current/20`}>
+              {role}
+            </span>
           </div>
         </div>
+      </motion.div>
 
-        {/* System Features Access */}
-        {employee.access_list && employee.access_list.length > 0 && (
-          <div className="mt-6">
-            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">System Features Access</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {getArrayData(employee.access_list).map((access, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-                  <CheckCircle className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-blue-800 dark:text-blue-200">{access}</span>
-                </div>
-              ))}
+      {/* Account & permissions cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, x: -12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.05 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+        >
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-indigo-500" />
+            Account Details
+          </h4>
+          <div className="space-y-3">
+            {[
+              { label: 'User ID', value: employee.auth_user_id || 'Not assigned' },
+              { label: 'Email', value: employee.email || 'Not provided' },
+            ].map((row, i) => (
+              <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/80 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <span className="text-sm text-gray-500 dark:text-gray-400">{row.label}</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[60%]" title={row.value}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+        >
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+            <LogIn className="w-4 h-4 text-indigo-500" />
+            Access & Activity
+          </h4>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/80">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Access Level</span>
+              <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${getAccessLevelColor(employee.access_level || 'viewer')}`}>
+                {employee.access_level || 'viewer'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/80">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Last Login</span>
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {employee.last_login ? new Date(employee.last_login).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'Never'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-xl bg-gray-50 dark:bg-gray-700/80">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Account Status</span>
+              <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                accountActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+              }`}>
+                {employee.account_status || 'active'}
+              </span>
             </div>
           </div>
-        )}
-
-        {/* Department Access & Permissions */}
-        <div className="mt-6">
-          <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Department Access & Permissions</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-              <div className="flex items-center gap-2 mb-2">
-                <Building className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Primary Department</span>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {employee.department || 'Not assigned'}
-              </p>
-            </div>
-            
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Reporting Manager</span>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {employee.reporting_manager?.full_name || employee.reporting_manager?.name || 'Not assigned'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Security & Compliance */}
-        <div className="mt-6">
-          <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Security & Compliance</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
-              <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <span className="text-xs font-medium text-amber-800 dark:text-amber-200">Access Level</span>
-              </div>
-              <p className="text-sm text-amber-700 dark:text-amber-300">
-                {employee.access_level || 'Standard'}
-              </p>
-            </div>
-            
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-              <div className="flex items-center gap-2 mb-1">
-                <Shield className="w-4 h-4 text-blue-600" />
-                <span className="text-xs font-medium text-blue-800 dark:text-blue-200">Role</span>
-              </div>
-              <p className="text-sm text-blue-700 dark:text-blue-300 capitalize">
-                {employee.auth_user?.role || 'employee'}
-              </p>
-            </div>
-            
-            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700">
-              <div className="flex items-center gap-2 mb-1">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-xs font-medium text-green-800 dark:text-green-200">Status</span>
-              </div>
-              <p className="text-sm text-green-700 dark:text-green-300 capitalize">
-                {employee.status || 'active'}
-              </p>
-            </div>
-          </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
-  );
 
-  const renderAssetsAssignments = () => (
+      {/* System features */}
+      {accessList.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+        >
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+            <LayoutGrid className="w-4 h-4 text-indigo-500" />
+            System Features Access
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {accessList.map((access, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.05 * i }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700/50 text-sm font-medium"
+              >
+                <CheckCircle className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                {access}
+              </motion.span>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Department & context */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-gray-50 dark:from-gray-800 dark:to-gray-800 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+              <Building className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <span className="font-medium text-gray-800 dark:text-gray-200">Primary Department</span>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 pl-11">{employee.department || 'Not assigned'}</p>
+        </div>
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-gray-50 dark:from-gray-800 dark:to-gray-800 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <span className="font-medium text-gray-800 dark:text-gray-200">Reporting Manager</span>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 pl-11">
+            {employee.reporting_manager?.full_name || employee.reporting_manager?.name || 'Not assigned'}
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Security summary strip */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="flex flex-wrap gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700"
+      >
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50">
+          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <span className="text-sm font-medium text-amber-800 dark:text-amber-200">Access Level</span>
+          <span className="text-sm text-amber-700 dark:text-amber-300">{employee.access_level || 'Standard'}</span>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50">
+          <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Role</span>
+          <span className="text-sm text-blue-700 dark:text-blue-300 capitalize">{role}</span>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50">
+          <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Status</span>
+          <span className="text-sm text-emerald-700 dark:text-emerald-300 capitalize">{employee.status || 'active'}</span>
+        </div>
+      </motion.div>
+    </div>
+    );
+  };
+
+  const renderAssetsAssignments = () => {
+    const assets = assignedAssets;
+    const normalizedType = (t) => (t && String(t).trim().toLowerCase()) || '';
+    const isLaptop = (a) => normalizedType(a?.type) === 'laptop';
+    const isDesktop = (a) => normalizedType(a?.type) === 'desktop';
+    const isMonitor = (a) => normalizedType(a?.type) === 'monitor';
+    const isMobile = (a) => ['phone', 'mobile', 'smartphone', 'tablet'].includes(normalizedType(a?.type));
+    const getAssetIcon = (asset) => {
+      const t = normalizedType(asset?.type);
+      if (t === 'laptop') return Laptop;
+      if (t === 'desktop' || t === 'monitor') return Monitor;
+      if (['phone', 'mobile', 'smartphone', 'tablet'].includes(t)) return Smartphone;
+      return Monitor;
+    };
+    const getAssetIconColor = (asset) => {
+      if (isLaptop(asset)) return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40';
+      if (isMobile(asset)) return 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/40';
+      if (isDesktop(asset) || isMonitor(asset)) return 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40';
+      return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/40';
+    };
+
+    const statCards = [
+      { label: 'Total Assets', value: assets?.length ?? 0, icon: Package, iconCls: 'text-green-600 dark:text-green-400', valueCls: 'text-green-600 dark:text-green-400' },
+      { label: 'Laptops', value: assets?.filter(isLaptop).length ?? 0, icon: Laptop, iconCls: 'text-blue-600 dark:text-blue-400', valueCls: 'text-blue-600 dark:text-blue-400' },
+      { label: 'Desktop / Monitor', value: assets?.filter((a) => isDesktop(a) || isMonitor(a)).length ?? 0, icon: Monitor, iconCls: 'text-amber-600 dark:text-amber-400', valueCls: 'text-amber-600 dark:text-amber-400' },
+      { label: 'Mobile Devices', value: assets?.filter(isMobile).length ?? 0, icon: Smartphone, iconCls: 'text-purple-600 dark:text-purple-400', valueCls: 'text-purple-600 dark:text-purple-400' },
+    ];
+
+    return (
     <div className="space-y-6">
+      {/* Header banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl overflow-hidden bg-gradient-to-r from-emerald-700 to-teal-700 dark:from-emerald-800 dark:to-teal-800 p-6 text-white shadow-lg border border-emerald-600/30"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-white/15 backdrop-blur-sm">
+              <CreditCard className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold">Asset Assignments</h3>
+              <p className="text-emerald-100 text-sm mt-0.5">Linked from Asset Management · assign or unassign there to update</p>
+            </div>
+          </div>
+          <Link
+            to="/assets"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium text-sm transition-colors border border-white/30"
+          >
+            Manage in Asset Management
+            <ExternalLink className="w-4 h-4" />
+          </Link>
+        </div>
+      </motion.div>
+
       {/* IT Assets */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-          <Monitor className="w-5 h-5 text-green-600" />
-          IT Assets Assigned
-        </h3>
-        
-        {employee.asset_list && employee.asset_list.length > 0 ? (
-          <div className="space-y-4">
-            {/* Asset Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-                  {getArrayData(employee.asset_list).length}
-                </div>
-                <div className="text-sm text-green-700 dark:text-green-300">Total Assets</div>
-              </div>
-              <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/40 rounded-xl border border-blue-200 dark:border-blue-700">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-                  {getArrayData(employee.asset_list).filter(asset => asset.includes('Laptop') || asset.includes('Computer')).length}
-                </div>
-                <div className="text-sm text-blue-700 dark:text-blue-300">Computers</div>
-              </div>
-              <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/40 rounded-xl border border-purple-200 dark:border-purple-700">
-                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">
-                  {getArrayData(employee.asset_list).filter(asset => asset.includes('Phone') || asset.includes('Mobile')).length}
-                </div>
-                <div className="text-sm text-purple-700 dark:text-purple-300">Mobile Devices</div>
-              </div>
+        {assetsLoading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-emerald-500 border-t-transparent mb-4"></div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading assets…</p>
+          </div>
+        ) : assets && assets.length > 0 ? (
+          <div className="space-y-6">
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {statCards.map((stat, i) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 * i }}
+                  whileHover={{ y: -2 }}
+                  className="text-center p-4 rounded-2xl border bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow"
+                >
+                  <stat.icon className={`w-6 h-6 mx-auto mb-2 ${stat.iconCls}`} />
+                  <div className={`text-2xl font-bold ${stat.valueCls}`}>{stat.value}</div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{stat.label}</div>
+                </motion.div>
+              ))}
             </div>
 
-            {/* Asset List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getArrayData(employee.asset_list).map((asset, i) => (
-                <div key={i} className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-700">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg">
-                      <Monitor className="w-5 h-5 text-green-600 dark:text-green-400" />
+            {/* Asset cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {assets.map((asset, i) => {
+                const Icon = getAssetIcon(asset);
+                const iconCls = getAssetIconColor(asset);
+                return (
+                  <motion.div
+                    key={asset.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.08 * i }}
+                    whileHover={{ y: -4, boxShadow: '0 12px 24px -8px rgba(0,0,0,0.12)' }}
+                    className="group relative p-5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-emerald-300 dark:hover:border-emerald-600/50 transition-colors overflow-hidden"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-xl ${iconCls} flex-shrink-0`}>
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {asset.name || 'Unnamed asset'}
+                        </h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                          {asset.type || '—'}{asset.asset_code ? ` · ${asset.asset_code}` : ''}
+                        </p>
+                        <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                          <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 capitalize">
+                            {asset.status || 'Assigned'}
+                          </span>
+                          <Link
+                            to={`/assets/${asset.id}`}
+                            className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+                          >
+                            View
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-gray-800 dark:text-gray-200">Asset {i + 1}</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{asset}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <Clock className="w-3 h-3" />
-                      <span>Assigned</span>
-                    </div>
-                    <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                      Active
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <Monitor className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No IT assets assigned yet</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12 px-4"
+          >
+            <div className="inline-flex p-4 rounded-2xl bg-gray-100 dark:bg-gray-700 mb-4">
+              <Monitor className="w-14 h-14 text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="text-lg font-medium text-gray-700 dark:text-gray-300">No IT assets assigned</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+              Assign assets to this employee from the Asset Management section to see them here.
+            </p>
+            <Link
+              to="/assets"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 font-medium text-sm hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
+            >
+              Go to Asset Management
+              <ExternalLink className="w-4 h-4" />
+            </Link>
+          </motion.div>
         )}
       </div>
 
-      {/* Vehicle Assignments */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-          <Car className="w-5 h-5 text-blue-600" />
-          Vehicle Assignments
-        </h3>
-        
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <Car className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No vehicle assignments available</p>
-        </div>
-      </div>
-
-      {/* Other Equipment */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-          <Package className="w-5 h-5 text-purple-600" />
-          Other Equipment
-        </h3>
-        
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No other equipment assigned</p>
-        </div>
+      {/* Vehicle & Other – compact cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+              <Car className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Vehicle Assignments</h3>
+          </div>
+          <div className="text-center py-6 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-dashed border-gray-200 dark:border-gray-600">
+            <Car className="w-10 h-10 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">No vehicle assignments</p>
+          </div>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 rounded-xl bg-purple-100 dark:bg-purple-900/30">
+              <Package className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Other Equipment</h3>
+          </div>
+          <div className="text-center py-6 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-dashed border-gray-200 dark:border-gray-600">
+            <Package className="w-10 h-10 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">No other equipment assigned</p>
+          </div>
+        </motion.div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderDocuments = () => (
     <div className="space-y-6">

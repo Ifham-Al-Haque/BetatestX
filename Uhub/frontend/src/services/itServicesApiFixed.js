@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import notificationService from './notificationService';
 
 // IT Services API Service - FIXED VERSION
 export const itServicesApi = {
@@ -180,11 +181,16 @@ export const itServicesApi = {
       try {
         console.log('Fetching requests with filters:', filters, 'userId:', userId, 'userRole:', userRole);
         
-        // Simple query to base table only - exclude soft-deleted items
+        // Fetch requests with requester and category/priority for display
         let query = supabase
           .from('it_requests')
-          .select('*')
-          .neq('status', 'cancelled') // Exclude soft-deleted items
+          .select(`
+            *,
+            requester:requester_id(full_name, email),
+            category:category_id(name, icon, color),
+            priority:priority_id(name, level, color)
+          `)
+          .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
 
         // Apply filters
@@ -270,16 +276,27 @@ export const itServicesApi = {
 
     update: async (id, requestData) => {
       try {
+        const previous = await supabase.from('it_requests').select('assigned_to').eq('id', id).single();
+        const previousAssignedTo = previous.data?.assigned_to ?? null;
+
+        const payload = {
+          title: requestData.title,
+          description: requestData.description,
+          category_id: requestData.category_id,
+          priority_id: requestData.priority_id,
+          request_type: requestData.request_type,
+          updated_at: new Date().toISOString()
+        };
+        // Only set assigned_to if provided (must be a valid user/employee id per DB FK)
+        if (requestData.assigned_to !== undefined && requestData.assigned_to !== '') {
+          payload.assigned_to = requestData.assigned_to || null;
+          payload.assigned_at = requestData.assigned_to ? new Date().toISOString() : null;
+          if (requestData.assigned_to) payload.status = 'assigned';
+        }
+
         const { data, error } = await supabase
           .from('it_requests')
-          .update({
-            title: requestData.title,
-            description: requestData.description,
-            category_id: requestData.category_id,
-            priority_id: requestData.priority_id,
-            request_type: requestData.request_type,
-            updated_at: new Date().toISOString()
-          })
+          .update(payload)
           .eq('id', id)
           .select()
           .single();
@@ -287,6 +304,11 @@ export const itServicesApi = {
         if (error) {
           console.error('Request update error:', error);
           throw error;
+        }
+
+        const newAssignedTo = data?.assigned_to ?? null;
+        if (newAssignedTo && newAssignedTo !== previousAssignedTo) {
+          setTimeout(() => notificationService.sendITRequestAssignmentNotification(data), 0);
         }
         return data;
       } catch (error) {

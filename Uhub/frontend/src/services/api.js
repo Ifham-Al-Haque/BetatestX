@@ -257,6 +257,7 @@ export const apiService = {
       // Apply filters
       if (filters.status) query = query.eq('status', filters.status);
       if (filters.type) query = query.eq('type', filters.type);
+      if (filters.assigned_to) query = query.eq('assigned_to', filters.assigned_to);
       if (filters.search) {
         // Build OR conditions across base columns
         let orConditions = `name.ilike.*${filters.search}*,type.ilike.*${filters.search}*,asset_code.ilike.*${filters.search}*,lpo_number.ilike.*${filters.search}*`;

@@ -108,12 +108,13 @@ export const useArchivedEmployees = (page = 1, limit = 50, search = '') => {
 };
 
 // Asset hooks
-export const useAssets = (page = 1, limit = 50, filters = {}) => {
+export const useAssets = (page = 1, limit = 50, filters = {}, options = {}) => {
   return useQuery({
     queryKey: ['assets', page, limit, filters],
     queryFn: () => apiService.assets.getAll(page, limit, filters),
     staleTime: 2 * 60 * 1000, // 2 minutes
     keepPreviousData: true,
+    ...options,
   });
 };
 

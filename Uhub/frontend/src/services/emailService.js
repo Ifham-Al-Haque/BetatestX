@@ -2,23 +2,25 @@
 import { supabase } from '../supabaseClient'; // Assuming supabaseClient is configured
 
 export const emailService = {
-  // Send basic email notification
+  // Send basic email notification (tries Supabase Edge Function 'send-email' first, then logs)
   sendNotification: async (to, subject, body) => {
+    if (!to || !subject) {
+      console.warn('Email skipped: missing to or subject');
+      return { success: false, message: 'Missing recipient or subject' };
+    }
     try {
-      // In a real application, this would call a serverless function or an external email API
-      // For demonstration, we'll log it and simulate success.
-      console.log(`Simulating email to: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`Body: ${body}`);
-
-      // Example of how you might integrate with a backend function (e.g., Supabase Edge Function)
-      // const { data, error } = await supabase.functions.invoke('send-email', {
-      //   body: { to, subject, body },
-      // });
-
-      // if (error) throw error;
-
-      return { success: true, message: 'Email notification simulated successfully.' };
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: { to, subject, body },
+      });
+      if (!error && data?.ok !== false) {
+        console.log('Email sent via Edge Function to:', to);
+        return { success: true, message: 'Email sent.' };
+      }
+      if (error) {
+        console.warn('Edge Function send-email not available or failed:', error.message, '- logging email locally');
+      }
+      console.log(`[Email would send] To: ${to} | Subject: ${subject}`);
+      return { success: true, message: 'Email notification simulated (no send-email function).' };
     } catch (error) {
       console.error('Error sending email notification:', error);
       return { success: false, message: `Failed to send email: ${error.message}` };

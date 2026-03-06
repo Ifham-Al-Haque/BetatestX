@@ -797,12 +797,13 @@ const ITRequestsEnhanced = () => {
               </motion.div>
             ))
           ) : filteredRequests.map((request, index) => {
-            const category = categories.find(c => c.id === request.category_id);
-            const priority = priorities.find(p => p.id === request.priority_id);
+            const category = request.category || categories.find(c => c.id === request.category_id);
+            const priority = request.priority || priorities.find(p => p.id === request.priority_id);
             const CategoryIcon = getCategoryIcon(category);
             const priorityConfig = getPriorityConfig(priority);
             const statusConfigItem = getStatusConfig(request.status);
             const StatusIcon = statusConfigItem.icon;
+            const requesterName = request.requester?.full_name || request.requester?.email || null;
 
             return (
               <motion.div
@@ -926,18 +927,22 @@ const ITRequestsEnhanced = () => {
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        Created: {new Date(request.created_at).toLocaleDateString()}
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(request.created_at).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {requesterName && (
+                          <span className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {requesterName}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(request.created_at).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(request.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
                     </div>
                   </CardContent>

@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import notificationService from './notificationService';
 
 // IT Services API Service
 export const itServicesApi = {
@@ -520,33 +521,30 @@ export const itServicesApi = {
 
     getById: async (id) => {
       try {
-        // Try enhanced view first, fallback to base table
-        let query = supabase
-          .from('it_requests_with_details')
-          .select('*')
+        // Always use base table with joins so we get requester (view may not have nested requester)
+        const { data, error } = await supabase
+          .from('it_requests')
+          .select(`
+            *,
+            category:category_id(name, description, icon, color),
+            priority:priority_id(name, level, color, sla_hours, description),
+            requester:requester_id(full_name, email, role, department)
+          `)
           .eq('id', id)
           .single();
 
-        const { data, error } = await query;
-        
-        if (error && (error.code === 'PGRST116' || error.status === 404 || error.code === '42P01')) {
-          // Fallback to base table with joins
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('it_requests')
-            .select(`
-              *,
-              category:category_id(name, description, icon, color),
-              priority:priority_id(name, level, color, sla_hours, description),
-              requester:requester_id(full_name, email, role, department)
-            `)
-            .eq('id', id)
-            .single();
-          
-          if (fallbackError) throw fallbackError;
-          return fallbackData;
-        }
-
         if (error) throw error;
+        if (!data) return null;
+
+        // If requester join returned empty (e.g. requester_id is auth.uid but users.id differs), resolve by auth_user_id
+        if (data.requester_id && (!data.requester || !data.requester.full_name)) {
+          const { data: u } = await supabase.from('users').select('full_name, email, department, role').eq('id', data.requester_id).single();
+          if (u) data.requester = u;
+          if (!data.requester) {
+            const { data: u2 } = await supabase.from('users').select('full_name, email, department, role').eq('auth_user_id', data.requester_id).single();
+            if (u2) data.requester = u2;
+          }
+        }
         return data;
       } catch (error) {
         console.error('Error fetching request:', error);
@@ -596,10 +594,10 @@ export const itServicesApi = {
       try {
         console.log('🔄 Updating IT request:', id, 'with data:', updateData);
         
-        // Get current request data to check for status changes
+        // Get current request data to check for status and assignment changes
         const { data: currentRequest, error: fetchError } = await supabase
           .from('it_requests')
-          .select('status')
+          .select('status, assigned_to')
           .eq('id', id)
           .single();
 
@@ -633,16 +631,29 @@ export const itServicesApi = {
 
         // Send notification if status changed (non-blocking)
         if (currentRequest && updateData.status && currentRequest.status !== updateData.status) {
-          // Use setTimeout to make notification non-blocking
           setTimeout(async () => {
             try {
               const { default: SimpleNotificationService } = await import('./simpleNotificationService');
-              const notificationService = new SimpleNotificationService();
-              await notificationService.notifyITRequestStatusUpdate(data, currentRequest.status, updateData.status);
+              const svc = new SimpleNotificationService();
+              await svc.notifyITRequestStatusUpdate(data, currentRequest.status, updateData.status);
               console.log('✅ IT Request status update notification sent successfully');
             } catch (notificationError) {
               console.error('⚠️ Failed to send IT request status update notification:', notificationError);
-              // This won't affect the main update operation
+            }
+          }, 0);
+        }
+
+        // Send assignment notification + email when assigned_to is set or changed
+        const newAssignedTo = (updateData.assigned_to !== undefined && updateData.assigned_to !== '') ? updateData.assigned_to : null;
+        const previousAssignedTo = currentRequest?.assigned_to ?? null;
+        const assignedChanged = newAssignedTo && String(newAssignedTo) !== String(previousAssignedTo);
+        if (assignedChanged) {
+          setTimeout(async () => {
+            try {
+              await notificationService.sendITRequestAssignmentNotification(data);
+              console.log('✅ Assignment notification (in-app + email) sent to assignee');
+            } catch (e) {
+              console.error('⚠️ Assignment notification failed:', e);
             }
           }, 0);
         }
@@ -683,6 +694,11 @@ export const itServicesApi = {
           .single();
 
         if (error) throw error;
+
+        // Send assignment notification + email when assignee is set
+        if (assignedTo && data?.assigned_to) {
+          setTimeout(() => notificationService.sendITRequestAssignmentNotification(data), 0);
+        }
         return data;
       } catch (error) {
         console.error('Error updating request status:', error);
@@ -706,6 +722,11 @@ export const itServicesApi = {
           .single();
 
         if (error) throw error;
+
+        // Send in-app + email notification to assignee (non-blocking)
+        if (data?.assigned_to) {
+          setTimeout(() => notificationService.sendITRequestAssignmentNotification(data), 0);
+        }
         return data;
       } catch (error) {
         console.error('Error assigning request:', error);

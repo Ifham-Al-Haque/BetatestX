@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { emailService } from './emailService';
 
 class NotificationService {
   constructor() {
@@ -548,6 +549,93 @@ class NotificationService {
       return 2; // Notified requester and assigned user
     } catch (error) {
       console.error('Error notifying IT request status update:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch assignee + current user and send assignment notification (in-app + email).
+   * Call this after an IT request is assigned; no need to resolve emails yourself.
+   * @param {Object} request - Updated request (id, title, request_number, assigned_to, priority optional)
+   */
+  async sendITRequestAssignmentNotification(request) {
+    const assigneeUserId = request?.assigned_to;
+    if (!assigneeUserId) return 0;
+    try {
+      let assignee = (await supabase.from('users').select('email, full_name').eq('id', assigneeUserId).single()).data;
+      if (!assignee?.email) {
+        assignee = (await supabase.from('users').select('email, full_name').eq('auth_user_id', assigneeUserId).single()).data;
+      }
+      if (!assignee?.email) {
+        assignee = (await supabase.from('employees').select('email, full_name').eq('id', assigneeUserId).single()).data;
+      }
+      if (!assignee?.email) {
+        console.warn('Assignment notification skipped: no assignee email found for id', assigneeUserId);
+        return 0;
+      }
+
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser?.id) return 0;
+
+      let assignedBy = { full_name: 'IT Team', email: '' };
+      let currentUser = (await supabase.from('users').select('full_name, email').eq('id', authUser.id).single()).data;
+      if (!currentUser) {
+        currentUser = (await supabase.from('users').select('full_name, email').eq('auth_user_id', authUser.id).single()).data;
+      }
+      if (currentUser) assignedBy = { full_name: currentUser.full_name || currentUser.email, email: currentUser.email || '' };
+
+      return await this.notifyITRequestAssigned(request, assigneeUserId, assignee.email, assignedBy);
+    } catch (err) {
+      console.error('Failed to send assignment notification:', err);
+      return 0;
+    }
+  }
+
+  /**
+   * Notify assignee when an IT request is assigned to them (in-app + email).
+   * @param {Object} request - Updated request (id, title, request_number, priority, assignee optional)
+   * @param {string} assigneeUserId - User ID of the assignee (for in-app notification)
+   * @param {string} assigneeEmail - Email address to send assignment email to
+   * @param {Object} assignedByUser - { full_name, email } of the user who performed the assignment
+   */
+  async notifyITRequestAssigned(request, assigneeUserId, assigneeEmail, assignedByUser) {
+    try {
+      if (!assigneeEmail) {
+        console.warn('Cannot send assignment notification: no assignee email');
+        return 0;
+      }
+
+      // In-app notification for assignee (RPC may not exist; continue to email either way)
+      try {
+        await this.createNotification({
+          userId: assigneeUserId,
+          type: 'it_request_assigned',
+          title: 'IT Request Assigned to You',
+          message: `You have been assigned to request: ${request.title}`,
+          data: {
+            request_id: request.id,
+            request_title: request.title,
+            request_number: request.request_number,
+            assigned_by: assignedByUser?.full_name || assignedByUser?.email
+          },
+          priority: 'high',
+          actionUrl: `/it-requests?view=${request.id}`,
+          actionLabel: 'View Request'
+        });
+      } catch (e) {
+        console.warn('In-app notification failed (create_notification RPC may be missing):', e?.message);
+      }
+
+      // Email notification to assignee
+      try {
+        await emailService.sendAssignmentNotification(request, assigneeEmail, assignedByUser || { full_name: 'IT Team', email: '' });
+      } catch (emailErr) {
+        console.error('Failed to send assignment email:', emailErr);
+      }
+
+      return 1;
+    } catch (error) {
+      console.error('Error notifying IT request assignment:', error);
       throw error;
     }
   }

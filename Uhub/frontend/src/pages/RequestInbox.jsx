@@ -40,6 +40,7 @@ const RequestInbox = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // grid, list, kanban
   
   // Enhanced filters
@@ -72,6 +73,18 @@ const RequestInbox = () => {
   useEffect(() => {
     fetchData();
   }, [filters]);
+
+  const openRequestDetail = async (request) => {
+    setDetailLoading(true);
+    try {
+      const full = await itServicesApi.requests.getById(request.id);
+      setSelectedRequest(full || request);
+    } catch (e) {
+      setSelectedRequest(request);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -1143,7 +1156,7 @@ const RequestInbox = () => {
                         background: 'var(--card-bg)',
                         border: '1px solid var(--card-border)',
                       }}
-                      onClick={() => setSelectedRequest(request)}
+                      onClick={() => openRequestDetail(request)}
                     >
                       {/* Gradient accent bar */}
                       <div 
@@ -1324,7 +1337,7 @@ const RequestInbox = () => {
                             size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                            setSelectedRequest(request);
+                                openRequestDetail(request);
                               }}
                               className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-md"
                               style={{
@@ -1344,7 +1357,7 @@ const RequestInbox = () => {
                               size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedRequest(request);
+                                  openRequestDetail(request);
                                 }}
                                 className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-lg"
                                 style={{
@@ -1368,9 +1381,17 @@ const RequestInbox = () => {
                     )}
         </motion.div>
 
+        {/* Loading overlay when fetching request detail (for requester info) */}
+        {detailLoading && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/50">
+            <LoadingSpinner />
+            <span className="text-white font-medium">Loading request details...</span>
+          </div>
+        )}
+
         {/* Request Detail Management Modal */}
         <AnimatePresence>
-          {selectedRequest && (
+          {selectedRequest && !detailLoading && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -1615,10 +1636,17 @@ const RequestInbox = () => {
                                   
                                   await itServicesApi.requests.update(selectedRequest.id, {
                                     status: selectedRequest.status,
-                                    assigned_to: selectedRequest.assigned_to
+                                    assigned_to: selectedRequest.assigned_to || null
                                   });
                                   
-                                  success('Request updated successfully!');
+                                  if (selectedRequest.assigned_to) {
+                                    const assignee = itStaff.find(s => s.id === selectedRequest.assigned_to);
+                                    success(assignee?.email
+                                      ? `Request updated. Notification sent to ${assignee.email}`
+                                      : 'Request updated. Assignment notification sent to assignee.');
+                                  } else {
+                                    success('Request updated successfully!');
+                                  }
                                   setSelectedRequest(null);
                                   fetchData();
                                 } catch (error) {
