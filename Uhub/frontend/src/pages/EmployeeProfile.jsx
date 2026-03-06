@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useAssets } from "../hooks/useApi";
+import { useSimCardsByEmployeeName } from "../hooks/useSimCards";
 import UserDropdown from "../components/UserDropdown";
 import DarkModeToggle from "../components/DarkModeToggle";
 
@@ -33,6 +34,10 @@ export default function EmployeeProfile() {
     { enabled: !!id }
   );
   const assignedAssets = assignedAssetsData?.data ?? [];
+
+  // Fetch SIM cards assigned to this employee (by current_user = full_name)
+  const employeeFullName = employee?.full_name || employee?.name || '';
+  const { data: assignedSimCards = [], isLoading: simCardsLoading } = useSimCardsByEmployeeName(employeeFullName);
 
   const fetchEmployee = useCallback(async () => {
     setLoading(true);
@@ -698,6 +703,78 @@ export default function EmployeeProfile() {
               <ExternalLink className="w-4 h-4" />
             </Link>
           </motion.div>
+        )}
+      </div>
+
+      {/* SIM Cards – linked from SIM Card management */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-cyan-100 dark:bg-cyan-900/30">
+              <Phone className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">SIM Cards Assigned</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Linked from SIM Card management · assign or unassign there to update</p>
+            </div>
+          </div>
+          <Link
+            to="/simcards"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 font-medium text-sm hover:bg-cyan-200 dark:hover:bg-cyan-900/50 transition-colors border border-cyan-200 dark:border-cyan-700/50"
+          >
+            Manage SIM Cards
+            <ExternalLink className="w-4 h-4" />
+          </Link>
+        </div>
+        {simCardsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-cyan-500 border-t-transparent" />
+          </div>
+        ) : assignedSimCards.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {assignedSimCards.map((sim, i) => (
+              <motion.div
+                key={sim.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * i }}
+                whileHover={{ y: -2 }}
+                className="group p-5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/30 hover:border-cyan-300 dark:hover:border-cyan-600/50 transition-colors"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex-shrink-0">
+                    <Phone className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-gray-900 dark:text-white truncate">
+                      {sim.sim_number || '—'}
+                    </h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      {sim.package_name || '—'}{sim.package_type ? ` · ${sim.package_type}` : ''}
+                    </p>
+                    <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                      <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300 capitalize">
+                        {sim.status || 'Active'}
+                      </span>
+                      <Link
+                        to="/simcards"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
+                      >
+                        View
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 rounded-xl bg-gray-50 dark:bg-gray-700/30 border border-dashed border-gray-200 dark:border-gray-600">
+            <Phone className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">No SIM cards assigned</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Assign in SIM Card management with this employee’s name as Current User</p>
+          </div>
         )}
       </div>
 

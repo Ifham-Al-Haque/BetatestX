@@ -225,6 +225,30 @@ export const useSimCardsByDepartment = (department) => {
   });
 };
 
+// Get SIM cards assigned to an employee (by current_user name match)
+export const useSimCardsByEmployeeName = (employeeFullName) => {
+  return useQuery({
+    queryKey: ['simCards', 'byEmployee', employeeFullName],
+    queryFn: async () => {
+      if (!employeeFullName || !String(employeeFullName).trim()) return [];
+      const name = String(employeeFullName).trim();
+      const { data, error } = await supabase
+        .from('sim_cards')
+        .select('*')
+        .ilike('current_user', name)
+        .order('sim_number', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching SIM cards by employee:', error);
+        throw error;
+      }
+      return data || [];
+    },
+    enabled: !!employeeFullName?.trim(),
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
 // Search SIM cards
 export const useSearchSimCards = (searchTerm) => {
   return useQuery({
