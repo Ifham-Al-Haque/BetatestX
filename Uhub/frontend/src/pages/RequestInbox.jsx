@@ -89,21 +89,35 @@ const RequestInbox = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [categoriesData, prioritiesData, requestsData, usersData, itStaffData, analyticsData] = await Promise.all([
+      const [categoriesData, prioritiesData, requestsResult, usersData, itStaffData] = await Promise.all([
         itServicesApi.categories.getAll(),
         itServicesApi.priorities.getAll(),
-        itServicesApi.requests.getAllForTech(), // Get all requests for tech roles
+        itServicesApi.requests.getAll({}, null, 'admin'), // All requests for tech (cancelled excluded); client-side filters applied in UI
         fetchUsers(),
-        itServicesApi.users.getITStaff(), // Get IT staff for assignments
-        fetchAnalytics()
+        itServicesApi.users.getITStaff()
       ]);
+
+      const requestsData = requestsResult?.data ?? requestsResult ?? [];
+      const list = Array.isArray(requestsData) ? requestsData : [];
 
       setCategories(categoriesData);
       setPriorities(prioritiesData);
-      setRequests(requestsData);
+      setRequests(list);
       setUsers(usersData);
       setItStaff(itStaffData);
-      setAnalytics(analyticsData);
+      // Compute analytics from the same list so Total / Unassigned / Open match what's shown (cancelled excluded)
+      setAnalytics({
+        totalRequests: list.length,
+        openRequests: list.filter(r => r.status === 'open').length,
+        inProgressRequests: list.filter(r => r.status === 'in_progress').length,
+        resolvedRequests: list.filter(r => r.status === 'resolved').length,
+        averageResolutionTime: analytics.averageResolutionTime ?? 0,
+        categoryBreakdown: analytics.categoryBreakdown ?? [],
+        priorityBreakdown: analytics.priorityBreakdown ?? [],
+        monthlyTrends: analytics.monthlyTrends ?? [],
+        unassignedRequests: list.filter(r => !r.assigned_to && r.status === 'open').length,
+        overdueRequests: analytics.overdueRequests ?? 0
+      });
     } catch (err) {
       console.error('Error fetching data:', err);
       showError('Error', 'Failed to fetch data. Please try again.');
@@ -186,6 +200,27 @@ const RequestInbox = () => {
   // Enhanced filtering and sorting
   const filteredAndSortedRequests = useMemo(() => {
     let filtered = requests;
+
+    if (filters.status) {
+      filtered = filtered.filter(request => request.status === filters.status);
+    }
+    if (filters.category_id) {
+      filtered = filtered.filter(request =>
+        String(request.category_id) === String(filters.category_id)
+      );
+    }
+    if (filters.priority_id) {
+      filtered = filtered.filter(request =>
+        String(request.priority_id) === String(filters.priority_id)
+      );
+    }
+    if (filters.assignedTo === 'unassigned') {
+      filtered = filtered.filter(request => !request.assigned_to);
+    } else if (filters.assignedTo) {
+      filtered = filtered.filter(request =>
+        String(request.assigned_to) === String(filters.assignedTo)
+      );
+    }
 
     // Apply search filter
     if (filters.search) {
@@ -394,65 +429,59 @@ const RequestInbox = () => {
     );
   }
 
+  const statusColumns = ['open', 'assigned', 'in_progress', 'pending_user', 'resolved', 'closed'];
+
   return (
     <div 
       className="min-h-screen p-4 md:p-6 transition-all duration-500"
       style={{
-        background: 'linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)',
+        background: 'var(--bg-primary)',
         color: 'var(--text-primary)'
       }}
     >
       <div className="max-w-7xl mx-auto">
-        {/* Enhanced Header */}
+        {/* Header */}
         <motion.div 
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="mb-8"
+          transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="mb-6"
         >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
-            <div className="flex-1">
-              <div className="flex items-center gap-4 mb-4">
-                <motion.div 
-                  className="p-4 rounded-2xl shadow-lg"
-                  style={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
-                  }}
-                  whileHover={{ scale: 1.05, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 300 }}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <motion.div 
+                className="p-3.5 rounded-2xl"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)'
+                }}
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              >
+                <Inbox className="w-7 h-7 text-white" />
+              </motion.div>
+              <div>
+                <h1 
+                  className="text-2xl md:text-3xl font-bold tracking-tight"
+                  style={{ color: 'var(--text-primary)' }}
                 >
-                  <Inbox className="w-8 h-8 text-white" />
-            </motion.div>
-            <div>
-                  <motion.h1 
-                    className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    Request Inbox
-                  </motion.h1>
-                  <motion.p 
-                    className="text-lg md:text-xl"
-                    style={{ color: 'var(--text-muted)' }}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    Manage all IT service requests across the organization
-                  </motion.p>
-                </div>
+                  Request Inbox
+                </h1>
+                <p 
+                  className="text-sm md:text-base mt-0.5"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Manage IT service requests
+                </p>
+              </div>
             </div>
-          </div>
-          
-            <div className="flex flex-wrap items-center gap-3">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <div className="flex items-center gap-2">
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button
                   variant="outline"
                   onClick={refreshData}
                   disabled={refreshing}
-                  className="flex items-center gap-2 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center gap-2 rounded-xl border transition-all duration-200"
                   style={{
                     background: 'var(--card-bg)',
                     borderColor: 'var(--card-border)',
@@ -460,15 +489,14 @@ const RequestInbox = () => {
                   }}
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  <span>Refresh</span>
+                  Refresh
                 </Button>
               </motion.div>
-              
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button
                   variant="outline"
                   onClick={() => setShowAnalytics(!showAnalytics)}
-                  className="flex items-center gap-2 transition-all duration-200 hover:shadow-md"
+                  className="flex items-center gap-2 rounded-xl border transition-all duration-200"
                   style={{
                     background: 'var(--card-bg)',
                     borderColor: 'var(--card-border)',
@@ -476,360 +504,138 @@ const RequestInbox = () => {
                   }}
                 >
                   <BarChart3 className="w-4 h-4" />
-                  <span>Analytics</span>
+                  Analytics
                 </Button>
               </motion.div>
             </div>
           </div>
 
-          {/* Enhanced Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
-                }}
-                onClick={() => setFilters({ ...filters, status: 'open' })}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
-                        style={{
-                          background: 'var(--accent-primary)',
-                          boxShadow: 'var(--shadow-sm)'
-                        }}
-                      >
-                        <AlertCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                        <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          {analytics.openRequests}
-                        </p>
-                        <p 
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Open Requests
-                        </p>
-                  </div>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+            {[
+              { key: 'open', label: 'Open', value: analytics.openRequests, icon: AlertCircle, color: 'var(--accent-primary)', onClick: () => setFilters(f => ({ ...f, status: f.status === 'open' ? '' : 'open' })) },
+              { key: 'unassigned', label: 'Unassigned', value: analytics.unassignedRequests, icon: Users, color: 'var(--accent-warning)', onClick: () => setFilters(f => ({ ...f, assignedTo: f.assignedTo === 'unassigned' ? '' : 'unassigned' })) },
+              { key: 'in_progress', label: 'In Progress', value: analytics.inProgressRequests, icon: Activity, color: 'var(--accent-info)', onClick: () => setFilters(f => ({ ...f, status: f.status === 'in_progress' ? '' : 'in_progress' })) },
+              { key: 'resolved', label: 'Resolved', value: analytics.resolvedRequests, icon: CheckCircle, color: 'var(--accent-success)', onClick: () => setFilters(f => ({ ...f, status: f.status === 'resolved' ? '' : 'resolved' })) },
+              { key: 'total', label: 'Total', value: analytics.totalRequests, icon: Inbox, color: 'var(--accent-secondary)', onClick: () => setFilters(f => ({ ...f, status: '', assignedTo: '' })) }
+            ].map((stat, i) => {
+              const isActive = (stat.key === 'open' && filters.status === 'open') || (stat.key === 'unassigned' && filters.assignedTo === 'unassigned') || (stat.key === 'in_progress' && filters.status === 'in_progress') || (stat.key === 'resolved' && filters.status === 'resolved') || (stat.key === 'total' && !filters.status && !filters.assignedTo);
+              const Icon = stat.icon;
+              return (
+                <motion.div
+                  key={stat.key}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 * i, duration: 0.3 }}
+                >
+                  <motion.div
+                    className={`rounded-xl cursor-pointer transition-all duration-200 border-2 ${isActive ? 'ring-2 ring-offset-2' : ''}`}
+                    style={{
+                      background: 'var(--card-bg)',
+                      borderColor: isActive ? stat.color : 'var(--card-border)',
+                      boxShadow: isActive ? '0 4px 14px rgba(0,0,0,0.08)' : 'var(--shadow-sm)',
+                      ringColor: stat.color
+                    }}
+                    whileHover={{ y: -2, boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={stat.onClick}
+                  >
+                    <div className="p-4 flex items-center gap-3">
+                      <div className="p-2.5 rounded-lg" style={{ background: stat.color }}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{stat.value}</p>
+                        <p className="text-xs font-medium truncate" style={{ color: 'var(--text-muted)' }}>{stat.label}</p>
+                      </div>
                     </div>
-                    <TrendingUp className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </CardContent>
-            </Card>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
-                }}
-                onClick={() => setFilters({ ...filters, assignedTo: 'unassigned' })}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
-                        style={{
-                          background: 'var(--accent-warning)',
-                          boxShadow: 'var(--shadow-sm)'
-                        }}
-                      >
-                        <Users className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                        <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          {analytics.unassignedRequests}
-                        </p>
-                        <p 
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Unassigned
-                        </p>
-                  </div>
-                    </div>
-                    <AlertTriangle className="w-5 h-5 text-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </CardContent>
-            </Card>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
-                }}
-                onClick={() => setFilters({ ...filters, status: 'in_progress' })}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
-                        style={{
-                          background: 'var(--accent-info)',
-                          boxShadow: 'var(--shadow-sm)'
-                        }}
-                      >
-                        <Activity className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                        <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          {analytics.inProgressRequests}
-                        </p>
-                        <p 
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          In Progress
-                        </p>
-                  </div>
-                    </div>
-                    <Timer className="w-5 h-5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </CardContent>
-            </Card>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
-                }}
-                onClick={() => setFilters({ ...filters, status: 'resolved' })}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
-                        style={{
-                          background: 'var(--accent-success)',
-                          boxShadow: 'var(--shadow-sm)'
-                        }}
-                      >
-                        <CheckCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                        <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          {analytics.resolvedRequests}
-                        </p>
-                        <p 
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Resolved
-                        </p>
-                  </div>
-                    </div>
-                    <Award className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </CardContent>
-            </Card>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <Card 
-                className="hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                style={{
-                  background: 'var(--card-bg)',
-                  borderColor: 'var(--card-border)',
-                  boxShadow: 'var(--shadow-md)'
-                }}
-                onClick={() => setFilters({ ...filters, status: '' })}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div 
-                        className="p-3 rounded-xl"
-                        style={{
-                          background: 'var(--accent-secondary)',
-                          boxShadow: 'var(--shadow-sm)'
-                        }}
-                      >
-                        <Inbox className="w-6 h-6 text-white" />
-          </div>
-                      <div>
-                        <p 
-                          className="text-3xl font-bold mb-1"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          {analytics.totalRequests}
-                        </p>
-                        <p 
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Total Requests
-                        </p>
-        </div>
-                    </div>
-                    <Target className="w-5 h-5 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                  </motion.div>
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
 
-        {/* Enhanced Filters & Controls */}
+        {/* Filters & Controls */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+          className="mb-5"
         >
-          <Card 
-            className="mb-6"
+          <div 
+            className="rounded-xl border p-4 md:p-5 transition-all duration-200"
             style={{
               background: 'var(--card-bg)',
-              borderColor: 'var(--card-border)',
-              boxShadow: 'var(--shadow-md)'
+              borderColor: 'var(--card-border)'
             }}
           >
-          <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-                <div className="flex items-center gap-4">
-                  <h3 
-                    className="text-lg font-semibold"
-                    style={{ color: 'var(--text-primary)' }}
-                  >
-                    Filters & Controls
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowFilters(!showFilters)}
-                      className="flex items-center gap-2"
-                      style={{
-                        background: 'var(--bg-tertiary)',
-                        borderColor: 'var(--border-primary)',
-                        color: 'var(--text-primary)'
-                      }}
-                    >
-                      <Filter className="w-4 h-4" />
-                      <span>Advanced</span>
-                      {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </div>
-                
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Label 
-                      htmlFor="view-mode"
-                      className="text-sm font-medium"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      View:
-                    </Label>
-                    <select
-                      id="view-mode"
-                      value={viewMode}
-                      onChange={(e) => setViewMode(e.target.value)}
-                      className="px-3 py-1 text-sm rounded-md border"
-                      style={{
-                        background: 'var(--bg-tertiary)',
-                        borderColor: 'var(--border-primary)',
-                        color: 'var(--text-primary)'
-                      }}
-                    >
-                      <option value="grid">Grid</option>
-                      <option value="list">List</option>
-                      <option value="kanban">Kanban</option>
-                    </select>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>View</span>
+                  <div 
+                    className="inline-flex p-0.5 rounded-lg border"
+                    style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)' }}
+                  >
+                    {['grid', 'list', 'kanban'].map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setViewMode(mode)}
+                        className="px-3 py-1.5 text-sm font-medium rounded-md capitalize transition-all duration-200"
+                        style={{
+                          background: viewMode === mode ? 'var(--accent-primary)' : 'transparent',
+                          color: viewMode === mode ? 'white' : 'var(--text-secondary)'
+                        }}
+                      >
+                        {mode}
+                      </button>
+                    ))}
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Label 
-                      htmlFor="sort-by"
-                      className="text-sm font-medium"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      Sort:
-                    </Label>
-                    <select
-                      id="sort-by"
-                      value={filters.sortBy}
-                      onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-                      className="px-3 py-1 text-sm rounded-md border"
-                      style={{
-                        background: 'var(--bg-tertiary)',
-                        borderColor: 'var(--border-primary)',
-                        color: 'var(--text-primary)'
-                      }}
-                    >
-                      <option value="created_at">Date Created</option>
-                      <option value="title">Title</option>
-                      <option value="status">Status</option>
-                      <option value="priority_id">Priority</option>
-                    </select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFilters({ 
-                        ...filters, 
-                        sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' 
-                      })}
-                      className="p-1"
-                      style={{
-                        background: 'var(--bg-tertiary)',
-                        borderColor: 'var(--border-primary)',
-                        color: 'var(--text-primary)'
-                      }}
-                    >
-                      <SortAsc className={`w-4 h-4 ${filters.sortOrder === 'desc' ? 'rotate-180' : ''}`} />
-                    </Button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="flex items-center gap-1.5 text-sm font-medium rounded-lg px-2.5 py-1.5 transition-colors"
+                    style={{
+                      background: showFilters ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                      color: showFilters ? 'white' : 'var(--text-secondary)',
+                      border: '1px solid var(--border-primary)'
+                    }}
+                  >
+                    <Filter className="w-4 h-4" />
+                    Advanced
+                    {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={filters.sortBy}
+                    onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+                    className="text-sm rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      borderColor: 'var(--border-primary)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <option value="created_at">Date</option>
+                    <option value="title">Title</option>
+                    <option value="status">Status</option>
+                    <option value="priority_id">Priority</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setFilters({ ...filters, sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc' })}
+                    className="p-2 rounded-lg border transition-colors"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      borderColor: 'var(--border-primary)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <SortAsc className={`w-4 h-4 ${filters.sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                  </button>
                 </div>
               </div>
 
@@ -979,7 +785,8 @@ const RequestInbox = () => {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mt-6 pt-6 border-t"
+                    transition={{ duration: 0.25 }}
+                    className="mt-4 pt-4 border-t"
                     style={{ borderColor: 'var(--border-primary)' }}
                   >
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1031,7 +838,11 @@ const RequestInbox = () => {
                         >
                           <option value="">All Assignees</option>
                           <option value="unassigned">Unassigned</option>
-                          {/* Add user options here */}
+                          {itStaff.map(staff => (
+                            <option key={staff.id} value={staff.id}>
+                              {staff.full_name} {staff.role ? `(${staff.role})` : ''}
+                            </option>
+                          ))}
                         </select>
               </div>
                       
@@ -1063,79 +874,191 @@ const RequestInbox = () => {
                   </motion.div>
                 )}
               </AnimatePresence>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Enhanced Requests List */}
+        {/* Requests List */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="space-y-6"
+          transition={{ delay: 0.25, duration: 0.35 }}
+          className="space-y-4"
         >
           {filteredAndSortedRequests.length === 0 ? (
-            <Card 
-              className="text-center py-12"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-2xl border text-center py-14 px-6"
               style={{
                 background: 'var(--card-bg)',
-                borderColor: 'var(--card-border)',
-                boxShadow: 'var(--shadow-md)'
+                borderColor: 'var(--card-border)'
               }}
             >
-              <CardContent className="p-8">
-                <div 
-                  className="w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center"
+              <div 
+                className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+                style={{ background: 'var(--bg-tertiary)' }}
+              >
+                <Inbox className="w-8 h-8" style={{ color: 'var(--text-muted)' }} />
+              </div>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                No requests found
+              </h3>
+              <p className="text-sm mb-5 max-w-sm mx-auto" style={{ color: 'var(--text-muted)' }}>
+                {filters.search || filters.status || filters.category_id || filters.priority_id
+                  ? 'No requests match your filters. Try adjusting criteria.'
+                  : 'No IT service requests yet.'}
+              </p>
+              {(filters.search || filters.status || filters.category_id || filters.priority_id) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFilters({
+                    status: '', category_id: '', priority_id: '', search: '',
+                    dateRange: '', assignedTo: '', requester: '',
+                    sortBy: 'created_at', sortOrder: 'desc'
+                  })}
+                  className="rounded-xl"
                   style={{
                     background: 'var(--bg-tertiary)',
-                    border: '2px solid var(--border-primary)'
+                    borderColor: 'var(--border-primary)',
+                    color: 'var(--text-primary)'
                   }}
                 >
-                  <Inbox className="w-10 h-10" style={{ color: 'var(--text-muted)' }} />
-                </div>
-                <h3 
-                  className="text-xl font-semibold mb-3"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  No requests found
-                </h3>
-                <p 
-                  className="text-lg mb-6"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {filters.search || filters.status || filters.category_id || filters.priority_id
-                    ? 'No requests match your current filters. Try adjusting your search criteria.'
-                    : 'No IT service requests have been submitted yet.'}
-                </p>
-                {(filters.search || filters.status || filters.category_id || filters.priority_id) && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setFilters({
-                      status: '',
-                      category_id: '',
-                      priority_id: '',
-                      search: '',
-                      dateRange: '',
-                      assignedTo: '',
-                      requester: '',
-                      sortBy: 'created_at',
-                      sortOrder: 'desc'
-                    })}
-                    className="flex items-center gap-2"
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Clear filters
+                </Button>
+              )}
+            </motion.div>
+          ) : viewMode === 'kanban' ? (
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {statusColumns.map((statusKey) => {
+                const columnRequests = filteredAndSortedRequests.filter(r => r.status === statusKey);
+                const statusColor = getStatusColor(statusKey);
+                const StatusIcon = getStatusIcon(statusKey);
+                return (
+                  <div
+                    key={statusKey}
+                    className="flex-shrink-0 w-72 rounded-xl border overflow-hidden flex flex-col"
                     style={{
-                      background: 'var(--bg-tertiary)',
-                      borderColor: 'var(--border-primary)',
-                      color: 'var(--text-primary)'
+                      background: 'var(--card-bg)',
+                      borderColor: 'var(--card-border)'
                     }}
                   >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Clear Filters</span>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                    <div 
+                      className="px-4 py-3 flex items-center gap-2 border-b"
+                      style={{ background: statusColor.bg, color: statusColor.text, borderColor: 'var(--card-border)' }}
+                    >
+                      <StatusIcon className="w-4 h-4" />
+                      <span className="text-sm font-semibold capitalize">{statusKey.replace('_', ' ')}</span>
+                      <span className="ml-auto text-xs opacity-90">({columnRequests.length})</span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto max-h-[70vh] p-2 space-y-2">
+                      {columnRequests.map((request, idx) => {
+                        const sla = getSLAStatus(request);
+                        const priorityColor = getPriorityColor(request.priority);
+                        const PriorityIcon = getPriorityIcon(request.priority);
+                        return (
+                          <motion.div
+                            key={request.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.03 }}
+                            className="rounded-lg border p-3 cursor-pointer hover:shadow-md transition-shadow"
+                            style={{
+                              background: 'var(--card-bg)',
+                              borderColor: 'var(--border-primary)'
+                            }}
+                            onClick={() => openRequestDetail(request)}
+                          >
+                            <p className="font-medium text-sm line-clamp-2 mb-2" style={{ color: 'var(--text-primary)' }}>{request.title}</p>
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              <span className="px-2 py-0.5 text-xs rounded-full" style={{ background: priorityColor.bg, color: priorityColor.text }}>
+                                {request.priority?.name || '—'}
+                              </span>
+                              {sla && (
+                                <span className={`px-2 py-0.5 text-xs rounded-full ${sla.status === 'overdue' ? 'bg-red-500 text-white' : sla.status === 'warning' ? 'bg-amber-500 text-white' : 'bg-emerald-500/20 text-emerald-700'}`}>
+                                  {sla.status === 'overdue' ? `Overdue ${sla.hours}h` : `${sla.hours}h left`}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                              {request.requester?.full_name || request.requester_name || 'Unknown'}
+                            </p>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : viewMode === 'list' ? (
+            <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-primary)' }}>
+                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Request</th>
+                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Status</th>
+                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Priority</th>
+                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Requester</th>
+                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Date</th>
+                      <th className="w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedRequests.map((request, index) => {
+                      const statusColor = getStatusColor(request.status);
+                      const priorityColor = getPriorityColor(request.priority);
+                      const StatusIcon = getStatusIcon(request.status);
+                      const PriorityIcon = getPriorityIcon(request.priority);
+                      return (
+                        <motion.tr
+                          key={request.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: index * 0.02 }}
+                          className="border-b cursor-pointer transition-colors duration-150"
+                          style={{ borderColor: 'var(--border-primary)', background: 'transparent' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                          onClick={() => openRequestDetail(request)}
+                        >
+                          <td className="py-3 px-4">
+                            <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{request.title}</span>
+                            {request.request_number && (
+                              <span className="ml-2 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{request.request_number}</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium" style={{ background: statusColor.bg, color: statusColor.text }}>
+                              <StatusIcon className="w-3.5 h-3.5" />
+                              {request.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium" style={{ background: priorityColor.bg, color: priorityColor.text }}>
+                              <PriorityIcon className="w-3.5 h-3.5" />
+                              {request.priority?.name || '—'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4" style={{ color: 'var(--text-secondary)' }}>{request.requester?.full_name || request.requester_name || 'Unknown'}</td>
+                          <td className="py-3 px-4" style={{ color: 'var(--text-muted)' }}>{formatDate(request.created_at)}</td>
+                          <td className="py-3 px-2">
+                            <Button variant="ghost" size="sm" className="p-1.5" onClick={(e) => { e.stopPropagation(); openRequestDetail(request); }}>
+                              <Eye className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                            </Button>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="grid gap-4">
               {filteredAndSortedRequests.map((request, index) => {
               const sla = getSLAStatus(request);
                 const statusColor = getStatusColor(request.status);
@@ -1146,15 +1069,17 @@ const RequestInbox = () => {
               return (
                   <motion.div
                     key={request.id}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.3 }}
+                    whileHover={{ y: -2 }}
+                    className="transition-shadow duration-200"
                   >
                     <Card 
-                      className="cursor-pointer group overflow-hidden border-0 shadow-md hover:shadow-2xl transition-all duration-300 relative"
+                      className="cursor-pointer group overflow-hidden rounded-xl border shadow-sm hover:shadow-lg relative transition-all duration-200"
                       style={{
                         background: 'var(--card-bg)',
-                        border: '1px solid var(--card-border)',
+                        borderColor: 'var(--card-border)'
                       }}
                       onClick={() => openRequestDetail(request)}
                     >
@@ -1381,23 +1306,36 @@ const RequestInbox = () => {
                     )}
         </motion.div>
 
-        {/* Loading overlay when fetching request detail (for requester info) */}
+        {/* Loading overlay when fetching request detail */}
         {detailLoading && (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/50">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/40 backdrop-blur-sm"
+          >
             <LoadingSpinner />
             <span className="text-white font-medium">Loading request details...</span>
-          </div>
+          </motion.div>
         )}
 
-        {/* Request Detail Management Modal */}
+        {/* Request Detail Modal */}
         <AnimatePresence>
           {selectedRequest && !detailLoading && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              onClick={() => setSelectedRequest(null)}
+            >
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                 style={{
                   background: 'var(--card-bg)',
                   border: '1px solid var(--card-border)',
@@ -1733,7 +1671,7 @@ const RequestInbox = () => {
                   </div>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
 

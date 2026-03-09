@@ -337,12 +337,17 @@ const ITRequestsEnhanced = () => {
     e.preventDefault();
     setFormSubmitting(true);
     try {
-      // Get the current authenticated user
+      // Get the current authenticated user (who is raising the ticket)
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      
+      const requesterId = authUser?.id ?? user?.id;
+      if (!requesterId && !editingRequest) {
+        showError('Cannot create request', 'You must be logged in to raise a ticket. Please sign in and try again.');
+        setFormSubmitting(false);
+        return;
+      }
       const requestData = {
         ...formData,
-        requester_id: authUser?.id // Use Supabase auth user ID for RLS compliance
+        requester_id: requesterId ?? editingRequest?.requester_id // Requester = person raising the ticket
       };
 
       if (editingRequest) {

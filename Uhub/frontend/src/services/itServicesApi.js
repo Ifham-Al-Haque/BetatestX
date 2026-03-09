@@ -389,8 +389,9 @@ export const itServicesApi = {
 
         if (error) throw error;
 
+        // Exclude soft-deleted (cancelled) - in case view didn't filter
+        let filteredData = (data || []).filter(request => request.status !== 'cancelled');
         // Apply role-based filtering for view data - non-IT users see only their own requests
-        let filteredData = data || [];
         if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
           filteredData = filteredData.filter(request => request.requester_id === userId);
         }
@@ -423,80 +424,47 @@ export const itServicesApi = {
           );
         }
 
-        // If requester information is missing, fetch it separately
+        // If requester information is missing, fetch it separately (requester_id may be auth.uid or users/employees id)
         if (filteredData.length > 0 && (!filteredData[0].requester || !filteredData[0].requester.full_name)) {
-          console.log('Fetching requester information separately...');
-          const requesterIds = [...new Set(filteredData.map(req => req.requester_id))];
-          
+          const requesterIds = [...new Set(filteredData.map(req => req.requester_id).filter(Boolean))];
+          const requesterMap = {};
+
           try {
-            // Try to fetch from employees table first
-            const { data: employeesData, error: employeesError } = await supabase
-              .from('employees')
-              .select('id, full_name, email, department, role')
-              .in('id', requesterIds);
-
-            if (!employeesError && employeesData) {
-              const requesterMap = {};
-              employeesData.forEach(emp => {
-                requesterMap[emp.id] = {
-                  full_name: emp.full_name,
-                  email: emp.email,
-                  department: emp.department,
-                  role: emp.role
-                };
+            // Try by id (employees / users primary key)
+            const [byEmpId, byUserId] = await Promise.all([
+              supabase.from('employees').select('id, auth_user_id, full_name, email, department, role').in('id', requesterIds),
+              supabase.from('users').select('id, auth_user_id, full_name, email, department, role').in('id', requesterIds)
+            ]);
+            [byEmpId.data, byUserId.data].forEach((rows) => {
+              if (rows) rows.forEach((row) => {
+                requesterMap[row.id] = { full_name: row.full_name, email: row.email, department: row.department, role: row.role };
+                if (row.auth_user_id) requesterMap[row.auth_user_id] = { full_name: row.full_name, email: row.email, department: row.department, role: row.role };
               });
+            });
 
-              // Merge requester information
-              filteredData = filteredData.map(request => ({
-                ...request,
-                requester: requesterMap[request.requester_id] || {
-                  full_name: 'Unknown User',
-                  email: null,
-                  department: null,
-                  role: null
-                }
-              }));
-            } else {
-              // Try users table as fallback
-              const { data: usersData, error: usersError } = await supabase
-                .from('users')
-                .select('id, full_name, email, department, role')
-                .in('id', requesterIds);
-
-              if (!usersError && usersData) {
-                const requesterMap = {};
-                usersData.forEach(user => {
-                  requesterMap[user.id] = {
-                    full_name: user.full_name,
-                    email: user.email,
-                    department: user.department,
-                    role: user.role
-                  };
+            // Try by auth_user_id (requester_id is often auth.uid from Supabase Auth)
+            if (requesterIds.some((id) => !requesterMap[id])) {
+              const [empByAuth, usersByAuth] = await Promise.all([
+                supabase.from('employees').select('id, auth_user_id, full_name, email, department, role').in('auth_user_id', requesterIds),
+                supabase.from('users').select('id, auth_user_id, full_name, email, department, role').in('auth_user_id', requesterIds)
+              ]);
+              [empByAuth.data, usersByAuth.data].forEach((rows) => {
+                if (rows) rows.forEach((row) => {
+                  if (row.auth_user_id) requesterMap[row.auth_user_id] = { full_name: row.full_name, email: row.email, department: row.department, role: row.role };
+                  requesterMap[row.id] = { full_name: row.full_name, email: row.email, department: row.department, role: row.role };
                 });
-
-                // Merge requester information
-                filteredData = filteredData.map(request => ({
-                  ...request,
-                  requester: requesterMap[request.requester_id] || {
-                    full_name: 'Unknown User',
-                    email: null,
-                    department: null,
-                    role: null
-                  }
-                }));
-              } else {
-                // If both fail, set default requester info
-                filteredData = filteredData.map(request => ({
-                  ...request,
-                  requester: {
-                    full_name: 'Unknown User',
-                    email: null,
-                    department: null,
-                    role: null
-                  }
-                }));
-              }
+              });
             }
+
+            filteredData = filteredData.map((request) => ({
+              ...request,
+              requester: requesterMap[request.requester_id] || {
+                full_name: 'Unknown User',
+                email: null,
+                department: null,
+                role: null
+              }
+            }));
           } catch (fetchError) {
             console.error('Error fetching requester information:', fetchError);
             // Set default requester info on error

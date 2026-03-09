@@ -124,8 +124,8 @@ class NotificationService {
     }
   }
 
-  // Get notifications for current user
-  async getNotifications({ limit = 50, offset = 0, unreadOnly = false } = {}) {
+  // Get notifications for current user (pass userId to only load that user's notifications)
+  async getNotifications({ limit = 50, offset = 0, unreadOnly = false, userId = null } = {}) {
     try {
       let query = supabase
         .from('notifications')
@@ -133,6 +133,9 @@ class NotificationService {
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
       if (unreadOnly) {
         query = query.eq('is_read', false);
       }
@@ -314,34 +317,37 @@ class NotificationService {
   // Setup all notification subscriptions
   async setupAllNotifications(addNotificationCallback) {
     try {
-      // Subscribe to general notifications
+      // Subscribe to general notifications (INSERT only: new row → show alert + play sound)
       const generalSub = await this.subscribeToUserNotifications((payload) => {
-        if (payload.eventType === 'INSERT') {
+        const isInsert = payload?.eventType === 'INSERT' || (payload?.new && payload?.old == null);
+        const row = payload?.new;
+        if (isInsert && row) {
           addNotificationCallback({
-            id: payload.new.id,
-            type: payload.new.type,
-            title: payload.new.title,
-            message: payload.new.message,
-            priority: payload.new.priority,
-            data: payload.new.data,
-            timestamp: payload.new.created_at,
-            read: payload.new.is_read ?? false
+            id: row.id,
+            type: row.type,
+            title: row.title,
+            message: row.message,
+            priority: row.priority || 'medium',
+            data: row.data,
+            timestamp: row.created_at,
+            read: row.is_read ?? false
           });
         }
       });
 
       // Subscribe to system-wide notifications
       const systemSub = this.subscribeToNotifications((payload) => {
-        if (payload.eventType === 'INSERT') {
+        const row = payload?.new;
+        if (row) {
           addNotificationCallback({
-            id: payload.new.id,
-            type: payload.new.type,
-            title: payload.new.title,
-            message: payload.new.message,
-            priority: payload.new.priority,
-            data: payload.new.data,
-            timestamp: payload.new.created_at,
-            read: payload.new.is_read ?? false
+            id: row.id,
+            type: row.type,
+            title: row.title,
+            message: row.message,
+            priority: row.priority || 'medium',
+            data: row.data,
+            timestamp: row.created_at,
+            read: row.is_read ?? false
           });
         }
       });
@@ -477,11 +483,14 @@ class NotificationService {
   // IT Request notifications
   async notifyITRequestCreated(request) {
     try {
-      // Notify IT managers and admins
-      const roles = ['it_management', 'admin'];
+      // Notify IT managers and admins (include both role name variants used in the app)
+      const roles = ['it_management', 'it_manager', 'admin'];
+      const seen = new Set();
       let totalNotifications = 0;
 
       for (const role of roles) {
+        if (seen.has(role)) continue;
+        seen.add(role);
         const count = await this.createNotificationsForRole({
           role,
           type: 'it_request',
@@ -562,12 +571,19 @@ class NotificationService {
     const assigneeUserId = request?.assigned_to;
     if (!assigneeUserId) return 0;
     try {
-      let assignee = (await supabase.from('users').select('email, full_name').eq('id', assigneeUserId).single()).data;
-      if (!assignee?.email) {
-        assignee = (await supabase.from('users').select('email, full_name').eq('auth_user_id', assigneeUserId).single()).data;
-      }
-      if (!assignee?.email) {
-        assignee = (await supabase.from('employees').select('email, full_name').eq('id', assigneeUserId).single()).data;
+      // Resolve assignee: try users.id, users.auth_user_id, employees.id, employees.auth_user_id (assignee may be from users or employees)
+      let assignee = null;
+      let notificationUserId = assigneeUserId; // For in-app: use auth_user_id when available so the notification shows for the logged-in user
+      const [byUsersId, byUsersAuth, byEmpId, byEmpAuth] = await Promise.all([
+        supabase.from('users').select('id, auth_user_id, email, full_name').eq('id', assigneeUserId).maybeSingle(),
+        supabase.from('users').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeUserId).maybeSingle(),
+        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('id', assigneeUserId).maybeSingle(),
+        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeUserId).maybeSingle()
+      ]);
+      const u = byUsersId.data || byUsersAuth.data || byEmpId.data || byEmpAuth.data;
+      if (u) {
+        assignee = { email: u.email, full_name: u.full_name };
+        if (u.auth_user_id) notificationUserId = u.auth_user_id; // Prefer auth user id for notification delivery
       }
       if (!assignee?.email) {
         console.warn('Assignment notification skipped: no assignee email found for id', assigneeUserId);
@@ -575,16 +591,15 @@ class NotificationService {
       }
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser?.id) return 0;
-
       let assignedBy = { full_name: 'IT Team', email: '' };
-      let currentUser = (await supabase.from('users').select('full_name, email').eq('id', authUser.id).single()).data;
-      if (!currentUser) {
-        currentUser = (await supabase.from('users').select('full_name, email').eq('auth_user_id', authUser.id).single()).data;
+      if (authUser?.id) {
+        const cur = (await supabase.from('users').select('full_name, email').eq('id', authUser.id).maybeSingle()).data
+          || (await supabase.from('users').select('full_name, email').eq('auth_user_id', authUser.id).maybeSingle()).data
+          || (await supabase.from('employees').select('full_name, email').eq('auth_user_id', authUser.id).maybeSingle()).data;
+        if (cur) assignedBy = { full_name: cur.full_name || cur.email, email: cur.email || '' };
       }
-      if (currentUser) assignedBy = { full_name: currentUser.full_name || currentUser.email, email: currentUser.email || '' };
 
-      return await this.notifyITRequestAssigned(request, assigneeUserId, assignee.email, assignedBy);
+      return await this.notifyITRequestAssigned(request, notificationUserId, assignee.email, assignedBy);
     } catch (err) {
       console.error('Failed to send assignment notification:', err);
       return 0;
@@ -599,12 +614,12 @@ class NotificationService {
    * @param {Object} assignedByUser - { full_name, email } of the user who performed the assignment
    */
   async notifyITRequestAssigned(request, assigneeUserId, assigneeEmail, assignedByUser) {
+    const email = assigneeEmail && String(assigneeEmail).trim();
+    if (!email) {
+      console.warn('Cannot send assignment notification: no assignee email');
+      return 0;
+    }
     try {
-      if (!assigneeEmail) {
-        console.warn('Cannot send assignment notification: no assignee email');
-        return 0;
-      }
-
       // In-app notification for assignee (RPC may not exist; continue to email either way)
       try {
         await this.createNotification({
@@ -619,16 +634,21 @@ class NotificationService {
             assigned_by: assignedByUser?.full_name || assignedByUser?.email
           },
           priority: 'high',
-          actionUrl: `/it-requests?view=${request.id}`,
+          actionUrl: `/request-inbox` + (request.id ? `?view=${request.id}` : ''),
           actionLabel: 'View Request'
         });
       } catch (e) {
         console.warn('In-app notification failed (create_notification RPC may be missing):', e?.message);
       }
 
-      // Email notification to assignee
+      // Email notification to assignee (always attempt when we have email)
       try {
-        await emailService.sendAssignmentNotification(request, assigneeEmail, assignedByUser || { full_name: 'IT Team', email: '' });
+        const result = await emailService.sendAssignmentNotification(request, email, assignedByUser || { full_name: 'IT Team', email: '' });
+        if (result?.success) {
+          console.log('Assignment email sent to', email);
+        } else {
+          console.warn('Assignment email result:', result?.message || 'unknown');
+        }
       } catch (emailErr) {
         console.error('Failed to send assignment email:', emailErr);
       }

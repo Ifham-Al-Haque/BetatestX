@@ -105,11 +105,26 @@ class SoundNotificationService {
     switch (type) {
       case 'task_assigned':
       case 'assignment':
-        // Task assignment - pleasant double beep
+      case 'it_request_assigned':
+        // Task / IT request assignment - pleasant double beep
         this.playBeep(600, 150, 'sine');
         setTimeout(() => {
           this.playBeep(800, 200, 'sine');
         }, 150);
+        break;
+
+      case 'it_request':
+      case 'it_request_update':
+        // New IT request or status update - attention double beep (slightly higher)
+        this.playBeep(700, 120, 'sine');
+        setTimeout(() => {
+          this.playBeep(900, 180, 'sine');
+        }, 130);
+        break;
+
+      case 'status_change':
+      case 'comment':
+        this.playBeep(800, 200, 'sine');
         break;
 
       case 'urgent':

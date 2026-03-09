@@ -25,6 +25,12 @@ const NotificationDemo = () => {
       priority: 'low'
     },
     {
+      type: 'it_request_assigned',
+      title: 'IT Request Assigned to You',
+      message: 'You have been assigned to request: Test Ticket',
+      priority: 'high'
+    },
+    {
       type: 'calendar',
       title: 'Test Calendar Event',
       message: 'This is a test calendar event notification',

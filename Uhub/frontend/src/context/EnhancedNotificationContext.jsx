@@ -70,10 +70,11 @@ export const NotificationProvider = ({ children }) => {
     };
   }, [user?.id, setupNotificationSubscriptions]);
 
-  // Load notifications from database
+  // Load notifications from database (current user only)
   const loadNotifications = async () => {
+    if (!user?.id) return;
     try {
-      const data = await notificationService.getNotifications({ limit: 20 });
+      const data = await notificationService.getNotifications({ limit: 20, userId: user.id });
       setNotifications(data);
     } catch (error) {
       console.error('Error loading notifications:', error);

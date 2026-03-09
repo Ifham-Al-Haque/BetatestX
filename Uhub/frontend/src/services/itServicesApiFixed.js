@@ -180,8 +180,9 @@ export const itServicesApi = {
     getAll: async (filters = {}, userId = null, userRole = null) => {
       try {
         console.log('Fetching requests with filters:', filters, 'userId:', userId, 'userRole:', userRole);
-        
-        // Fetch requests with requester and category/priority for display
+        const isITStaff = userRole && ['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole);
+
+        // Fetch requests with requester and category/priority for display; exclude soft-deleted (cancelled)
         let query = supabase
           .from('it_requests')
           .select(`
@@ -192,6 +193,11 @@ export const itServicesApi = {
           `)
           .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
+
+        // Role-based: non-IT users see only their own requests
+        if (!isITStaff && userId) {
+          query = query.eq('requester_id', userId);
+        }
 
         // Apply filters
         if (filters.status) {
@@ -215,8 +221,10 @@ export const itServicesApi = {
           throw error;
         }
 
-        console.log('Fetched requests:', data?.length || 0);
-        return data || [];
+        // Safety: exclude any cancelled that might slip through (e.g. view/RLS)
+        const list = (data || []).filter((r) => r.status !== 'cancelled');
+        console.log('Fetched requests (excluding cancelled):', list.length);
+        return list;
         
       } catch (error) {
         console.error('Error fetching requests:', error);
@@ -246,7 +254,11 @@ export const itServicesApi = {
     create: async (requestData) => {
       try {
         console.log('Creating request with data:', requestData);
-        
+        let requesterId = requestData.requester_id;
+        if (!requesterId) {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          requesterId = authUser?.id ?? null;
+        }
         const { data, error } = await supabase
           .from('it_requests')
           .insert({
@@ -255,7 +267,7 @@ export const itServicesApi = {
             request_type: requestData.request_type || 'it_service',
             category_id: requestData.category_id,
             priority_id: requestData.priority_id,
-            requester_id: requestData.requester_id,
+            requester_id: requesterId,
             status: 'open'
           })
           .select()
@@ -267,6 +279,13 @@ export const itServicesApi = {
         }
 
         console.log('Request created successfully:', data);
+        // Notify IT managers/admins that a ticket has been raised (in-app notifications)
+        try {
+          await notificationService.notifyITRequestCreated(data);
+          console.log('IT request created notification sent');
+        } catch (notificationError) {
+          console.warn('Failed to send IT request notification:', notificationError);
+        }
         return data;
       } catch (error) {
         console.error('Error creating request:', error);

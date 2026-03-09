@@ -1,0 +1,24 @@
+---
+description: UHub users table vs UDrive employees table - do not confuse
+alwaysApply: true
+---
+
+# Users vs Employees (Critical Distinction)
+
+**Do not conflate these two tables.** They serve different purposes and must be used correctly in code and in AI responses.
+
+## `users` table
+- **Purpose:** UHub **account holders** — people who can **log into the UHub app**.
+- **Use for:** Authentication, app access, roles, notifications for “who is using the system,” IT staff dropdown (if IT staff are UHub users), anything that refers to **“the person logged in”** or **“UHub user”**.
+- **Typical fields:** id, auth_user_id, email, full_name, role, status (account status).
+
+## `employees` table
+- **Purpose:** **UDrive employees** — HR/company records of staff (employee data).
+- **Use for:** Employee profiles, org chart, department, designation, who works at UDrive, Asset Assignment (assigned_to employee), SIM current_user (employee name), anything that refers to **“the employee as a company record”** or **“UDrive employee”**.
+- **Typical fields:** id, full_name, employee_id, department, designation, hire_date, reporting_manager_id, auth_user_id (optional link to a UHub user).
+
+## Rules when writing or suggesting code
+1. **Requester / Assignee / “who raised the ticket”:** If it’s “who is logged into UHub,” use `users` (and often `auth_user_id` or users.id). If it’s “which UDrive employee,” use `employees`.
+2. **IT Request assignment:** If assignees are UHub users (e.g. IT staff with accounts), store and resolve via `users`. If assignees are selected from an employee list, store and resolve via `employees` (e.g. employees.id, employees.email).
+3. **Lookups:** When resolving “who is this person?” check context: app/login/notifications → `users`; company/HR/profile/asset assignment → `employees`. Do not default to “try both in random order” without a clear reason (e.g. legacy fields that can hold either).
+4. **Naming in code/comments:** Say “UHub user” when referring to `users`, and “UDrive employee” or “employee record” when referring to `employees`.

@@ -59,6 +59,11 @@ export const NotificationProvider = ({ children }) => {
             return 'status_change';
           case 'task_comment':
             return 'comment';
+          case 'it_request_assigned':
+            return 'it_request_assigned';
+          case 'it_request':
+          case 'it_request_update':
+            return type;
           default:
             return type || priority || 'default';
         }
@@ -105,7 +110,7 @@ export const NotificationProvider = ({ children }) => {
     
     try {
       // Load general notifications from notifications table
-      const generalNotifications = await notificationService.getNotifications({ limit: 50 });
+      const generalNotifications = await notificationService.getNotifications({ limit: 50, userId: user.id });
       
       // Load task notifications from task_notifications table
       // user.id from useAuth() is the auth.users.id (auth_user_id)
