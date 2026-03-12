@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { 
   Home, 
   BarChart3, 
@@ -36,8 +36,11 @@ const UserWelcome = () => {
   const { user, userProfile, role } = useAuth();
   const [currentFeature, setCurrentFeature] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  const featureIntervalRef = useRef(null);
+  const isCarouselPausedRef = useRef(false);
 
-  const features = [
+  const features = useMemo(() => ([
     {
       icon: BarChart3,
       title: 'Analytics Dashboard',
@@ -66,26 +69,48 @@ const UserWelcome = () => {
       color: 'from-orange-500 to-red-600',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20'
     }
-  ];
+  ]), []);
 
-  const benefits = [
+  const benefits = useMemo(() => ([
     'Unified platform for all departments',
     'Real-time collaboration tools',
     'Advanced security & compliance',
     '24/7 system availability',
     'Mobile-responsive design',
     'Comprehensive reporting suite'
-  ];
+  ]), []);
 
   useEffect(() => {
     setIsVisible(true);
-    
-    const interval = setInterval(() => {
-      setCurrentFeature((prev) => (prev + 1) % features.length);
-    }, 4000);
+    if (prefersReducedMotion) return () => {};
 
-    return () => clearInterval(interval);
-  }, []);
+    const start = () => {
+      if (featureIntervalRef.current) return;
+      featureIntervalRef.current = setInterval(() => {
+        if (isCarouselPausedRef.current) return;
+        setCurrentFeature((prev) => (prev + 1) % features.length);
+      }, 4500);
+    };
+
+    const stop = () => {
+      if (!featureIntervalRef.current) return;
+      clearInterval(featureIntervalRef.current);
+      featureIntervalRef.current = null;
+    };
+
+    const onFocus = () => start();
+    const onBlur = () => stop();
+
+    start();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+
+    return () => {
+      stop();
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [features.length, prefersReducedMotion]);
 
   const handleFeatureClick = (index) => {
     setCurrentFeature(index);
@@ -153,7 +178,24 @@ const UserWelcome = () => {
   const quickActions = getQuickActions();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden">
+      {/* Subtle animated backdrop blobs (disabled for reduced-motion) */}
+      {!prefersReducedMotion && (
+        <>
+          <motion.div
+            aria-hidden
+            className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-emerald-500/20 blur-3xl"
+            animate={{ x: [0, 40, -10, 0], y: [0, 20, 35, 0], opacity: [0.45, 0.6, 0.5, 0.45] }}
+            transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            aria-hidden
+            className="absolute top-40 -right-28 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl"
+            animate={{ x: [0, -35, 15, 0], y: [0, 25, -10, 0], opacity: [0.35, 0.55, 0.4, 0.35] }}
+            transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </>
+      )}
       {/* Enhanced Header with Glass Effect - Mobile Optimized */}
       <div className="relative z-10 p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 md:mb-8">
         <div className="flex justify-between items-center gap-2 sm:gap-4">
@@ -188,8 +230,8 @@ const UserWelcome = () => {
           {/* Animated welcome text */}
           <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <motion.div
-              animate={{ rotate: [0, 5, -5, 0] }}
-              transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
+              animate={prefersReducedMotion ? {} : { rotate: [0, 4, -4, 0] }}
+              transition={prefersReducedMotion ? {} : { duration: 3.2, repeat: Infinity, repeatDelay: 2.2, ease: 'easeInOut' }}
               className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 md:mb-8 shadow-2xl"
             >
               <welcome.icon className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
@@ -227,6 +269,27 @@ const UserWelcome = () => {
               <span className="text-xs sm:text-sm">Global Access</span>
             </div>
           </div>
+
+          {/* Scroll hint */}
+          <div className="mt-10 sm:mt-12 flex justify-center">
+            <motion.button
+              type="button"
+              onClick={() => window.scrollTo({ top: window.innerHeight * 0.9, behavior: 'smooth' })}
+              className="group inline-flex items-center gap-2 text-xs sm:text-sm text-white/70 hover:text-white transition-colors px-4 py-2 rounded-full border border-white/15 bg-white/5 backdrop-blur"
+              whileHover={prefersReducedMotion ? {} : { y: -2 }}
+              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+              aria-label="Scroll to explore features"
+            >
+              <span>Scroll to explore</span>
+              <motion.span
+                aria-hidden
+                animate={prefersReducedMotion ? {} : { y: [0, 3, 0] }}
+                transition={prefersReducedMotion ? {} : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                ↓
+              </motion.span>
+            </motion.button>
+          </div>
         </div>
       </div>
 
@@ -247,14 +310,19 @@ const UserWelcome = () => {
           </div>
           
           {/* Feature Cards - Mobile Optimized */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-8 sm:mb-12 md:mb-16">
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 mb-8 sm:mb-12 md:mb-16"
+            onMouseEnter={() => { isCarouselPausedRef.current = true; }}
+            onMouseLeave={() => { isCarouselPausedRef.current = false; }}
+          >
             {features.map((feature, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                className={`${feature.bgColor} rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center hover:transform hover:scale-105 transition-all duration-300 cursor-pointer border border-white/10 backdrop-blur-sm touch-manipulation ${
+                whileHover={prefersReducedMotion ? {} : { y: -6, scale: 1.03 }}
+                className={`${feature.bgColor} rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center transition-all duration-300 cursor-pointer border border-white/10 backdrop-blur-sm touch-manipulation ${
                   index === currentFeature ? 'ring-2 ring-blue-500 shadow-xl shadow-blue-500/25' : ''
                 }`}
                 onClick={() => handleFeatureClick(index)}

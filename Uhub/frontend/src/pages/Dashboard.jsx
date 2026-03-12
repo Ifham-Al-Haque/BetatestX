@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import React, { useState, useMemo, Suspense, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useExpenseStats } from '../hooks/useExpenseStats';
@@ -337,6 +337,8 @@ export default function Dashboard() {
 
   const safeExpenseStats = expenseStats || [];
 
+  const displayName = userProfile?.full_name || user?.email?.split('@')?.[0] || 'User';
+
   // Handle events update from calendar
   const handleEventsUpdate = (updatedEvents) => {
     // Update the query cache with the new events
@@ -428,6 +430,33 @@ export default function Dashboard() {
     };
   }, [safeExpenseStats, safePaymentEvents]);
 
+  const dashboardInsights = useMemo(() => {
+    const pending = Number(summaryStats.pendingPayments || 0);
+    const overdue = Number(summaryStats.overduePayments || 0);
+    const growth = Number(summaryStats.monthlyGrowth || 0);
+    const hasData = safeExpenseStats.length > 0;
+
+    if (!hasData) {
+      return [
+        { icon: 'Sparkles', title: 'Get started', message: 'Add your first expense to unlock trends and insights.', tone: 'neutral' },
+        { icon: 'Calendar', title: 'Plan ahead', message: 'Add upcoming payments to see them on your calendar.', tone: 'neutral' },
+        { icon: 'ShieldCheck', title: 'Stay in control', message: 'Track spend by department and keep approvals tight.', tone: 'neutral' }
+      ];
+    }
+
+    return [
+      overdue > 0
+        ? { icon: 'AlertTriangle', title: 'Overdue items', message: `${overdue} payment${overdue === 1 ? '' : 's'} overdue. Prioritize these first.`, tone: 'danger' }
+        : { icon: 'CheckCircle2', title: 'On track', message: 'No overdue payments right now.', tone: 'success' },
+      pending > 0
+        ? { icon: 'Clock', title: 'Upcoming', message: `${pending} payment${pending === 1 ? '' : 's'} pending. Review and confirm dates.`, tone: 'warning' }
+        : { icon: 'CalendarCheck2', title: 'Clear calendar', message: 'No pending payments scheduled yet.', tone: 'neutral' },
+      growth >= 0
+        ? { icon: 'TrendingUp', title: 'MoM change', message: `Spending is up ${Math.abs(growth)}% vs last month.`, tone: growth >= 15 ? 'warning' : 'neutral' }
+        : { icon: 'TrendingDown', title: 'MoM change', message: `Spending is down ${Math.abs(growth)}% vs last month.`, tone: 'success' }
+    ];
+  }, [summaryStats, safeExpenseStats.length]);
+
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
     // You can add a modal or navigation here
@@ -504,15 +533,54 @@ export default function Dashboard() {
       <div className="page-content">
         {/* Enhanced Welcome Section */}
         <div className="welcome-section">
-          <div className="welcome-icon">
-            <span className="text-2xl">👋</span>
+          <div className="welcome-hero">
+            <div className="welcome-hero-top">
+              <div className="welcome-hero-left">
+                <div className="welcome-icon">
+                  <span className="text-2xl">👋</span>
+                </div>
+                <div className="welcome-hero-text">
+                  <h1 className="welcome-title">Welcome back, {displayName}!</h1>
+                  <p className="welcome-subtitle">
+                    Track expenses, monitor trends, and stay on top of upcoming payments—at a glance.
+                  </p>
+                </div>
+              </div>
+              <div className="welcome-hero-kpis">
+                <div className="kpi-chip">
+                  <LucideIcons.Clock className="w-4 h-4" />
+                  <span className="kpi-chip-label">Pending</span>
+                  <span className="kpi-chip-value">{summaryStats.pendingPayments}</span>
+                </div>
+                <div className="kpi-chip danger">
+                  <LucideIcons.AlertTriangle className="w-4 h-4" />
+                  <span className="kpi-chip-label">Overdue</span>
+                  <span className="kpi-chip-value">{summaryStats.overduePayments}</span>
+                </div>
+                <div className="kpi-chip">
+                  <LucideIcons.Users className="w-4 h-4" />
+                  <span className="kpi-chip-label">Depts</span>
+                  <span className="kpi-chip-value">{summaryStats.totalDepartments}</span>
+                </div>
+              </div>
+            </div>
+            <div className="welcome-hero-insights">
+              {dashboardInsights.map((insight) => {
+                const Icon = LucideIcons[insight.icon] || LucideIcons.Sparkles;
+                return (
+                  <div key={insight.title} className={`insight-card ${insight.tone}`}>
+                    <div className="insight-icon">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="insight-text">
+                      <div className="insight-title">{insight.title}</div>
+                      <div className="insight-message">{insight.message}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <h1 className="welcome-title">
-            Welcome back, {userProfile?.full_name || user?.email?.split('@')[0] || 'User'}!
-          </h1>
-          <p className="welcome-subtitle">
-            Here's what's happening with your organization today. Track expenses, monitor trends, and stay on top of your financial data.
-          </p>
         </div>
 
         {/* Quick Actions Bar */}

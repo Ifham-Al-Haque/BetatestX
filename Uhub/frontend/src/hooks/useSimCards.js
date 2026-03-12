@@ -231,20 +231,121 @@ export const useSimCardsByEmployeeName = (employeeFullName) => {
     queryKey: ['simCards', 'byEmployee', employeeFullName],
     queryFn: async () => {
       if (!employeeFullName || !String(employeeFullName).trim()) return [];
-      const name = String(employeeFullName).trim();
+      const fullName = String(employeeFullName).trim();
+      const normalize = (s) =>
+        String(s || '')
+          .trim()
+          .replace(/\s+/g, ' ')
+          .toLowerCase();
+
+      const tokens = normalize(fullName).split(' ').filter(Boolean);
+      const safeLike = (s) => String(s).replace(/%/g, '\\%');
+
+      // Build name variants to handle SIM panel using shortened names:
+      // - Full name
+      // - First + last (common)
+      // - First + second (common)
+      // - First only (last resort)
+      const variants = [];
+      const pushVariant = (v) => {
+        const nv = normalize(v);
+        if (!nv) return;
+        if (!variants.includes(nv)) variants.push(nv);
+      };
+      pushVariant(fullName);
+      if (tokens.length >= 2) {
+        pushVariant(`${tokens[0]} ${tokens[tokens.length - 1]}`); // first + last
+        pushVariant(`${tokens[0]} ${tokens[1]}`); // first + second
+      }
+      if (tokens.length >= 1) pushVariant(tokens[0]); // first only
+
+      // Query with OR contains matches for each variant, then filter client-side for
+      // equality against any normalized variant (prevents false positives).
+      const orParts = variants.map((v) => `current_user.ilike.%${safeLike(v)}%`);
       const { data, error } = await supabase
         .from('sim_cards')
         .select('*')
-        .ilike('current_user', name)
+        .or(orParts.join(','))
         .order('sim_number', { ascending: true });
 
       if (error) {
         console.error('Error fetching SIM cards by employee:', error);
         throw error;
       }
-      return data || [];
+      const rows = data || [];
+      const set = new Set(variants);
+      const matched = rows.filter((r) => set.has(normalize(r.current_user)));
+
+      // De-duplicate by SIM id (in case multiple variants matched same record)
+      const seen = new Set();
+      return matched.filter((r) => {
+        const key = r?.id ?? `${r?.sim_number ?? ''}-${r?.package_name ?? ''}-${r?.created_at ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     },
     enabled: !!employeeFullName?.trim(),
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+/**
+ * Get SIM cards assigned to an employee using multiple identifiers.
+ *
+ * Why: many records store `current_user` as free text (name, employee_id, email, or "Name (ID)").
+ * This hook matches by:
+ * - `current_user` contains full name (case-insensitive)
+ * - OR equals/contains employee_id
+ * - OR equals/contains email
+ */
+export const useSimCardsByEmployeeIdentifiers = ({ full_name, employee_id, email } = {}) => {
+  const normalized = {
+    name: (full_name ? String(full_name) : '').trim(),
+    empId: (employee_id ? String(employee_id) : '').trim(),
+    email: (email ? String(email) : '').trim(),
+  };
+
+  const enabled = Boolean(normalized.name || normalized.empId || normalized.email);
+  const queryKey = ['simCards', 'byEmployeeIdentifiers', normalized.name, normalized.empId, normalized.email];
+
+  return useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!enabled) return [];
+
+      // Build OR filters. Use "contains" matching to handle "Name (ID)" / extra details.
+      const orParts = [];
+      if (normalized.name) {
+        const safe = normalized.name.replace(/%/g, '\\%');
+        orParts.push(`current_user.ilike.%${safe}%`);
+      }
+      if (normalized.empId) {
+        const safe = normalized.empId.replace(/%/g, '\\%');
+        orParts.push(`current_user.ilike.%${safe}%`);
+      }
+      if (normalized.email) {
+        const safe = normalized.email.replace(/%/g, '\\%');
+        orParts.push(`current_user.ilike.%${safe}%`);
+      }
+
+      // Fallback: if we somehow have no parts, don't query.
+      if (orParts.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('sim_cards')
+        .select('*')
+        .or(orParts.join(','))
+        .order('sim_number', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching SIM cards by employee identifiers:', error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled,
     staleTime: 2 * 60 * 1000,
   });
 };

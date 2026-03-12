@@ -51,7 +51,9 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     // Apply theme to document
     const root = document.documentElement;
-    
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const transitionDuration = prefersReducedMotion ? 50 : 450;
+
     if (theme === 'dark') {
       root.classList.add('dark');
       root.setAttribute('data-theme', 'dark');
@@ -59,23 +61,25 @@ export const ThemeProvider = ({ children }) => {
       root.classList.remove('dark');
       root.setAttribute('data-theme', 'light');
     }
-    
+
     // Apply CSS variables for consistent theming
     const cssVars = getThemeCSSVariables(theme);
     Object.entries(cssVars).forEach(([property, value]) => {
       root.style.setProperty(property, value);
     });
-    
+
     // Save to localStorage
     localStorage.setItem('theme', theme);
-    
-    // Add smooth transition class
-    root.classList.add('theme-transition');
-    
-    // Remove transition class after animation
-    setTimeout(() => {
-      root.classList.remove('theme-transition');
-    }, 300);
+
+    // Add smooth transition class (scoped in CSS so only theme-relevant props animate)
+    if (!prefersReducedMotion) {
+      root.style.setProperty('--theme-transition-duration', `${transitionDuration}ms`);
+      root.classList.add('theme-transition');
+      const t = setTimeout(() => {
+        root.classList.remove('theme-transition');
+      }, transitionDuration);
+      return () => clearTimeout(t);
+    }
   }, [theme]);
 
   const getThemeCSSVariables = (currentTheme) => {

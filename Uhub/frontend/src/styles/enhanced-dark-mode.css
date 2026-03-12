@@ -96,15 +96,11 @@
   --gradient-primary-dark: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #10b981 100%);
 }
 
-/* Enhanced Theme Transitions */
+/* Enhanced Theme Transitions – use global duration/ease for consistency */
 .theme-transition * {
-  transition: 
-    background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: var(--theme-transition-duration, 450ms);
+  transition-timing-function: var(--theme-ease, cubic-bezier(0.4, 0, 0.2, 1));
+  transition-property: background-color, border-color, color, box-shadow, transform, opacity;
 }
 
 /* Glassmorphism Components */
@@ -122,7 +118,7 @@
   transform: translateY(-2px);
 }
 
-/* Enhanced Scrollbar for Dark Mode */
+/* Enhanced Scrollbar for Dark Mode – smooth and attractive */
 .dark ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -137,11 +133,12 @@
   background: linear-gradient(180deg, var(--dark-border-secondary) 0%, var(--dark-border-primary) 100%);
   border-radius: 4px;
   border: 1px solid var(--dark-bg-primary);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, var(--dark-accent-primary) 0%, var(--dark-accent-secondary) 100%);
-  box-shadow: var(--glow-blue);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
 }
 
 .dark ::-webkit-scrollbar-corner {
@@ -200,19 +197,19 @@
   100% { left: 100%; }
 }
 
-/* Enhanced Card Styles */
+/* Enhanced Card Styles – subtle depth and hover glow */
 .dark .enhanced-card {
   background: var(--dark-bg-secondary);
   border: 1px solid var(--dark-border-primary);
   border-radius: 12px;
   box-shadow: var(--shadow-lg-dark);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
 
 .dark .enhanced-card:hover {
   background: var(--dark-bg-tertiary);
-  border-color: var(--dark-border-secondary);
-  box-shadow: var(--shadow-xl-dark), var(--glow-blue);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: var(--shadow-xl-dark), 0 0 24px rgba(59, 130, 246, 0.12);
   transform: translateY(-2px);
 }
 

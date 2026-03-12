@@ -17,14 +17,12 @@ import {
 import { supabase } from "../supabaseClient";
 import { useAssets } from "../hooks/useApi";
 import { useSimCardsByEmployeeName } from "../hooks/useSimCards";
-import UserDropdown from "../components/UserDropdown";
-import DarkModeToggle from "../components/DarkModeToggle";
-
 export default function EmployeeProfile() {
   const { id } = useParams();
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   // Fetch assets assigned to this employee from Asset Management (linked data)
   const { data: assignedAssetsData, isLoading: assetsLoading } = useAssets(
@@ -35,7 +33,7 @@ export default function EmployeeProfile() {
   );
   const assignedAssets = assignedAssetsData?.data ?? [];
 
-  // Fetch SIM cards assigned to this employee (by current_user = full_name)
+  // Fetch SIM cards assigned to this employee (SIM panel stores assignment in `current_user` as employee name)
   const employeeFullName = employee?.full_name || employee?.name || '';
   const { data: assignedSimCards = [], isLoading: simCardsLoading } = useSimCardsByEmployeeName(employeeFullName);
 
@@ -88,6 +86,11 @@ export default function EmployeeProfile() {
     fetchEmployee();
   }, [fetchEmployee]);
 
+  // Reset avatar error state when switching employees / photo changes
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [employee?.id, employee?.profile_picture, employee?.photo_url]);
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'active': return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-700';
@@ -122,16 +125,38 @@ export default function EmployeeProfile() {
   if (loading) {
     return (
       <div className="min-h-screen font-sans bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <div className="flex">
-                    <main className="flex-1 ml-64 p-8">
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600 dark:text-gray-400">Loading employee profile...</p>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="rounded-3xl border border-gray-200/60 dark:border-gray-700/60 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm shadow-xl overflow-hidden">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-7 w-56 bg-gray-200/80 dark:bg-gray-700/80 rounded-lg animate-pulse" />
+                  <div className="h-4 w-72 bg-gray-200/60 dark:bg-gray-700/60 rounded animate-pulse" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-gray-200/70 dark:bg-gray-700/70 animate-pulse" />
+                  <div className="h-10 w-10 rounded-xl bg-gray-200/70 dark:bg-gray-700/70 animate-pulse" />
+                </div>
+              </div>
+              <div className="mt-6 flex items-center gap-5">
+                <div className="h-20 w-20 rounded-full bg-gray-200/80 dark:bg-gray-700/80 animate-pulse" />
+                <div className="flex-1 space-y-3">
+                  <div className="h-6 w-64 bg-gray-200/80 dark:bg-gray-700/80 rounded-lg animate-pulse" />
+                  <div className="h-4 w-80 bg-gray-200/60 dark:bg-gray-700/60 rounded animate-pulse" />
+                  <div className="h-4 w-44 bg-gray-200/60 dark:bg-gray-700/60 rounded animate-pulse" />
+                </div>
               </div>
             </div>
-          </main>
-        </div>
+            <div className="p-6 sm:p-8 pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((k) => (
+                  <div key={k} className="h-20 rounded-2xl bg-gray-200/60 dark:bg-gray-700/60 animate-pulse" />
+                ))}
+              </div>
+              <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">Loading employee profile…</p>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -139,15 +164,22 @@ export default function EmployeeProfile() {
   if (!employee) {
     return (
       <div className="min-h-screen font-sans bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <div className="flex">
-                    <main className="flex-1 ml-64 p-8">
-            <div className="text-center">
-              <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-600 mb-2">Employee Not Found</h2>
-              <p className="text-gray-500">The employee you're looking for doesn't exist.</p>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="rounded-3xl border border-gray-200/60 dark:border-gray-700/60 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm shadow-xl p-10 text-center">
+            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-2">Employee Not Found</h2>
+            <p className="text-gray-500 dark:text-gray-400">The employee you're looking for doesn't exist.</p>
+            <div className="mt-6">
+              <Link
+                to="/employees"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Employees
+              </Link>
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -163,16 +195,40 @@ export default function EmployeeProfile() {
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
 
+  // Shared UI helpers for consistent cards across tabs
+  const SurfaceCard = ({ children, className = '', delay = 0 }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      whileHover={{ y: -2 }}
+      className={`rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 ${
+        'bg-white/90 dark:bg-gray-800/90 border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm'
+      } ${className}`}
+    >
+      {children}
+    </motion.div>
+  );
+
+  const CardHeaderRow = ({ icon: Icon, title, subtitle, iconBg = 'bg-blue-100 dark:bg-blue-900/30', iconColor = 'text-blue-600 dark:text-blue-400' }) => (
+    <div className="flex items-start justify-between gap-4 mb-4">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={`p-2.5 rounded-xl ${iconBg} flex-shrink-0`}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{title}</h3>
+          {subtitle ? <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{subtitle}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+
   const renderOverview = () => (
     <div className="space-y-6">
       {/* Contact Information Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
-        >
+        <SurfaceCard delay={0} className="p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
               <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -184,14 +240,9 @@ export default function EmployeeProfile() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </SurfaceCard>
         
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
-        >
+        <SurfaceCard delay={0.05} className="p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
               <Phone className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -203,14 +254,9 @@ export default function EmployeeProfile() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </SurfaceCard>
         
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
-        >
+        <SurfaceCard delay={0.1} className="p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
               <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
@@ -222,14 +268,9 @@ export default function EmployeeProfile() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </SurfaceCard>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
-        >
+        <SurfaceCard delay={0.15} className="p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
               <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400" />
@@ -241,22 +282,14 @@ export default function EmployeeProfile() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </SurfaceCard>
       </div>
 
       {/* Additional Information */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Personal Details */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.4 }}
-          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <User className="w-5 h-5 text-blue-600" />
-            Personal Details
-          </h3>
+        <SurfaceCard delay={0.2} className="p-6">
+          <CardHeaderRow icon={User} title="Personal Details" subtitle="Core employee information" />
           <div className="space-y-3">
             <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
               <span className="text-sm text-gray-600 dark:text-gray-400">Full Name</span>
@@ -277,19 +310,11 @@ export default function EmployeeProfile() {
               </div>
             )}
           </div>
-        </motion.div>
+        </SurfaceCard>
 
         {/* Work Information */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.5 }}
-          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-green-600" />
-            Work Information
-          </h3>
+        <SurfaceCard delay={0.25} className="p-6">
+          <CardHeaderRow icon={Briefcase} title="Work Information" subtitle="Department, manager and role" iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400" />
           <div className="space-y-3">
             <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
               <span className="text-sm text-gray-600 dark:text-gray-400">Department</span>
@@ -316,30 +341,22 @@ export default function EmployeeProfile() {
               </div>
             )}
           </div>
-        </motion.div>
+        </SurfaceCard>
       </div>
 
       {/* Key Responsibilities */}
       {employee.key_roles && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.6 }}
-          className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Target className="w-5 h-5 text-purple-600" />
-            Key Responsibilities
-          </h3>
+        <SurfaceCard delay={0.3} className="p-6">
+          <CardHeaderRow icon={Target} title="Key Responsibilities" subtitle="Highlights and scope" iconBg="bg-purple-100 dark:bg-purple-900/30" iconColor="text-purple-600 dark:text-purple-400" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {getArrayData(employee.key_roles).map((role, i) => (
-              <div key={i} className="flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <div key={i} className="flex items-center gap-2 p-3 rounded-xl border border-gray-200/70 dark:border-gray-700/70 bg-gray-50/70 dark:bg-gray-900/20">
+                <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0"></div>
                 <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
               </div>
             ))}
           </div>
-        </motion.div>
+        </SurfaceCard>
       )}
     </div>
   );
@@ -892,8 +909,7 @@ export default function EmployeeProfile() {
 
   return (
     <div className="min-h-screen font-sans bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="flex">
-                <main className="flex-1 ml-64 p-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Enhanced Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -922,15 +938,13 @@ export default function EmployeeProfile() {
                   <Edit className="w-4 h-4" />
                   Edit Profile
                 </Link>
-                <DarkModeToggle />
-                <UserDropdown />
               </div>
             </div>
 
             {/* Profile Header */}
             <div className="flex items-center gap-6">
               <div className="relative">
-                {(employee.profile_picture || employee.photo_url) ? (
+                {(employee.profile_picture || employee.photo_url) && !avatarFailed ? (
                   <img
                     key={`${employee.id}-${employee.profile_picture || employee.photo_url || 'no-pic'}`}
                     src={employee.profile_picture || employee.photo_url}
@@ -938,17 +952,7 @@ export default function EmployeeProfile() {
                     className="w-20 h-20 rounded-full border-4 border-white shadow-lg object-cover"
                     data-employee-id={employee.id}
                     onError={(e) => {
-                      e.target.style.display = 'none';
-                      const avatarContainer = e.target.parentElement;
-                      if (avatarContainer) {
-                        avatarContainer.innerHTML = `
-                          <div class="w-20 h-20 rounded-full border-4 border-white shadow-lg bg-white/20 flex items-center justify-center">
-                            <div class="text-white text-xl font-bold">
-                              ${(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
-                            </div>
-                          </div>
-                        `;
-                      }
+                      setAvatarFailed(true);
                     }}
                   />
                 ) : (
@@ -980,6 +984,56 @@ export default function EmployeeProfile() {
                 </div>
               </div>
             </div>
+
+            {/* Quick Stats Row */}
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                {
+                  key: 'manager',
+                  label: 'Reporting Manager',
+                  value: employee.reporting_manager?.full_name || employee.reporting_manager?.name || 'Not assigned',
+                  icon: Users
+                },
+                {
+                  key: 'assets',
+                  label: 'Assigned Assets',
+                  value: assetsLoading ? 'Loading…' : String(assignedAssets?.length ?? 0),
+                  icon: Package
+                },
+                {
+                  key: 'sims',
+                  label: 'SIM Cards',
+                  value: simCardsLoading ? 'Loading…' : String(assignedSimCards?.length ?? 0),
+                  icon: Smartphone
+                },
+                {
+                  key: 'account',
+                  label: 'Account Role',
+                  value: employee.auth_user?.role ? String(employee.auth_user.role) : '—',
+                  icon: Shield
+                }
+              ].map((stat, i) => (
+                <motion.div
+                  key={stat.key}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.08 * i, duration: 0.35 }}
+                  className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-white/15">
+                      <stat.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase tracking-wide text-white/70 font-medium">{stat.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-white truncate" title={stat.value}>
+                        {stat.value}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
 
           {/* Tab Navigation */}
@@ -994,14 +1048,21 @@ export default function EmployeeProfile() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                  className={`relative flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors duration-200 whitespace-nowrap ${
                     activeTab === tab.id
-                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="employee-profile-tab-underline"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -1019,8 +1080,7 @@ export default function EmployeeProfile() {
               {renderTabContent()}
             </motion.div>
           </AnimatePresence>
-        </main>
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Building2, User, ChevronDown, 
@@ -19,7 +19,8 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
     const reportingChains = [];
     
     employees.forEach(emp => {
-      employeeMap.set(emp.id, { 
+      const key = String(emp.id);
+      employeeMap.set(key, { 
         ...emp, 
         directReports: [],
         level: 0,
@@ -34,19 +35,21 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
 
     // First pass: Build the hierarchy structure
     employees.forEach(emp => {
-      if (emp.reporting_manager_id) {
-        const manager = employeeMap.get(emp.reporting_manager_id);
+      const empKey = String(emp.id);
+      const managerKey = emp.reporting_manager_id ? String(emp.reporting_manager_id) : null;
+      const empNode = employeeMap.get(empKey);
+      if (managerKey && managerKey !== empKey) {
+        const manager = employeeMap.get(managerKey);
         if (manager) {
-          manager.directReports.push(emp);
-          const empData = employeeMap.get(emp.id);
-          empData.level = manager.level + 1;
-          empData.reportingChain = [...manager.reportingChain, manager.id];
+          manager.directReports.push(empNode);
+          empNode.level = manager.level + 1;
+          empNode.reportingChain = [...manager.reportingChain, manager.id];
         } else {
           // If manager not found, treat as top level
-          topLevel.push(emp);
+          topLevel.push(empNode);
         }
       } else {
-        topLevel.push(emp);
+        topLevel.push(empNode);
       }
     });
 
@@ -95,22 +98,8 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
 
     topLevel.forEach(emp => buildReportingChains(emp));
 
-    // Auto-expand top 2 levels
-    const autoExpandLevels = (employees, level = 0) => {
-      if (!employees || level >= 2) return;
-      
-      employees.forEach(emp => {
-        if (emp && emp.directReports && emp.directReports.length > 0) {
-          setExpandedNodes(prev => new Set([...prev, emp.id]));
-          autoExpandLevels(emp.directReports, level + 1);
-        }
-      });
-    };
-
-    autoExpandLevels(topLevel);
-
-    // If no top-level employees found, show all employees as individual nodes
-    const displayHierarchy = topLevel.length > 0 ? topLevel : employees;
+    // If no top-level employees found, show all employees as individual nodes (mapped)
+    const displayHierarchy = topLevel.length > 0 ? topLevel : Array.from(employeeMap.values());
 
     return { 
       hierarchy: displayHierarchy, 
@@ -121,6 +110,28 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
       hasHierarchy: topLevel.length > 0
     };
   }, [employees]);
+
+  // Auto-expand top 2 levels (side-effect must NOT run in useMemo/render)
+  useEffect(() => {
+    if (!orgStructure?.hierarchy?.length) {
+      setExpandedNodes(new Set());
+      return;
+    }
+
+    const next = new Set();
+    const walk = (nodes, level = 0) => {
+      if (!nodes || level >= 2) return;
+      nodes.forEach((n) => {
+        if (n?.directReports?.length) {
+          next.add(n.id);
+          walk(n.directReports, level + 1);
+        }
+      });
+    };
+    // Always base from computed hierarchy roots
+    walk(orgStructure.hierarchy, 0);
+    setExpandedNodes(next);
+  }, [orgStructure?.hierarchy]);
 
   // Toggle node expansion
   const toggleNode = (nodeId) => {

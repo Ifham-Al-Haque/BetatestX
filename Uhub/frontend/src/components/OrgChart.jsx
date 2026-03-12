@@ -10,20 +10,23 @@ const OrgChart = ({ employees = [], loading = false }) => {
     // Create a map for quick lookup
     const employeeMap = new Map();
     employees.forEach(emp => {
-      employeeMap.set(emp.id, { ...emp, directReports: [] });
+      employeeMap.set(String(emp.id), { ...emp, directReports: [] });
     });
 
     // Build hierarchy
     const topLevel = [];
 
     employees.forEach(emp => {
-      if (emp.reporting_manager_id) {
-        const manager = employeeMap.get(emp.reporting_manager_id);
+      const empKey = String(emp.id);
+      const managerKey = emp.reporting_manager_id ? String(emp.reporting_manager_id) : null;
+      const empNode = employeeMap.get(empKey);
+      if (managerKey && managerKey !== empKey) {
+        const manager = employeeMap.get(managerKey);
         if (manager) {
-          manager.directReports.push(emp);
+          manager.directReports.push(empNode);
         }
       } else {
-        topLevel.push(emp);
+        topLevel.push(empNode);
       }
     });
 

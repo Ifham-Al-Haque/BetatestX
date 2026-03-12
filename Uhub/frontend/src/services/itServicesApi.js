@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
+import { emailService } from './emailService';
 
 // IT Services API Service
 export const itServicesApi = {
@@ -538,6 +539,89 @@ export const itServicesApi = {
           .single();
 
         if (error) throw error;
+
+        // Notify the requester (the person who raised the ticket)
+        // - In-app: broadcast to the user's notification channel (works without DB RPCs)
+        // - In-app (optional): try notifications table RPC if it exists
+        // - Email (optional): try Edge Function `send-email` via emailService (falls back to console logging if missing)
+        try {
+          const requesterId = data?.requester_id;
+          if (requesterId) {
+            // Broadcast notification (used by NotificationContext subscription)
+            try {
+              await supabase
+                .channel(`user_${requesterId}_notifications`)
+                .send({
+                  type: 'broadcast',
+                  event: 'notification',
+                  payload: {
+                    id: `it_request_created_${data.id}_${Date.now()}`,
+                    type: 'it_request',
+                    title: 'IT Request Submitted',
+                    message: `Your IT request has been submitted: ${data.title}`,
+                    priority: 'medium',
+                    data: {
+                      request_id: data.id,
+                      request_title: data.title,
+                      request_number: data.request_number,
+                      status: data.status
+                    },
+                    timestamp: new Date(),
+                    read: false
+                  }
+                });
+            } catch (broadcastErr) {
+              console.warn('⚠️ Failed to broadcast requester notification:', broadcastErr?.message || broadcastErr);
+            }
+
+            // Try DB-backed notification (if RPC exists)
+            try {
+              await notificationService.createNotification({
+                userId: requesterId,
+                type: 'it_request',
+                title: 'IT Request Submitted',
+                message: `Your IT request has been submitted: ${data.title}`,
+                data: {
+                  request_id: data.id,
+                  request_title: data.title,
+                  request_number: data.request_number,
+                  status: data.status
+                },
+                priority: 'medium',
+                actionUrl: `/it-requests?view=${data.id}`,
+                actionLabel: 'View Request'
+              });
+            } catch (dbNotifErr) {
+              console.warn('⚠️ Failed to create requester DB notification:', dbNotifErr?.message || dbNotifErr);
+            }
+
+            // Resolve requester email (users/employees id or auth_user_id) and attempt email
+            try {
+              const [uById, uByAuth, eById, eByAuth] = await Promise.all([
+                supabase.from('users').select('email, full_name').eq('id', requesterId).maybeSingle(),
+                supabase.from('users').select('email, full_name').eq('auth_user_id', requesterId).maybeSingle(),
+                supabase.from('employees').select('email, full_name').eq('id', requesterId).maybeSingle(),
+                supabase.from('employees').select('email, full_name').eq('auth_user_id', requesterId).maybeSingle()
+              ]);
+
+              const requester =
+                uById.data || uByAuth.data || eById.data || eByAuth.data || null;
+
+              if (requester?.email) {
+                await emailService.sendRequestCreated(
+                  { ...data, requester: { full_name: requester.full_name, email: requester.email } },
+                  requester.email
+                );
+              } else {
+                console.warn('⚠️ Request-created email skipped: requester email not found for requester_id', requesterId);
+              }
+            } catch (emailErr) {
+              console.warn('⚠️ Failed to send requester request-created email:', emailErr?.message || emailErr);
+            }
+          }
+        } catch (requesterNotifyErr) {
+          console.warn('⚠️ Requester notification block failed:', requesterNotifyErr?.message || requesterNotifyErr);
+        }
 
         // Send notifications to IT Management and Admin roles
         try {

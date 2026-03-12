@@ -30,10 +30,12 @@ import {
   HandMetal,
   TrendingUp,
   AlertTriangle,
-  XCircle as XCircleIcon
+  XCircle as XCircleIcon,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import subscribeNowService from '../../services/subscribeNowService';
+import deliveryService from '../../services/deliveryService';
 
 const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
   const { userProfile } = useAuth();
@@ -45,6 +47,7 @@ const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
   const [showNoteInput, setShowNoteInput] = useState({});
   const [deliveryStatus, setDeliveryStatus] = useState('not_started');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const checklistItems = [
     {
@@ -214,6 +217,25 @@ const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
       await loadChecklistData();
     } catch (error) {
       console.error('Error saving note:', error);
+    }
+  };
+
+  const handleDeleteChecklist = async () => {
+    if (!checklist?.id) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this delivery checklist? This will remove the checklist for ${rental?.rental_agreement_id}. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      setDeleting(true);
+      await deliveryService.deleteOrder(checklist.id);
+      onSuccess?.();
+      onClose();
+    } catch (error) {
+      console.error('Error deleting delivery checklist:', error);
+      window.alert(error?.message || 'Failed to delete delivery checklist.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -393,12 +415,25 @@ const DeliveryChecklistModal = ({ isOpen, onClose, rental, onSuccess }) => {
                   )}
                 </div>
                 
-                <button
-                  onClick={onClose}
-                  className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {checklist?.id && userProfile?.role === 'admin' && (
+                    <button
+                      onClick={handleDeleteChecklist}
+                      disabled={deleting}
+                      className="text-white/90 hover:text-white hover:bg-red-500/30 transition-colors p-2 rounded-lg flex items-center gap-1.5 disabled:opacity-50"
+                      title="Delete delivery checklist (Admin only)"
+                    >
+                      {deleting ? <Loader className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                      <span className="text-sm font-medium hidden sm:inline">Delete</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

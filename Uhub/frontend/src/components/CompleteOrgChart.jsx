@@ -42,19 +42,21 @@ const CompleteOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
         managerName: null
       };
       
-      employeeMap.set(emp.id, employeeData);
+      employeeMap.set(String(emp.id), employeeData);
       flatList.push(employeeData);
     });
 
     // Second pass: Build relationships and identify managers
     employees.forEach(emp => {
-      if (emp.reporting_manager_id) {
-        const manager = employeeMap.get(emp.reporting_manager_id);
+      const empKey = String(emp.id);
+      const managerKey = emp.reporting_manager_id ? String(emp.reporting_manager_id) : null;
+      if (managerKey && managerKey !== empKey) {
+        const manager = employeeMap.get(managerKey);
         if (manager) {
-          manager.directReports.push(emp);
+          manager.directReports.push(employeeMap.get(empKey));
           manager.isManager = true;
           managers.add(manager);
-          employeeMap.get(emp.id).managerName = manager.full_name;
+          employeeMap.get(empKey).managerName = manager.full_name;
         }
       }
     });
@@ -72,8 +74,9 @@ const CompleteOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
     // Calculate levels for all employees
     employees.forEach(emp => {
       if (!emp.reporting_manager_id) {
-        calculateLevels(employeeMap.get(emp.id));
-        hierarchy.push(employeeMap.get(emp.id));
+        const node = employeeMap.get(String(emp.id));
+        calculateLevels(node);
+        hierarchy.push(node);
       }
     });
 

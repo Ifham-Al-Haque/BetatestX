@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useTheme } from '../context/ThemeContext';
 import { 
   Bell, 
   CheckSquare, 
@@ -99,6 +100,7 @@ function normalizeLtrLeadDateStorage(value) {
 
 const SubscribeNow = () => {
   const { userProfile } = useAuth();
+  const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState('fleet-delivery');
   const [rentalAgreements, setRentalAgreements] = useState([]);
   const [statistics, setStatistics] = useState(null);
@@ -1711,19 +1713,19 @@ const SubscribeNow = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50">
+    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/30' : 'bg-gradient-to-br from-gray-50 via-purple-50/50 to-indigo-50/50'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Enhanced Header with Tabs */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 flex items-center">
-                <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-3 rounded-2xl mr-4">
+              <h1 className={`text-4xl font-bold flex items-center transition-colors duration-300 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-3 rounded-2xl mr-4 shadow-lg shadow-purple-500/20">
                   <Bell className="w-8 h-8 text-white" />
                 </div>
                 Subscribe Now Department
               </h1>
-              <p className="text-gray-600 mt-2 text-lg">
+              <p className={`mt-2 text-lg transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
                 Fleet delivery management and subscription services
               </p>
             </div>
@@ -1733,21 +1735,21 @@ const SubscribeNow = () => {
                   <button
                     onClick={handleRefresh}
                     disabled={refreshing}
-                    className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl border border-gray-300 flex items-center transition-all shadow-sm"
+                    className={`px-4 py-2 rounded-xl border flex items-center transition-all duration-200 shadow-sm hover:scale-[1.02] active:scale-[0.98] ${isDark ? 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300'}`}
                   >
                     <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                     Refresh
                   </button>
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl border border-gray-300 flex items-center transition-all shadow-sm"
+                    className={`px-4 py-2 rounded-xl border flex items-center transition-all duration-200 shadow-sm hover:scale-[1.02] active:scale-[0.98] ${isDark ? 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300'}`}
                   >
                     <SlidersHorizontal className="w-4 h-4 mr-2" />
                     Filters
                   </button>
                   <button
                     onClick={handleCreateRental}
-                    className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl flex items-center transition-all shadow-lg hover:shadow-xl"
+                    className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white px-6 py-3 rounded-xl flex items-center transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-purple-500/25 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Plus className="w-5 h-5 mr-2" />
                     New Rental
@@ -1757,16 +1759,16 @@ const SubscribeNow = () => {
             </div>
           </div>
 
-          {/* Tab Navigation */}
+          {/* Tab Navigation - smooth underline and hover */}
           <div className="mt-6">
-            <div className="border-b border-gray-200">
+            <div className={`border-b transition-colors duration-300 ${isDark ? 'border-slate-700' : 'border-gray-200'}`}>
               <nav className="-mb-px flex space-x-8">
                 <button
                   onClick={() => setActiveTab('fleet-delivery')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-out ${
                     activeTab === 'fleet-delivery'
-                      ? 'border-purple-500 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-purple-500 text-purple-500'
+                      : isDark ? 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   <Truck className="w-4 h-4 inline mr-2" />
@@ -1774,44 +1776,28 @@ const SubscribeNow = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('services')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'services'
-                      ? 'border-purple-500 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-out ${activeTab === 'services' ? 'border-purple-500 text-purple-500' : isDark ? 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                 >
                   <Bell className="w-4 h-4 inline mr-2" />
                   Subscription Services
                 </button>
                 <button
                   onClick={() => setActiveTab('ltr-reporting')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'ltr-reporting'
-                      ? 'border-purple-500 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-out ${activeTab === 'ltr-reporting' ? 'border-purple-500 text-purple-500' : isDark ? 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                 >
                   <BarChart3 className="w-4 h-4 inline mr-2" />
                   LTR Reporting
                 </button>
                 <button
                   onClick={() => setActiveTab('ltr-customer-lead')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'ltr-customer-lead'
-                      ? 'border-purple-500 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-out ${activeTab === 'ltr-customer-lead' ? 'border-purple-500 text-purple-500' : isDark ? 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                 >
                   <Target className="w-4 h-4 inline mr-2" />
                   LTR Customer Lead
                 </button>
                 <button
                   onClick={() => setActiveTab('ltr-customer-review')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'ltr-customer-review'
-                      ? 'border-purple-500 text-purple-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 ease-out ${activeTab === 'ltr-customer-review' ? 'border-purple-500 text-purple-500' : isDark ? 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                 >
                   <Star className="w-4 h-4 inline mr-2" />
                   LTR Customer Review
@@ -1824,130 +1810,76 @@ const SubscribeNow = () => {
         {/* Tab Content */}
         {activeTab === 'fleet-delivery' && (
           <div>
-            {/* Enhanced Stats Cards for Fleet Delivery */}
+            {/* Enhanced Stats Cards for Fleet Delivery - smooth stagger and hover */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Total Rentals</p>
-                    <p className="text-3xl font-bold text-gray-900">{statistics?.totalRentals || rentalAgreements.length}</p>
-                    <p className="text-sm text-purple-600 mt-1">
-                      <TrendingUp className="w-4 h-4 inline mr-1" />
-                      All time
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-purple-100">
-                    <FileText className="w-8 h-8 text-purple-600" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Delivered</p>
-                    <p className="text-3xl font-bold text-gray-900">
-                      {statistics?.deliveryStatusBreakdown?.Completed || rentalAgreements.filter(r => r.delivery_status === 'Completed').length}
-                    </p>
-                    <p className="text-sm text-green-600 mt-1">
-                      <CheckCircle className="w-4 h-4 inline mr-1" />
-                      Successfully delivered
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-green-100">
-                    <CheckCircle className="w-8 h-8 text-green-600" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">In Progress</p>
-                    <p className="text-3xl font-bold text-gray-900">
-                      {statistics?.deliveryStatusBreakdown?.['In Progress'] || rentalAgreements.filter(r => r.delivery_status === 'In Progress').length}
-                    </p>
-                    <p className="text-sm text-blue-600 mt-1">
-                      <Activity className="w-4 h-4 inline mr-1" />
-                      Active deliveries
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-blue-100">
-                    <Settings className="w-8 h-8 text-blue-600" />
-                  </div>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
-                    <p className="text-3xl font-bold text-gray-900">
-                      {formatCurrency(statistics?.totalRevenue || rentalAgreements.reduce((sum, r) => sum + (r.confirmed_amount || 0), 0))}
-                    </p>
-                    <p className="text-sm text-orange-600 mt-1">
-                      <BarChart3 className="w-4 h-4 inline mr-1" />
-                      Confirmed amount
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-orange-100">
-                    <DollarSign className="w-8 h-8 text-orange-600" />
-                  </div>
-                </div>
-              </motion.div>
+              {[
+                { delay: 0.05, label: 'Total Rentals', value: statistics?.totalRentals ?? rentalAgreements.length, sub: 'All time', icon: FileText, iconBg: 'bg-purple-100 dark:bg-purple-500/20', iconColor: 'text-purple-600 dark:text-purple-400', subColor: 'text-purple-600 dark:text-purple-400' },
+                { delay: 0.1, label: 'Delivered', value: statistics?.deliveryStatusBreakdown?.Completed ?? rentalAgreements.filter(r => r.delivery_status === 'Completed').length, sub: 'Successfully delivered', icon: CheckCircle, iconBg: 'bg-green-100 dark:bg-green-500/20', iconColor: 'text-green-600 dark:text-green-400', subColor: 'text-green-600 dark:text-green-400' },
+                { delay: 0.15, label: 'In Progress', value: statistics?.deliveryStatusBreakdown?.['In Progress'] ?? rentalAgreements.filter(r => r.delivery_status === 'In Progress').length, sub: 'Active deliveries', icon: Settings, iconBg: 'bg-blue-100 dark:bg-blue-500/20', iconColor: 'text-blue-600 dark:text-blue-400', subColor: 'text-blue-600 dark:text-blue-400' },
+                { delay: 0.2, label: 'Total Revenue', value: formatCurrencyAED(statistics?.totalRevenue ?? rentalAgreements.reduce((sum, r) => sum + (r.confirmed_amount || 0), 0)), sub: 'Confirmed amount (AED)', icon: DollarSign, iconBg: 'bg-orange-100 dark:bg-orange-500/20', iconColor: 'text-orange-600 dark:text-orange-400', subColor: 'text-orange-600 dark:text-orange-400' },
+              ].map((card, i) => {
+                const Icon = card.icon;
+                return (
+                  <motion.div
+                    key={card.label}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: card.delay, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    className={`rounded-2xl p-6 border shadow-lg transition-all duration-300 ease-out hover:shadow-xl hover:-translate-y-0.5 ${isDark ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white border-gray-100'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`text-sm font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>{card.label}</p>
+                        <p className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{card.value}</p>
+                        <p className={`text-sm mt-1 ${card.subColor}`}>
+                          {card.label === 'Total Rentals' && <TrendingUp className="w-4 h-4 inline mr-1" />}
+                          {card.label === 'Delivered' && <CheckCircle className="w-4 h-4 inline mr-1" />}
+                          {card.label === 'In Progress' && <Activity className="w-4 h-4 inline mr-1" />}
+                          {card.label === 'Total Revenue' && <BarChart3 className="w-4 h-4 inline mr-1" />}
+                          {card.sub}
+                        </p>
+                      </div>
+                      <div className={`p-3 rounded-2xl ${card.iconBg} ${card.iconColor}`}>
+                        <Icon className="w-8 h-8" />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
 
-            {/* Enhanced Filters */}
+            {/* Enhanced Filters - smooth expand/collapse */}
             <AnimatePresence>
               {showFilters && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-white rounded-2xl shadow-lg mb-6 overflow-hidden"
+                  transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className={`rounded-2xl shadow-lg mb-6 overflow-hidden border transition-colors duration-300 ${isDark ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white border-gray-100'}`}
                 >
                   <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                        <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Search</label>
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
                           <input
                             type="text"
                             placeholder="Search rentals..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                            className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-500' : 'border-gray-300'}`}
                           />
                         </div>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Agreement Status</label>
+                        <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Agreement Status</label>
                         <select
                           value={agreementStatusFilter}
                           onChange={(e) => setAgreementStatusFilter(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'border-gray-300'}`}
                         >
                           <option value="">All Status</option>
                           <option value="Draft">Draft</option>
@@ -1960,11 +1892,11 @@ const SubscribeNow = () => {
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Status</label>
+                        <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Delivery Status</label>
                         <select
                           value={deliveryStatusFilter}
                           onChange={(e) => setDeliveryStatusFilter(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'border-gray-300'}`}
                         >
                           <option value="">All Status</option>
                           <option value="Pending">Pending</option>
@@ -1975,11 +1907,11 @@ const SubscribeNow = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Customer Type</label>
+                        <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Customer Type</label>
                         <select
                           value={customerTypeFilter}
                           onChange={(e) => setCustomerTypeFilter(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'border-gray-300'}`}
                         >
                           <option value="">All Types</option>
                           <option value="Individual">Individual</option>
@@ -1988,34 +1920,34 @@ const SubscribeNow = () => {
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                        <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>From Date</label>
                         <input
                           type="date"
                           value={dateFrom}
                           onChange={(e) => setDateFrom(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'border-gray-300'}`}
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                        <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>To Date</label>
                         <input
                           type="date"
                           value={dateTo}
                           onChange={(e) => setDateTo(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'border-gray-300'}`}
                         />
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                    <div className={`flex items-center justify-between mt-4 pt-4 border-t ${isDark ? 'border-slate-600' : 'border-gray-200'}`}>
                       <button
                         onClick={clearFilters}
-                        className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                        className={`text-sm font-medium transition-colors duration-200 ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-800'}`}
                       >
                         Clear Filters
                       </button>
-                      <span className="text-sm text-gray-500">
+                      <span className={`text-sm ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
                         Showing {rentalAgreements.length} rental agreements
                       </span>
                     </div>
@@ -2028,18 +1960,19 @@ const SubscribeNow = () => {
             <div className="space-y-4">
               {rentalAgreements.length === 0 ? (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-white rounded-2xl shadow-lg p-12 text-center"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className={`rounded-2xl shadow-lg p-12 text-center border transition-colors duration-300 ${isDark ? 'bg-slate-800/60 border-slate-700/50' : 'bg-white border-gray-100'}`}
                 >
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Truck className="w-8 h-8 text-gray-400" />
+                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
+                    <Truck className={`w-10 h-10 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No rental agreements found</h3>
-                  <p className="text-gray-600 mb-6">Start by creating your first rental agreement for a customer.</p>
+                  <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>No rental agreements found</h3>
+                  <p className={`mb-6 max-w-sm mx-auto ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Start by creating your first rental agreement for a customer.</p>
                   <button
                     onClick={handleCreateRental}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl flex items-center mx-auto transition-all"
+                    className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white px-6 py-3 rounded-xl flex items-center mx-auto transition-all duration-200 shadow-lg hover:shadow-xl hover:shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <Plus className="w-5 h-5 mr-2" />
                     Create First Rental
@@ -2053,25 +1986,25 @@ const SubscribeNow = () => {
                   return (
                     <motion.div
                       key={rental.rental_id}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden"
+                      transition={{ delay: Math.min(index * 0.06, 0.35), duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      className={`rounded-2xl shadow-lg border overflow-hidden transition-all duration-300 ease-out hover:shadow-xl hover:-translate-y-0.5 ${isDark ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white border-gray-100'}`}
                     >
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center space-x-4">
-                            <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl">
+                            <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-md shadow-purple-500/20">
                               <FileText className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                              <h3 className="text-xl font-semibold text-gray-900">
+                              <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                 {rental.rental_agreement_id}
                               </h3>
-                              <p className="text-gray-600 mt-1">
+                              <p className={`mt-1 ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
                                 {rental.customer_name} ({rental.customer_code})
                               </p>
-                              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                              <div className={`flex items-center space-x-4 mt-2 text-sm ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
                                 <span className="flex items-center">
                                   <Mail className="w-3 h-3 mr-1" />
                                   {rental.email}
@@ -2084,13 +2017,13 @@ const SubscribeNow = () => {
                             </div>
                           </div>
                           
-                          <div className="flex items-center space-x-3">
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getAgreementStatusColor(rental.agreement_status)}`}>
+                          <div className="flex items-center space-x-3 flex-wrap gap-2">
+                            <span className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors duration-200 ${getAgreementStatusColor(rental.agreement_status)} ${isDark ? 'dark:bg-white/10 dark:border-white/20 dark:text-slate-200' : ''}`}>
                               <AgreementStatusIcon className="w-4 h-4 inline mr-1" />
                               {rental.agreement_status}
                             </span>
                             
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getDeliveryStatusColor(rental.delivery_status)}`}>
+                            <span className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors duration-200 ${getDeliveryStatusColor(rental.delivery_status)} ${isDark ? 'dark:bg-white/10 dark:border-white/20 dark:text-slate-200' : ''}`}>
                               <DeliveryStatusIcon className="w-4 h-4 inline mr-1" />
                               {rental.delivery_status}
                             </span>
@@ -2100,31 +2033,33 @@ const SubscribeNow = () => {
                         {/* Progress Bar */}
                         <div className="mb-4">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Delivery Progress</span>
-                            <span className="text-sm text-gray-500">{rental.delivery_progress || 0}%</span>
+                            <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Delivery Progress</span>
+                            <span className={`text-sm ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>{rental.delivery_progress || 0}%</span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-purple-600 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${rental.delivery_progress || 0}%` }}
+                          <div className={`w-full rounded-full h-2.5 overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${rental.delivery_progress || 0}%` }}
+                              transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+                              className="bg-purple-600 h-2.5 rounded-full"
                             />
                           </div>
                         </div>
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                           <div className="flex items-center space-x-2">
-                            <Car className="w-4 h-4 text-gray-400" />
+                            <Car className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
                             <div>
-                              <p className="text-sm text-gray-600">Desired Fleet</p>
-                              <p className="font-medium text-gray-900">{rental.desired_fleet_type}</p>
+                              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Desired Fleet</p>
+                              <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{rental.desired_fleet_type}</p>
                             </div>
                           </div>
                           
                           <div className="flex items-center space-x-2">
-                            <DollarSign className="w-4 h-4 text-gray-400" />
+                            <DollarSign className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
                             <div>
-                              <p className="text-sm text-gray-600">Rental Amount</p>
-                              <div className="font-medium text-gray-900">
+                              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Rental Amount</p>
+                              <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                 {rental.original_rental_amount !== rental.confirmed_amount ? (
                                   <>
                                     <span className="line-through text-gray-500 text-sm">{formatCurrency(rental.original_rental_amount)}</span>
@@ -2138,27 +2073,27 @@ const SubscribeNow = () => {
                           </div>
                           
                           <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <Calendar className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
                             <div>
-                              <p className="text-sm text-gray-600">Duration</p>
-                              <p className="font-medium text-gray-900">{rental.rental_duration_months} months</p>
+                              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Duration</p>
+                              <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{rental.rental_duration_months} months</p>
                             </div>
                           </div>
                           
                           <div className="flex items-center space-x-2">
-                            <User className="w-4 h-4 text-gray-400" />
+                            <User className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
                             <div>
-                              <p className="text-sm text-gray-600">Customer Type</p>
-                              <p className="font-medium text-gray-900">{rental.customer_type}</p>
+                              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>Customer Type</p>
+                              <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{rental.customer_type}</p>
                             </div>
                           </div>
                         </div>
 
                         {/* Vehicle Assignment */}
                         {rental.vehicle_number && (
-                          <div className="mb-4 p-4 bg-blue-50 rounded-xl">
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">Assigned Vehicle</h4>
-                            <p className="text-blue-800 font-medium">
+                          <div className={`mb-4 p-4 rounded-xl ${isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50'}`}>
+                            <h4 className={`text-sm font-medium mb-2 ${isDark ? 'text-slate-200' : 'text-gray-900'}`}>Assigned Vehicle</h4>
+                            <p className={`font-medium ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
                               {rental.vehicle_number} - {rental.vehicle_make} {rental.vehicle_model}
                             </p>
                           </div>
@@ -2166,9 +2101,9 @@ const SubscribeNow = () => {
 
                         {/* Rental Contract */}
                         {rental.rental_contract_url && (
-                          <div className="mb-4 p-4 bg-green-50 rounded-xl">
+                          <div className={`mb-4 p-4 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50'}`}>
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center text-green-800">
+                              <div className={`flex items-center ${isDark ? 'text-green-300' : 'text-green-800'}`}>
                                 <FileText className="w-4 h-4 mr-2" />
                                 <span className="text-sm font-medium">
                                   Contract uploaded - Signed: {formatDate(rental.contract_signed_date)}
@@ -2186,30 +2121,30 @@ const SubscribeNow = () => {
                           </div>
                         )}
                         
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <div className={`flex items-center justify-between pt-4 border-t ${isDark ? 'border-slate-700' : 'border-gray-100'}`}>
                           <div className="flex items-center space-x-4">
                             <button 
                               onClick={() => handleViewChecklist(rental)}
-                              className="text-purple-600 hover:text-purple-800 flex items-center text-sm font-medium transition-colors"
+                              className="text-purple-500 hover:text-purple-400 flex items-center text-sm font-medium transition-colors duration-200"
                             >
                               <CheckSquare className="w-4 h-4 mr-1" />
                               Delivery Checklist
                             </button>
                             <button 
                               onClick={() => handleEditRental(rental)}
-                              className="text-gray-600 hover:text-gray-800 flex items-center text-sm font-medium transition-colors"
+                              className={`flex items-center text-sm font-medium transition-colors duration-200 ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-800'}`}
                             >
                               <Edit className="w-4 h-4 mr-1" />
                               Edit
                             </button>
-                            <button className="text-gray-600 hover:text-gray-800 flex items-center text-sm font-medium transition-colors">
+                            <button className={`flex items-center text-sm font-medium transition-colors duration-200 ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-800'}`}>
                               <FileText className="w-4 h-4 mr-1" />
                               Export
                             </button>
                           </div>
                           
                           {rental.all_items_completed && (
-                            <div className="flex items-center text-green-600 text-sm font-medium">
+                            <div className="flex items-center text-green-500 dark:text-green-400 text-sm font-medium">
                               <Award className="w-4 h-4 mr-1" />
                               Ready for Delivery
                             </div>

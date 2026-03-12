@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
+import { useNotifications } from '../context/NotificationContext';
 import { itServicesApi } from '../services/itServicesApiFixed';
 import udriveAccessService from '../services/udriveAccessService';
 import { supabase } from '../supabaseClient';
@@ -74,6 +75,7 @@ const ITRequestsEnhanced = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
   const { isDark } = useTheme();
+  const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
   
   // UI state
@@ -357,6 +359,22 @@ const ITRequestsEnhanced = () => {
       } else {
         const newRequest = await itServicesApi.requests.create(requestData);
         await activityService.logResourceCreate('it_request', newRequest.id, requestData);
+        // Show in-app notification immediately (broadcast often doesn't deliver to same client)
+        addNotification({
+          id: `it_request_created_${newRequest.id}_${Date.now()}`,
+          type: 'it_request',
+          title: 'IT Request Submitted',
+          message: `Your IT request has been submitted: ${newRequest.title}`,
+          priority: 'medium',
+          data: {
+            request_id: newRequest.id,
+            request_title: newRequest.title,
+            request_number: newRequest.request_number,
+            status: newRequest.status
+          },
+          timestamp: new Date(),
+          read: false
+        }, { autoDismiss: false, preserveId: true, playSound: true });
         success('Request created successfully');
       }
       

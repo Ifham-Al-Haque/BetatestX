@@ -40,6 +40,21 @@
   --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   --gradient-secondary: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
   --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  
+  /* Theme switch transition (JS can override duration for reduced-motion) */
+  --theme-transition-duration: 450ms;
+  --theme-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --theme-transition-duration: 0.05ms;
+  }
+}
+
+/* Smooth root background for theme switch */
+html {
+  transition: background-color var(--theme-transition-duration, 450ms) var(--theme-ease, cubic-bezier(0.4, 0, 0.2, 1));
 }
 
 .dark {
@@ -73,18 +88,19 @@
   --gradient-accent: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
 }
 
-/* Enhanced theme transitions */
-.theme-transition * {
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* Subtle dark canvas (soft gradient so it’s not flat) */
+.dark body {
+  background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+              radial-gradient(ellipse 80% 50% at 100% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+              var(--color-bg-primary);
 }
 
-/* Smooth transitions for theme changes */
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+/* Smooth theme transitions – only when switching (avoids global jank) */
+.theme-transition,
+.theme-transition * {
+  transition-duration: var(--theme-transition-duration);
+  transition-timing-function: var(--theme-ease);
+  transition-property: background-color, background-image, background, border-color, color, box-shadow, fill, stroke, opacity;
 }
 
 /* Custom scrollbar for dark mode */

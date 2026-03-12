@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
+import { emailService } from './emailService';
 
 // IT Services API Service - FIXED VERSION
 export const itServicesApi = {
@@ -279,6 +280,84 @@ export const itServicesApi = {
         }
 
         console.log('Request created successfully:', data);
+
+        // Notify the requester (receipt/confirmation) + attempt request-created email
+        try {
+          const rid = data?.requester_id;
+          if (rid) {
+            // In-app broadcast (works even if DB RPCs are missing)
+            try {
+              await supabase
+                .channel(`user_${rid}_notifications`)
+                .send({
+                  type: 'broadcast',
+                  event: 'notification',
+                  payload: {
+                    id: `it_request_created_${data.id}_${Date.now()}`,
+                    type: 'it_request',
+                    title: 'IT Request Submitted',
+                    message: `Your IT request has been submitted: ${data.title}`,
+                    priority: 'medium',
+                    data: {
+                      request_id: data.id,
+                      request_title: data.title,
+                      request_number: data.request_number,
+                      status: data.status
+                    },
+                    timestamp: new Date(),
+                    read: false
+                  }
+                });
+            } catch (broadcastErr) {
+              console.warn('Failed to broadcast requester IT request notification:', broadcastErr);
+            }
+
+            // DB-backed notification (optional; depends on `create_notification` RPC)
+            try {
+              await notificationService.createNotification({
+                userId: rid,
+                type: 'it_request',
+                title: 'IT Request Submitted',
+                message: `Your IT request has been submitted: ${data.title}`,
+                data: {
+                  request_id: data.id,
+                  request_title: data.title,
+                  request_number: data.request_number,
+                  status: data.status
+                },
+                priority: 'medium',
+                actionUrl: `/it-requests?view=${data.id}`,
+                actionLabel: 'View Request'
+              });
+            } catch (dbErr) {
+              console.warn('Failed to create requester DB notification:', dbErr);
+            }
+
+            // Email (optional): resolve requester email from users/employees and invoke send-email Edge Function (if deployed)
+            try {
+              const [uById, uByAuth, eById, eByAuth] = await Promise.all([
+                supabase.from('users').select('email, full_name').eq('id', rid).maybeSingle(),
+                supabase.from('users').select('email, full_name').eq('auth_user_id', rid).maybeSingle(),
+                supabase.from('employees').select('email, full_name').eq('id', rid).maybeSingle(),
+                supabase.from('employees').select('email, full_name').eq('auth_user_id', rid).maybeSingle()
+              ]);
+              const requester = uById.data || uByAuth.data || eById.data || eByAuth.data || null;
+              if (requester?.email) {
+                await emailService.sendRequestCreated(
+                  { ...data, requester: { full_name: requester.full_name, email: requester.email } },
+                  requester.email
+                );
+              } else {
+                console.warn('Request-created email skipped: requester email not found for requester_id', rid);
+              }
+            } catch (emailErr) {
+              console.warn('Failed to send request-created email:', emailErr);
+            }
+          }
+        } catch (requesterBlockErr) {
+          console.warn('Requester notification block failed:', requesterBlockErr);
+        }
+
         // Notify IT managers/admins that a ticket has been raised (in-app notifications)
         try {
           await notificationService.notifyITRequestCreated(data);
