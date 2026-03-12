@@ -7,11 +7,11 @@ import {
   Plus, Search, Filter, 
   Users, Building, Star, Activity, Eye, Edit, Trash,
   Phone, MapPin, Briefcase,
-  ChevronDown, ChevronUp, Download, Shield, UserCheck, Archive
+  ChevronDown, ChevronUp, Download, Shield, UserCheck, Archive, RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function Employees() {
+function Employees() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("full_name");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -144,24 +144,7 @@ export default function Employees() {
     return userRole === 'admin';
   }, [userProfile?.role]);
 
-  // Debug: Log current user role and permissions
-  console.log('🔍 Employee Page - User Role Debug:', {
-    userRole: userProfile?.role,
-    canView: canViewEmployee(),
-    canEdit: canEditEmployee(),
-    canDelete: canDeleteEmployee(),
-    canAdd: canAddEmployee()
-  });
-
-  // Debug: Log data loading state
-  console.log('🔍 Employee Page - Data Debug:', {
-    isLoading,
-    error,
-    employeesData,
-    employees: employees.length,
-    totalCount,
-    hasData: !!employeesData
-  });
+  // Note: debug logs removed for smoother UX
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -196,11 +179,20 @@ export default function Employees() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="ml-64 p-6 w-full">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <h3 className="text-red-800 font-medium text-lg">Error Loading Employees</h3>
-            <p className="text-red-600 mt-2">{error.message}</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="rounded-3xl border border-red-200/70 dark:border-red-900/40 bg-white/80 dark:bg-gray-800/70 backdrop-blur-sm shadow-xl p-8">
+            <h3 className="text-red-800 dark:text-red-300 font-semibold text-lg">Error Loading Employees</h3>
+            <p className="text-red-600 dark:text-red-400 mt-2">{error.message}</p>
+            <div className="mt-6">
+              <button
+                onClick={() => refetch()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try again
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -208,24 +200,24 @@ export default function Employees() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header Section */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/60 backdrop-blur border-b border-gray-200/70 dark:border-gray-700/60 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 py-4">
             <div className="flex items-center space-x-4">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
+              <div className="p-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-lg shadow-blue-500/20">
                 <Users className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Employee Records</h1>
-                <p className="text-sm text-gray-600">Manage and monitor your workforce with comprehensive analytics</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Employee Records</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Manage and monitor your workforce</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => refetch()}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+                className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                 title="Refresh Data"
               >
                 <Activity className="w-4 h-4" />
@@ -233,7 +225,7 @@ export default function Employees() {
               </button>
               <button
                 onClick={() => setViewMode(viewMode === "table" ? "grid" : "table")}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
               >
                 {viewMode === "table" ? (
                   <>
@@ -250,7 +242,7 @@ export default function Employees() {
               {canAddEmployee() && (
                 <button
                   onClick={() => navigate("/employee-form")}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-lg hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Plus className="w-4 h-4" />
                   Add Employee
@@ -258,7 +250,7 @@ export default function Employees() {
               )}
               <button
                 onClick={() => navigate("/employee-history")}
-                className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                className="bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white px-6 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Archive className="w-4 h-4" />
                 Employee History
@@ -276,15 +268,15 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
+            className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60 dark:border-gray-700/60 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5"
           >
             <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Employees</p>
-                <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Employees</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCount}</p>
               </div>
             </div>
           </motion.div>
@@ -293,15 +285,15 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
+            className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60 dark:border-gray-700/60 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5"
           >
             <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 rounded-lg">
+              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl">
                 <Star className="w-6 h-6 text-yellow-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">High Performers</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">High Performers</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {employees.filter(emp => (emp.performance_rating || 0) >= 4.5).length}
                 </p>
               </div>
@@ -312,15 +304,15 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
+            className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60 dark:border-gray-700/60 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5"
           >
             <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
                 <Building className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Departments</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Departments</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {new Set(employees.map(emp => emp.department).filter(Boolean)).size}
                 </p>
               </div>
@@ -331,15 +323,15 @@ export default function Employees() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
+            className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/60 dark:border-gray-700/60 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5"
           >
             <div className="flex items-center">
-              <div className="p-3 bg-emerald-100 rounded-lg">
+              <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
                 <Activity className="w-6 h-6 text-emerald-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {employees.filter(emp => !emp.termination_date).length}
                 </p>
               </div>
@@ -352,19 +344,19 @@ export default function Employees() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8"
+          className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/60 dark:border-gray-700/60 mb-8"
         >
           <div className="p-6">
             <div className="flex flex-col lg:flex-row gap-6 items-center justify-between mb-6">
               <div className="flex-1 w-full lg:max-w-2xl">
                 <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
                   <input
                     type="text"
                     placeholder="Search employees by name, ID, department, skills..."
                     value={search}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200"
+                    className="w-full pl-12 pr-4 py-3.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   />
                 </div>
               </div>
@@ -373,8 +365,8 @@ export default function Employees() {
                   onClick={() => setShowFilters(!showFilters)}
                   className={`px-6 py-3 border-2 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 ${
                     showFilters 
-                      ? 'border-blue-500 bg-blue-50 text-blue-600'
-                      : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-gray-50'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   <Filter className="w-5 h-5" />
@@ -511,11 +503,19 @@ export default function Employees() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center justify-center py-12"
+            className="py-6"
           >
-            <div className="text-center">
-              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading employees...</p>
+            <div className="space-y-4">
+              <div className="h-6 w-56 bg-gray-200/70 dark:bg-gray-700/70 rounded-lg animate-pulse" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {Array.from({ length: viewMode === 'grid' ? 8 : 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-48 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 bg-white/80 dark:bg-gray-800/70 backdrop-blur-sm animate-pulse"
+                  />
+                ))}
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Loading employees…</p>
             </div>
           </motion.div>
         )}
@@ -580,64 +580,74 @@ export default function Employees() {
             {viewMode === "grid" ? (
               <motion.div
                 key="grid"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="min-h-[280px]"
               >
-                {filteredAndSortedEmployees.map((employee) => (
+                {filteredAndSortedEmployees.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl bg-white/60 dark:bg-gray-800/40 backdrop-blur-sm border border-gray-200/70 dark:border-gray-700/60"
+                  >
+                    <div className="rounded-full bg-gray-100 dark:bg-gray-700/60 p-4 mb-4">
+                      <Users className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <p className="text-base font-medium text-gray-700 dark:text-gray-300">No employees match your filters</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Try adjusting search or filters to see more results.</p>
+                  </motion.div>
+                ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                {filteredAndSortedEmployees.map((employee, index) => (
                   <motion.div
                     key={employee.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.35,
+                      delay: Math.min(index * 0.04, 0.32),
+                      ease: [0.25, 0.46, 0.45, 0.94]
+                    }}
+                    whileHover={{ y: -4, boxShadow: '0 12px 28px -8px rgba(0,0,0,0.15)' }}
+                    className="w-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700/60 overflow-hidden transition-all duration-300 hover:border-blue-200 dark:hover:border-blue-800/50"
                   >
                     {/* Card Header with Profile Picture */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-200">
-                      <div className="flex items-start justify-between mb-3">
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-5 pt-5 pb-6 border-b border-gray-200/70 dark:border-gray-700/60">
+                      <div className="flex items-start justify-between gap-3 mb-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
                             {employee.full_name || employee.name || "Unknown"}
                           </h3>
-                          <p className="text-sm text-gray-600 truncate">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-0.5">
                             {employee.position || "No Position"}
                           </p>
                         </div>
-                        <div className="flex-shrink-0 ml-3">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(employee.status)}`}>
-                            {employee.status || 'Unknown'}
-                          </span>
-                        </div>
+                        <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border flex-shrink-0 ${getStatusColor(employee.status)}`}>
+                          {employee.status || 'Unknown'}
+                        </span>
                       </div>
-                      
-                      {/* Profile Picture */}
                       <div className="flex justify-center">
                         <div className="flex-shrink-0 h-20 w-20">
                           {(() => {
                             const imageUrl = employee.profile_picture || employee.photo_url;
                             const imageKey = `${employee.id}-${imageUrl}`;
                             const hasError = imageErrorsRef.current.has(imageKey);
-                            
-                            // Show fallback if no image URL or if image failed to load
                             if (!imageUrl || hasError) {
                               return (
-                                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-2xl ring-4 ring-white shadow-lg">
+                                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-2xl ring-4 ring-white dark:ring-gray-800 shadow-lg">
                                   {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
                                 </div>
                               );
                             }
-                            
-                            // Try to load the image
                             return (
                               <img
                                 key={imageKey}
-                                className="h-20 w-20 rounded-full ring-4 ring-white shadow-lg object-cover"
+                                className="h-20 w-20 rounded-full ring-4 ring-white dark:ring-gray-800 shadow-lg object-cover"
                                 src={imageUrl}
                                 alt={employee.full_name || employee.name}
                                 onError={() => {
-                                  // Mark this image as failed and trigger re-render
                                   if (!imageErrorsRef.current.has(imageKey)) {
                                     imageErrorsRef.current.add(imageKey);
                                     triggerRerender();
@@ -651,50 +661,44 @@ export default function Employees() {
                     </div>
 
                     {/* Card Content */}
-                    <div className="p-4 space-y-3">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span className="font-medium w-20 flex-shrink-0">ID:</span>
-                        <span className="truncate">{employee.employee_id || "N/A"}</span>
+                    <div className="p-4 space-y-2.5">
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 gap-2">
+                        <span className="font-medium w-16 flex-shrink-0 text-gray-500 dark:text-gray-500">ID</span>
+                        <span className="truncate font-medium text-gray-900 dark:text-gray-200">{employee.employee_id || "N/A"}</span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span className="font-medium w-20 flex-shrink-0">Dept:</span>
-                        <span className="truncate">{employee.department || "Unassigned"}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-500 flex-shrink-0">Dept</span>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-lg border ${getDepartmentColor(employee.department)} truncate max-w-full`}>
+                          {employee.department || "Unassigned"}
+                        </span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span className="font-medium w-20 flex-shrink-0">Email:</span>
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 gap-2 min-w-0">
+                        <span className="font-medium w-16 flex-shrink-0 text-gray-500 dark:text-gray-500">Email</span>
                         <span className="truncate">{employee.email || "N/A"}</span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span className="font-medium w-20 flex-shrink-0">Phone:</span>
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 gap-2 min-w-0">
+                        <span className="font-medium w-16 flex-shrink-0 text-gray-500 dark:text-gray-500">Phone</span>
                         <span className="truncate">{employee.phone || "N/A"}</span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span className="font-medium w-20 flex-shrink-0">Location:</span>
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 gap-2 min-w-0">
+                        <span className="font-medium w-16 flex-shrink-0 text-gray-500 dark:text-gray-500">Location</span>
                         <span className="truncate">{employee.location || "N/A"}</span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span className="font-medium w-20 flex-shrink-0">Joined:</span>
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 gap-2 min-w-0">
+                        <span className="font-medium w-16 flex-shrink-0 text-gray-500 dark:text-gray-500">Joined</span>
                         <span className="truncate">
                           {employee.hire_date ? new Date(employee.hire_date).toLocaleDateString() : "N/A"}
                         </span>
                       </div>
 
-                      {/* Role */}
-                      {/* Role column removed - not available in database */}
-
-                      {/* Performance Rating */}
                       {employee.performance_rating && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <span className="font-medium w-20 flex-shrink-0">Rating:</span>
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 gap-2 pt-1">
+                          <span className="font-medium w-16 flex-shrink-0 text-gray-500 dark:text-gray-500">Rating</span>
+                          <div className="flex items-center gap-0.5">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <Star
                                 key={star}
-                                className={`w-4 h-4 ${
-                                  star <= employee.performance_rating
-                                    ? 'text-yellow-400 fill-current'
-                                    : 'text-gray-300'
-                                }`}
+                                className={`w-4 h-4 ${star <= employee.performance_rating ? 'text-amber-400 dark:text-amber-400 fill-current' : 'text-gray-300 dark:text-gray-600'}`}
                               />
                             ))}
                           </div>
@@ -703,46 +707,46 @@ export default function Employees() {
 
                       {/* Action Buttons */}
                       {(canViewEmployee() || canEditEmployee() || canDeleteEmployee()) && (
-                        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                        <div className="flex items-center gap-2 pt-4 mt-2 border-t border-gray-100 dark:border-gray-700/70">
                           {canViewEmployee() && (
                             <button
                               onClick={() => navigate(`/employee/${employee.id}`)}
-                              className="flex-1 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                              className="flex-1 py-2.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 text-sm font-medium"
                               title="View Profile"
                             >
                               <Eye className="w-4 h-4" />
-                              <span className="text-sm">View</span>
+                              View
                             </button>
                           )}
                           {canEditEmployee() && (
                             <button
                               onClick={() => navigate(`/employee/${employee.id}/edit`)}
-                              className="flex-1 p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                              className="flex-1 py-2.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 text-sm font-medium"
                               title="Edit Employee"
                             >
                               <Edit className="w-4 h-4" />
-                              <span className="text-sm">Edit</span>
+                              Edit
                             </button>
                           )}
                           {canDeleteEmployee() && (
                             <>
                               <button
                                 onClick={() => handleArchive(employee.id, employee.full_name || employee.name)}
-                                className="flex-1 p-2 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 text-sm font-medium disabled:opacity-50"
                                 title="Archive Employee"
                                 disabled={archiveEmployeeMutation.isLoading}
                               >
                                 <Archive className="w-4 h-4" />
-                                <span className="text-sm">Archive</span>
+                                Archive
                               </button>
                               <button
                                 onClick={() => handleDelete(employee.id)}
-                                className="flex-1 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 text-sm font-medium disabled:opacity-50"
                                 title="Delete Employee"
                                 disabled={deleteEmployeeMutation.isLoading}
                               >
                                 <Trash className="w-4 h-4" />
-                                <span className="text-sm">Delete</span>
+                                Delete
                               </button>
                             </>
                           )}
@@ -751,6 +755,8 @@ export default function Employees() {
                     </div>
                   </motion.div>
                 ))}
+              </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
@@ -972,3 +978,5 @@ export default function Employees() {
     </div>
   );
 }
+
+export default Employees;

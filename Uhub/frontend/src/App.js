@@ -37,62 +37,75 @@ const queryClient = new QueryClient({
   },
 });
 
+// Safe lazy: ensure default export exists to avoid "Lazy element type must resolve to a class or function"
+function safeLazy(importFn, name) {
+  return React.lazy(async () => {
+    const mod = await importFn();
+    const Component = mod?.default;
+    if (typeof Component !== 'function' && !(Component?.$$typeof)) {
+      console.error(`[safeLazy] Module "${name}" has no valid default export:`, mod);
+      return { default: () => <div className="p-8 text-red-600">Page failed to load ({name}). Check console.</div> };
+    }
+    return { default: Component };
+  });
+}
+
 // Lazy load components for better performance
-const Welcome = React.lazy(() => import('./pages/Welcome'));
-const Login = React.lazy(() => import('./pages/Login'));
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
-const UserManagement = React.lazy(() => import('./pages/UserManagement'));
-const Employees = React.lazy(() => import('./pages/Employees'));
-const EmployeeHistory = React.lazy(() => import('./pages/EmployeeHistory'));
-const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
-const EmployeeForm = React.lazy(() => import('./pages/EmployeeForm'));
-const EmployeeOnboarding = React.lazy(() => import('./pages/EmployeeOnboarding'));
-const EmployeeOffboarding = React.lazy(() => import('./pages/EmployeeOffboarding'));
-const Drivers = React.lazy(() => import('./pages/Driver'));
-const DriverForm = React.lazy(() => import('./pages/DriverForm'));
-const DriverProfile = React.lazy(() => import('./pages/DriverProfile'));
-const Assets = React.lazy(() => import('./pages/Assets'));
-const AssetProfile = React.lazy(() => import('./pages/AssetProfile'));
-const AssetEdit = React.lazy(() => import('./pages/AssetEdit'));
-const ITAssets = React.lazy(() => import('./pages/ITAssets'));
-const ITRequests = React.lazy(() => import('./pages/ITRequestsEnhanced'));
-const RequestInbox = React.lazy(() => import('./pages/RequestInbox'));
-const CSPA = React.lazy(() => import('./pages/CSPA'));
-const Complaints = React.lazy(() => import('./pages/Complaints'));
-const Attendance = React.lazy(() => import('./pages/Attendance'));
-const Tasks = React.lazy(() => import('./pages/Tasks'));
-const CalendarView = React.lazy(() => import('./pages/CalendarView'));
-const Analytics = React.lazy(() => import('./pages/Analytics'));
-const FleetManagement = React.lazy(() => import('./pages/FleetManagement'));
-const FleetDashboard = React.lazy(() => import('./pages/FleetDashboard'));
-const DeliveryManagement = React.lazy(() => import('./pages/DeliveryManagement'));
-const DeliveryTracking = React.lazy(() => import('./pages/DeliveryTracking'));
-const DeliveryRoutes = React.lazy(() => import('./pages/DeliveryRoutes'));
-const UserProfile = React.lazy(() => import('./pages/UserProfile'));
-const Suggestions = React.lazy(() => import('./pages/Suggestions'));
-const TaskManagement = React.lazy(() => import('./pages/TaskManagement'));
-const ExpenseTracker = React.lazy(() => import('./pages/ExpenseTracker'));
-const PaymentCalendar = React.lazy(() => import('./pages/PaymentCalendar'));
-const Chat = React.lazy(() => import('./pages/Chat'));
-const ComplaintsInbox = React.lazy(() => import('./pages/ComplaintsInbox'));
-const Simcard = React.lazy(() => import('./pages/Simcard'));
-const Events = React.lazy(() => import('./pages/Events'));
-const Memories = React.lazy(() => import('./pages/Memories'));
-const EventPictureUpload = React.lazy(() => import('./pages/EventPictureUpload'));
-const UserWelcome = React.lazy(() => import('./pages/UserWelcome'));
-const SubscribeNow = React.lazy(() => import('./pages/SubscribeNow'));
-const Collections = React.lazy(() => import('./pages/Collections'));
-const FleetOnboarding = React.lazy(() => import('./pages/FleetOnboarding'));
-const FleetOffboarding = React.lazy(() => import('./pages/FleetOffboarding'));
-const FleetDeliveryChecklist = React.lazy(() => import('./pages/FleetDeliveryChecklist'));
-const FleetMaintenanceRecord = React.lazy(() => import('./pages/FleetMaintenanceRecord'));
-const FleetDriverCalendar = React.lazy(() => import('./pages/FleetDriverCalendar'));
-const MarketingCalendar = React.lazy(() => import('./pages/MarketingCalendar'));
-const OrganizationalHierarchy = React.lazy(() => import('./pages/OrganizationalHierarchy'));
-const IOTRecord = React.lazy(() => import('./pages/IOTRecord'));
-const ITTools = React.lazy(() => import('./pages/ITTools'));
-const RoleDebugger = React.lazy(() => import('./components/RoleDebugger'));
+const Welcome = safeLazy(() => import('./pages/Welcome'), 'Welcome');
+const Login = safeLazy(() => import('./pages/Login'), 'Login');
+const Dashboard = safeLazy(() => import('./pages/Dashboard'), 'Dashboard');
+const AdminDashboard = safeLazy(() => import('./pages/AdminDashboard'), 'AdminDashboard');
+const UserManagement = safeLazy(() => import('./pages/UserManagement'), 'UserManagement');
+const Employees = safeLazy(() => import('./pages/Employees'), 'Employees');
+const EmployeeHistory = safeLazy(() => import('./pages/EmployeeHistory'), 'EmployeeHistory');
+const EmployeeProfile = safeLazy(() => import('./pages/EmployeeProfile'), 'EmployeeProfile');
+const EmployeeForm = safeLazy(() => import('./pages/EmployeeForm'), 'EmployeeForm');
+const EmployeeOnboarding = safeLazy(() => import('./pages/EmployeeOnboarding'), 'EmployeeOnboarding');
+const EmployeeOffboarding = safeLazy(() => import('./pages/EmployeeOffboarding'), 'EmployeeOffboarding');
+const Drivers = safeLazy(() => import('./pages/Driver'), 'Driver');
+const DriverForm = safeLazy(() => import('./pages/DriverForm'), 'DriverForm');
+const DriverProfile = safeLazy(() => import('./pages/DriverProfile'), 'DriverProfile');
+const Assets = safeLazy(() => import('./pages/Assets'), 'Assets');
+const AssetProfile = safeLazy(() => import('./pages/AssetProfile'), 'AssetProfile');
+const AssetEdit = safeLazy(() => import('./pages/AssetEdit'), 'AssetEdit');
+const ITAssets = safeLazy(() => import('./pages/ITAssets'), 'ITAssets');
+const ITRequests = safeLazy(() => import('./pages/ITRequestsEnhanced'), 'ITRequests');
+const RequestInbox = safeLazy(() => import('./pages/RequestInbox'), 'RequestInbox');
+const CSPA = safeLazy(() => import('./pages/CSPA'), 'CSPA');
+const Complaints = safeLazy(() => import('./pages/Complaints'), 'Complaints');
+const Attendance = safeLazy(() => import('./pages/Attendance'), 'Attendance');
+const Tasks = safeLazy(() => import('./pages/Tasks'), 'Tasks');
+const CalendarView = safeLazy(() => import('./pages/CalendarView'), 'CalendarView');
+const Analytics = safeLazy(() => import('./pages/Analytics'), 'Analytics');
+const FleetManagement = safeLazy(() => import('./pages/FleetManagement'), 'FleetManagement');
+const FleetDashboard = safeLazy(() => import('./pages/FleetDashboard'), 'FleetDashboard');
+const DeliveryManagement = safeLazy(() => import('./pages/DeliveryManagement'), 'DeliveryManagement');
+const DeliveryTracking = safeLazy(() => import('./pages/DeliveryTracking'), 'DeliveryTracking');
+const DeliveryRoutes = safeLazy(() => import('./pages/DeliveryRoutes'), 'DeliveryRoutes');
+const UserProfile = safeLazy(() => import('./pages/UserProfile'), 'UserProfile');
+const Suggestions = safeLazy(() => import('./pages/Suggestions'), 'Suggestions');
+const TaskManagement = safeLazy(() => import('./pages/TaskManagement'), 'TaskManagement');
+const ExpenseTracker = safeLazy(() => import('./pages/ExpenseTracker'), 'ExpenseTracker');
+const PaymentCalendar = safeLazy(() => import('./pages/PaymentCalendar'), 'PaymentCalendar');
+const Chat = safeLazy(() => import('./pages/Chat'), 'Chat');
+const ComplaintsInbox = safeLazy(() => import('./pages/ComplaintsInbox'), 'ComplaintsInbox');
+const Simcard = safeLazy(() => import('./pages/Simcard'), 'Simcard');
+const Events = safeLazy(() => import('./pages/Events'), 'Events');
+const Memories = safeLazy(() => import('./pages/Memories'), 'Memories');
+const EventPictureUpload = safeLazy(() => import('./pages/EventPictureUpload'), 'EventPictureUpload');
+const UserWelcome = safeLazy(() => import('./pages/UserWelcome'), 'UserWelcome');
+const SubscribeNow = safeLazy(() => import('./pages/SubscribeNow'), 'SubscribeNow');
+const Collections = safeLazy(() => import('./pages/Collections'), 'Collections');
+const FleetOnboarding = safeLazy(() => import('./pages/FleetOnboarding'), 'FleetOnboarding');
+const FleetOffboarding = safeLazy(() => import('./pages/FleetOffboarding'), 'FleetOffboarding');
+const FleetDeliveryChecklist = safeLazy(() => import('./pages/FleetDeliveryChecklist'), 'FleetDeliveryChecklist');
+const FleetMaintenanceRecord = safeLazy(() => import('./pages/FleetMaintenanceRecord'), 'FleetMaintenanceRecord');
+const FleetDriverCalendar = safeLazy(() => import('./pages/FleetDriverCalendar'), 'FleetDriverCalendar');
+const MarketingCalendar = safeLazy(() => import('./pages/MarketingCalendar'), 'MarketingCalendar');
+const OrganizationalHierarchy = safeLazy(() => import('./pages/OrganizationalHierarchy'), 'OrganizationalHierarchy');
+const IOTRecord = safeLazy(() => import('./pages/IOTRecord'), 'IOTRecord');
+const ITTools = safeLazy(() => import('./pages/ITTools'), 'ITTools');
+const RoleDebugger = safeLazy(() => import('./components/RoleDebugger'), 'RoleDebugger');
 
 function App() {
   // Prevent unwanted page reloads on tab switch/visibility change
