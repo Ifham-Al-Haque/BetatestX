@@ -259,14 +259,32 @@ export const apiService = {
       if (filters.type) query = query.eq('type', filters.type);
       if (filters.assigned_to) query = query.eq('assigned_to', filters.assigned_to);
       if (filters.search) {
-        // Build OR conditions across base columns
-        let orConditions = `name.ilike.*${filters.search}*,type.ilike.*${filters.search}*,asset_code.ilike.*${filters.search}*,lpo_number.ilike.*${filters.search}*`;
+        const search = String(filters.search).trim();
+        const isNumeric = /^\d+(\.\d+)?$/.test(search);
 
-        // Also match by assignee name: find employees whose full_name matches, then OR with assigned_to IN (ids)
+        // Build OR conditions across base columns
+        let orConditions =
+          `name.ilike.*${search}*` +
+          `,type.ilike.*${search}*` +
+          `,asset_code.ilike.*${search}*` +
+          `,lpo_number.ilike.*${search}*` +
+          `,supplier.ilike.*${search}*`;
+
+        // Numeric search: match purchase_price exactly (cannot ilike numeric)
+        if (isNumeric) {
+          orConditions += `,purchase_price.eq.${search}`;
+        }
+
+        // Date-like search: allow exact match on purchase_date when ISO-like
+        if (/^\d{4}-\d{2}-\d{2}$/.test(search)) {
+          orConditions += `,purchase_date.eq.${search}`;
+        }
+
+        // Also match by assignee name or employee_id: find employees then OR with assigned_to IN (ids)
         const { data: matchingEmployees, error: empErr } = await supabase
           .from('employees')
           .select('id')
-          .ilike('full_name', `%${filters.search}%`);
+          .or(`full_name.ilike.%${search}%,employee_id.ilike.%${search}%`);
 
         if (!empErr && Array.isArray(matchingEmployees) && matchingEmployees.length > 0) {
           const idList = matchingEmployees
