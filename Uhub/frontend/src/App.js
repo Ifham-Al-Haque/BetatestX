@@ -106,6 +106,7 @@ const OrganizationalHierarchy = safeLazy(() => import('./pages/OrganizationalHie
 const IOTRecord = safeLazy(() => import('./pages/IOTRecord'), 'IOTRecord');
 const ITTools = safeLazy(() => import('./pages/ITTools'), 'ITTools');
 const RoleDebugger = safeLazy(() => import('./components/RoleDebugger'), 'RoleDebugger');
+const PayrollCalculator = safeLazy(() => import('./pages/PayrollCalculator'), 'PayrollCalculator');
 
 function App() {
   // Prevent unwanted page reloads on tab switch/visibility change
@@ -309,6 +310,15 @@ function App() {
                           <ProtectedRoute requiredFeature="employees">
                             <Layout>
                               <EmployeeHistory />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Payroll Calculator */}
+                        <Route path="/payroll-calculator" element={
+                          <ProtectedRoute requiredFeature="payroll">
+                            <Layout>
+                              <PayrollCalculator />
                             </Layout>
                           </ProtectedRoute>
                         } />

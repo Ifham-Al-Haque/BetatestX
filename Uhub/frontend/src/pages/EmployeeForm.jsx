@@ -568,24 +568,24 @@ export default function EmployeeForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      
-      <div className="flex-1 transition-all duration-300 ease-in-out" >
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50 dark:from-gray-950 dark:via-slate-900 dark:to-gray-900 flex">
+      <div className="flex-1 transition-all duration-500 ease-out">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-4">
               <button
+                type="button"
                 onClick={() => navigate("/employees")}
-                className="p-2 bg-white rounded-lg shadow border border-gray-200 hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center justify-center p-2.5 rounded-xl bg-white/80 dark:bg-gray-900/60 border border-gray-200/70 dark:border-gray-700/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-800">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                   {id ? "Edit Employee" : "New Employee"}
                 </h1>
-                <p className="text-gray-600">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
                   {id ? "Update employee information" : "Add a new employee to the system"}
                 </p>
               </div>
@@ -594,10 +594,10 @@ export default function EmployeeForm() {
 
           {/* Form Card */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
+            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="bg-white/90 dark:bg-gray-900/80 backdrop-blur-md rounded-3xl shadow-xl border border-gray-200/70 dark:border-gray-800/80 overflow-hidden"
           >
             {/* Enhanced Profile Picture Section */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-8 border-b border-gray-200">

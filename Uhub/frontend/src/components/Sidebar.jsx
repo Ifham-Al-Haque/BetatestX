@@ -32,7 +32,8 @@ import {
   Bell,
   Folder,
   Cpu,
-  X
+  X,
+  Calculator
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -221,7 +222,7 @@ const Sidebar = () => {
       icon: UserCheck,
       items: [
         { label: 'Employees', path: '/employees', icon: Users, feature: 'employees' },
-        { label: 'Employee Records', path: '/employee-records', icon: Users, feature: 'employees_view_only' },
+        { label: 'Payroll Calculator', path: '/payroll-calculator', icon: Calculator, feature: 'payroll' },
         { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
         { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },
         { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
