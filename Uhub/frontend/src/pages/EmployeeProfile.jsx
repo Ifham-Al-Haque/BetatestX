@@ -1,6 +1,6 @@
 // src/pages/EmployeeProfile.jsx
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, Mail, Phone, MapPin, Calendar, Building, 
@@ -9,7 +9,7 @@ import {
   Upload, Download, Target, Award, Heart, FileText,
   TrendingUp, BarChart3, PieChart, Activity, Users,
   GraduationCap, BookOpen, Clock3, AlertTriangle,
-  ChevronDown, ChevronRight, Eye, EyeOff, Globe,
+  ChevronDown, ChevronRight, Eye, EyeOff, Globe, X,
   Zap, Crown, Trophy, CalendarDays, MapPinIcon,
   Car, Package, CreditCard, ExternalLink, Laptop,
   Smartphone, LogIn, KeyRound, LayoutGrid
@@ -17,12 +17,25 @@ import {
 import { supabase } from "../supabaseClient";
 import { useAssets } from "../hooks/useApi";
 import { useSimCardsByEmployeeName } from "../hooks/useSimCards";
+import { useAuth } from "../context/AuthContext";
+import { canEditEmployees } from "../utils/permissions";
+import { normalizeAccessList, toDbAccessList } from "../utils/accessList";
+import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
+
 export default function EmployeeProfile() {
   const { id } = useParams();
+  const { userProfile } = useAuth();
+  const canEditAccess = canEditEmployees(userProfile?.role);
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [accessEntries, setAccessEntries] = useState([]);
+  const [expandedAccess, setExpandedAccess] = useState(() => new Set());
+  const [scopeDraft, setScopeDraft] = useState({});
+  const [newAccessName, setNewAccessName] = useState("");
+  const [savingAccess, setSavingAccess] = useState(false);
+  const [accessError, setAccessError] = useState(null);
 
   // Fetch assets assigned to this employee from Asset Management (linked data)
   const { data: assignedAssetsData, isLoading: assetsLoading } = useAssets(
@@ -86,10 +99,113 @@ export default function EmployeeProfile() {
     fetchEmployee();
   }, [fetchEmployee]);
 
+  useEffect(() => {
+    if (!employee) return;
+    setAccessEntries(normalizeAccessList(employee.access_list));
+    setAccessError(null);
+  }, [employee?.id, employee?.access_list]);
+
+  useEffect(() => {
+    setExpandedAccess(new Set());
+    setScopeDraft({});
+  }, [employee?.id]);
+
   // Reset avatar error state when switching employees / photo changes
   useEffect(() => {
     setAvatarFailed(false);
   }, [employee?.id, employee?.profile_picture, employee?.photo_url]);
+
+  const accessDirty = useMemo(() => {
+    if (!employee) return false;
+    return (
+      JSON.stringify(toDbAccessList(accessEntries)) !==
+      JSON.stringify(toDbAccessList(normalizeAccessList(employee.access_list)))
+    );
+  }, [accessEntries, employee]);
+
+  const saveAccessList = useCallback(async () => {
+    if (!id) return;
+    setSavingAccess(true);
+    setAccessError(null);
+    const payload = toDbAccessList(accessEntries);
+    const { error } = await supabase.from("employees").update({ access_list: payload }).eq("id", id);
+    setSavingAccess(false);
+    if (error) {
+      setAccessError(error.message);
+      return;
+    }
+    setEmployee((prev) => (prev ? { ...prev, access_list: payload } : null));
+  }, [id, accessEntries]);
+
+  const toggleAccessExpand = useCallback((index) => {
+    setExpandedAccess((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
+
+  const addScopeToEntry = useCallback((index) => {
+    setScopeDraft((d) => {
+      const raw = (d[index] ?? "").trim();
+      if (!raw) return d;
+      setAccessEntries((prev) => {
+        const next = [...prev];
+        const cur = { ...next[index], scopes: [...(next[index]?.scopes || [])] };
+        if (cur.scopes.includes(raw)) return prev;
+        cur.scopes.push(raw);
+        next[index] = cur;
+        return next;
+      });
+      return { ...d, [index]: "" };
+    });
+  }, []);
+
+  const removeScopeFromEntry = useCallback((index, scopeIdx) => {
+    setAccessEntries((prev) => {
+      const next = [...prev];
+      const cur = { ...next[index], scopes: [...(next[index]?.scopes || [])] };
+      cur.scopes.splice(scopeIdx, 1);
+      next[index] = cur;
+      return next;
+    });
+  }, []);
+
+  const removeAccessEntry = useCallback((index) => {
+    setAccessEntries((prev) => prev.filter((_, i) => i !== index));
+    setExpandedAccess((prev) => {
+      const next = new Set();
+      prev.forEach((i) => {
+        if (i < index) next.add(i);
+        else if (i > index) next.add(i - 1);
+      });
+      return next;
+    });
+    setScopeDraft((d) => {
+      const next = {};
+      Object.keys(d).forEach((k) => {
+        const ki = Number(k);
+        if (Number.isNaN(ki)) return;
+        if (ki < index) next[ki] = d[ki];
+        else if (ki > index) next[ki - 1] = d[ki];
+      });
+      return next;
+    });
+  }, []);
+
+  const addNewAccessEntry = useCallback(() => {
+    setNewAccessName((prevName) => {
+      const trimmed = prevName.trim();
+      if (!trimmed) return prevName;
+      setAccessEntries((prevEntries) => {
+        const idx = prevEntries.length;
+        setExpandedAccess((e) => new Set(e).add(idx));
+        return [...prevEntries, { name: trimmed, scopes: [] }];
+      });
+      return "";
+    });
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -387,7 +503,7 @@ export default function EmployeeProfile() {
     const isVerified = employee.auth_user?.is_verified;
     const accountActive = employee.account_status !== 'inactive';
     const role = employee.auth_user?.role || 'employee';
-    const accessList = getArrayData(employee.access_list);
+    const showAccessCard = accessEntries.length > 0 || canEditAccess;
 
     return (
     <div className="space-y-6">
@@ -487,32 +603,176 @@ export default function EmployeeProfile() {
         </motion.div>
       </div>
 
-      {/* System features */}
-      {accessList.length > 0 && (
+      {/* System access: expandable rows with roles / scope per system */}
+      {showAccessCard && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
         >
-          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-            <LayoutGrid className="w-4 h-4 text-indigo-500" />
-            System Features Access
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {accessList.map((access, i) => (
-              <motion.span
-                key={i}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.05 * i }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700/50 text-sm font-medium"
-              >
-                <CheckCircle className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-                {access}
-              </motion.span>
-            ))}
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <h4 className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-indigo-500" />
+              System access
+            </h4>
+            {canEditAccess && (
+              <div className="flex flex-wrap items-center gap-2">
+                {accessDirty && (
+                  <button
+                    type="button"
+                    onClick={saveAccessList}
+                    disabled={savingAccess}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {savingAccess ? "Saving…" : "Save changes"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Expand each system to see roles and scope assigned for this employee (for example Office 365 → Exchange, Teams).
+          </p>
+          {accessError && (
+            <p className="text-sm text-red-600 dark:text-red-400 mb-3">{accessError}</p>
+          )}
+          <div className="space-y-2">
+            {accessEntries.map((entry, i) => {
+              const expanded = expandedAccess.has(i);
+              return (
+                <div
+                  key={`${entry.name}-${i}`}
+                  className="rounded-xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/40 dark:bg-indigo-950/20 overflow-hidden"
+                >
+                  <div className="flex items-stretch gap-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleAccessExpand(i)}
+                      className="flex flex-1 items-center gap-3 min-w-0 text-left px-4 py-3 hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 transition-colors"
+                    >
+                      {expanded ? (
+                        <ChevronDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                      )}
+                      <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{entry.name}</span>
+                      {entry.scopes.length > 0 && (
+                        <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 px-2 py-0.5 rounded-lg flex-shrink-0">
+                          {entry.scopes.length} scope{entry.scopes.length === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </button>
+                    {canEditAccess && (
+                      <button
+                        type="button"
+                        onClick={() => removeAccessEntry(i)}
+                        className="px-3 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        title="Remove access"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <AnimatePresence initial={false}>
+                    {expanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="border-t border-indigo-200/60 dark:border-indigo-800/40"
+                      >
+                        <div className="px-4 py-3 bg-white/60 dark:bg-gray-900/40">
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                            Roles & scope
+                          </p>
+                          {entry.scopes.length > 0 ? (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {entry.scopes.map((scope, si) => (
+                                <span
+                                  key={`${scope}-${si}`}
+                                  className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200"
+                                >
+                                  {scope}
+                                  {canEditAccess && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeScopeFromEntry(i, si)}
+                                      className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                                      aria-label={`Remove ${scope}`}
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                              No roles or scope recorded yet. Add items below.
+                            </p>
+                          )}
+                          {canEditAccess && (
+                            <div className="flex flex-wrap gap-2">
+                              <input
+                                type="text"
+                                value={scopeDraft[i] ?? ""}
+                                onChange={(e) =>
+                                  setScopeDraft((d) => ({ ...d, [i]: e.target.value }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    addScopeToEntry(i);
+                                  }
+                                }}
+                                placeholder="e.g. Exchange Online, SharePoint site…"
+                                className="flex-1 min-w-[12rem] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => addScopeToEntry(i)}
+                                className="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700"
+                              >
+                                <Plus className="w-4 h-4" />
+                                Add
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+          {canEditAccess && (
+            <div className="mt-4 flex flex-wrap gap-2 items-center">
+              <input
+                type="text"
+                value={newAccessName}
+                onChange={(e) => setNewAccessName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addNewAccessEntry();
+                  }
+                }}
+                placeholder="Add system access (e.g. Office 365, VPN)…"
+                className="flex-1 min-w-[12rem] px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+              />
+              <button
+                type="button"
+                onClick={addNewAccessEntry}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+              >
+                <Plus className="w-4 h-4" />
+                Add access
+              </button>
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -944,7 +1204,9 @@ export default function EmployeeProfile() {
             {/* Profile Header */}
             <div className="flex items-center gap-6">
               <div className="relative">
-                {(employee.profile_picture || employee.photo_url) && !avatarFailed ? (
+                {(employee.profile_picture || employee.photo_url) &&
+                !avatarFailed &&
+                !isBlobUrlUnsafeForCurrentPage(employee.profile_picture || employee.photo_url) ? (
                   <img
                     key={`${employee.id}-${employee.profile_picture || employee.photo_url || 'no-pic'}`}
                     src={employee.profile_picture || employee.photo_url}

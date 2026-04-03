@@ -84,7 +84,7 @@ const widgetConfig = [
     color: 'from-indigo-500 to-purple-600',
     items: [
       { label: 'Employees', path: '/employees', icon: Users, feature: 'employees', description: 'Manage employees' },
-      { label: 'Payroll Calculator', path: '/payroll-calculator', icon: Calculator, feature: 'payroll', description: 'Import & calculate' },
+      { label: 'Payroll Calculator', path: '/payroll-calculator', icon: Calculator, feature: 'payroll_calculator', description: 'Import & calculate' },
       { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding', description: 'Onboard staff' },
       { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding', description: 'Offboard staff' },
       { label: 'Employee History', path: '/employee-history', icon: Archive, feature: 'employees', description: 'View archived employees' },

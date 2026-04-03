@@ -12,6 +12,7 @@ import {
   Globe, MapPinIcon, PhoneCall, MailOpen, Lock
 } from "lucide-react";
 import { clearImageCache, forceRefreshEmployeeImages } from "../utils/imageUtils";
+import { accessListToFormString, accessListFromForm } from "../utils/accessList";
 import { useAuth } from "../context/AuthContext";
 import { canEditEmployees, getPermissionDeniedMessage } from "../utils/permissions";
 
@@ -215,7 +216,7 @@ export default function EmployeeForm() {
             scopes: safeJsonbToString(data.scopes),
             responsibilities: safeJsonbToString(data.responsibilities),
             duties: safeJsonbToString(data.duties),
-            access_list: safeJsonbToString(data.access_list),
+            access_list: accessListToFormString(data.access_list),
             asset_list: safeJsonbToString(data.asset_list),
             key_roles: safeJsonbToString(data.key_roles),
             extra_responsibilities: safeJsonbToString(data.extra_responsibilities),
@@ -364,7 +365,7 @@ export default function EmployeeForm() {
           scopes: safeJsonbProcess(formData.scopes),
           responsibilities: safeJsonbProcess(formData.responsibilities),
           duties: safeJsonbProcess(formData.duties),
-          access_list: safeJsonbProcess(formData.access_list),
+          access_list: accessListFromForm(formData.access_list),
           asset_list: safeJsonbProcess(formData.asset_list),
           key_roles: safeJsonbProcess(formData.key_roles),
           extra_responsibilities: safeJsonbProcess(formData.extra_responsibilities),
@@ -1493,7 +1494,7 @@ export default function EmployeeForm() {
                             onChange={handleChange}
                             rows="4"
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            placeholder="Enter system access permissions (one per line)..."
+                            placeholder="One system per line, or JSON array with { name, scopes } for roles/scope per system…"
                           />
                         </div>
                       </div>

@@ -62,6 +62,17 @@ export const isValidUrl = (url) => {
 };
 
 /**
+ * Blob URLs are tied to the origin that created them. Using a blob: URL from
+ * another site (e.g. outlook.office.com) as an image URL on this app will
+ * fail with "Not allowed to load local resource" in the console.
+ */
+export const isBlobUrlUnsafeForCurrentPage = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  if (!url.startsWith('blob:')) return false;
+  return !url.startsWith(`blob:${window.location.origin}`);
+};
+
+/**
  * Creates a cache-busting URL for images
  * @param {string} imageUrl - The original image URL
  * @returns {string} - URL with cache-busting parameter

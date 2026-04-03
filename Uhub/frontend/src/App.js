@@ -316,7 +316,7 @@ function App() {
 
                         {/* Payroll Calculator */}
                         <Route path="/payroll-calculator" element={
-                          <ProtectedRoute requiredFeature="payroll">
+                          <ProtectedRoute requiredFeature="payroll_calculator">
                             <Layout>
                               <PayrollCalculator />
                             </Layout>

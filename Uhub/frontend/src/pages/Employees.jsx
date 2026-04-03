@@ -10,6 +10,7 @@ import {
   ChevronDown, ChevronUp, Download, Shield, UserCheck, Archive, RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
 
 function Employees() {
   const [search, setSearch] = useState("");
@@ -634,7 +635,8 @@ function Employees() {
                             const imageUrl = employee.profile_picture || employee.photo_url;
                             const imageKey = `${employee.id}-${imageUrl}`;
                             const hasError = imageErrorsRef.current.has(imageKey);
-                            if (!imageUrl || hasError) {
+                            const unsafeBlob = isBlobUrlUnsafeForCurrentPage(imageUrl);
+                            if (!imageUrl || hasError || unsafeBlob) {
                               return (
                                 <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-2xl ring-4 ring-white dark:ring-gray-800 shadow-lg">
                                   {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
@@ -810,9 +812,10 @@ function Employees() {
                                     const imageUrl = employee.profile_picture || employee.photo_url;
                                     const imageKey = `${employee.id}-${imageUrl}`;
                                     const hasError = imageErrorsRef.current.has(imageKey);
-                                    
+                                    const unsafeBlob = isBlobUrlUnsafeForCurrentPage(imageUrl);
+
                                     // Show fallback if no image URL or if image failed to load
-                                    if (!imageUrl || hasError) {
+                                    if (!imageUrl || hasError || unsafeBlob) {
                                       return (
                                         <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg ring-2 ring-slate-200 shadow-sm group-hover:ring-2 group-hover:ring-blue-200 transition-all duration-300">
                                           {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}

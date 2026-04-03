@@ -116,6 +116,8 @@ export default function AssetForm({ asset, onClose, onSubmit, isLoading }) {
                   <option value="Keyboard and Mouse">Keyboard and Mouse</option>
                   <option value="Headset">Headset</option>
                   <option value="Speaker">Speaker</option>
+                  <option value="Camera">Camera</option>
+                  <option value = "Laptop Stand">Laptop Stand</option>
                   <option value="Other">Other</option>
                 </select>
               </div>

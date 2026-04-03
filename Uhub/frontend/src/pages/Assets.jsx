@@ -328,10 +328,19 @@ export default function Assets() {
                   <option value="">All Types</option>
                   <option value="Laptop">Laptop</option>
                   <option value="Desktop">Desktop</option>
+                  <option value="All in One">All in One</option>
                   <option value="Mobile">Mobile</option>
                   <option value="Server">Server</option>
                   <option value="Printer">Printer</option>
                   <option value="Network">Network</option>
+                  <option value="Monitor">Monitor</option>
+                  <option value="Keyboard">Keyboard</option>
+                  <option value="Mouse">Mouse</option>
+                  <option value="Keyboard and Mouse">Keyboard and Mouse</option>
+                  <option value="Headset">Headset</option>
+                  <option value="Speaker">Speaker</option>
+                  <option value="Camera">Camera</option>
+                  <option value="Laptop Stand">Laptop Stand</option>
                 </select>
                 
                 {/* View Mode Toggle */}
