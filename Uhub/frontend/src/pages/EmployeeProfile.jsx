@@ -1,6 +1,6 @@
 // src/pages/EmployeeProfile.jsx
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, Mail, Phone, MapPin, Calendar, Building, 
@@ -9,7 +9,7 @@ import {
   Upload, Download, Target, Award, Heart, FileText,
   TrendingUp, BarChart3, PieChart, Activity, Users,
   GraduationCap, BookOpen, Clock3, AlertTriangle,
-  ChevronDown, ChevronRight, Eye, EyeOff, Globe, X,
+  ChevronDown, ChevronRight, ArrowUp, ArrowDown, Eye, EyeOff, Globe, X,
   Zap, Crown, Trophy, CalendarDays, MapPinIcon,
   Car, Package, CreditCard, ExternalLink, Laptop,
   Smartphone, LogIn, KeyRound, LayoutGrid
@@ -31,6 +31,8 @@ export default function EmployeeProfile() {
   const [activeTab, setActiveTab] = useState('overview');
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [accessEntries, setAccessEntries] = useState([]);
+  const accessEntriesRef = useRef(accessEntries);
+  accessEntriesRef.current = accessEntries;
   const [expandedAccess, setExpandedAccess] = useState(() => new Set());
   const [scopeDraft, setScopeDraft] = useState({});
   const [newAccessName, setNewAccessName] = useState("");
@@ -190,6 +192,34 @@ export default function EmployeeProfile() {
         if (ki < index) next[ki] = d[ki];
         else if (ki > index) next[ki - 1] = d[ki];
       });
+      return next;
+    });
+  }, []);
+
+  const moveAccessEntry = useCallback((fromIndex, direction) => {
+    const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1;
+    const len = accessEntriesRef.current.length;
+    if (toIndex < 0 || toIndex >= len) return;
+    setAccessEntries((prev) => {
+      const next = [...prev];
+      [next[fromIndex], next[toIndex]] = [next[toIndex], next[fromIndex]];
+      return next;
+    });
+    setExpandedAccess((prev) => {
+      const next = new Set();
+      prev.forEach((j) => {
+        if (j === fromIndex) next.add(toIndex);
+        else if (j === toIndex) next.add(fromIndex);
+        else next.add(j);
+      });
+      return next;
+    });
+    setScopeDraft((d) => {
+      const next = { ...d };
+      const a = next[fromIndex];
+      const b = next[toIndex];
+      next[fromIndex] = b;
+      next[toIndex] = a;
       return next;
     });
   }, []);
@@ -633,6 +663,9 @@ export default function EmployeeProfile() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Expand each system to see roles and scope assigned for this employee (for example Office 365 → Exchange, Teams).
+            {canEditAccess && accessEntries.length > 1 ? (
+              <span className="block mt-1">Use the arrows on each row to change the order, then save.</span>
+            ) : null}
           </p>
           {accessError && (
             <p className="text-sm text-red-600 dark:text-red-400 mb-3">{accessError}</p>
@@ -646,6 +679,30 @@ export default function EmployeeProfile() {
                   className="rounded-xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/40 dark:bg-indigo-950/20 overflow-hidden"
                 >
                   <div className="flex items-stretch gap-1">
+                    {canEditAccess && accessEntries.length > 1 && (
+                      <div className="flex flex-col justify-center border-r border-indigo-200/60 dark:border-indigo-800/50 pr-1 pl-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => moveAccessEntry(i, "up")}
+                          disabled={i === 0}
+                          className="p-1 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 disabled:opacity-30 disabled:pointer-events-none"
+                          title="Move up"
+                          aria-label="Move access up"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveAccessEntry(i, "down")}
+                          disabled={i === accessEntries.length - 1}
+                          className="p-1 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 disabled:opacity-30 disabled:pointer-events-none"
+                          title="Move down"
+                          aria-label="Move access down"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => toggleAccessExpand(i)}
