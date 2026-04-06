@@ -43,6 +43,21 @@ export function normalizeAccessList(raw) {
     .filter((e) => e.name);
 }
 
+/** Client-only stable ids for drag-reorder UI; stripped on save via toDbAccessList */
+export function newAccessEntryId() {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `access-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+export function ensureAccessEntryIds(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((e) => ({
+    ...e,
+    id: e.id || newAccessEntryId(),
+  }));
+}
+
 export function toDbAccessList(entries) {
   return entries
     .map((e) => ({

@@ -1,7 +1,7 @@
 // src/pages/EmployeeProfile.jsx
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
 import { 
   User, Mail, Phone, MapPin, Calendar, Building, 
   Shield, Monitor, Briefcase, Edit, ArrowLeft,
@@ -12,15 +12,198 @@ import {
   ChevronDown, ChevronRight, ArrowUp, ArrowDown, Eye, EyeOff, Globe, X,
   Zap, Crown, Trophy, CalendarDays, MapPinIcon,
   Car, Package, CreditCard, ExternalLink, Laptop,
-  Smartphone, LogIn, KeyRound, LayoutGrid
+  Smartphone, LogIn, KeyRound, LayoutGrid, GripVertical
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useAssets } from "../hooks/useApi";
 import { useSimCardsByEmployeeName } from "../hooks/useSimCards";
 import { useAuth } from "../context/AuthContext";
 import { canEditEmployees } from "../utils/permissions";
-import { normalizeAccessList, toDbAccessList } from "../utils/accessList";
+import { normalizeAccessList, toDbAccessList, ensureAccessEntryIds, newAccessEntryId } from "../utils/accessList";
 import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
+
+const accessCardClass =
+  "rounded-xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/40 dark:bg-indigo-950/20 overflow-hidden";
+
+function SystemAccessEntryRow({
+  entry,
+  index,
+  expanded,
+  canEditAccess,
+  canReorder,
+  totalCount,
+  toggleAccessExpand,
+  moveAccessEntry,
+  removeAccessEntry,
+  removeScopeFromEntry,
+  addScopeToEntry,
+  scopeDraft,
+  setScopeDraft,
+}) {
+  const dragControls = useDragControls();
+
+  const headerRow = (
+    <div className="flex items-stretch gap-1">
+      {canReorder && (
+        <button
+          type="button"
+          className="cursor-grab touch-none p-2 rounded-md border border-transparent text-indigo-500 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 shrink-0 self-stretch flex items-center active:cursor-grabbing"
+          onPointerDown={(e) => dragControls.start(e)}
+          aria-label="Drag to reorder"
+          title="Drag to reorder"
+        >
+          <GripVertical className="w-5 h-5" />
+        </button>
+      )}
+      {canEditAccess && totalCount > 1 && (
+        <div className="flex flex-col justify-center border-r border-indigo-200/60 dark:border-indigo-800/50 pr-1 pl-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => moveAccessEntry(index, "up")}
+            disabled={index === 0}
+            className="p-1 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 disabled:opacity-30 disabled:pointer-events-none"
+            title="Move up"
+            aria-label="Move access up"
+          >
+            <ArrowUp className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => moveAccessEntry(index, "down")}
+            disabled={index === totalCount - 1}
+            className="p-1 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 disabled:opacity-30 disabled:pointer-events-none"
+            title="Move down"
+            aria-label="Move access down"
+          >
+            <ArrowDown className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => toggleAccessExpand(index)}
+        className="flex flex-1 items-center gap-3 min-w-0 text-left px-4 py-3 hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 transition-colors"
+      >
+        {expanded ? (
+          <ChevronDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+        )}
+        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{entry.name}</span>
+        {entry.scopes.length > 0 && (
+          <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 px-2 py-0.5 rounded-lg flex-shrink-0">
+            {entry.scopes.length} scope{entry.scopes.length === 1 ? "" : "s"}
+          </span>
+        )}
+      </button>
+      {canEditAccess && (
+        <button
+          type="button"
+          onClick={() => removeAccessEntry(index)}
+          className="px-3 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+          title="Remove access"
+        >
+          <Trash className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+
+  const expandedPanel = (
+    <AnimatePresence initial={false}>
+      {expanded && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="border-t border-indigo-200/60 dark:border-indigo-800/40"
+        >
+          <div className="px-4 py-3 bg-white/60 dark:bg-gray-900/40">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+              Roles & scope
+            </p>
+            {entry.scopes.length > 0 ? (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {entry.scopes.map((scope, si) => (
+                  <span
+                    key={`${scope}-${si}`}
+                    className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200"
+                  >
+                    {scope}
+                    {canEditAccess && (
+                      <button
+                        type="button"
+                        onClick={() => removeScopeFromEntry(index, si)}
+                        className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                        aria-label={`Remove ${scope}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                No roles or scope recorded yet. Add items below.
+              </p>
+            )}
+            {canEditAccess && (
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={scopeDraft[index] ?? ""}
+                  onChange={(e) =>
+                    setScopeDraft((d) => ({ ...d, [index]: e.target.value }))
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addScopeToEntry(index);
+                    }
+                  }}
+                  placeholder="e.g. Exchange Online, SharePoint site…"
+                  className="flex-1 min-w-[12rem] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => addScopeToEntry(index)}
+                  className="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  if (canReorder) {
+    return (
+      <Reorder.Item
+        value={entry}
+        as="div"
+        dragListener={false}
+        dragControls={dragControls}
+        className={accessCardClass}
+      >
+        {headerRow}
+        {expandedPanel}
+      </Reorder.Item>
+    );
+  }
+
+  return (
+    <div className={accessCardClass}>
+      {headerRow}
+      {expandedPanel}
+    </div>
+  );
+}
 
 export default function EmployeeProfile() {
   const { id } = useParams();
@@ -103,9 +286,9 @@ export default function EmployeeProfile() {
 
   useEffect(() => {
     if (!employee) return;
-    setAccessEntries(normalizeAccessList(employee.access_list));
+    setAccessEntries(ensureAccessEntryIds(normalizeAccessList(employee.access_list)));
     setAccessError(null);
-  }, [employee?.id, employee?.access_list]);
+  }, [employee?.id]);
 
   useEffect(() => {
     setExpandedAccess(new Set());
@@ -224,6 +407,33 @@ export default function EmployeeProfile() {
     });
   }, []);
 
+  const handleAccessReorder = useCallback((newOrder) => {
+    const oldOrder = accessEntriesRef.current;
+    setAccessEntries(newOrder);
+    setExpandedAccess((prev) => {
+      const next = new Set();
+      prev.forEach((oldIdx) => {
+        const item = oldOrder[oldIdx];
+        if (!item?.id) return;
+        const newIdx = newOrder.findIndex((x) => x.id === item.id);
+        if (newIdx >= 0) next.add(newIdx);
+      });
+      return next;
+    });
+    setScopeDraft((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((k) => {
+        const oldIdx = Number(k);
+        if (Number.isNaN(oldIdx)) return;
+        const item = oldOrder[oldIdx];
+        if (!item?.id) return;
+        const newIdx = newOrder.findIndex((x) => x.id === item.id);
+        if (newIdx >= 0 && prev[oldIdx] !== undefined) next[newIdx] = prev[oldIdx];
+      });
+      return next;
+    });
+  }, []);
+
   const addNewAccessEntry = useCallback(() => {
     setNewAccessName((prevName) => {
       const trimmed = prevName.trim();
@@ -231,7 +441,7 @@ export default function EmployeeProfile() {
       setAccessEntries((prevEntries) => {
         const idx = prevEntries.length;
         setExpandedAccess((e) => new Set(e).add(idx));
-        return [...prevEntries, { name: trimmed, scopes: [] }];
+        return [...prevEntries, { name: trimmed, scopes: [], id: newAccessEntryId() }];
       });
       return "";
     });
@@ -664,146 +874,68 @@ export default function EmployeeProfile() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Expand each system to see roles and scope assigned for this employee (for example Office 365 → Exchange, Teams).
             {canEditAccess && accessEntries.length > 1 ? (
-              <span className="block mt-1">Use the arrows on each row to change the order, then save.</span>
+              <span className="block mt-1">
+                Drag the grip handle, or use the arrows on each row, to change the order, then save.
+              </span>
             ) : null}
           </p>
           {accessError && (
             <p className="text-sm text-red-600 dark:text-red-400 mb-3">{accessError}</p>
           )}
           <div className="space-y-2">
-            {accessEntries.map((entry, i) => {
-              const expanded = expandedAccess.has(i);
-              return (
-                <div
-                  key={`${entry.name}-${i}`}
-                  className="rounded-xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/40 dark:bg-indigo-950/20 overflow-hidden"
-                >
-                  <div className="flex items-stretch gap-1">
-                    {canEditAccess && accessEntries.length > 1 && (
-                      <div className="flex flex-col justify-center border-r border-indigo-200/60 dark:border-indigo-800/50 pr-1 pl-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => moveAccessEntry(i, "up")}
-                          disabled={i === 0}
-                          className="p-1 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 disabled:opacity-30 disabled:pointer-events-none"
-                          title="Move up"
-                          aria-label="Move access up"
-                        >
-                          <ArrowUp className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveAccessEntry(i, "down")}
-                          disabled={i === accessEntries.length - 1}
-                          className="p-1 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/40 disabled:opacity-30 disabled:pointer-events-none"
-                          title="Move down"
-                          aria-label="Move access down"
-                        >
-                          <ArrowDown className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => toggleAccessExpand(i)}
-                      className="flex flex-1 items-center gap-3 min-w-0 text-left px-4 py-3 hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 transition-colors"
-                    >
-                      {expanded ? (
-                        <ChevronDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
-                      )}
-                      <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{entry.name}</span>
-                      {entry.scopes.length > 0 && (
-                        <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 px-2 py-0.5 rounded-lg flex-shrink-0">
-                          {entry.scopes.length} scope{entry.scopes.length === 1 ? "" : "s"}
-                        </span>
-                      )}
-                    </button>
-                    {canEditAccess && (
-                      <button
-                        type="button"
-                        onClick={() => removeAccessEntry(i)}
-                        className="px-3 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                        title="Remove access"
-                      >
-                        <Trash className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <AnimatePresence initial={false}>
-                    {expanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="border-t border-indigo-200/60 dark:border-indigo-800/40"
-                      >
-                        <div className="px-4 py-3 bg-white/60 dark:bg-gray-900/40">
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                            Roles & scope
-                          </p>
-                          {entry.scopes.length > 0 ? (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {entry.scopes.map((scope, si) => (
-                                <span
-                                  key={`${scope}-${si}`}
-                                  className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200"
-                                >
-                                  {scope}
-                                  {canEditAccess && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeScopeFromEntry(i, si)}
-                                      className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
-                                      aria-label={`Remove ${scope}`}
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                              No roles or scope recorded yet. Add items below.
-                            </p>
-                          )}
-                          {canEditAccess && (
-                            <div className="flex flex-wrap gap-2">
-                              <input
-                                type="text"
-                                value={scopeDraft[i] ?? ""}
-                                onChange={(e) =>
-                                  setScopeDraft((d) => ({ ...d, [i]: e.target.value }))
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    addScopeToEntry(i);
-                                  }
-                                }}
-                                placeholder="e.g. Exchange Online, SharePoint site…"
-                                className="flex-1 min-w-[12rem] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => addScopeToEntry(i)}
-                                className="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700"
-                              >
-                                <Plus className="w-4 h-4" />
-                                Add
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
+            {canEditAccess && accessEntries.length > 0 ? (
+              <Reorder.Group
+                axis="y"
+                values={accessEntries}
+                onReorder={handleAccessReorder}
+                className="space-y-2"
+                as="div"
+              >
+                {accessEntries.map((entry, i) => {
+                  const expanded = expandedAccess.has(i);
+                  return (
+                    <SystemAccessEntryRow
+                      key={entry.id}
+                      entry={entry}
+                      index={i}
+                      expanded={expanded}
+                      canEditAccess={canEditAccess}
+                      canReorder={accessEntries.length > 1}
+                      totalCount={accessEntries.length}
+                      toggleAccessExpand={toggleAccessExpand}
+                      moveAccessEntry={moveAccessEntry}
+                      removeAccessEntry={removeAccessEntry}
+                      removeScopeFromEntry={removeScopeFromEntry}
+                      addScopeToEntry={addScopeToEntry}
+                      scopeDraft={scopeDraft}
+                      setScopeDraft={setScopeDraft}
+                    />
+                  );
+                })}
+              </Reorder.Group>
+            ) : (
+              accessEntries.map((entry, i) => {
+                const expanded = expandedAccess.has(i);
+                return (
+                  <SystemAccessEntryRow
+                    key={entry.id || `${entry.name}-${i}`}
+                    entry={entry}
+                    index={i}
+                    expanded={expanded}
+                    canEditAccess={canEditAccess}
+                    canReorder={false}
+                    totalCount={accessEntries.length}
+                    toggleAccessExpand={toggleAccessExpand}
+                    moveAccessEntry={moveAccessEntry}
+                    removeAccessEntry={removeAccessEntry}
+                    removeScopeFromEntry={removeScopeFromEntry}
+                    addScopeToEntry={addScopeToEntry}
+                    scopeDraft={scopeDraft}
+                    setScopeDraft={setScopeDraft}
+                  />
+                );
+              })
+            )}
           </div>
           {canEditAccess && (
             <div className="mt-4 flex flex-wrap gap-2 items-center">
