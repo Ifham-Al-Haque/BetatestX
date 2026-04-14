@@ -1,6 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
 
+const ASSIGNMENT_COLUMNS = ['assigned_employee_id', 'assigned_employee_name', 'assigned_employee_email'];
+
+const stripOptionalAssignmentColumns = (payload = {}) => {
+  const cloned = { ...payload };
+  ASSIGNMENT_COLUMNS.forEach((col) => {
+    delete cloned[col];
+  });
+  return cloned;
+};
+
+const isMissingColumnError = (error) => {
+  const msg = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  return (msg.includes('column') && msg.includes('does not exist')) ||
+         (details.includes('column') && details.includes('does not exist'));
+};
+
 // Fetch all SIM cards
 export const useSimCards = () => {
   return useQuery({
@@ -48,12 +65,22 @@ export const useCreateSimCard = () => {
   return useMutation({
     mutationFn: async (simCardData) => {
       console.log('📝 Attempting to create SIM card with data:', simCardData);
-      
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('sim_cards')
         .insert(simCardData)
         .select()
         .single();
+
+      // Backward-compat: if optional structured assignment columns are not in DB yet,
+      // retry without them so create still succeeds.
+      if (error && isMissingColumnError(error)) {
+        const fallbackPayload = stripOptionalAssignmentColumns(simCardData);
+        ({ data, error } = await supabase
+          .from('sim_cards')
+          .insert(fallbackPayload)
+          .select()
+          .single());
+      }
 
       if (error) {
         console.error('❌ Supabase error creating SIM card:', error);
@@ -91,12 +118,23 @@ export const useUpdateSimCard = () => {
   
   return useMutation({
     mutationFn: async ({ id, ...simCardData }) => {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('sim_cards')
         .update(simCardData)
         .eq('id', id)
         .select()
         .single();
+
+      // Backward-compat: retry without optional structured assignment columns.
+      if (error && isMissingColumnError(error)) {
+        const fallbackPayload = stripOptionalAssignmentColumns(simCardData);
+        ({ data, error } = await supabase
+          .from('sim_cards')
+          .update(fallbackPayload)
+          .eq('id', id)
+          .select()
+          .single());
+      }
 
       if (error) throw error;
       return data;
@@ -115,6 +153,26 @@ export const useUpdateSimCard = () => {
     onError: (error) => {
       console.error('❌ Error updating SIM card:', error);
     },
+  });
+};
+
+// Get single SIM card by ID for profile/details screen
+export const useSimCardById = (id) => {
+  return useQuery({
+    queryKey: ['simCard', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from('sim_cards')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 };
 

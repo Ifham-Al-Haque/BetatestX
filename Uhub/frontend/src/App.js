@@ -90,6 +90,7 @@ const PaymentCalendar = safeLazy(() => import('./pages/PaymentCalendar'), 'Payme
 const Chat = safeLazy(() => import('./pages/Chat'), 'Chat');
 const ComplaintsInbox = safeLazy(() => import('./pages/ComplaintsInbox'), 'ComplaintsInbox');
 const Simcard = safeLazy(() => import('./pages/Simcard'), 'Simcard');
+const SimcardProfile = safeLazy(() => import('./pages/SimcardProfile'), 'SimcardProfile');
 const Events = safeLazy(() => import('./pages/Events'), 'Events');
 const Memories = safeLazy(() => import('./pages/Memories'), 'Memories');
 const EventPictureUpload = safeLazy(() => import('./pages/EventPictureUpload'), 'EventPictureUpload');
@@ -555,6 +556,13 @@ function App() {
                           <ProtectedRoute requiredFeature="simcards">
                             <Layout>
                               <Simcard />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/simcards/:id" element={
+                          <ProtectedRoute requiredFeature="simcards">
+                            <Layout>
+                              <SimcardProfile />
                             </Layout>
                           </ProtectedRoute>
                         } />

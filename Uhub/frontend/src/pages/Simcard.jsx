@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Edit, Trash, Search, Filter, Phone, User, Building,
   Wifi, Signal, CreditCard, Download,
   X, Save, Users, AlertCircle, Loader2,
-  BarChart3, TrendingUp, Activity, Zap, Shield, FileText, FileSpreadsheet
+  BarChart3, TrendingUp, Activity, Zap, Shield, FileText, FileSpreadsheet, Eye
 } from "lucide-react";
 import { useSimCards, useCreateSimCard, useUpdateSimCard, useDeleteSimCard, useSimCardStats } from "../hooks/useSimCards";
 import { useAuth } from "../context/AuthContext";
@@ -15,6 +15,7 @@ import ExportModal from "../components/ExportModal";
 import { supabase } from "../supabaseClient";
 import { useQueryClient } from '@tanstack/react-query';
 import { exportFilteredData } from "../utils/exportUtils";
+import { Link } from "react-router-dom";
 
 // SIM Card Form Component
 const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
@@ -29,6 +30,9 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
     voice_minutes: simCard?.voice_minutes || "",
     sms_limit: simCard?.sms_limit || "",
     current_user: simCard?.current_user || "",
+    assigned_employee_id: simCard?.assigned_employee_id || "",
+    assigned_employee_name: simCard?.assigned_employee_name || "",
+    assigned_employee_email: simCard?.assigned_employee_email || "",
     previous_user: simCard?.previous_user || "",
     department: simCard?.department || "",
     designation: simCard?.designation || "",
@@ -37,9 +41,87 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
     expiry_date: simCard?.expiry_date || "",
     notes: simCard?.notes || ""
   });
+  const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadEmployees = async () => {
+      setEmployeesLoading(true);
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, full_name, employee_id, email, department, position')
+        .order('full_name', { ascending: true })
+        .limit(1000);
+
+      if (!isMounted) return;
+      if (error) {
+        console.error('Failed to load employees for SIM assignment:', error);
+        setEmployees([]);
+      } else {
+        setEmployees(Array.isArray(data) ? data : []);
+      }
+      setEmployeesLoading(false);
+    };
+
+    loadEmployees();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!employees.length || formData.assigned_employee_id || !formData.current_user) return;
+    const current = String(formData.current_user).toLowerCase();
+    const matchedEmployee = employees.find((employee) => {
+      const name = String(employee.full_name || '').toLowerCase();
+      const employeeId = String(employee.employee_id || '').toLowerCase();
+      const email = String(employee.email || '').toLowerCase();
+      return (name && current.includes(name)) || (employeeId && current.includes(employeeId)) || (email && current.includes(email));
+    });
+
+    if (matchedEmployee) {
+      setFormData((prev) => ({
+        ...prev,
+        assigned_employee_id: matchedEmployee.employee_id || matchedEmployee.id || '',
+        assigned_employee_name: matchedEmployee.full_name || '',
+        assigned_employee_email: matchedEmployee.email || '',
+      }));
+    }
+  }, [employees, formData.assigned_employee_id, formData.current_user]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleEmployeeAssignChange = (e) => {
+    const selectedId = e.target.value;
+    if (!selectedId) {
+      setFormData((prev) => ({
+        ...prev,
+        assigned_employee_id: '',
+        assigned_employee_name: '',
+        assigned_employee_email: '',
+      }));
+      return;
+    }
+
+    const selectedEmployee = employees.find((employee) => String(employee.employee_id || employee.id) === selectedId);
+    if (!selectedEmployee) return;
+
+    const canonicalCurrentUser = selectedEmployee.employee_id
+      ? `${selectedEmployee.full_name || 'Unknown'} (${selectedEmployee.employee_id})`
+      : selectedEmployee.full_name || '';
+
+    setFormData((prev) => ({
+      ...prev,
+      current_user: canonicalCurrentUser,
+      department: prev.department || selectedEmployee.department || '',
+      designation: prev.designation || selectedEmployee.position || '',
+      assigned_employee_id: selectedEmployee.employee_id || selectedEmployee.id || '',
+      assigned_employee_name: selectedEmployee.full_name || '',
+      assigned_employee_email: selectedEmployee.email || '',
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -229,6 +311,40 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
             </div>
 
             <div className="space-y-6">
+              <div>
+                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
+                  isDark ? 'text-slate-200' : 'text-gray-700'
+                }`}>
+                  Assign to Employee
+                </label>
+                <select
+                  value={formData.assigned_employee_id}
+                  onChange={handleEmployeeAssignChange}
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                    isDark 
+                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
+                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+                  }`}
+                >
+                  <option value="">
+                    {employeesLoading ? 'Loading employees...' : 'Select employee (optional)'}
+                  </option>
+                  {employees.map((employee) => {
+                    const value = String(employee.employee_id || employee.id || '');
+                    const displayName = employee.full_name || 'Unknown';
+                    const suffix = employee.employee_id ? `(${employee.employee_id})` : '';
+                    return (
+                      <option key={`${value}-${employee.email || ''}`} value={value}>
+                        {displayName} {suffix}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  Helps keep assignment consistent with employee records.
+                </p>
+              </div>
+
               <div>
                 <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
                   isDark ? 'text-slate-200' : 'text-gray-700'
@@ -648,6 +764,22 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
         </div>
       )}
 
+      <div className={`pt-4 border-t mt-4 transition-all duration-300 ${
+        isDark ? 'border-slate-700' : 'border-gray-200'
+      }`}>
+        <Link
+          to={`/simcards/${simCard.id}`}
+          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            isDark
+              ? 'bg-slate-700 text-slate-100 hover:bg-slate-600'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          <Eye className="w-4 h-4" />
+          View Profile
+        </Link>
+      </div>
+
       {/* Dates */}
       <div className={`pt-4 border-t mt-4 transition-all duration-300 ${
         isDark ? 'border-slate-700' : 'border-gray-200'
@@ -732,7 +864,10 @@ export default function Simcard() {
     const simCardData = {
       ...formData,
       user_id: user?.id,
-      monthly_cost: parseFloat(formData.monthly_cost) || 0
+      monthly_cost: parseFloat(formData.monthly_cost) || 0,
+      assigned_employee_id: formData.assigned_employee_id || null,
+      assigned_employee_name: formData.assigned_employee_name || null,
+      assigned_employee_email: formData.assigned_employee_email || null,
     };
 
     console.log('📝 Submitting SIM card data:', simCardData);
