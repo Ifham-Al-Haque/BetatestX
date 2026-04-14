@@ -1,7 +1,7 @@
 // src/components/WidgetNavigation.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { 
   Home, 
   BarChart3, 
@@ -225,71 +225,41 @@ const widgetConfig = [
   }
 ];
 
-// Enhanced Widget Component
-const Widget = ({ widget, userRole, index, onExpand }) => {
-  const Icon = widget.icon;
-  
-  // Filter items based on user role - with fallback
-  let filteredItems = widget.items.filter(item => {
-    if (!userRole) {
-      // If no role, show first item
-      return item === widget.items[0];
-    }
-    if (!item.feature) return true;
-    try {
-      return hasFeatureAccess(userRole, item.feature);
-    } catch (error) {
-      // Fallback: show first item if there's an error
-      return item === widget.items[0];
-    }
-  });
+const getAccessibleWidgetItems = (widget, userRole) => {
+  if (!userRole) return [];
+  return widget.items.filter((item) => !item.feature || hasFeatureAccess(userRole, item.feature));
+};
 
-  // Fallback: if no items match, show first item
-  if (filteredItems.length === 0) {
-    filteredItems = [widget.items[0]];
-  }
+// Enhanced Widget Component
+const Widget = ({ widget, items, index, onExpand }) => {
+  const Icon = widget.icon;
+  const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
   // Get primary item (first accessible item)
-  const primaryItem = filteredItems[0];
+  const primaryItem = items[0];
 
   const handleClick = (e) => {
     e.preventDefault();
-    if (filteredItems.length > 1) {
+    if (!primaryItem) return;
+    if (items.length > 1) {
       // If multiple items, show expand modal
-      onExpand(widget, filteredItems);
+      onExpand(widget, items);
     } else {
-      // If single item, navigate directly
-      window.location.href = primaryItem.path;
+      navigate(primaryItem.path);
     }
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98 }}
+      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
       transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 25,
-        delay: index * 0.05
+        duration: prefersReducedMotion ? 0.18 : 0.24,
+        delay: index * 0.03
       }}
-      whileHover={{
-        y: -8,
-        scale: 1.02,
-        transition: {
-          type: "spring",
-          stiffness: 400,
-          damping: 25
-        }
-      }}
-      whileTap={{
-        scale: 0.98,
-        transition: {
-          type: "spring",
-          stiffness: 600,
-          damping: 30
-        }
-      }}
+      whileHover={prefersReducedMotion ? undefined : { y: -3, scale: 1.01 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
       className="group relative"
     >
       <button
@@ -300,40 +270,12 @@ const Widget = ({ widget, userRole, index, onExpand }) => {
           WebkitTapHighlightColor: 'transparent'
         }}
       >
-        {/* Gradient overlay on hover */}
-        <motion.div
-          className={`absolute inset-0 bg-gradient-to-br ${widget.color} opacity-0 group-hover:opacity-10 rounded-xl sm:rounded-2xl`}
-          transition={{
-            type: "spring",
-            stiffness: 300,
-            damping: 25
-          }}
-        />
+        <div className={`absolute inset-0 bg-gradient-to-br ${widget.color} opacity-0 group-hover:opacity-10 rounded-xl sm:rounded-2xl transition-opacity duration-300`} />
 
         {/* Icon container */}
-        <motion.div
-          className={`w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18 bg-gradient-to-r ${widget.color} rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg relative z-10`}
-          whileHover={{
-            scale: 1.15,
-            rotate: 5,
-            transition: {
-              type: "spring",
-              stiffness: 400,
-              damping: 20
-            }
-          }}
-        >
+        <div className={`w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18 bg-gradient-to-r ${widget.color} rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg relative z-10 transition-transform duration-300 group-hover:scale-105`}>
           <Icon className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 text-white" />
-          {/* Glow effect */}
-          <motion.div
-            className={`absolute inset-0 bg-gradient-to-r ${widget.color} rounded-xl sm:rounded-2xl blur-xl opacity-0 group-hover:opacity-50`}
-            transition={{
-              type: "spring",
-              stiffness: 300,
-              damping: 25
-            }}
-          />
-        </motion.div>
+        </div>
 
         {/* Title */}
         <h3 className="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2 group-hover:text-emerald-300 transition-colors relative z-10 line-clamp-1">
@@ -346,38 +288,14 @@ const Widget = ({ widget, userRole, index, onExpand }) => {
         </p>
 
         {/* Item count badge - shows when multiple items available */}
-        {filteredItems.length > 1 && (
-          <motion.div
+        {items.length > 1 && (
+          <div
             className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-emerald-400/80 to-blue-400/80 backdrop-blur-sm relative z-10 shadow-lg"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{
-              type: "spring",
-              stiffness: 400,
-              damping: 20,
-              delay: index * 0.05 + 0.2
-            }}
-            whileHover={{ scale: 1.1 }}
           >
-            {filteredItems.length} sections
-            <motion.span
-              className="ml-1.5"
-              animate={{ x: [0, 3, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
-              →
-            </motion.span>
-          </motion.div>
+            {items.length} sections
+            <span className="ml-1.5">→</span>
+          </div>
         )}
-
-        {/* Shine effect on hover */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full"
-          transition={{
-            duration: 0.6,
-            ease: "easeInOut"
-          }}
-        />
       </button>
     </motion.div>
   );
@@ -386,6 +304,7 @@ const Widget = ({ widget, userRole, index, onExpand }) => {
 // Widget Expansion Modal Component
 const WidgetExpansionModal = ({ widget, items, isOpen, onClose }) => {
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
   // Early return if modal shouldn't be shown
   if (!isOpen || !widget || !items || items.length === 0) {
@@ -415,13 +334,11 @@ const WidgetExpansionModal = ({ widget, items, isOpen, onClose }) => {
 
           {/* Modal Content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 50 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 16 }}
+            animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 16 }}
             transition={{
-              type: "spring",
-              stiffness: 300,
-              damping: 30
+              duration: prefersReducedMotion ? 0.16 : 0.22
             }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
@@ -458,8 +375,8 @@ const WidgetExpansionModal = ({ widget, items, isOpen, onClose }) => {
                   <motion.button
                     onClick={onClose}
                     className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-white transition-colors"
-                    whileHover={{ scale: 1.1, rotate: 90 }}
-                    whileTap={{ scale: 0.9 }}
+                    whileHover={prefersReducedMotion ? undefined : { scale: 1.06 }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
                   >
                     <X className="w-6 h-6" />
                   </motion.button>
@@ -475,24 +392,14 @@ const WidgetExpansionModal = ({ widget, items, isOpen, onClose }) => {
                       <motion.button
                         key={item.path}
                         onClick={() => handleItemClick(item)}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                        animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                         transition={{
-                          type: "spring",
-                          stiffness: 300,
-                          damping: 25,
+                          duration: prefersReducedMotion ? 0.14 : 0.2,
                           delay: index * 0.05
                         }}
-                        whileHover={{
-                          scale: 1.02,
-                          y: -4,
-                          transition: {
-                            type: "spring",
-                            stiffness: 400,
-                            damping: 25
-                          }
-                        }}
-                        whileTap={{ scale: 0.98 }}
+                        whileHover={prefersReducedMotion ? undefined : { scale: 1.01, y: -2 }}
+                        whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
                         className={`group p-4 sm:p-5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/30 transition-all duration-300 text-left touch-manipulation relative overflow-hidden`}
                       >
                         {/* Gradient overlay */}
@@ -517,15 +424,11 @@ const WidgetExpansionModal = ({ widget, items, isOpen, onClose }) => {
                               {item.description}
                             </p>
                           </div>
-                          <motion.div
-                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            animate={{ x: [0, 5, 0] }}
-                            transition={{ duration: 1.5, repeat: Infinity }}
-                          >
+                          <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
-                          </motion.div>
+                          </div>
                         </div>
                       </motion.button>
                     );
@@ -545,27 +448,16 @@ const WidgetNavigation = ({ userRole }) => {
   const [expandedWidget, setExpandedWidget] = useState(null);
   const [expandedItems, setExpandedItems] = useState([]);
 
-  // Filter widgets based on user role - with fallback to show all if no role
-  let filteredWidgets = widgetConfig.filter(widget => {
-    if (!userRole) {
-      // If no role, show main panel at minimum
-      return widget.key === 'main' || widget.key === 'user_profile' || widget.key === 'todo_list';
-    }
-    try {
-      return canSeePanel(userRole, widget.key);
-    } catch (error) {
-      console.warn('Error checking panel access:', error);
-      // Fallback: show main panel if there's an error
-      return widget.key === 'main';
-    }
-  });
-
-  // Fallback: if no widgets match, show at least main panel
-  if (filteredWidgets.length === 0) {
-    filteredWidgets = widgetConfig.filter(widget => 
-      widget.key === 'main' || widget.key === 'user_profile' || widget.key === 'todo_list'
-    );
-  }
+  // Strict role-based filtering: render only panels/items that user can access.
+  const filteredWidgets = widgetConfig
+    .map((widget) => {
+      if (!userRole) return null;
+      if (!canSeePanel(userRole, widget.key)) return null;
+      const items = getAccessibleWidgetItems(widget, userRole);
+      if (items.length === 0) return null;
+      return { widget, items };
+    })
+    .filter(Boolean);
 
   const handleExpand = (widget, items) => {
     setExpandedWidget(widget);
@@ -580,16 +472,22 @@ const WidgetNavigation = ({ userRole }) => {
   return (
     <div className="w-full">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
-        {filteredWidgets.map((widget, index) => (
+        {filteredWidgets.map(({ widget, items }, index) => (
           <Widget
             key={widget.key}
             widget={widget}
-            userRole={userRole}
+            items={items}
             index={index}
             onExpand={handleExpand}
           />
         ))}
       </div>
+
+      {filteredWidgets.length === 0 && (
+        <div className="rounded-2xl border border-white/20 bg-white/5 p-6 text-center text-blue-100">
+          <p className="text-sm">No widgets are available for your role yet.</p>
+        </div>
+      )}
 
       {/* Expansion Modal */}
       <WidgetExpansionModal
