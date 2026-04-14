@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   Plus, Search, Filter, FileText, Clock, User, 
@@ -20,16 +20,21 @@ import { DEPARTMENTS } from '../config/departments';
 
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
+import EnhancedButton from '../components/ui/EnhancedButton';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
 import TaskCard from '../components/TaskCard';
 import TaskNotes from '../components/TaskNotes';
 import MyTaskCard from '../components/MyTaskCard';
+import { CardSkeleton } from '../components/LoadingSkeleton';
+import PaginationControls from '../components/ui/PaginationControls';
+import { safeMotion } from '../utils/motion';
 
 const TaskManagement = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
+  const prefersReducedMotion = useReducedMotion();
   const queryClient = useQueryClient();
   
   const [allUsers, setAllUsers] = useState([]);
@@ -59,6 +64,8 @@ const TaskManagement = () => {
   });
   const [userDepartment, setUserDepartment] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null); // Store current user's users.id (primary key)
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 12;
 
   const [formData, setFormData] = useState({
     title: '',
@@ -990,19 +997,28 @@ const TaskManagement = () => {
     return user ? user.full_name : 'Unknown';
   };
 
+  const filteredTasks = getFilteredTasks();
+  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedTasks = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredTasks.slice(start, start + PAGE_SIZE);
+  }, [filteredTasks, currentPage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, filters]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div className="ml-80 p-6">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+        <div className="max-w-7xl mx-auto p-6 space-y-6">
+          <CardSkeleton cards={4} />
+          <CardSkeleton cards={6} />
         </div>
       </div>
     );
   }
-
-  const filteredTasks = getFilteredTasks();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
@@ -1021,30 +1037,30 @@ const TaskManagement = () => {
             </div>
             <div className="flex items-center gap-3">
               <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={safeMotion(prefersReducedMotion, { scale: 1.05 }, {})}
+                whileTap={safeMotion(prefersReducedMotion, { scale: 0.95 }, {})}
               >
-                <Button
+                <EnhancedButton
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  variant="outline"
+                  variant="secondary"
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300"
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   Refresh
-                </Button>
+                </EnhancedButton>
               </motion.div>
               <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={safeMotion(prefersReducedMotion, { scale: 1.05 }, {})}
+                whileTap={safeMotion(prefersReducedMotion, { scale: 0.95 }, {})}
               >
-                <Button
+                <EnhancedButton
                   onClick={() => setShowForm(true)}
                   className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <Plus className="w-4 h-4" />
                   New Task
-                </Button>
+                </EnhancedButton>
               </motion.div>
             </div>
           </div>
@@ -1992,7 +2008,7 @@ const TaskManagement = () => {
                   : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
               }`}>
               <AnimatePresence>
-                {filteredTasks.map((task, index) => {
+                {pagedTasks.map((task, index) => {
                   // Use MyTaskCard for "My Tasks" tab for enhanced UI with inline notes
                   if (activeTab === 'my-tasks') {
                     return (
@@ -2026,6 +2042,13 @@ const TaskManagement = () => {
                 })}
               </AnimatePresence>
               </div>
+              <PaginationControls
+                page={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredTasks.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+              />
             </>
           )}
         </div>

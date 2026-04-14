@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { 
   Inbox, Users, Clock, AlertTriangle, CheckCircle, XCircle, 
   MoreHorizontal, Edit, Trash2, Eye, Calendar, Tag, Building,
@@ -11,21 +11,24 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { useTheme } from '../context/ThemeContext';
 import { itServicesApi } from '../services/itServicesApi';
 import { supabase } from '../supabaseClient';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
+import EnhancedButton from '../components/ui/EnhancedButton';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ITAnalytics from '../components/ITAnalytics';
+import { CardSkeleton, TableSkeleton } from '../components/LoadingSkeleton';
+import PaginationControls from '../components/ui/PaginationControls';
+import { fadeUp, safeMotion } from '../utils/motion';
 
 const RequestInbox = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
-  const { isDark } = useTheme();
+  const prefersReducedMotion = useReducedMotion();
   
   // Core state
   const [requests, setRequests] = useState([]);
@@ -55,6 +58,8 @@ const RequestInbox = () => {
     sortBy: 'created_at',
     sortOrder: 'desc'
   });
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 12;
 
   // Analytics state
   const [analytics, setAnalytics] = useState({
@@ -267,6 +272,18 @@ const RequestInbox = () => {
     return filtered;
   }, [requests, filters]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedRequests.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedRequests = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredAndSortedRequests.slice(start, start + PAGE_SIZE);
+  }, [filteredAndSortedRequests, currentPage]);
+
+  // Keep pagination predictable as filters/views change
+  useEffect(() => {
+    setPage(1);
+  }, [filters, viewMode]);
+
   // Utility functions (same as ITRequests)
   const getPriorityColor = (priority) => {
     if (!priority) return {
@@ -417,14 +434,11 @@ const RequestInbox = () => {
 
   if (loading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center"
-        style={{
-          background: 'var(--bg-primary)',
-          color: 'var(--text-primary)'
-        }}
-      >
-        <LoadingSpinner size="xl" text="Loading request inbox..." />
+      <div className="min-h-screen p-4 md:p-6" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+        <div className="max-w-7xl mx-auto space-y-6">
+          <CardSkeleton cards={5} />
+          <TableSkeleton rows={8} columns={6} />
+        </div>
       </div>
     );
   }
@@ -441,10 +455,8 @@ const RequestInbox = () => {
     >
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+        <motion.div
+          {...fadeUp(0)}
           className="mb-6"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
@@ -455,7 +467,7 @@ const RequestInbox = () => {
                   background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                   boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)'
                 }}
-                whileHover={{ scale: 1.03 }}
+                whileHover={safeMotion(prefersReducedMotion, { scale: 1.03 }, {})}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               >
                 <Inbox className="w-7 h-7 text-white" />
@@ -476,9 +488,9 @@ const RequestInbox = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="outline"
+              <motion.div whileHover={safeMotion(prefersReducedMotion, { scale: 1.02 }, {})} whileTap={safeMotion(prefersReducedMotion, { scale: 0.98 }, {})}>
+                <EnhancedButton
+                  variant="secondary"
                   onClick={refreshData}
                   disabled={refreshing}
                   className="flex items-center gap-2 rounded-xl border transition-all duration-200"
@@ -490,11 +502,11 @@ const RequestInbox = () => {
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                   Refresh
-                </Button>
+                </EnhancedButton>
               </motion.div>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="outline"
+              <motion.div whileHover={safeMotion(prefersReducedMotion, { scale: 1.02 }, {})} whileTap={safeMotion(prefersReducedMotion, { scale: 0.98 }, {})}>
+                <EnhancedButton
+                  variant="secondary"
                   onClick={() => setShowAnalytics(!showAnalytics)}
                   className="flex items-center gap-2 rounded-xl border transition-all duration-200"
                   style={{
@@ -505,7 +517,7 @@ const RequestInbox = () => {
                 >
                   <BarChart3 className="w-4 h-4" />
                   Analytics
-                </Button>
+                </EnhancedButton>
               </motion.div>
             </div>
           </div>
@@ -536,7 +548,7 @@ const RequestInbox = () => {
                       boxShadow: isActive ? '0 4px 14px rgba(0,0,0,0.08)' : 'var(--shadow-sm)',
                       ringColor: stat.color
                     }}
-                    whileHover={{ y: -2, boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}
+                    whileHover={safeMotion(prefersReducedMotion, { y: -2, boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }, {})}
                     whileTap={{ scale: 0.99 }}
                     onClick={stat.onClick}
                   >
@@ -558,9 +570,7 @@ const RequestInbox = () => {
 
         {/* Filters & Controls */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
+          {...fadeUp(0.08)}
           className="mb-5"
         >
           <div 
@@ -880,9 +890,7 @@ const RequestInbox = () => {
 
         {/* Requests List */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.35 }}
+          {...fadeUp(0.12)}
           className="space-y-4"
         >
           {filteredAndSortedRequests.length === 0 ? (
@@ -933,7 +941,7 @@ const RequestInbox = () => {
           ) : viewMode === 'kanban' ? (
             <div className="flex gap-4 overflow-x-auto pb-2">
               {statusColumns.map((statusKey) => {
-                const columnRequests = filteredAndSortedRequests.filter(r => r.status === statusKey);
+                const columnRequests = pagedRequests.filter(r => r.status === statusKey);
                 const statusColor = getStatusColor(statusKey);
                 const StatusIcon = getStatusIcon(statusKey);
                 return (
@@ -995,20 +1003,20 @@ const RequestInbox = () => {
             </div>
           ) : viewMode === 'list' ? (
             <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[68vh] overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-primary)' }}>
-                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Request</th>
-                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Status</th>
-                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Priority</th>
-                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Requester</th>
-                      <th className="text-left py-3 px-4 font-semibold" style={{ color: 'var(--text-muted)' }}>Date</th>
-                      <th className="w-10"></th>
+                      <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Request</th>
+                      <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Status</th>
+                      <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Priority</th>
+                      <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Requester</th>
+                      <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Date</th>
+                      <th className="w-10 backdrop-blur-sm"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAndSortedRequests.map((request, index) => {
+                    {pagedRequests.map((request, index) => {
                       const statusColor = getStatusColor(request.status);
                       const priorityColor = getPriorityColor(request.priority);
                       const StatusIcon = getStatusIcon(request.status);
@@ -1059,7 +1067,7 @@ const RequestInbox = () => {
             </div>
           ) : (
             <div className="grid gap-4">
-              {filteredAndSortedRequests.map((request, index) => {
+              {pagedRequests.map((request, index) => {
               const sla = getSLAStatus(request);
                 const statusColor = getStatusColor(request.status);
                 const priorityColor = getPriorityColor(request.priority);
@@ -1071,8 +1079,8 @@ const RequestInbox = () => {
                     key={request.id}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.3 }}
-                    whileHover={{ y: -2 }}
+                    transition={{ delay: prefersReducedMotion ? 0 : Math.min(index * 0.04, 0.3), duration: 0.3 }}
+                    whileHover={safeMotion(prefersReducedMotion, { y: -2 }, {})}
                     className="transition-shadow duration-200"
                   >
                     <Card 
@@ -1256,7 +1264,7 @@ const RequestInbox = () => {
                       
                           {/* Actions */}
                           <div className="flex flex-col sm:flex-row lg:flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <motion.div whileHover={safeMotion(prefersReducedMotion, { scale: 1.05 }, {})} whileTap={safeMotion(prefersReducedMotion, { scale: 0.95 }, {})}>
                           <Button
                             variant="outline"
                             size="sm"
@@ -1276,7 +1284,7 @@ const RequestInbox = () => {
                           </Button>
                         </motion.div>
                         
-                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <motion.div whileHover={safeMotion(prefersReducedMotion, { scale: 1.05 }, {})} whileTap={safeMotion(prefersReducedMotion, { scale: 0.95 }, {})}>
                             <Button
                               variant="outline"
                               size="sm"
@@ -1304,14 +1312,22 @@ const RequestInbox = () => {
               })}
         </div>
                     )}
+
+          <PaginationControls
+            page={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredAndSortedRequests.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </motion.div>
 
         {/* Loading overlay when fetching request detail */}
         {detailLoading && (
           <motion.div 
-            initial={{ opacity: 0 }}
+            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
             className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/40 backdrop-blur-sm"
           >
             <LoadingSpinner />
@@ -1323,17 +1339,17 @@ const RequestInbox = () => {
         <AnimatePresence>
           {selectedRequest && !detailLoading && (
             <motion.div 
-              initial={{ opacity: 0 }}
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
               onClick={() => setSelectedRequest(null)}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
+                initial={prefersReducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                exit={prefersReducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
+                transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
                 className="rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                 style={{
@@ -1386,7 +1402,10 @@ const RequestInbox = () => {
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <motion.div
+                      {...fadeUp(0.02)}
+                      className="lg:col-span-2 space-y-6"
+                    >
                       {/* Request Info */}
                       <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
                         <CardHeader>
@@ -1479,10 +1498,13 @@ const RequestInbox = () => {
                           </div>
                         </CardContent>
                       </Card>
-                    </div>
+                    </motion.div>
 
                     {/* Management Actions */}
-                    <div className="space-y-6">
+                    <motion.div
+                      {...fadeUp(0.06)}
+                      className="space-y-6"
+                    >
                       {/* Status & Assignment */}
                       <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
                         <CardHeader>
@@ -1667,7 +1689,7 @@ const RequestInbox = () => {
                           )}
                         </CardContent>
                       </Card>
-                    </div>
+                    </motion.div>
                   </div>
                 </div>
               </motion.div>

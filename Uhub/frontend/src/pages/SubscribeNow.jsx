@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
@@ -59,6 +59,7 @@ import ltrCustomerLeadService from '../services/ltrCustomerLeadService';
 import ltrCustomerReviewService from '../services/ltrCustomerReviewService';
 import RentalAgreementModal from '../components/subscribeNow/RentalAgreementModal';
 import DeliveryChecklistModal from '../components/subscribeNow/DeliveryChecklistModal';
+import PaginationControls from '../components/ui/PaginationControls';
 import * as XLSX from 'xlsx';
 import {
   BarChart,
@@ -101,6 +102,7 @@ function normalizeLtrLeadDateStorage(value) {
 const SubscribeNow = () => {
   const { userProfile } = useAuth();
   const { isDark } = useTheme();
+  const prefersReducedMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState('fleet-delivery');
   const [rentalAgreements, setRentalAgreements] = useState([]);
   const [statistics, setStatistics] = useState(null);
@@ -118,6 +120,10 @@ const SubscribeNow = () => {
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [ltrLeadPage, setLtrLeadPage] = useState(1);
+  const [ltrReviewPage, setLtrReviewPage] = useState(1);
+  const LTR_LEAD_PAGE_SIZE = 10;
+  const LTR_REVIEW_PAGE_SIZE = 10;
 
   // LTR Reporting state
   const [ltrRecords, setLtrRecords] = useState([]);
@@ -1202,6 +1208,31 @@ const SubscribeNow = () => {
     });
     return Object.entries(byDuration).map(([duration, renewals]) => ({ duration, renewals })).sort((a, b) => a.duration.localeCompare(b.duration));
   }, [ltrReviewRecords, ltrReviewChartCustomer]);
+
+  // Pagination for LTR lead and review tables
+  useEffect(() => {
+    if (activeTab !== 'ltr-customer-lead') return;
+    setLtrLeadPage(1);
+  }, [activeTab, ltrLeadRecords]);
+
+  useEffect(() => {
+    if (activeTab !== 'ltr-customer-review') return;
+    setLtrReviewPage(1);
+  }, [activeTab, ltrReviewRecords]);
+
+  const ltrLeadTotalPages = Math.max(1, Math.ceil(ltrLeadRecords.length / LTR_LEAD_PAGE_SIZE));
+  const ltrLeadCurrentPage = Math.min(ltrLeadPage, ltrLeadTotalPages);
+  const pagedLtrLeadRecords = useMemo(() => {
+    const start = (ltrLeadCurrentPage - 1) * LTR_LEAD_PAGE_SIZE;
+    return ltrLeadRecords.slice(start, start + LTR_LEAD_PAGE_SIZE);
+  }, [ltrLeadRecords, ltrLeadCurrentPage]);
+
+  const ltrReviewTotalPages = Math.max(1, Math.ceil(ltrReviewRecords.length / LTR_REVIEW_PAGE_SIZE));
+  const ltrReviewCurrentPage = Math.min(ltrReviewPage, ltrReviewTotalPages);
+  const pagedLtrReviewRecords = useMemo(() => {
+    const start = (ltrReviewCurrentPage - 1) * LTR_REVIEW_PAGE_SIZE;
+    return ltrReviewRecords.slice(start, start + LTR_REVIEW_PAGE_SIZE);
+  }, [ltrReviewRecords, ltrReviewCurrentPage]);
 
   const resetLtrReviewForm = () => {
     setLtrReviewFormData({ customer_name: '', rental_duration: '', rental_renew: '', rental_no_longer_continue: '', remark: '' });
@@ -3323,10 +3354,14 @@ const SubscribeNow = () => {
             )}
 
             {/* Data table */}
-            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-              <div className="overflow-x-auto">
+            <motion.div
+              initial={prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+            >
+              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                 <table className="w-full">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50">
                       <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Date</th>
                       <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Current Trip</th>
@@ -3358,7 +3393,7 @@ const SubscribeNow = () => {
                         </td>
                       </tr>
                     ) : (
-                      ltrLeadRecords.map((record, idx) => (
+                      pagedLtrLeadRecords.map((record, idx) => (
                         <tr key={record.id} className={`transition hover:bg-teal-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                           <td className="whitespace-nowrap px-5 py-3 text-sm font-medium text-gray-900">{formatLtrLeadDateDisplay(record.date)}</td>
                           <td className="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-gray-900">{record.current_trip ?? '—'}</td>
@@ -3374,6 +3409,15 @@ const SubscribeNow = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100">
+                <PaginationControls
+                  page={ltrLeadCurrentPage}
+                  totalPages={ltrLeadTotalPages}
+                  totalItems={ltrLeadRecords.length}
+                  pageSize={LTR_LEAD_PAGE_SIZE}
+                  onPageChange={setLtrLeadPage}
+                />
               </div>
             </motion.div>
 
@@ -3584,9 +3628,9 @@ const SubscribeNow = () => {
 
             {/* Data table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50/80 border-b border-gray-100">
+                  <thead className="bg-gray-50/80 border-b border-gray-100 sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Customer Name</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rental Duration</th>
@@ -3608,7 +3652,7 @@ const SubscribeNow = () => {
                         </td>
                       </tr>
                     ) : (
-                      ltrReviewRecords.map((record) => (
+                      pagedLtrReviewRecords.map((record) => (
                         <tr key={record.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-900">{record.customer_name ?? '—'}</td>
                           <td className="px-4 py-3 text-sm text-gray-900">{record.rental_duration ?? '—'}</td>
@@ -3624,6 +3668,15 @@ const SubscribeNow = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="px-4 py-3 border-t border-gray-100">
+                <PaginationControls
+                  page={ltrReviewCurrentPage}
+                  totalPages={ltrReviewTotalPages}
+                  totalItems={ltrReviewRecords.length}
+                  pageSize={LTR_REVIEW_PAGE_SIZE}
+                  onPageChange={setLtrReviewPage}
+                />
               </div>
             </div>
 

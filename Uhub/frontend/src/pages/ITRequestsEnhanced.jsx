@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   Plus, Search, Filter, FileText, Clock, User, 
@@ -15,18 +15,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { useTheme } from '../context/ThemeContext';
 import { useNotifications } from '../context/NotificationContext';
 import { itServicesApi } from '../services/itServicesApiFixed';
 import udriveAccessService from '../services/udriveAccessService';
 import { supabase } from '../supabaseClient';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
+import EnhancedButton from '../components/ui/EnhancedButton';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
-import LoadingSpinner from '../components/LoadingSpinner';
 import activityService from '../services/activityService';
+import PaginationControls from '../components/ui/PaginationControls';
+import { safeMotion } from '../utils/motion';
+import { TableSkeleton } from '../components/LoadingSkeleton';
 
 // Icon mapping for categories
 const categoryIcons = {
@@ -74,7 +76,7 @@ const statusConfig = {
 const ITRequestsEnhanced = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
-  const { isDark } = useTheme();
+  const prefersReducedMotion = useReducedMotion();
   const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
   
@@ -86,6 +88,10 @@ const ITRequestsEnhanced = () => {
   const [editingRequest, setEditingRequest] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // grid, list, kanban
+  const [requestPage, setRequestPage] = useState(1);
+  const [accessPage, setAccessPage] = useState(1);
+  const REQUEST_PAGE_SIZE = 12;
+  const ACCESS_PAGE_SIZE = 10;
 
   // UDRIVE ACCESS state
   const [udriveAccessRecords, setUdriveAccessRecords] = useState([]);
@@ -513,6 +519,28 @@ const ITRequestsEnhanced = () => {
     return filtered;
   }, [requests, filters]);
 
+  useEffect(() => {
+    setRequestPage(1);
+  }, [filters, activeSection]);
+
+  useEffect(() => {
+    setAccessPage(1);
+  }, [udriveAccessRecords, activeSection]);
+
+  const requestTotalPages = Math.max(1, Math.ceil(filteredRequests.length / REQUEST_PAGE_SIZE));
+  const requestCurrentPage = Math.min(requestPage, requestTotalPages);
+  const pagedRequests = useMemo(() => {
+    const start = (requestCurrentPage - 1) * REQUEST_PAGE_SIZE;
+    return filteredRequests.slice(start, start + REQUEST_PAGE_SIZE);
+  }, [filteredRequests, requestCurrentPage]);
+
+  const accessTotalPages = Math.max(1, Math.ceil(udriveAccessRecords.length / ACCESS_PAGE_SIZE));
+  const accessCurrentPage = Math.min(accessPage, accessTotalPages);
+  const pagedAccessRecords = useMemo(() => {
+    const start = (accessCurrentPage - 1) * ACCESS_PAGE_SIZE;
+    return udriveAccessRecords.slice(start, start + ACCESS_PAGE_SIZE);
+  }, [udriveAccessRecords, accessCurrentPage]);
+
   const closeFormModal = () => {
     setShowForm(false);
     setEditingRequest(null);
@@ -564,47 +592,47 @@ const ITRequestsEnhanced = () => {
             <div className="flex items-center space-x-3">
               {activeSection === 'requests' && (
                 <>
-                  <Button
+                  <EnhancedButton
                     onClick={handleRefresh}
                     disabled={refreshing}
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="flex items-center gap-2"
                   >
                     <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                     Refresh
-                  </Button>
-                  <Button
+                  </EnhancedButton>
+                  <EnhancedButton
                     onClick={() => setShowStats(!showStats)}
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="flex items-center gap-2"
                   >
                     <BarChart3 className="w-4 h-4" />
                     {showStats ? 'Hide' : 'Show'} Stats
-                  </Button>
-                  <Button
+                  </EnhancedButton>
+                  <EnhancedButton
                     onClick={() => setShowForm(true)}
                     className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
                   >
                     <Plus className="w-4 h-4" />
                     New Request
-                  </Button>
+                  </EnhancedButton>
                 </>
               )}
               {activeSection === 'udrive-access' && (
                 <>
-                  <Button
+                  <EnhancedButton
                     onClick={fetchUdriveAccessRecords}
                     disabled={udriveAccessLoading}
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="flex items-center gap-2"
                   >
                     <RefreshCw className={`w-4 h-4 ${udriveAccessLoading ? 'animate-spin' : ''}`} />
                     Refresh
-                  </Button>
-                  <Button
+                  </EnhancedButton>
+                  <EnhancedButton
                     onClick={() => {
                       setUdriveAccessEditingRecord(null);
                       setUdriveAccessFormData({ access_platform_name: '', platform_purpose: '', department_uses: '', infrastructure_level: '', original_amount: '', amount_in_aed: '', remark: '' });
@@ -614,7 +642,7 @@ const ITRequestsEnhanced = () => {
                   >
                     <Plus className="w-4 h-4" />
                     Add Row
-                  </Button>
+                  </EnhancedButton>
                 </>
               )}
             </div>
@@ -819,7 +847,7 @@ const ITRequestsEnhanced = () => {
                 </div>
               </motion.div>
             ))
-          ) : filteredRequests.map((request, index) => {
+          ) : pagedRequests.map((request, index) => {
             const category = request.category || categories.find(c => c.id === request.category_id);
             const priority = request.priority || priorities.find(p => p.id === request.priority_id);
             const CategoryIcon = getCategoryIcon(category);
@@ -833,8 +861,8 @@ const ITRequestsEnhanced = () => {
                 key={request.id}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.35) }}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : Math.min(index * 0.05, 0.35) }}
+                whileHover={safeMotion(prefersReducedMotion, { y: -4, transition: { duration: 0.2 } }, {})}
                 className="group"
               >
                 <Card className="h-full bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border-0 overflow-hidden rounded-2xl">
@@ -974,6 +1002,13 @@ const ITRequestsEnhanced = () => {
             );
           })}
         </div>
+        <PaginationControls
+          page={requestCurrentPage}
+          totalPages={requestTotalPages}
+          totalItems={filteredRequests.length}
+          pageSize={REQUEST_PAGE_SIZE}
+          onPageChange={setRequestPage}
+        />
 
         {/* Empty State */}
         {!loading && filteredRequests.length === 0 && (
@@ -1025,57 +1060,65 @@ const ITRequestsEnhanced = () => {
               </div>
 
               {udriveAccessLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <LoadingSpinner />
-                </div>
+                <TableSkeleton rows={6} columns={8} />
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-600">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Access / Platform Name</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Platform Purpose</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Department Uses</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Infrastructure Level</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Original Amount</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Amount in AED</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Remark</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300 w-24">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                      {udriveAccessRecords.length === 0 ? (
+                <>
+                  <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-600 max-h-[70vh] overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-10">
                         <tr>
-                          <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                            No records yet. Click &quot;Add Row&quot; to add one.
-                          </td>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Access / Platform Name</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Platform Purpose</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Department Uses</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Infrastructure Level</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Original Amount</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Amount in AED</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Remark</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300 w-24">Actions</th>
                         </tr>
-                      ) : (
-                        udriveAccessRecords.map((row) => (
-                          <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{row.access_platform_name ?? '—'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.platform_purpose ?? '—'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.department_uses ?? '—'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.infrastructure_level ?? '—'}</td>
-                            <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">{row.original_amount != null ? Number(row.original_amount).toLocaleString() : '—'}</td>
-                            <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">{row.amount_in_aed != null ? Number(row.amount_in_aed).toLocaleString() : '—'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.remark ?? ''}>{row.remark ?? '—'}</td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => handleUdriveAccessEdit(row)} className="p-2">
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleUdriveAccessDelete(row.id)} className="p-2 text-red-500 hover:text-red-600">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                        {udriveAccessRecords.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                              No records yet. Click &quot;Add Row&quot; to add one.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        ) : (
+                          pagedAccessRecords.map((row) => (
+                            <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{row.access_platform_name ?? '—'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.platform_purpose ?? '—'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.department_uses ?? '—'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.infrastructure_level ?? '—'}</td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">{row.original_amount != null ? Number(row.original_amount).toLocaleString() : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">{row.amount_in_aed != null ? Number(row.amount_in_aed).toLocaleString() : '—'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={row.remark ?? ''}>{row.remark ?? '—'}</td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => handleUdriveAccessEdit(row)} className="p-2">
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" onClick={() => handleUdriveAccessDelete(row.id)} className="p-2 text-red-500 hover:text-red-600">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <PaginationControls
+                    page={accessCurrentPage}
+                    totalPages={accessTotalPages}
+                    totalItems={udriveAccessRecords.length}
+                    pageSize={ACCESS_PAGE_SIZE}
+                    onPageChange={setAccessPage}
+                    className="px-1"
+                  />
+                </>
               )}
             </div>
           </div>

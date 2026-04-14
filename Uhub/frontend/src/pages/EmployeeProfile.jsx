@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useAssets } from "../hooks/useApi";
-import { useSimCardsByEmployeeName } from "../hooks/useSimCards";
+import { useSimCardsByEmployeeIdentifiers } from "../hooks/useSimCards";
 import { useAuth } from "../context/AuthContext";
 import { canEditEmployees } from "../utils/permissions";
 import { normalizeAccessList, toDbAccessList, ensureAccessEntryIds, newAccessEntryId } from "../utils/accessList";
@@ -221,6 +221,7 @@ export default function EmployeeProfile() {
   const [newAccessName, setNewAccessName] = useState("");
   const [savingAccess, setSavingAccess] = useState(false);
   const [accessError, setAccessError] = useState(null);
+  const [assetPreview, setAssetPreview] = useState(null);
 
   // Fetch assets assigned to this employee from Asset Management (linked data)
   const { data: assignedAssetsData, isLoading: assetsLoading } = useAssets(
@@ -231,9 +232,13 @@ export default function EmployeeProfile() {
   );
   const assignedAssets = assignedAssetsData?.data ?? [];
 
-  // Fetch SIM cards assigned to this employee (SIM panel stores assignment in `current_user` as employee name)
-  const employeeFullName = employee?.full_name || employee?.name || '';
-  const { data: assignedSimCards = [], isLoading: simCardsLoading } = useSimCardsByEmployeeName(employeeFullName);
+  // Fetch SIM cards assigned to this employee using multiple identifiers because
+  // SIM `current_user` can be free text: name, employee_id, email, or "Name (ID)".
+  const { data: assignedSimCards = [], isLoading: simCardsLoading } = useSimCardsByEmployeeIdentifiers({
+    full_name: employee?.full_name || employee?.name || '',
+    employee_id: employee?.employee_id || '',
+    email: employee?.email || '',
+  });
 
   const fetchEmployee = useCallback(async () => {
     setLoading(true);
@@ -1041,6 +1046,45 @@ export default function EmployeeProfile() {
       if (isDesktop(asset) || isMonitor(asset)) return 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40';
       return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/40';
     };
+    const renderAssetVisual = (asset, Icon, iconCls) => {
+      if (asset?.asset_picture_url) {
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAssetPreview({
+                id: asset.id,
+                name: asset.name || 'Unnamed asset',
+                type: asset.type || 'Asset',
+                url: asset.asset_picture_url,
+              });
+            }}
+            className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-700 overflow-hidden flex-shrink-0 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            title="Click to preview image"
+          >
+            <img
+              src={asset.asset_picture_url}
+              alt={asset.name || 'Asset image'}
+              className="w-full h-full object-contain bg-white dark:bg-gray-800"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const fallback = e.currentTarget.nextElementSibling;
+                if (fallback) fallback.classList.remove('hidden');
+              }}
+            />
+            <div className={`hidden w-full h-full items-center justify-center ${iconCls}`}>
+              <Icon className="w-6 h-6" />
+            </div>
+          </button>
+        );
+      }
+      return (
+        <div className={`w-16 h-16 p-3 rounded-xl ${iconCls} flex-shrink-0 flex items-center justify-center`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      );
+    };
 
     const statCards = [
       { label: 'Total Assets', value: assets?.length ?? 0, icon: Package, iconCls: 'text-green-600 dark:text-green-400', valueCls: 'text-green-600 dark:text-green-400' },
@@ -1119,9 +1163,7 @@ export default function EmployeeProfile() {
                     className="group relative p-5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-emerald-300 dark:hover:border-emerald-600/50 transition-colors overflow-hidden"
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-xl ${iconCls} flex-shrink-0`}>
-                        <Icon className="w-6 h-6" />
-                      </div>
+                      {renderAssetVisual(asset, Icon, iconCls)}
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                           {asset.name || 'Unnamed asset'}
@@ -1171,6 +1213,49 @@ export default function EmployeeProfile() {
           </motion.div>
         )}
       </div>
+
+      <AnimatePresence>
+        {assetPreview?.url ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setAssetPreview(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-4xl rounded-2xl overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{assetPreview.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{assetPreview.type}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAssetPreview(null)}
+                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-300"
+                  aria-label="Close preview"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="max-h-[75vh] overflow-auto bg-gray-50 dark:bg-gray-950 p-3">
+                <img
+                  src={assetPreview.url}
+                  alt={assetPreview.name}
+                  className="w-full h-auto max-h-[70vh] object-contain rounded-xl bg-white dark:bg-gray-900"
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {/* SIM Cards – linked from SIM Card management */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">

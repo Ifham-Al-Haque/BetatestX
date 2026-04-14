@@ -9,7 +9,7 @@ import { SidebarProvider } from './context/SidebarContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ChatProvider } from './context/ChatContext';
 import { NotificationProvider } from './context/NotificationContext';
-import LoadingSpinner from './components/LoadingSpinner';
+import RouteSkeleton from './components/ui/RouteSkeleton';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SmartHomeRoute from './components/SmartHomeRoute';
@@ -145,7 +145,7 @@ function App() {
                 <ThemeProvider>
                   <Router>
                     <RoutePrefetcher />
-                    <Suspense fallback={<LoadingSpinner />}>
+                    <Suspense fallback={<RouteSkeleton title="Loading route and preparing data..." />}>
                       <Routes>
                         {/* Public Routes */}
                         <Route path="/welcome" element={<Welcome />} />

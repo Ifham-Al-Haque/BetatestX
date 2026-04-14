@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 // Skeleton animation
 const shimmer = {
@@ -13,16 +13,19 @@ const shimmer = {
 };
 
 // Basic skeleton line
-const SkeletonLine = ({ className = "h-4 bg-gray-200 rounded", width = "w-full" }) => (
-  <div className={`${width} ${className} overflow-hidden relative`}>
-    <motion.div
-      className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20"
-      variants={shimmer}
-      initial="initial"
-      animate="animate"
-    />
-  </div>
-);
+const SkeletonLine = ({ className = "h-4 bg-gray-200 rounded", width = "w-full" }) => {
+  const prefersReducedMotion = useReducedMotion();
+  return (
+    <div className={`${width} ${className} overflow-hidden relative`}>
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20"
+        variants={shimmer}
+        initial={prefersReducedMotion ? false : 'initial'}
+        animate={prefersReducedMotion ? false : 'animate'}
+      />
+    </div>
+  );
+};
 
 // Table skeleton
 export const TableSkeleton = ({ rows = 5, columns = 6 }) => (
@@ -82,24 +85,31 @@ export const StatsSkeleton = () => (
 
 // Chart skeleton
 export const ChartSkeleton = ({ height = "h-64" }) => (
-  <div className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow border border-gray-200 dark:border-gray-700 ${height}`}>
-    <div className="space-y-4">
-      <SkeletonLine className="h-6 bg-gray-200 dark:bg-gray-700 rounded" width="w-1/3" />
-      <div className="flex items-end justify-between h-48 space-x-2">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-t relative overflow-hidden">
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-t from-transparent via-white to-transparent opacity-20"
-              variants={shimmer}
-              initial="initial"
-              animate="animate"
-            />
-          </div>
-        ))}
+  <ChartSkeletonInner height={height} />
+);
+
+const ChartSkeletonInner = ({ height }) => {
+  const prefersReducedMotion = useReducedMotion();
+  return (
+    <div className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow border border-gray-200 dark:border-gray-700 ${height}`}>
+      <div className="space-y-4">
+        <SkeletonLine className="h-6 bg-gray-200 dark:bg-gray-700 rounded" width="w-1/3" />
+        <div className="flex items-end justify-between h-48 space-x-2">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-t relative overflow-hidden">
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-t from-transparent via-white to-transparent opacity-20"
+                variants={shimmer}
+                initial={prefersReducedMotion ? false : 'initial'}
+                animate={prefersReducedMotion ? false : 'animate'}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Profile skeleton
 export const ProfileSkeleton = () => (

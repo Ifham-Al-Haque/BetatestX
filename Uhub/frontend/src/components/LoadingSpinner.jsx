@@ -1,7 +1,8 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const LoadingSpinner = ({ size = 'md', text = 'Loading...', className = '' }) => {
+  const prefersReducedMotion = useReducedMotion();
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-6 h-6',
@@ -20,12 +21,16 @@ const LoadingSpinner = ({ size = 'md', text = 'Loading...', className = '' }) =>
     <div className={`flex flex-col items-center justify-center gap-3 ${className}`}>
       <motion.div
         className={`${sizeClasses[size]} border-2 border-gray-300 border-t-blue-600 rounded-full`}
-        animate={{ rotate: 360 }}
-        transition={{
-          duration: 1,
-          repeat: Infinity,
-          ease: "linear"
-        }}
+        animate={prefersReducedMotion ? {} : { rotate: 360 }}
+        transition={
+          prefersReducedMotion
+            ? { duration: 0 }
+            : {
+                duration: 1,
+                repeat: Infinity,
+                ease: 'linear',
+              }
+        }
         style={{
           borderColor: 'var(--border-primary)',
           borderTopColor: 'var(--accent-primary)'
