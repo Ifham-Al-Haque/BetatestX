@@ -1,31 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function EmployeeCard({ employee }) {
   const { full_name, profile_pic_url, position, email } = employee;
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const initial = full_name?.charAt(0)?.toUpperCase() || "?";
 
   return (
     <div className="flex items-center gap-4 p-4 border rounded-lg shadow">
-      {profile_pic_url ? (
+      {profile_pic_url && !imgFailed ? (
         <img
           key={`${employee.id}-${profile_pic_url}`}
           src={profile_pic_url}
           alt={full_name}
           className="w-12 h-12 rounded-full object-cover"
           data-employee-id={employee.id}
-          onError={(e) => {
+          onError={() => {
             console.log(`Failed to load image for ${full_name}: ${profile_pic_url}`);
-            // Fallback to Avatar with initials
-            e.target.style.display = 'none';
-            const container = e.target.parentElement;
-            if (container) {
-              container.innerHTML = `
-                <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span class="text-sm font-medium text-blue-600">
-                    ${full_name?.charAt(0)?.toUpperCase() || "?"}
-                  </span>
-                </div>
-              `;
-            }
+            setImgFailed(true);
           }}
           onLoad={() => {
             console.log(`Successfully loaded image for ${full_name}: ${profile_pic_url}`);
@@ -33,9 +25,7 @@ export default function EmployeeCard({ employee }) {
         />
       ) : (
         <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-          <span className="text-sm font-medium text-blue-600">
-            {full_name?.charAt(0)?.toUpperCase() || "?"}
-          </span>
+          <span className="text-sm font-medium text-blue-600">{initial}</span>
         </div>
       )}
       <div>

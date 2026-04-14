@@ -4,6 +4,7 @@ import { useChat } from './ChatContext';
 import { supabase } from '../supabaseClient';
 import notificationService from '../services/notificationService';
 import soundNotificationService from '../services/soundNotificationService';
+import { getSafeInternalUrl } from '../utils/security';
 
 const NotificationContext = createContext();
 
@@ -500,8 +501,10 @@ export const NotificationProvider = ({ children }) => {
         // Handle click on notification
         browserNotification.onclick = () => {
           window.focus();
-          if (notification.actionUrl) {
-            window.location.href = notification.actionUrl;
+          const raw = notification.actionUrl || notification.action_url;
+          const safe = getSafeInternalUrl(raw);
+          if (safe) {
+            window.location.assign(safe);
           }
           browserNotification.close();
         };

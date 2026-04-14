@@ -23,6 +23,7 @@ import {
   Shield,
   Zap
 } from 'lucide-react';
+import { getSafeInternalUrl } from '../../utils/security';
 import { useNotifications } from '../../context/EnhancedNotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import ChatPopup from './ChatPopup';
@@ -114,9 +115,10 @@ const EnhancedNotificationContainer = () => {
       await markNotificationAsRead(notification.id);
     }
     
-    // Handle action URL if present
-    if (notification.action_url) {
-      window.location.href = notification.action_url;
+    const raw = notification.action_url || notification.actionUrl;
+    const safe = getSafeInternalUrl(raw);
+    if (safe) {
+      window.location.assign(safe);
     }
     
     setIsOpen(false);

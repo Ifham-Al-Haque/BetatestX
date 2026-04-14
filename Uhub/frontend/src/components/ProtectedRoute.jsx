@@ -4,22 +4,24 @@ import { useRoleAccess } from "./RoleBasedRoute";
 import { motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
+const isDev = process.env.NODE_ENV === "development";
+
 export default function ProtectedRoute({ children, requiredFeature = null, requiredRole = null, minRoleLevel = null }) {
   const { user, userProfile, loading } = useAuth();
   const { userRole, roleInfo, hasFeatureAccess, hasRoleLevel } = useRoleAccess();
   const navigate = useNavigate();
   const hasNavigated = useRef(false);
 
-  // Add debugging for CS Manager issues
-  console.log('ProtectedRoute Debug:', {
-    user,
-    userRole,
-    roleInfo,
-    requiredFeature,
-    requiredRole,
-    minRoleLevel,
-    hasFeatureAccess: requiredFeature ? hasFeatureAccess(requiredFeature) : 'N/A'
-  });
+  if (isDev) {
+    console.log("ProtectedRoute Debug:", {
+      user: user?.email,
+      userRole,
+      requiredFeature,
+      requiredRole,
+      minRoleLevel,
+      hasFeatureAccess: requiredFeature ? hasFeatureAccess(requiredFeature) : "N/A",
+    });
+  }
 
   // Handle all navigation logic in useEffect hooks
   useEffect(() => {
@@ -36,37 +38,29 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
     // If role is still loading, wait
     if (userRole === 'loading') {
-      console.log('🔍 ProtectedRoute: Role still loading, waiting...');
+      if (isDev) console.log("ProtectedRoute: Role still loading, waiting…");
       return;
     }
 
     // Check feature-based access
     if (requiredFeature && !hasFeatureAccess(requiredFeature)) {
-      console.log('🔍 ProtectedRoute: Feature access denied', { 
-        requiredFeature, 
-        userRole, 
-        hasFeatureAccess: hasFeatureAccess(requiredFeature),
-        pathname: window.location.pathname,
-        user: user?.email,
-        userProfile: userProfile
-      });
-      
-      // Temporary bypass for driver_management and operation_management roles to test
-      if ((userRole === 'driver_management' || userRole === 'operation_management') && requiredFeature === 'driver_records') {
-        console.log('🔍 ProtectedRoute: TEMPORARY BYPASS for', userRole, '+ driver_records');
-        // Allow access for testing
-      } else {
-        hasNavigated.current = true;
-        setTimeout(() => {
-          redirectToRolePage(userRole);
-        }, 0);
-        return;
+      if (isDev) {
+        console.log("ProtectedRoute: Feature access denied", {
+          requiredFeature,
+          userRole,
+          pathname: window.location.pathname,
+        });
       }
+      hasNavigated.current = true;
+      setTimeout(() => {
+        redirectToRolePage(userRole);
+      }, 0);
+      return;
     }
 
     // Check role-based access
     if (requiredRole && userRole !== requiredRole) {
-      console.log('ProtectedRoute: Role access denied', { requiredRole, userRole });
+      if (isDev) console.log("ProtectedRoute: Role access denied", { requiredRole, userRole });
       hasNavigated.current = true;
       setTimeout(() => {
         redirectToRolePage(userRole);
@@ -76,7 +70,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
     // Check minimum role level
     if (minRoleLevel && !hasRoleLevel(minRoleLevel)) {
-      console.log('ProtectedRoute: Role level access denied', { minRoleLevel, userRole });
+      if (isDev) console.log("ProtectedRoute: Role level access denied", { minRoleLevel, userRole });
       hasNavigated.current = true;
       setTimeout(() => {
         redirectToRolePage(userRole);
@@ -119,7 +113,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
 
   // Helper function to redirect to role-appropriate page
   function redirectToRolePage(role) {
-    console.log('🔍 Redirecting user with role:', role, 'to welcome page');
+    if (isDev) console.log("Redirecting user with role:", role);
     // All users go to welcome page first, then role-based access controls what they can see
     navigate('/', { replace: true });
   }

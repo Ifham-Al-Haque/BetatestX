@@ -10,7 +10,9 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase configuration. Please check your environment variables.');
 }
 
-console.log('🔧 Supabase Client: Using environment variables');
+if (process.env.NODE_ENV === 'development') {
+  console.log('Supabase client: using environment variables');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {

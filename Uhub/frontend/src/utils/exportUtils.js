@@ -1,4 +1,5 @@
 import { getDepartmentLabel } from '../config/departments';
+import { escapeHtml } from './security';
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -227,16 +228,16 @@ export const exportToPDF = (simCards, filename = 'sim_cards_export') => {
         <tbody>
           ${exportData.map(row => `
             <tr>
-              <td>${row['SIM Number']}</td>
-              <td>${row['Package Name']}</td>
-              <td>${row['Package Type']}</td>
-              <td>${row['Monthly Cost']}</td>
-              <td>${row['Current User']}</td>
-              <td>${row['Department']}</td>
-              <td>${row['Designation']}</td>
-              <td>${row['Status']}</td>
-              <td>${row['Activation Date']}</td>
-              <td>${row['Expiry Date']}</td>
+              <td>${escapeHtml(row['SIM Number'])}</td>
+              <td>${escapeHtml(row['Package Name'])}</td>
+              <td>${escapeHtml(row['Package Type'])}</td>
+              <td>${escapeHtml(row['Monthly Cost'])}</td>
+              <td>${escapeHtml(row['Current User'])}</td>
+              <td>${escapeHtml(row['Department'])}</td>
+              <td>${escapeHtml(row['Designation'])}</td>
+              <td>${escapeHtml(row['Status'])}</td>
+              <td>${escapeHtml(row['Activation Date'])}</td>
+              <td>${escapeHtml(row['Expiry Date'])}</td>
             </tr>
           `).join('')}
         </tbody>
