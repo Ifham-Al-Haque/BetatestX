@@ -357,8 +357,8 @@ if (document.readyState === 'loading') {
   trackPageView();
 }
 
-// Track page unload
-window.addEventListener('beforeunload', () => {
+// Track page exit without interfering with tab restore/BFCache behavior
+window.addEventListener('pagehide', () => {
   activityService.logActivity('page_unload', 'User left the page');
 });
 
