@@ -2,10 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService, handleApiError } from '../services/api';
 
 // Employee hooks
-export const useEmployees = (page = 1, limit = 50, search = '') => {
+export const useEmployees = (page = 1, limit = 50, search = '', filters = {}) => {
   return useQuery({
-    queryKey: ['employees', page, limit, search],
-    queryFn: () => apiService.employees.getAll(page, limit, search),
+    queryKey: ['employees', page, limit, search, filters],
+    queryFn: () => apiService.employees.getAll(page, limit, search, filters),
     staleTime: 30 * 1000, // 30 seconds - reduced for more frequent updates
     keepPreviousData: true,
   });

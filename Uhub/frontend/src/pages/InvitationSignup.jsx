@@ -26,22 +26,35 @@ export default function InvitationSignup() {
   const { acceptInvitation } = useAuth();
 
   useEffect(() => {
-    // Get token from URL parameters
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (accessToken) {
+    const initializeFromUrlTokens = async () => {
+      // Get token from URL parameters
+      const accessToken = searchParams.get('access_token');
+      const refreshToken = searchParams.get('refresh_token');
+
+      if (!accessToken) return;
+
       setToken(accessToken);
+
       // Set the session with the tokens
-      supabase.auth.setSession({
+      const { error } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken
       });
-      
+
+      if (error) {
+        console.error("Failed to initialize invitation session:", error);
+        return;
+      }
+
+      // Remove sensitive tokens from the browser URL/history.
+      navigate(window.location.pathname, { replace: true });
+
       // Get invitation data
       getInvitationData();
-    }
-  }, [searchParams]);
+    };
+
+    initializeFromUrlTokens();
+  }, [searchParams, navigate]);
 
   const getInvitationData = async () => {
     try {

@@ -14,6 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SmartHomeRoute from './components/SmartHomeRoute';
 import RoutePrefetcher from './components/RoutePrefetcher';
+const isDev = process.env.NODE_ENV === 'development';
 
 // React Query configuration
 const queryClient = new QueryClient({
@@ -106,7 +107,6 @@ const MarketingCalendar = safeLazy(() => import('./pages/MarketingCalendar'), 'M
 const OrganizationalHierarchy = safeLazy(() => import('./pages/OrganizationalHierarchy'), 'OrganizationalHierarchy');
 const IOTRecord = safeLazy(() => import('./pages/IOTRecord'), 'IOTRecord');
 const ITTools = safeLazy(() => import('./pages/ITTools'), 'ITTools');
-const RoleDebugger = safeLazy(() => import('./components/RoleDebugger'), 'RoleDebugger');
 const PayrollCalculator = safeLazy(() => import('./pages/PayrollCalculator'), 'PayrollCalculator');
 
 function App() {
@@ -174,16 +174,6 @@ function App() {
                               <DriverForm />
                             </Layout>
                           </ProtectedRoute>
-                        } />
-
-                        {/* Temporary test route to verify routing is working */}
-                        <Route path="/driver/test" element={
-                          <Layout>
-                            <div className="p-8">
-                              <h1 className="text-2xl font-bold text-green-600">✅ Route Test Successful!</h1>
-                              <p>If you can see this, routing is working correctly.</p>
-                            </div>
-                          </Layout>
                         } />
 
                         <Route path="/driver/:id/edit" element={
@@ -690,15 +680,6 @@ function App() {
                           </ProtectedRoute>
                         } />
 
-                        {/* Debug Route */}
-                        <Route path="/role-debug" element={
-                          <ProtectedRoute>
-                            <Layout>
-                              <RoleDebugger />
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
-
                         {/* Catch all route - redirect to home for authenticated users */}
                         <Route path="*" element={
                           <ProtectedRoute>
@@ -716,7 +697,7 @@ function App() {
           </ChatProvider>
         </ToastProvider>
       </AuthProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {isDev ? <ReactQueryDevtools initialIsOpen={false} /> : null}
     </QueryClientProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
@@ -40,7 +40,12 @@ function Employees() {
   const { userProfile } = useAuth();
   
   // Use React Query hooks
-  const { data: employeesData, isLoading, error, refetch } = useEmployees(currentPage, pageSize, search);
+  const queryFilters = useMemo(() => ({
+    department: filters.department,
+    location: filters.location
+  }), [filters.department, filters.location]);
+
+  const { data: employeesData, isLoading, error, refetch } = useEmployees(currentPage, pageSize, search, queryFilters);
   const deleteEmployeeMutation = useDeleteEmployee();
   const archiveEmployeeMutation = useArchiveEmployee();
 
@@ -75,15 +80,16 @@ function Employees() {
   const filteredAndSortedEmployees = useMemo(() => {
     let filtered = employees;
     
-    // Apply filters
-    if (filters.department) {
-      filtered = filtered.filter(emp => emp.department === filters.department);
-    }
+    // Apply performance filter client-side (department/location are applied in API query).
     if (filters.status) {
-      filtered = filtered.filter(emp => emp.status === filters.status);
-    }
-    if (filters.location) {
-      filtered = filtered.filter(emp => emp.location === filters.location);
+      filtered = filtered.filter((emp) => {
+        const rating = Number(emp.performance_rating || 0);
+        if (filters.status === "excellent") return rating >= 4.5;
+        if (filters.status === "good") return rating >= 3.5 && rating < 4.5;
+        if (filters.status === "average") return rating >= 2.5 && rating < 3.5;
+        if (filters.status === "needs_improvement") return rating < 2.5;
+        return true;
+      });
     }
     
     // Apply sorting
@@ -95,6 +101,10 @@ function Employees() {
         : valB.localeCompare(valA);
     });
   }, [employees, filters, sortKey, sortOrder]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.department, filters.location, filters.status]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 

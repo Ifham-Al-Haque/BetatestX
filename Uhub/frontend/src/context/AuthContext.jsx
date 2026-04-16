@@ -534,34 +534,18 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (session?.user) {
-          console.log("✅ User authenticated:", session.user.email);
+          console.log("✅ User authenticated");
           setUser(session.user);
           setRole('loading'); // Set loading state instead of default role
           
           // Fetch profile in background (non-blocking)
-          console.log("🔄 Starting profile fetch for user:", session.user.id);
+          console.log("🔄 Starting profile fetch for authenticated user");
           getUserProfile(session.user.id)
             .then(profile => {
               if (!isMounted) return;
-              console.log("📋 Profile loaded:", profile);
               setUserProfile(profile);
               // Use the role from the user account, not from employee record
               const detectedRole = profile?.role || 'employee';
-              console.log("🔍 Role detection:", { 
-                profileRole: profile?.role, 
-                detectedRole, 
-                profile: profile,
-                userId: session.user.id,
-                userEmail: session.user.email
-              });
-              console.log("🔍 Detailed profile data:", {
-                id: profile?.id,
-                email: profile?.email,
-                role: profile?.role,
-                status: profile?.status,
-                department: profile?.department,
-                position: profile?.position
-              });
               setRole(detectedRole);
               console.log("✅ Role set to:", detectedRole);
             })
@@ -600,28 +584,13 @@ export const AuthProvider = ({ children }) => {
           setRole('loading'); // Set loading state instead of default role
           
           // Fetch profile in background
-          console.log("🔄 Auth state change - Starting profile fetch for user:", session.user.id);
+          console.log("🔄 Auth state change - Starting profile fetch");
           getUserProfile(session.user.id)
             .then(profile => {
               if (!isMounted) return;
               setUserProfile(profile);
               // Use the role from the user account, not from employee record
               const detectedRole = profile?.role || 'employee';
-              console.log("🔄 Auth state change - Role detection:", { 
-                profileRole: profile?.role, 
-                detectedRole, 
-                profile: profile,
-                userId: session.user.id,
-                userEmail: session.user.email
-              });
-              console.log("🔄 Auth state change - Detailed profile data:", {
-                id: profile?.id,
-                email: profile?.email,
-                role: profile?.role,
-                status: profile?.status,
-                department: profile?.department,
-                position: profile?.position
-              });
               setRole(detectedRole);
               console.log("✅ Auth state change - Role set to:", detectedRole);
             })
@@ -662,7 +631,6 @@ export const AuthProvider = ({ children }) => {
         if (profile) {
           setUserProfile(profile);
           setRole(profile.role || 'employee');
-          console.log("Profile refreshed:", profile);
           console.log("Role set to:", profile.role);
         }
       }

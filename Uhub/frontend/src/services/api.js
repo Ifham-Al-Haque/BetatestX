@@ -4,7 +4,10 @@ import { supabase } from '../supabaseClient';
 export const apiService = {
   // Employee APIs
   employees: {
-    getAll: async (page = 1, limit = 50, search = '', includeArchived = false) => {
+    getAll: async (page = 1, limit = 50, search = '', filters = {}, includeArchived = false) => {
+      // Backward compatibility: previous signature used 4th arg as includeArchived boolean.
+      const resolvedFilters = typeof filters === 'boolean' ? {} : (filters || {});
+      const resolvedIncludeArchived = typeof filters === 'boolean' ? filters : includeArchived;
       let query = supabase
         .from('employees')
         .select(`
@@ -33,12 +36,20 @@ export const apiService = {
         .order('created_at', { ascending: false });
 
       // Exclude archived employees by default
-      if (!includeArchived) {
+      if (!resolvedIncludeArchived) {
         query = query.eq('is_archived', false);
       }
 
       if (search) {
         query = query.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
+      }
+
+      if (resolvedFilters.department) {
+        query = query.eq('department', resolvedFilters.department);
+      }
+
+      if (resolvedFilters.location) {
+        query = query.eq('location', resolvedFilters.location);
       }
 
       const from = (page - 1) * limit;
@@ -49,12 +60,20 @@ export const apiService = {
         .from('employees')
         .select('*', { count: 'exact', head: true });
       
-      if (!includeArchived) {
+      if (!resolvedIncludeArchived) {
         countQuery = countQuery.eq('is_archived', false);
       }
       
       if (search) {
         countQuery = countQuery.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
+      }
+
+      if (resolvedFilters.department) {
+        countQuery = countQuery.eq('department', resolvedFilters.department);
+      }
+
+      if (resolvedFilters.location) {
+        countQuery = countQuery.eq('location', resolvedFilters.location);
       }
       
       const { count: totalCount } = await countQuery;
@@ -655,7 +674,6 @@ export const apiService = {
 
           create: async (userData) => {
         console.log('🚀 Starting user creation process...');
-        console.log('📝 User data received:', userData);
         
         try {
           let authUserId = null;
@@ -676,8 +694,6 @@ export const apiService = {
               }
             });
 
-            console.log('🔐 Auth signup result:', { authData, signUpError });
-
             if (signUpError) {
               console.error('❌ Auth signup failed:', signUpError);
               console.error('❌ Error details:', {
@@ -689,12 +705,9 @@ export const apiService = {
               });
             } else         if (authData.user) {
           console.log('✅ Auth user created successfully:', authData.user.id);
-          console.log('📧 User email confirmed:', authData.user.email_confirmed_at);
-          console.log('📧 Session:', authData.session);
           authUserId = authData.user.id;
         } else {
           console.warn('⚠️ No auth user data returned');
-          console.warn('⚠️ Full auth response:', authData);
         }
           } catch (authException) {
             console.error('💥 Exception during auth signup:', authException);
@@ -717,8 +730,6 @@ export const apiService = {
           })
           .select()
           .single();
-
-        console.log('💾 Database user creation result:', { data, error });
 
         if (error) throw error;
         

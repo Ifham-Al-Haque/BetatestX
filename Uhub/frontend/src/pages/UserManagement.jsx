@@ -77,13 +77,8 @@ export default function UserManagement() {
     { value: 'viewer', label: 'Viewer', color: 'bg-gradient-to-r from-orange-500 to-amber-500', icon: Eye, bgColor: 'bg-orange-50', textColor: 'text-orange-700' }
   ];
 
-  // Debug: Log roles array
-  console.log('🔍 UserManagement roles array:', roles.map(r => r.value));
-
   const handleCreateUser = useCallback(async (e) => {
     e.preventDefault();
-
-    console.log('🎯 handleCreateUser called with:', userFormData);
 
     // Validate password
     if (userFormData.password && userFormData.password.length < 6) {
@@ -96,8 +91,6 @@ export default function UserManagement() {
       showError("Error", "Passwords do not match");
       return;
     }
-
-    console.log('✅ Validation passed, calling createUserMutation...');
 
     try {
       await createUserMutation.mutateAsync(userFormData);

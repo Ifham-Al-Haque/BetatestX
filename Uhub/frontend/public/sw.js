@@ -8,6 +8,29 @@ const urlsToCache = [
   '/offline.html'
 ];
 
+function shouldCacheRequest(request) {
+  // Only cache static app assets, never API calls or dynamic data responses.
+  if (request.method !== 'GET') return false;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return false;
+  if (url.pathname.startsWith('/api/')) return false;
+  if (url.pathname.startsWith('/auth/')) return false;
+  if (url.pathname.startsWith('/rest/')) return false;
+
+  const destination = request.destination || '';
+  return (
+    destination === 'script' ||
+    destination === 'style' ||
+    destination === 'image' ||
+    destination === 'font' ||
+    destination === 'manifest' ||
+    url.pathname.startsWith('/static/') ||
+    url.pathname === '/' ||
+    url.pathname === '/offline.html' ||
+    url.pathname === '/manifest.json'
+  );
+}
+
 // Install event
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -35,13 +58,14 @@ self.addEventListener('fetch', (event) => {
             return response;
           }
 
-          // Clone the response
-          const responseToCache = response.clone();
-
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+          if (shouldCacheRequest(event.request)) {
+            // Clone and cache only static assets.
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+          }
 
           return response;
         });
