@@ -25,6 +25,13 @@ import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
 const accessCardClass =
   "rounded-xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/40 dark:bg-indigo-950/20 overflow-hidden";
 
+const sortAccessEntriesByName = (entries = []) =>
+  [...entries].sort((a, b) =>
+    String(a?.name ?? "")
+      .trim()
+      .localeCompare(String(b?.name ?? "").trim(), undefined, { sensitivity: "base" })
+  );
+
 function SystemAccessEntryRow({
   entry,
   index,
@@ -38,6 +45,7 @@ function SystemAccessEntryRow({
   removeScopeFromEntry,
   updateAccessEntryName,
   updateScopeInEntry,
+  sortAccessEntriesState,
   addScopeToEntry,
   scopeDraft,
   setScopeDraft,
@@ -57,7 +65,7 @@ function SystemAccessEntryRow({
           <GripVertical className="w-5 h-5" />
         </button>
       )}
-      {canEditAccess && totalCount > 1 && (
+      {canEditAccess && canReorder && totalCount > 1 && (
         <div className="flex flex-col justify-center border-r border-indigo-200/60 dark:border-indigo-800/50 pr-1 pl-1 shrink-0">
           <button
             type="button"
@@ -131,6 +139,7 @@ function SystemAccessEntryRow({
                   type="text"
                   value={entry.name}
                   onChange={(e) => updateAccessEntryName(index, e.target.value)}
+                  onBlur={sortAccessEntriesState}
                   placeholder="System name"
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
                 />
@@ -317,7 +326,7 @@ export default function EmployeeProfile() {
 
   useEffect(() => {
     if (!employee) return;
-    setAccessEntries(ensureAccessEntryIds(normalizeAccessList(employee.access_list)));
+    setAccessEntries(sortAccessEntriesByName(ensureAccessEntryIds(normalizeAccessList(employee.access_list))));
     setAccessError(null);
   }, [employee?.id]);
 
@@ -353,7 +362,9 @@ export default function EmployeeProfile() {
     if (!id) return;
     setSavingAccess(true);
     setAccessError(null);
-    const payload = toDbAccessList(accessEntries);
+    const sortedEntries = sortAccessEntriesByName(accessEntries);
+    setAccessEntries(sortedEntries);
+    const payload = toDbAccessList(sortedEntries);
     const { error } = await supabase.from("employees").update({ access_list: payload }).eq("id", id);
     setSavingAccess(false);
     if (error) {
@@ -496,14 +507,24 @@ export default function EmployeeProfile() {
     });
   }, []);
 
+  const sortAccessEntriesState = useCallback(() => {
+    setAccessEntries((prev) => sortAccessEntriesByName(prev));
+  }, []);
+
   const addNewAccessEntry = useCallback(() => {
     setNewAccessName((prevName) => {
       const trimmed = prevName.trim();
       if (!trimmed) return prevName;
       setAccessEntries((prevEntries) => {
-        const idx = prevEntries.length;
-        setExpandedAccess((e) => new Set(e).add(idx));
-        return [...prevEntries, { name: trimmed, scopes: [], id: newAccessEntryId() }];
+        const nextEntries = sortAccessEntriesByName([
+          ...prevEntries,
+          { name: trimmed, scopes: [], id: newAccessEntryId() },
+        ]);
+        const sortedIndex = nextEntries.findIndex((entry) => entry.name === trimmed);
+        if (sortedIndex >= 0) {
+          setExpandedAccess((e) => new Set(e).add(sortedIndex));
+        }
+        return nextEntries;
       });
       return "";
     });
@@ -935,11 +956,7 @@ export default function EmployeeProfile() {
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Expand each system to see roles and scope assigned for this employee (for example Office 365 → Exchange, Teams).
-            {canEditAccess && accessEntries.length > 1 ? (
-              <span className="block mt-1">
-                Drag the grip handle, or use the arrows on each row, to change the order, then save.
-              </span>
-            ) : null}
+            <span className="block mt-1">System entries are automatically sorted alphabetically.</span>
           </p>
           {accessError && (
             <p className="text-sm text-red-600 dark:text-red-400 mb-3">{accessError}</p>
@@ -965,7 +982,7 @@ export default function EmployeeProfile() {
                       index={i}
                       expanded={expanded}
                       canEditAccess={canEditAccess}
-                      canReorder={accessEntries.length > 1}
+                      canReorder={false}
                       totalCount={accessEntries.length}
                       toggleAccessExpand={toggleAccessExpand}
                       moveAccessEntry={moveAccessEntry}
@@ -973,6 +990,7 @@ export default function EmployeeProfile() {
                       removeScopeFromEntry={removeScopeFromEntry}
                       updateAccessEntryName={updateAccessEntryName}
                       updateScopeInEntry={updateScopeInEntry}
+                      sortAccessEntriesState={sortAccessEntriesState}
                       addScopeToEntry={addScopeToEntry}
                       scopeDraft={scopeDraft}
                       setScopeDraft={setScopeDraft}
@@ -998,6 +1016,7 @@ export default function EmployeeProfile() {
                     removeScopeFromEntry={removeScopeFromEntry}
                     updateAccessEntryName={updateAccessEntryName}
                     updateScopeInEntry={updateScopeInEntry}
+                    sortAccessEntriesState={sortAccessEntriesState}
                     addScopeToEntry={addScopeToEntry}
                     scopeDraft={scopeDraft}
                     setScopeDraft={setScopeDraft}
