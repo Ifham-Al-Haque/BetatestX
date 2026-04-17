@@ -36,6 +36,8 @@ function SystemAccessEntryRow({
   moveAccessEntry,
   removeAccessEntry,
   removeScopeFromEntry,
+  updateAccessEntryName,
+  updateScopeInEntry,
   addScopeToEntry,
   scopeDraft,
   setScopeDraft,
@@ -120,17 +122,41 @@ function SystemAccessEntryRow({
           className="border-t border-indigo-200/60 dark:border-indigo-800/40"
         >
           <div className="px-4 py-3 bg-white/60 dark:bg-gray-900/40">
+            {canEditAccess ? (
+              <div className="mb-3">
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide block mb-2">
+                  System name
+                </label>
+                <input
+                  type="text"
+                  value={entry.name}
+                  onChange={(e) => updateAccessEntryName(index, e.target.value)}
+                  placeholder="System name"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+                />
+              </div>
+            ) : null}
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
               Roles & scope
             </p>
             {entry.scopes.length > 0 ? (
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="flex flex-col gap-2 mb-3">
                 {entry.scopes.map((scope, si) => (
-                  <span
+                  <div
                     key={`${scope}-${si}`}
-                    className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200"
+                    className="inline-flex items-center gap-2 pl-3 pr-1 py-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200"
                   >
-                    {scope}
+                    {canEditAccess ? (
+                      <input
+                        type="text"
+                        value={scope}
+                        onChange={(e) => updateScopeInEntry(index, si, e.target.value)}
+                        placeholder="Scope / role name"
+                        className="flex-1 min-w-0 px-2 py-1 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+                      />
+                    ) : (
+                      <span>{scope}</span>
+                    )}
                     {canEditAccess && (
                       <button
                         type="button"
@@ -141,7 +167,7 @@ function SystemAccessEntryRow({
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
-                  </span>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -313,6 +339,16 @@ export default function EmployeeProfile() {
     );
   }, [accessEntries, employee]);
 
+  const accessValidationError = useMemo(() => {
+    const hasEmptySystemName = accessEntries.some((entry) => !entry?.name?.trim());
+    if (hasEmptySystemName) return "Each system access entry must have a name.";
+    const hasEmptyScope = accessEntries.some((entry) =>
+      (entry?.scopes || []).some((scope) => !String(scope ?? "").trim())
+    );
+    if (hasEmptyScope) return "Scope values cannot be empty.";
+    return null;
+  }, [accessEntries]);
+
   const saveAccessList = useCallback(async () => {
     if (!id) return;
     setSavingAccess(true);
@@ -358,6 +394,27 @@ export default function EmployeeProfile() {
       const cur = { ...next[index], scopes: [...(next[index]?.scopes || [])] };
       cur.scopes.splice(scopeIdx, 1);
       next[index] = cur;
+      return next;
+    });
+  }, []);
+
+  const updateAccessEntryName = useCallback((index, name) => {
+    setAccessEntries((prev) => {
+      const next = [...prev];
+      if (!next[index]) return prev;
+      next[index] = { ...next[index], name };
+      return next;
+    });
+  }, []);
+
+  const updateScopeInEntry = useCallback((index, scopeIdx, scopeValue) => {
+    setAccessEntries((prev) => {
+      const next = [...prev];
+      const cur = next[index];
+      if (!cur) return prev;
+      const scopes = [...(cur.scopes || [])];
+      scopes[scopeIdx] = scopeValue;
+      next[index] = { ...cur, scopes };
       return next;
     });
   }, []);
@@ -867,8 +924,8 @@ export default function EmployeeProfile() {
                   <button
                     type="button"
                     onClick={saveAccessList}
-                    disabled={savingAccess}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    disabled={savingAccess || Boolean(accessValidationError)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {savingAccess ? "Saving…" : "Save changes"}
                   </button>
@@ -886,6 +943,9 @@ export default function EmployeeProfile() {
           </p>
           {accessError && (
             <p className="text-sm text-red-600 dark:text-red-400 mb-3">{accessError}</p>
+          )}
+          {!accessError && accessValidationError && (
+            <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">{accessValidationError}</p>
           )}
           <div className="space-y-2">
             {canEditAccess && accessEntries.length > 0 ? (
@@ -911,6 +971,8 @@ export default function EmployeeProfile() {
                       moveAccessEntry={moveAccessEntry}
                       removeAccessEntry={removeAccessEntry}
                       removeScopeFromEntry={removeScopeFromEntry}
+                      updateAccessEntryName={updateAccessEntryName}
+                      updateScopeInEntry={updateScopeInEntry}
                       addScopeToEntry={addScopeToEntry}
                       scopeDraft={scopeDraft}
                       setScopeDraft={setScopeDraft}
@@ -934,6 +996,8 @@ export default function EmployeeProfile() {
                     moveAccessEntry={moveAccessEntry}
                     removeAccessEntry={removeAccessEntry}
                     removeScopeFromEntry={removeScopeFromEntry}
+                    updateAccessEntryName={updateAccessEntryName}
+                    updateScopeInEntry={updateScopeInEntry}
                     addScopeToEntry={addScopeToEntry}
                     scopeDraft={scopeDraft}
                     setScopeDraft={setScopeDraft}
