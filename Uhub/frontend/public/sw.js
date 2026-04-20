@@ -1,9 +1,7 @@
 // Service Worker for IT Service Management App
-const CACHE_NAME = 'it-service-v1';
+const CACHE_NAME = 'it-service-v2';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/manifest.json',
   '/offline.html'
 ];
@@ -35,15 +33,46 @@ function shouldCacheRequest(request) {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        // Cache each URL independently so one missing file does not fail SW install.
+        const results = await Promise.allSettled(
+          urlsToCache.map((url) => cache.add(url))
+        );
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.warn('Precache failed for:', urlsToCache[index], result.reason);
+          }
+        });
+      })
+      .then(() => {
+        // Activate the new service worker as soon as possible.
+        return self.skipWaiting();
       })
   );
 });
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  const isNavigationRequest =
+    event.request.mode === 'navigate' || event.request.destination === 'document';
+
+  // Network-first for navigation to reduce stale pages on refresh/new tab.
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cachedPage = await caches.match(event.request);
+        if (cachedPage) return cachedPage;
+        return caches.match('/offline.html');
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -91,6 +120,9 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      // Start controlling already-open tabs immediately.
+      return clients.claim();
     })
   );
 });
@@ -203,7 +235,20 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'explore') {
     event.waitUntil(
-      clients.openWindow('/it-requests')
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        for (const client of windowClients) {
+          if ('focus' in client) {
+            if (client.url.includes('/it-requests')) {
+              return client.focus();
+            }
+            if ('navigate' in client) {
+              return client.navigate('/it-requests').then(() => client.focus());
+            }
+            return client.focus();
+          }
+        }
+        return clients.openWindow('/it-requests');
+      })
     );
   }
 });
