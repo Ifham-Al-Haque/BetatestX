@@ -3,19 +3,48 @@ import { supabase } from '../supabaseClient';
 
 const ASSIGNMENT_COLUMNS = ['assigned_employee_id', 'assigned_employee_name', 'assigned_employee_email'];
 
-const stripOptionalAssignmentColumns = (payload = {}) => {
-  const cloned = { ...payload };
-  ASSIGNMENT_COLUMNS.forEach((col) => {
-    delete cloned[col];
-  });
-  return cloned;
+const extractMissingColumnName = (error) => {
+  const candidates = [String(error?.message || ''), String(error?.details || '')];
+  const patterns = [
+    /could not find the '([^']+)' column/i,
+    /column ["']?([^"'\s]+)["']? does not exist/i,
+  ];
+
+  for (const text of candidates) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+  }
+  return null;
 };
 
-const isMissingColumnError = (error) => {
-  const msg = String(error?.message || '').toLowerCase();
-  const details = String(error?.details || '').toLowerCase();
-  return (msg.includes('column') && msg.includes('does not exist')) ||
-         (details.includes('column') && details.includes('does not exist'));
+const runSimCardMutationWithMissingColumnFallback = async ({
+  mutate,
+  payload,
+  retryColumns = [],
+}) => {
+  let currentPayload = { ...payload };
+  const attemptedColumns = new Set();
+
+  while (true) {
+    const { data, error } = await mutate(currentPayload);
+    if (!error) return data;
+
+    const missingColumn = extractMissingColumnName(error);
+    const canRetry =
+      missingColumn &&
+      retryColumns.includes(missingColumn) &&
+      Object.prototype.hasOwnProperty.call(currentPayload, missingColumn) &&
+      !attemptedColumns.has(missingColumn);
+
+    if (!canRetry) throw error;
+
+    attemptedColumns.add(missingColumn);
+    const nextPayload = { ...currentPayload };
+    delete nextPayload[missingColumn];
+    currentPayload = nextPayload;
+  }
 };
 
 // Fetch all SIM cards
@@ -65,24 +94,19 @@ export const useCreateSimCard = () => {
   return useMutation({
     mutationFn: async (simCardData) => {
       console.log('📝 Attempting to create SIM card with data:', simCardData);
-      let { data, error } = await supabase
-        .from('sim_cards')
-        .insert(simCardData)
-        .select()
-        .single();
-
-      // Backward-compat: if optional structured assignment columns are not in DB yet,
-      // retry without them so create still succeeds.
-      if (error && isMissingColumnError(error)) {
-        const fallbackPayload = stripOptionalAssignmentColumns(simCardData);
-        ({ data, error } = await supabase
-          .from('sim_cards')
-          .insert(fallbackPayload)
-          .select()
-          .single());
-      }
-
-      if (error) {
+      let data;
+      try {
+        data = await runSimCardMutationWithMissingColumnFallback({
+          mutate: (payload) =>
+            supabase
+              .from('sim_cards')
+              .insert(payload)
+              .select()
+              .single(),
+          payload: simCardData,
+          retryColumns: ASSIGNMENT_COLUMNS,
+        });
+      } catch (error) {
         console.error('❌ Supabase error creating SIM card:', error);
         throw error;
       }
@@ -118,25 +142,17 @@ export const useUpdateSimCard = () => {
   
   return useMutation({
     mutationFn: async ({ id, ...simCardData }) => {
-      let { data, error } = await supabase
-        .from('sim_cards')
-        .update(simCardData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      // Backward-compat: retry without optional structured assignment columns.
-      if (error && isMissingColumnError(error)) {
-        const fallbackPayload = stripOptionalAssignmentColumns(simCardData);
-        ({ data, error } = await supabase
-          .from('sim_cards')
-          .update(fallbackPayload)
-          .eq('id', id)
-          .select()
-          .single());
-      }
-
-      if (error) throw error;
+      const data = await runSimCardMutationWithMissingColumnFallback({
+        mutate: (payload) =>
+          supabase
+            .from('sim_cards')
+            .update(payload)
+            .eq('id', id)
+            .select()
+            .single(),
+        payload: simCardData,
+        retryColumns: ASSIGNMENT_COLUMNS,
+      });
       return data;
     },
     onSuccess: (updatedSimCard) => {
