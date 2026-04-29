@@ -108,6 +108,9 @@ const OrganizationalHierarchy = safeLazy(() => import('./pages/OrganizationalHie
 const IOTRecord = safeLazy(() => import('./pages/IOTRecord'), 'IOTRecord');
 const ITTools = safeLazy(() => import('./pages/ITTools'), 'ITTools');
 const PayrollCalculator = safeLazy(() => import('./pages/PayrollCalculator'), 'PayrollCalculator');
+const Payroll = safeLazy(() => import('./pages/Payroll'), 'Payroll');
+const UpcomingPaymentEvents = safeLazy(() => import('./pages/UpcomingPaymentEvents'), 'UpcomingPaymentEvents');
+const Voucher = safeLazy(() => import('./pages/Voucher'), 'Voucher');
 
 function App() {
   return (
@@ -284,6 +287,15 @@ function App() {
                           <ProtectedRoute requiredFeature="payroll_calculator">
                             <Layout>
                               <PayrollCalculator />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Payroll */}
+                        <Route path="/payroll" element={
+                          <ProtectedRoute requiredFeature="payroll">
+                            <Layout>
+                              <Payroll />
                             </Layout>
                           </ProtectedRoute>
                         } />
@@ -562,10 +574,7 @@ function App() {
                         <Route path="/upcoming-payments" element={
                           <ProtectedRoute requiredFeature="upcoming_payments">
                             <Layout>
-                              <div className="p-8">
-                                <h1 className="text-2xl font-bold mb-4">Upcoming Payments</h1>
-                                <p>Upcoming payments functionality coming soon...</p>
-                              </div>
+                              <UpcomingPaymentEvents />
                             </Layout>
                           </ProtectedRoute>
                         } />
@@ -574,10 +583,7 @@ function App() {
                         <Route path="/vouchers" element={
                           <ProtectedRoute requiredFeature="vouchers">
                             <Layout>
-                              <div className="p-8">
-                                <h1 className="text-2xl font-bold mb-4">Vouchers</h1>
-                                <p>Vouchers management functionality coming soon...</p>
-                              </div>
+                              <Voucher />
                             </Layout>
                           </ProtectedRoute>
                         } />

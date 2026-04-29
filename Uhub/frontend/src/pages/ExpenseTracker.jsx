@@ -8,7 +8,7 @@ import { DEPARTMENTS, getDepartmentLabel } from "../config/departments";
 import { parseExpenseFile, mapRowToExpense, getExpenseImportTemplateCsv } from "../utils/expenseImportUtils";
 
 import { motion } from "framer-motion";
-import { Plus, Edit, Trash, Save, X, Filter, Search, Calendar, DollarSign, Building, Upload, FileSpreadsheet, Download } from "lucide-react";
+import { Plus, Edit, Trash, Save, X, Filter, Search, Calendar, DollarSign, Building, Upload, FileSpreadsheet, Download, AlertTriangle } from "lucide-react";
 
 export default function ExpenseTracker() {
   const { user } = useAuth();
@@ -44,6 +44,9 @@ export default function ExpenseTracker() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+
+  // Delete confirmation modal state (smooth UX vs browser confirm)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // Import state
   const [importFile, setImportFile] = useState(null);
@@ -103,6 +106,17 @@ export default function ExpenseTracker() {
       return true;
     });
   }, [expenses, filters]);
+
+  const stats = useMemo(() => {
+    const totalAmount = filteredExpenses.reduce(
+      (sum, exp) => sum + (parseFloat(exp.amount_aed) || 0),
+      0
+    );
+    const activeCount = filteredExpenses.filter((exp) => exp.service_status === "active").length;
+    const pendingCount = filteredExpenses.filter((exp) => exp.service_status === "pending").length;
+    const finalCount = filteredExpenses.filter((exp) => exp.service_status === "final").length;
+    return { totalAmount, activeCount, pendingCount, finalCount };
+  }, [filteredExpenses]);
 
   // Get unique departments and statuses for filter dropdowns
   const uniqueDepartments = useMemo(() => {
@@ -190,16 +204,20 @@ export default function ExpenseTracker() {
       showError("Error", "User not logged in");
       return;
     }
-    
-    if (!window.confirm("Are you sure you want to delete this expense?")) return;
+    setDeleteConfirmId(id);
+  }, [user, deleteExpenseMutation, success, showError]);
 
+  const confirmDelete = useCallback(async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteExpenseMutation.mutateAsync(id);
+      await deleteExpenseMutation.mutateAsync(deleteConfirmId);
       success("Success", "Expense deleted successfully!");
     } catch (err) {
       showError("Error", err.message);
+    } finally {
+      setDeleteConfirmId(null);
     }
-  }, [user, deleteExpenseMutation, success, showError]);
+  }, [deleteConfirmId, deleteExpenseMutation, success, showError]);
 
   const clearFilters = useCallback(() => {
     setFilters({
@@ -336,6 +354,33 @@ export default function ExpenseTracker() {
               Expense Tracker
             </h2>
           </div>
+
+          {/* Finance stats strip (reflects current filters) */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"
+          >
+            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30">
+              <div className="text-sm text-blue-700 dark:text-blue-200 font-medium">Total amount</div>
+              <div className="text-2xl font-bold text-blue-900 dark:text-white">
+                AED {stats.totalAmount.toFixed(2)}
+              </div>
+            </div>
+            <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30">
+              <div className="text-sm text-green-700 dark:text-green-200 font-medium">Active</div>
+              <div className="text-2xl font-bold text-green-900 dark:text-white">{stats.activeCount}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/30">
+              <div className="text-sm text-yellow-700 dark:text-yellow-200 font-medium">Pending</div>
+              <div className="text-2xl font-bold text-yellow-900 dark:text-white">{stats.pendingCount}</div>
+            </div>
+            <div className="p-4 rounded-xl bg-blue-100/60 dark:bg-blue-900/10 border border-blue-200/70 dark:border-blue-900/20">
+              <div className="text-sm text-blue-800 dark:text-blue-200 font-medium">Final</div>
+              <div className="text-2xl font-bold text-blue-900 dark:text-white">{stats.finalCount}</div>
+            </div>
+          </motion.div>
 
           {/* Add Expense Form */}
           <motion.div
@@ -875,6 +920,49 @@ export default function ExpenseTracker() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 8 }}
+            transition={{ duration: 0.15 }}
+            className="w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden"
+          >
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Delete expense?
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="p-5 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                disabled={deleteExpenseMutation.isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+                disabled={deleteExpenseMutation.isLoading}
+              >
+                {deleteExpenseMutation.isLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

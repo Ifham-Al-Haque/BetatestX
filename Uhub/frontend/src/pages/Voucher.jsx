@@ -433,6 +433,8 @@ export default function Voucher() {
   const [typeFilter, setTypeFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   
   // Sample data
   const [vouchers, setVouchers] = useState([
@@ -511,10 +513,13 @@ export default function Voucher() {
   };
 
   const handleDeleteVoucher = (voucherId) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this voucher?");
-    if (confirmDelete) {
-      setVouchers(vouchers.filter(voucher => voucher.id !== voucherId));
-    }
+    setDeleteConfirmId(voucherId);
+  };
+
+  const confirmDeleteVoucher = () => {
+    if (!deleteConfirmId) return;
+    setVouchers((prev) => prev.filter((voucher) => voucher.id !== deleteConfirmId));
+    setDeleteConfirmId(null);
   };
 
   const handleDownloadVoucher = (voucher) => {
@@ -789,6 +794,50 @@ export default function Voucher() {
                 onSubmit={handleSubmitVoucher}
                 isLoading={false}
               />
+            )}
+          </AnimatePresence>
+
+          {/* Delete confirmation modal */}
+          <AnimatePresence>
+            {deleteConfirmId && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              >
+                <motion.div
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 10, opacity: 0 }}
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+                >
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                      Delete voucher?
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                      This action cannot be undone.
+                    </p>
+                  </div>
+                  <div className="p-6 flex gap-3 justify-end border-t border-gray-100 dark:border-gray-700">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmDeleteVoucher}
+                      className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

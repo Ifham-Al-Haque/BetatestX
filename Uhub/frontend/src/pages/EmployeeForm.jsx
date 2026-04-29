@@ -962,6 +962,7 @@ export default function EmployeeForm() {
                             >
                               <option value="">Select Location</option>
                               <option value="In House">In House</option>
+                              <option value="In Field">In Field</option>
                               <option value="Remote">Remote</option>
                               <option value="Hybrid">Hybrid</option>
                             </select>

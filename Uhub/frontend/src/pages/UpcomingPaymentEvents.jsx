@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, DollarSign, Clock, AlertTriangle, CheckCircle, Plus } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, DollarSign, Clock, AlertTriangle, CheckCircle, Plus, X } from 'lucide-react';
 import paymentService from '../services/paymentService';
+import { AnimatePresence, motion } from 'framer-motion';
 
 
 const UpcomingPaymentEvents = () => {
@@ -16,6 +17,11 @@ const UpcomingPaymentEvents = () => {
     priority: 'medium',
     description: ''
   });
+
+  const [scheduleError, setScheduleError] = useState('');
+
+  const formatAED = (amount) =>
+    `AED ${Number(amount || 0).toLocaleString()}`;
 
   useEffect(() => {
     // Load payments from service
@@ -75,12 +81,24 @@ const UpcomingPaymentEvents = () => {
     }
   };
 
+  const filteredPaymentEvents = useMemo(() => {
+    return paymentEvents.filter((event) => {
+      if (filter === 'all') return true;
+      if (filter === 'high') return event.priority === 'high';
+      if (filter === 'due-soon') {
+        const daysUntilDue = getDaysUntilDue(event.dueDate);
+        return daysUntilDue >= 0 && daysUntilDue <= 3;
+      }
+      return true;
+    });
+  }, [paymentEvents, filter]);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payment events...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300">Loading payment events...</p>
         </div>
       </div>
     );
@@ -112,17 +130,17 @@ const UpcomingPaymentEvents = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <h3 className="text-lg font-semibold text-blue-900">Total Upcoming</h3>
-              <p className="text-3xl font-bold text-blue-600">₹{paymentService.getPaymentStats().pending.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-blue-600">AED {paymentService.getPaymentStats().pending.toLocaleString()}</p>
               <p className="text-sm text-blue-700">This month</p>
             </div>
             <div className="bg-red-50 p-4 rounded-lg border border-red-200">
               <h3 className="text-lg font-semibold text-red-900">High Priority</h3>
-              <p className="text-3xl font-bold text-red-600">₹{paymentService.getUpcomingPayments().filter(p => p.priority === 'high').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</p>
+              <p className="text-3xl font-bold text-red-600">AED {paymentService.getUpcomingPayments().filter(p => p.priority === 'high').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</p>
               <p className="text-sm text-red-700">Requires attention</p>
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
               <h3 className="text-lg font-semibold text-yellow-900">Due This Week</h3>
-              <p className="text-3xl font-bold text-yellow-600">₹{(() => {
+              <p className="text-3xl font-bold text-yellow-600">AED {(() => {
                 const today = new Date();
                 const thisWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
                 return paymentService.getUpcomingPayments().filter(p => {
@@ -134,7 +152,7 @@ const UpcomingPaymentEvents = () => {
             </div>
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
               <h3 className="text-lg font-semibold text-green-900">Low Priority</h3>
-              <p className="text-3xl font-bold text-green-600">₹{paymentService.getUpcomingPayments().filter(p => p.priority === 'low').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</p>
+              <p className="text-3xl font-bold text-green-600">AED {paymentService.getUpcomingPayments().filter(p => p.priority === 'low').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</p>
               <p className="text-sm text-green-700">Can wait</p>
             </div>
           </div>
@@ -203,12 +221,27 @@ const UpcomingPaymentEvents = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paymentEvents.map(event => {
-                    const daysUntilDue = getDaysUntilDue(event.dueDate);
-                    const dueStatus = getDueStatus(daysUntilDue);
-                    
-                    return (
-                      <tr key={event.id}>
+                  {filteredPaymentEvents.length === 0 ? (
+                    <tr>
+                      <td className="px-6 py-10 text-center text-gray-500" colSpan={6}>
+                        No events match this filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    <AnimatePresence>
+                      {filteredPaymentEvents.map((event) => {
+                        const daysUntilDue = getDaysUntilDue(event.dueDate);
+                        const dueStatus = getDueStatus(daysUntilDue);
+                        
+                        return (
+                          <motion.tr
+                            key={event.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            transition={{ duration: 0.18 }}
+                            className="hover:bg-gray-50"
+                          >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -221,7 +254,7 @@ const UpcomingPaymentEvents = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                          ₹{event.amount.toLocaleString()}
+                          {formatAED(event.amount)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{event.dueDate}</div>
@@ -248,21 +281,54 @@ const UpcomingPaymentEvents = () => {
                           <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
                           <button className="text-green-600 hover:text-green-900">Process</button>
                         </td>
-                      </tr>
-                    );
-                  })}
+                        </motion.tr>
+                      );
+                      })}
+                    </AnimatePresence>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           {/* Add Payment Form Modal */}
-          {showAddForm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Schedule New Payment</h3>
+          <AnimatePresence>
+            {showAddForm && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              >
+                <motion.div
+                  initial={{ y: 12, opacity: 0, scale: 0.98 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  exit={{ y: 12, opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className="bg-white rounded-2xl p-6 w-full max-w-md border border-gray-200 shadow-2xl overflow-hidden"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Schedule New Payment</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setScheduleError('');
+                      }}
+                      className="text-gray-500 hover:text-gray-900 transition-colors"
+                      aria-label="Close"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 
-                <div className="space-y-4">
+                  {scheduleError && (
+                    <div className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
+                      {scheduleError}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                     <input
@@ -275,7 +341,7 @@ const UpcomingPaymentEvents = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Amount (AED)</label>
                     <input
                       type="number"
                       value={newPayment.amount}
@@ -334,12 +400,16 @@ const UpcomingPaymentEvents = () => {
                       rows="3"
                     />
                   </div>
-                </div>
-                
-                <div className="flex space-x-3 mt-6">
-                  <button
-                    onClick={() => {
-                      if (newPayment.title && newPayment.amount && newPayment.dueDate) {
+                  </div>
+
+                  <div className="flex space-x-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newPayment.title || !newPayment.amount || !newPayment.dueDate) {
+                          setScheduleError('Please fill Title, Amount, and Due Date.');
+                          return;
+                        }
                         paymentService.addPayment(newPayment);
                         setNewPayment({
                           title: '',
@@ -349,23 +419,28 @@ const UpcomingPaymentEvents = () => {
                           priority: 'medium',
                           description: ''
                         });
+                        setScheduleError('');
                         setShowAddForm(false);
-                      }
-                    }}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Schedule Payment
-                  </button>
-                  <button
-                    onClick={() => setShowAddForm(false)}
-                    className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+                      }}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                    >
+                      Schedule Payment
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setScheduleError('');
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

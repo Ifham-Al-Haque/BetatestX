@@ -651,12 +651,14 @@ export default function EmployeeProfile() {
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
-      whileHover={{ y: -2 }}
-      className={`rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 ${
+      whileHover={{ y: -4, scale: 1.01 }}
+      className={`group relative overflow-hidden rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-300 ${
         'bg-white/90 dark:bg-gray-800/90 border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm'
       } ${className}`}
     >
-      {children}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/50 to-transparent" />
+      <div className="pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-blue-500/10 dark:bg-blue-400/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="relative">{children}</div>
     </motion.div>
   );
 
@@ -678,61 +680,60 @@ export default function EmployeeProfile() {
     <div className="space-y-6">
       {/* Contact Information Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SurfaceCard delay={0} className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        {[
+          {
+            key: "email",
+            label: "Email",
+            value: employee.email || "Not provided",
+            icon: Mail,
+            iconWrap: "bg-blue-100 dark:bg-blue-900/20",
+            iconColor: "text-blue-600 dark:text-blue-400",
+            delay: 0,
+          },
+          {
+            key: "phone",
+            label: "Phone",
+            value: employee.phone || "Not provided",
+            icon: Phone,
+            iconWrap: "bg-green-100 dark:bg-green-900/20",
+            iconColor: "text-green-600 dark:text-green-400",
+            delay: 0.05,
+          },
+          {
+            key: "hire",
+            label: "Join Date",
+            value: employee.hire_date ? new Date(employee.hire_date).toLocaleDateString() : "Not provided",
+            icon: Calendar,
+            iconWrap: "bg-purple-100 dark:bg-purple-900/20",
+            iconColor: "text-purple-600 dark:text-purple-400",
+            delay: 0.1,
+          },
+          {
+            key: "location",
+            label: "Location",
+            value: employee.location || "Not provided",
+            icon: MapPin,
+            iconWrap: "bg-orange-100 dark:bg-orange-900/20",
+            iconColor: "text-orange-600 dark:text-orange-400",
+            delay: 0.15,
+          },
+        ].map((item) => (
+          <SurfaceCard key={item.key} delay={item.delay} className="p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className={`p-2.5 rounded-xl ${item.iconWrap} shadow-sm ring-1 ring-black/5 dark:ring-white/10`}>
+                <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 truncate" title={item.value}>
+                  {item.value}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Email</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                {employee.email || 'Not provided'}
-              </p>
-            </div>
-          </div>
-        </SurfaceCard>
-        
-        <SurfaceCard delay={0.05} className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <Phone className="w-4 h-4 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Phone</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                {employee.phone || 'Not provided'}
-              </p>
-            </div>
-          </div>
-        </SurfaceCard>
-        
-        <SurfaceCard delay={0.1} className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-              <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Join Date</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {employee.hire_date ? new Date(employee.hire_date).toLocaleDateString() : 'Not provided'}
-              </p>
-            </div>
-          </div>
-        </SurfaceCard>
-
-        <SurfaceCard delay={0.15} className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
-              <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Location</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                {employee.location || 'Not provided'}
-              </p>
-            </div>
-          </div>
-        </SurfaceCard>
+          </SurfaceCard>
+        ))}
       </div>
 
       {/* Additional Information */}
@@ -1683,10 +1684,11 @@ export default function EmployeeProfile() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.08 * i, duration: 0.35 }}
-                  className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/15 transition-colors"
+                  whileHover={{ y: -3 }}
+                  className="group rounded-2xl border border-white/20 bg-white/10 backdrop-blur-sm p-4 hover:bg-white/20 hover:border-white/30 transition-all duration-300"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-white/15">
+                    <div className="p-2 rounded-xl bg-white/15 group-hover:bg-white/25 transition-colors">
                       <stat.icon className="w-5 h-5 text-white" />
                     </div>
                     <div className="min-w-0">
