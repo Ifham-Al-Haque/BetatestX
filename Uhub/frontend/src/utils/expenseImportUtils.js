@@ -39,6 +39,33 @@ function findFieldForHeader(header) {
 }
 
 function parseDate(value) {
+  const toIsoDate = (year, month, day) => {
+    const y = Number(year);
+    const m = Number(month);
+    const d = Number(day);
+
+    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return '';
+    if (m < 1 || m > 12 || d < 1 || d > 31) return '';
+
+    const date = new Date(Date.UTC(y, m - 1, d));
+    if (
+      date.getUTCFullYear() !== y ||
+      date.getUTCMonth() !== m - 1 ||
+      date.getUTCDate() !== d
+    ) {
+      return '';
+    }
+
+    return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  };
+
+  const toFourDigitYear = (yy) => {
+    const n = Number(yy);
+    if (!Number.isInteger(n)) return NaN;
+    // Keep 19xx for older values, 20xx for modern imports.
+    return n >= 70 ? 1900 + n : 2000 + n;
+  };
+
   if (value == null || value === '') return '';
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -59,10 +86,27 @@ function parseDate(value) {
     // DD/MM/YYYY or similar
     const parts = trimmed.split(/[/\-.]/);
     if (parts.length === 3) {
-      const [a, b, c] = parts.map((p) => parseInt(p, 10));
-      if (a > 31) return `${a}-${String(b).padStart(2, '0')}-${String(c).padStart(2, '0')}`;
-      if (c > 31) return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
-      return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+      const [aRaw, bRaw, cRaw] = parts.map((p) => String(p).trim());
+      const [a, b, c] = [Number(aRaw), Number(bRaw), Number(cRaw)];
+      if ([a, b, c].some((n) => Number.isNaN(n))) return '';
+
+      // YYYY-MM-DD
+      if (aRaw.length === 4) return toIsoDate(a, b, c) || '';
+      // DD-MM-YYYY (or MM-DD-YYYY)
+      if (cRaw.length === 4) {
+        return (
+          toIsoDate(c, b, a) ||
+          toIsoDate(c, a, b) ||
+          ''
+        );
+      }
+      // YY-MM-DD from spreadsheets (e.g. 26-01-03 => 2026-01-03)
+      if (aRaw.length <= 2 && bRaw.length <= 2 && cRaw.length <= 2) {
+        const yyyy = toFourDigitYear(a);
+        return toIsoDate(yyyy, b, c) || '';
+      }
+
+      return '';
     }
     return trimmed;
   }
