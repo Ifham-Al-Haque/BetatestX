@@ -12,7 +12,7 @@ const COLUMN_ALIASES = {
   months: ['months', 'month', 'period'],
   service_status: ['status', 'service status', 'service_status', 'state'],
   department: ['department', 'dept'],
-  date_paid: ['date paid', 'date_paid', 'date', 'payment date', 'paid date'],
+  date_paid: ['date paid', 'date_paid', 'payment date', 'paid date'],
   invoice_number: ['invoice number', 'invoice_number', 'invoice #', 'invoice no', 'inv no'],
   invoice_generation_date: ['invoice generation date', 'invoice_generation_date', 'gen date', 'generation date'],
   invoice_due_date: ['invoice due date', 'invoice_due_date', 'due date', 'due'],
@@ -30,12 +30,26 @@ function normalizeHeader(header) {
 function findFieldForHeader(header) {
   const normalized = normalizeHeader(header);
   if (!normalized) return null;
+
+  // 1) Prefer exact matches first.
   for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
-    if (aliases.some((alias) => normalized === alias || normalized.includes(alias))) {
-      return field;
+    if (aliases.some((alias) => normalized === alias)) return field;
+  }
+
+  // 2) Fallback fuzzy match: choose the most specific alias (longest string).
+  // This avoids generic tokens stealing more specific headers.
+  let best = null;
+  for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
+    for (const alias of aliases) {
+      if (normalized.includes(alias) || alias.includes(normalized)) {
+        if (!best || alias.length > best.aliasLength) {
+          best = { field, aliasLength: alias.length };
+        }
+      }
     }
   }
-  return null;
+
+  return best?.field || null;
 }
 
 function parseDate(value) {
