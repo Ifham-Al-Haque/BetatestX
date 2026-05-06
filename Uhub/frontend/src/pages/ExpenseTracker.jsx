@@ -349,10 +349,15 @@ export default function ExpenseTracker() {
       
       <div className="flex-1 transition-all duration-300 ease-in-out" >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-              Expense Tracker
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2 mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+                Expense Tracker
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Track spending, import invoice sheets, and manage finance records faster.
+              </p>
+            </div>
           </div>
 
           {/* Finance stats strip (reflects current filters) */}
@@ -362,21 +367,21 @@ export default function ExpenseTracker() {
             transition={{ duration: 0.25 }}
             className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"
           >
-            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30">
+            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30 shadow-sm hover:shadow-md transition-all duration-200">
               <div className="text-sm text-blue-700 dark:text-blue-200 font-medium">Total amount</div>
               <div className="text-2xl font-bold text-blue-900 dark:text-white">
                 AED {stats.totalAmount.toFixed(2)}
               </div>
             </div>
-            <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30">
+            <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30 shadow-sm hover:shadow-md transition-all duration-200">
               <div className="text-sm text-green-700 dark:text-green-200 font-medium">Active</div>
               <div className="text-2xl font-bold text-green-900 dark:text-white">{stats.activeCount}</div>
             </div>
-            <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/30">
+            <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/30 shadow-sm hover:shadow-md transition-all duration-200">
               <div className="text-sm text-yellow-700 dark:text-yellow-200 font-medium">Pending</div>
               <div className="text-2xl font-bold text-yellow-900 dark:text-white">{stats.pendingCount}</div>
             </div>
-            <div className="p-4 rounded-xl bg-blue-100/60 dark:bg-blue-900/10 border border-blue-200/70 dark:border-blue-900/20">
+            <div className="p-4 rounded-xl bg-blue-100/60 dark:bg-blue-900/10 border border-blue-200/70 dark:border-blue-900/20 shadow-sm hover:shadow-md transition-all duration-200">
               <div className="text-sm text-blue-800 dark:text-blue-200 font-medium">Final</div>
               <div className="text-2xl font-bold text-blue-900 dark:text-white">{stats.finalCount}</div>
             </div>
@@ -386,9 +391,10 @@ export default function ExpenseTracker() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200/70 dark:border-gray-700 p-6 mb-6 transition-all duration-200"
           >
-            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               Add New Expense
             </h3>
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -484,7 +490,7 @@ export default function ExpenseTracker() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200/70 dark:border-gray-700 p-6 mb-6 transition-all duration-200"
           >
             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" />
@@ -597,7 +603,7 @@ export default function ExpenseTracker() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200/70 dark:border-gray-700 p-6 mb-6 transition-all duration-200"
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -702,7 +708,7 @@ export default function ExpenseTracker() {
           </motion.div>
 
           {/* Expenses List */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/70 dark:border-gray-700 overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Your Expenses
@@ -715,9 +721,9 @@ export default function ExpenseTracker() {
                 <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[68vh]">
                 <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Service
@@ -749,12 +755,30 @@ export default function ExpenseTracker() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredExpenses.length === 0 && (
+                      <tr>
+                        <td colSpan={9} className="px-6 py-12 text-center">
+                          <div className="max-w-md mx-auto">
+                            <p className="text-base font-medium text-gray-700 dark:text-gray-200">No expenses match your filters</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                              Try clearing filters or broadening search criteria to see more records.
+                            </p>
+                            <button
+                              onClick={clearFilters}
+                              className="mt-4 inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm text-gray-800 dark:text-gray-200 rounded-lg transition-colors"
+                            >
+                              Reset Filters
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                     {filteredExpenses.map((expense) => (
                       <motion.tr
                         key={expense.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                        className="hover:bg-blue-50/50 dark:hover:bg-gray-700 transition-colors"
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {editingId === expense.id ? (
