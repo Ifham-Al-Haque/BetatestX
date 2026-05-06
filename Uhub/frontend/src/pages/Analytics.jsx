@@ -15,6 +15,54 @@ import { useAuth } from "../context/AuthContext";
 import { useExpenses } from "../hooks/useApi";
 import LoadingSpinner from "../components/LoadingSpinner";
 
+const downloadChartPng = async (containerId, fileName) => {
+  try {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const svg = container.querySelector("svg");
+    if (!svg) return;
+
+    const cloned = svg.cloneNode(true);
+    cloned.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+    const rect = container.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(rect.width));
+    const height = Math.max(1, Math.floor(rect.height));
+    cloned.setAttribute("width", String(width));
+    cloned.setAttribute("height", String(height));
+
+    const serialized = new XMLSerializer().serializeToString(cloned);
+    const blob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = blobUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width * 2;
+    canvas.height = height * 2;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(2, 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    URL.revokeObjectURL(blobUrl);
+
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `${fileName}.png`;
+    a.click();
+  } catch (error) {
+    console.error("Chart export failed:", error);
+  }
+};
+
 // Enhanced color scheme for charts with gradients
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
 const GRADIENT_COLORS = [
@@ -291,7 +339,7 @@ const AnimatedMetricCard = ({
 };
 
 // Enhanced Filter Component
-const AnalyticsFilter = ({ filters, onFilterChange, isExpanded, onToggle }) => {
+const AnalyticsFilter = ({ filters, onFilterChange, isExpanded, onToggle, availableYears = [] }) => {
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
@@ -300,7 +348,7 @@ const AnalyticsFilter = ({ filters, onFilterChange, isExpanded, onToggle }) => {
       className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 overflow-hidden"
     >
       <div className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Time Range Filter */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -326,6 +374,26 @@ const AnalyticsFilter = ({ filters, onFilterChange, isExpanded, onToggle }) => {
                 );
               })}
             </div>
+          </div>
+
+          {/* Year Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              <Calendar className="w-4 h-4 inline mr-2" />
+              Year
+            </label>
+            <select
+              value={filters.year || 'all'}
+              onChange={(e) => onFilterChange('year', e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Years</option>
+              {availableYears.map((year) => (
+                <option key={year} value={String(year)}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Comparison Filter */}
@@ -390,7 +458,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
 
     const serviceMap = {};
     expenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed && expense.date_paid) {
+      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '' && expense.date_paid) {
         // Normalize service names for consistency (same as other charts)
         let service = expense.service_name.trim();
         
@@ -807,7 +875,7 @@ const ServiceBreakdownChart = ({ expenses }) => {
     // Group expenses by service and calculate totals
     const serviceStats = {};
     expenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed) {
+      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '') {
         // Clean and normalize service names for consistency
         let service = expense.service_name.trim();
         
@@ -849,15 +917,31 @@ const ServiceBreakdownChart = ({ expenses }) => {
     // Convert to array format
     const result = Object.entries(serviceStats).map(([service, stats], index) => ({
       service,
+      shortService: service.length > 28 ? `${service.slice(0, 28)}...` : service,
       total: stats.total,
       count: stats.count,
       months: stats.months.size,
       color: COLORS[index % COLORS.length]
     }));
 
-    return result
+    const sorted = result
       .filter(item => item.total > 0) // Only show services with spending
       .sort((a, b) => b.total - a.total);
+
+    // Keep the chart readable: top services + optional "Others".
+    const top = sorted.slice(0, 10);
+    const rest = sorted.slice(10);
+    if (rest.length > 0) {
+      top.push({
+        service: `Others (${rest.length} services)`,
+        shortService: `Others (${rest.length})`,
+        total: rest.reduce((sum, item) => sum + item.total, 0),
+        count: rest.reduce((sum, item) => sum + item.count, 0),
+        months: Math.max(...rest.map((item) => item.months), 0),
+        color: '#94A3B8'
+      });
+    }
+    return top;
   }, [expenses]);
 
   if (!expenses || expenses.length === 0) {
@@ -873,9 +957,22 @@ const ServiceBreakdownChart = ({ expenses }) => {
   }
 
   return (
-    <div className="h-[500px] bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 dark:from-gray-800 dark:via-blue-900/20 dark:to-indigo-900/30 rounded-2xl p-6 border border-gray-200/60 dark:border-gray-700/60 shadow-xl backdrop-blur-sm">
+    <div className="h-[560px] bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 dark:from-gray-800 dark:via-blue-900/20 dark:to-indigo-900/30 rounded-2xl p-6 border border-gray-200/60 dark:border-gray-700/60 shadow-xl backdrop-blur-sm">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Top spending services ({serviceData.length})
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Sorted by total AED
+        </p>
+      </div>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={serviceData} margin={{ top: 20, right: 30, left: 60, bottom: 120 }}>
+        <BarChart
+          data={serviceData}
+          layout="vertical"
+          margin={{ top: 12, right: 24, left: 20, bottom: 12 }}
+          barCategoryGap={10}
+        >
           <defs>
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9} />
@@ -885,28 +982,25 @@ const ServiceBreakdownChart = ({ expenses }) => {
               <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.15"/>
             </filter>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.3} />
-          <XAxis 
-            dataKey="service" 
-            angle={-45}
-            textAnchor="end"
-            height={120}
-            interval={0}
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.3} horizontal={true} vertical={false} />
+          <XAxis
+            type="number"
+            tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
             tick={{ 
-              fontSize: 11, 
-              fill: '#374151',
-              fontWeight: '500',
-              fontFamily: 'system-ui, -apple-system, sans-serif'
+              fontSize: 11,
+              fill: '#6B7280',
+              fontWeight: '500'
             }}
             axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
             tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
-            tickMargin={8}
           />
-          <YAxis 
-            tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+          <YAxis
+            type="category"
+            dataKey="shortService"
+            width={220}
             tick={{ 
-              fontSize: 12, 
-              fill: '#6B7280',
+              fontSize: 12,
+              fill: '#374151',
               fontWeight: '500'
             }}
             axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
@@ -924,7 +1018,7 @@ const ServiceBreakdownChart = ({ expenses }) => {
                         className="w-4 h-4 rounded-full shadow-sm" 
                         style={{ backgroundColor: data.color }}
                       ></div>
-                      <p className="font-bold text-gray-900 dark:text-white text-lg">{data.service}</p>
+                      <p className="font-bold text-gray-900 dark:text-white text-base">{data.service}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-gray-700 dark:text-gray-300">
@@ -943,12 +1037,13 @@ const ServiceBreakdownChart = ({ expenses }) => {
               return null;
             }}
           />
-          <Bar 
-            dataKey="total" 
-            radius={[6, 6, 0, 0]}
+          <Bar
+            dataKey="total"
+            radius={[0, 6, 6, 0]}
             stroke="#fff"
             strokeWidth={2}
             filter="url(#barShadow)"
+            animationDuration={500}
           >
             {serviceData.map((entry, index) => (
               <Cell 
@@ -972,6 +1067,7 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
     selectedYear: 'all',
     duration: 'all' // months - changed default to 'all' to show all data
   });
+  const [aggregationMode, setAggregationMode] = useState('transaction');
 
   // Get available years from expenses
   const availableYears = useMemo(() => {
@@ -996,30 +1092,11 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
     // Apply filters with priority: Year filter takes precedence over duration filter
     if (serviceFilters.selectedYear !== 'all') {
       const targetYear = parseInt(serviceFilters.selectedYear);
-      console.log('📊 Filter Debug - Year filter applied:', {
-        selectedYear: serviceFilters.selectedYear,
-        targetYear,
-        note: 'Year filter takes precedence over duration filter'
-      });
       
       filteredExpenses = filteredExpenses.filter(expense => {
         if (!expense.date_paid) return false;
         const expenseYear = new Date(expense.date_paid).getFullYear();
-        const isIncluded = expenseYear === targetYear;
-        
-        // Debug AWS[BESPIN] year filtering
-        if (expense.service_name && expense.service_name.toLowerCase().includes('aws') && 
-            expense.service_name.toLowerCase().includes('bespin')) {
-          console.log('📊 AWS[BESPIN] Year Filter Debug:', {
-            service: expense.service_name,
-            date: expense.date_paid,
-            expenseYear,
-            targetYear,
-            isIncluded
-          });
-        }
-        
-        return isIncluded;
+        return expenseYear === targetYear;
       });
     } else if (serviceFilters.duration !== 'all') {
       // Only apply duration filter if no year filter is selected
@@ -1027,31 +1104,10 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
       const cutoffDate = new Date();
       cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack);
       
-      console.log('📊 Filter Debug - Duration filter applied:', {
-        duration: serviceFilters.duration,
-        monthsBack,
-        cutoffDate: cutoffDate.toISOString(),
-        note: 'Duration filter only applied when no year filter is selected'
-      });
-      
       filteredExpenses = filteredExpenses.filter(expense => {
         if (!expense.date_paid) return false;
         const expenseDate = new Date(expense.date_paid);
-        const isIncluded = expenseDate >= cutoffDate;
-        
-        // Debug AWS[BESPIN] filtering
-        if (expense.service_name && expense.service_name.toLowerCase().includes('aws') && 
-            expense.service_name.toLowerCase().includes('bespin')) {
-          console.log('📊 AWS[BESPIN] Duration Filter Debug:', {
-            service: expense.service_name,
-            date: expense.date_paid,
-            expenseDate: expenseDate.toISOString(),
-            cutoffDate: cutoffDate.toISOString(),
-            isIncluded
-          });
-        }
-        
-        return isIncluded;
+        return expenseDate >= cutoffDate;
       });
     }
 
@@ -1084,27 +1140,6 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
 
     const grouped = {};
     
-    // Debug: Log all unique service names to identify duplicates
-    const uniqueServices = new Set();
-    filteredExpenses.forEach(expense => {
-      if (expense.service_name) {
-        uniqueServices.add(expense.service_name);
-      }
-    });
-    console.log('📊 Individual Service Trends - All unique service names:', Array.from(uniqueServices));
-    
-    // Debug: Check specifically for AWS[BESPIN] data
-    const awsBespinExpenses = filteredExpenses.filter(expense => 
-      expense.service_name && expense.service_name.toLowerCase().includes('aws') && 
-      expense.service_name.toLowerCase().includes('bespin')
-    );
-    console.log('📊 AWS[BESPIN] Debug - Found expenses:', awsBespinExpenses.length);
-    console.log('📊 AWS[BESPIN] Debug - Service names:', awsBespinExpenses.map(e => e.service_name));
-    console.log('📊 AWS[BESPIN] Debug - Date range:', {
-      earliest: awsBespinExpenses.length > 0 ? Math.min(...awsBespinExpenses.map(e => new Date(e.date_paid))) : 'No data',
-      latest: awsBespinExpenses.length > 0 ? Math.max(...awsBespinExpenses.map(e => new Date(e.date_paid))) : 'No data'
-    });
-    
     // Function to normalize service names and merge similar ones
     const normalizeServiceName = (name) => {
       return name
@@ -1116,14 +1151,19 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
         .trim();                   // Trim again after removing words
     };
     
-    filteredExpenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed && expense.date_paid) {
+    filteredExpenses.forEach((expense, rowIndex) => {
+      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '' && expense.date_paid) {
         // Normalize service name to prevent duplicates
         const service = normalizeServiceName(expense.service_name);
         
         const date = new Date(expense.date_paid);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        const isMonthly = aggregationMode === 'monthly';
+        const pointKey = isMonthly
+          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+          : (expense.id != null ? `id-${expense.id}` : `${date.toISOString().slice(0, 10)}-${rowIndex}`);
+        const monthName = isMonthly
+          ? date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+          : date.toLocaleDateString('en-GB');
         
         if (!grouped[service]) {
           grouped[service] = {
@@ -1131,18 +1171,22 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
             data: {}
           };
         }
-        if (!grouped[service].data[monthKey]) {
-          grouped[service].data[monthKey] = {
+        if (!grouped[service].data[pointKey]) {
+          grouped[service].data[pointKey] = {
             monthName,
-            monthKey,
+            monthKey: pointKey,
             total: 0,
             count: 0,
             year: date.getFullYear(),
-            month: date.getMonth() + 1
+            month: date.getMonth() + 1,
+            day: date.getDate(),
+            sortDate: isMonthly
+              ? new Date(date.getFullYear(), date.getMonth(), 1).getTime()
+              : date.getTime()
           };
         }
-        grouped[service].data[monthKey].total += parseFloat(expense.amount_aed) || 0;
-        grouped[service].data[monthKey].count += 1;
+        grouped[service].data[pointKey].total += parseFloat(expense.amount_aed) || 0;
+        grouped[service].data[pointKey].count += 1;
       }
     });
 
@@ -1153,37 +1197,14 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
       result[service] = {
         displayName: grouped[service].displayName,
         data: months.sort((a, b) => {
-          // Sort by year first, then by month
-          if (a.year !== b.year) {
-            return a.year - b.year;
-          }
-          return a.month - b.month;
+          // Sort by exact transaction date so every row is visible in sequence.
+          return (a.sortDate || 0) - (b.sortDate || 0);
         })
       };
     });
 
-    console.log('📊 Individual Service Trends - Processed service data:', Object.keys(result));
-    
-    // Debug: Check AWS[BESPIN] after processing
-    const awsBespinKey = Object.keys(result).find(key => 
-      key.toLowerCase().includes('aws') && key.toLowerCase().includes('bespin')
-    );
-    if (awsBespinKey) {
-      console.log('📊 AWS[BESPIN] Debug - Normalized key:', awsBespinKey);
-      console.log('📊 AWS[BESPIN] Debug - Display name:', result[awsBespinKey].displayName);
-      console.log('📊 AWS[BESPIN] Debug - Data points:', result[awsBespinKey].data.length);
-      console.log('📊 AWS[BESPIN] Debug - Monthly data:', result[awsBespinKey].data.map(d => ({
-        month: d.monthName,
-        year: d.year,
-        total: d.total
-      })));
-    } else {
-      console.log('📊 AWS[BESPIN] Debug - No matching service found after processing');
-      console.log('📊 AWS[BESPIN] Debug - Available keys:', Object.keys(result));
-    }
-    
     return result;
-  }, [expenses, filters, serviceFilters]);
+  }, [expenses, filters, serviceFilters, aggregationMode]);
 
   if (!expenses.length) {
     return (
@@ -1253,20 +1274,32 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
               {services.length} services tracked
             </span>
           </div>
-          
-          {/* Debug Info - Temporary */}
-          <div className="text-xs text-gray-400 mt-2">
-            <div>Year: {serviceFilters.selectedYear} | Duration: {serviceFilters.duration} months</div>
-            <div>Global Filter: {filters.timeRange}</div>
-            <div className="text-yellow-600 mt-1">
-              {serviceFilters.selectedYear !== 'all' 
-                ? 'Note: Year filter takes precedence over duration filter'
-                : serviceFilters.duration !== 'all'
-                ? 'Note: Showing last ' + serviceFilters.duration + ' months from today'
-                : 'Note: Showing all available data'
-              }
-            </div>
+
+          <div className="inline-flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setAggregationMode('transaction')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                aggregationMode === 'transaction'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              Transaction
+            </button>
+            <button
+              type="button"
+              onClick={() => setAggregationMode('monthly')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                aggregationMode === 'monthly'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              Monthly
+            </button>
           </div>
+          
         </div>
       </div>
       
@@ -1456,7 +1489,7 @@ const ServiceDistributionChart = ({ expenses }) => {
     // Group expenses by service and calculate totals
     const serviceStats = {};
     expenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed) {
+      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '') {
         // Clean and normalize service names for consistency
         let service = expense.service_name.trim();
         
@@ -1631,16 +1664,7 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
 
   // Process monthly data for charts with filtering
   const monthlyData = useMemo(() => {
-    console.log('📊 MonthlyExpenseTrendChart - Processing data:', { 
-      dataLength: data?.length, 
-      data: data,
-      timeFilter 
-    });
-    
-    if (!data || !data.length) {
-      console.log('❌ No data available for MonthlyExpenseTrendChart');
-      return [];
-    }
+    if (!data || !data.length) return [];
 
     const monthlyStats = {};
     const now = new Date();
@@ -1688,12 +1712,9 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
       monthlyStats[monthKey] += parseFloat(amount);
     });
 
-    const processedData = Object.entries(monthlyStats)
+    return Object.entries(monthlyStats)
       .map(([month, total]) => ({ month, total }))
       .sort((a, b) => a.month.localeCompare(b.month));
-    
-    console.log('📊 MonthlyExpenseTrendChart - Processed monthly data:', processedData);
-    return processedData;
   }, [data, timeFilter]);
 
   // Handle bar click to show expense breakdown
@@ -1815,18 +1836,11 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
           </div>
         ) : (
           <div className="w-full h-full">
-            {console.log('📊 Rendering chart with data:', monthlyData)}
             <div className="h-full w-full min-h-[300px]">
-              {/* Test if recharts is working */}
-              {(() => {
-                try {
-                  return (
-                    <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%">
             <BarChart 
               data={monthlyData} 
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              width={800}
-              height={300}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
               <XAxis 
@@ -1877,42 +1891,6 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
               />
             </BarChart>
                     </ResponsiveContainer>
-                  );
-                } catch (error) {
-                  console.error('❌ Chart rendering error:', error);
-                  // Fallback to simple CSS bar chart
-                  const maxValue = Math.max(...monthlyData.map(d => d.total));
-                  return (
-                    <div className="h-full w-full">
-                      <div className="text-center mb-4">
-                        <p className="text-sm text-gray-500">Fallback Chart (Recharts Error)</p>
-                      </div>
-                      <div className="flex items-end justify-around h-64 px-4">
-                        {monthlyData.map((item, index) => {
-                          const height = (item.total / maxValue) * 200;
-                          const [year, month] = item.month.split('-');
-                          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                          return (
-                            <div key={index} className="flex flex-col items-center">
-                              <div 
-                                className="bg-blue-500 rounded-t w-8 mb-2 transition-all duration-300 hover:bg-blue-600"
-                                style={{ height: `${height}px` }}
-                                title={`${monthNames[parseInt(month) - 1]} ${year}: AED ${item.total.toLocaleString()}`}
-                              ></div>
-                              <span className="text-xs text-gray-500 transform -rotate-45 origin-left">
-                                {monthNames[parseInt(month) - 1]}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="text-center mt-2">
-                        <p className="text-xs text-gray-400">Error: {error.message}</p>
-                      </div>
-                    </div>
-                  );
-                }
-              })()}
             </div>
           </div>
         )}
@@ -2077,22 +2055,7 @@ const DepartmentalExpensesLineChart = ({ data }) => {
       });
       const sortedMonths = Array.from(allMonths).sort();
 
-      // Generate sample data if no real data exists
-      if (sortedMonths.length === 0) {
-        const sampleMonths = [];
-        const currentDate = new Date();
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-          sampleMonths.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
-        }
-        return sampleMonths.map(month => {
-          const row = { period: month };
-          departments.forEach(dept => {
-            row[dept] = Math.random() * 10000 + 1000;
-          });
-          return row;
-        });
-      }
+      if (sortedMonths.length === 0) return [];
 
       return sortedMonths.map(month => {
         const row = { period: month };
@@ -2110,21 +2073,7 @@ const DepartmentalExpensesLineChart = ({ data }) => {
       });
       const sortedYears = Array.from(allYears).sort();
 
-      // Generate sample data if no real data exists
-      if (sortedYears.length === 0) {
-        const sampleYears = [];
-        const currentDate = new Date();
-        for (let i = 2; i >= 0; i--) {
-          sampleYears.push(currentDate.getFullYear() - i);
-        }
-        return sampleYears.map(year => {
-          const row = { period: year.toString() };
-          departments.forEach(dept => {
-            row[dept] = Math.random() * 100000 + 10000;
-          });
-          return row;
-        });
-      }
+      if (sortedYears.length === 0) return [];
 
       return sortedYears.map(year => {
         const row = { period: year.toString() };
@@ -2229,11 +2178,7 @@ const DepartmentalExpensesLineChart = ({ data }) => {
 
 // Enhanced Average Spending Chart Component
 const AverageSpendingChart = ({ data }) => {
-  // Debug logging for AverageSpendingChart
-  console.log('📊 AverageSpendingChart - Processing', data?.length, 'expenses');
-
   if (!data || data.length === 0) {
-    console.log('📊 AverageSpendingChart - No data available, showing empty state');
     return (
       <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
         <div className="text-center">
@@ -2249,18 +2194,12 @@ const AverageSpendingChart = ({ data }) => {
 
   // Calculate average spending by service - try different possible field names
   const serviceStats = {};
-  let processedCount = 0;
-  let skippedCount = 0;
-  
   data.forEach(expense => {
     // Try different possible field names for service and amount
     const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
     const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
     
-    if (!serviceName || !amount || amount <= 0) {
-      skippedCount++;
-      return;
-    }
+    if (!serviceName || !amount || amount <= 0) return;
     
     if (!serviceStats[serviceName]) {
       serviceStats[serviceName] = {
@@ -2270,16 +2209,8 @@ const AverageSpendingChart = ({ data }) => {
     }
     serviceStats[serviceName].total += parseFloat(amount);
     serviceStats[serviceName].count += 1;
-    processedCount++;
   });
   
-  console.log('📊 Service stats processing complete:', {
-    servicesFound: Object.keys(serviceStats).length,
-    processedCount,
-    skippedCount,
-    totalExpenses: data.length
-  });
-
   const chartData = Object.entries(serviceStats)
     .map(([service, stats]) => ({
       service: service.length > 20 ? service.substring(0, 20) + '...' : service,
@@ -2289,11 +2220,8 @@ const AverageSpendingChart = ({ data }) => {
     .sort((a, b) => b.average - a.average)
     .slice(0, 8); // Top 8 services
 
-  console.log('📊 Chart data created:', chartData.length, 'services with data');
-
   // If no valid data, show empty state
   if (chartData.length === 0) {
-    console.log('📊 No chart data available, showing empty state');
     return (
       <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
         <div className="text-center">
@@ -2484,36 +2412,14 @@ export default function Analytics() {
   const expenseFilters = isAdmin ? {} : { userId: user?.id };
   
   const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, expenseFilters);
-  const expenses = expensesResponse?.data || [];
-  
-  // Debug logging for expenses data
-  console.log('📊 Analytics - Expenses data:', {
-    userRole: userProfile?.role,
-    isAdmin,
-    expenseFilters,
-    expensesResponse,
-    expensesLength: expenses.length,
-    expenses: expenses,
-    isLoading,
-    error
-  });
-  
-  // Test recharts components
-  console.log('📊 Recharts components test:', {
-    BarChart: typeof BarChart,
-    ResponsiveContainer: typeof ResponsiveContainer,
-    Bar: typeof Bar,
-    XAxis: typeof XAxis,
-    YAxis: typeof YAxis,
-    CartesianGrid: typeof CartesianGrid,
-    Tooltip: typeof Tooltip
-  });
+  const expenses = useMemo(() => expensesResponse?.data || [], [expensesResponse]);
   
   // State
   const [activeTab, setActiveTab] = useState('overview');
   const [filters, setFilters] = useState({
     timeRange: 'all-time',
-    comparison: 'none'
+    comparison: 'none',
+    year: 'all'
   });
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
@@ -2524,11 +2430,71 @@ export default function Analytics() {
     }));
   };
 
+  const resetAllFilters = () => {
+    setFilters({
+      timeRange: 'all-time',
+      comparison: 'none',
+      year: 'all'
+    });
+  };
+
+  const availableYears = useMemo(() => {
+    const years = new Set();
+    expenses.forEach((expense) => {
+      if (expense.date_paid) {
+        const y = new Date(expense.date_paid).getFullYear();
+        if (!Number.isNaN(y)) years.add(y);
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [expenses]);
+
+  const effectiveExpenses = useMemo(() => {
+    let filtered = [...expenses];
+
+    if (filters.year && filters.year !== 'all') {
+      const selectedYear = Number(filters.year);
+      filtered = filtered.filter((expense) => {
+        if (!expense.date_paid) return false;
+        const y = new Date(expense.date_paid).getFullYear();
+        return y === selectedYear;
+      });
+    }
+
+    if (filters.timeRange !== 'all-time') {
+      const now = new Date();
+      const cutoffDate = new Date();
+      switch (filters.timeRange) {
+        case 'current-month':
+          cutoffDate.setMonth(now.getMonth());
+          cutoffDate.setDate(1);
+          break;
+        case 'last-3-months':
+          cutoffDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'last-6-months':
+          cutoffDate.setMonth(now.getMonth() - 6);
+          break;
+        case 'last-year':
+          cutoffDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          break;
+      }
+      filtered = filtered.filter((expense) => {
+        if (!expense.date_paid) return false;
+        return new Date(expense.date_paid) >= cutoffDate;
+      });
+    }
+
+    return filtered;
+  }, [expenses, filters.year, filters.timeRange]);
+
 
 
   // Calculate summary statistics from real expense data
   const summaryStats = useMemo(() => {
-    if (!expenses.length) {
+    if (!effectiveExpenses.length) {
       return {
         totalServices: 0,
         totalSpent: 0,
@@ -2537,8 +2503,8 @@ export default function Analytics() {
     }
 
     const serviceStats = {};
-    expenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed) {
+    effectiveExpenses.forEach(expense => {
+      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '') {
         const service = expense.service_name.trim();
         if (!serviceStats[service]) {
           serviceStats[service] = 0;
@@ -2555,6 +2521,14 @@ export default function Analytics() {
       totalSpent,
       averagePerService: totalServices > 0 ? totalSpent / totalServices : 0
     };
+  }, [effectiveExpenses]);
+
+  const analyticsHealth = useMemo(() => {
+    const withAmount = expenses.filter((e) => e.amount_aed != null && e.amount_aed !== '').length;
+    const withTrendFields = expenses.filter(
+      (e) => e.service_name && e.amount_aed != null && e.amount_aed !== '' && e.date_paid
+    ).length;
+    return { total: expenses.length, withAmount, withTrendFields };
   }, [expenses]);
 
 
@@ -2612,7 +2586,19 @@ export default function Analytics() {
                 <span className="text-sm font-medium">Filters</span>
                 {isFilterExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span className="text-sm font-medium">Reset Filters</span>
+              </button>
+              <button
+                disabled
+                title="Export will be available soon"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg transition-colors shadow-sm opacity-60 cursor-not-allowed"
+              >
                 <Download className="w-4 h-4" />
                 <span className="text-sm font-medium">Export</span>
               </button>
@@ -2628,11 +2614,22 @@ export default function Analytics() {
           onFilterChange={handleFilterChange}
           isExpanded={isFilterExpanded}
           onToggle={() => setIsFilterExpanded(!isFilterExpanded)}
+          availableYears={availableYears}
         />
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {expenses.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800"
+          >
+            No expense records found yet. Add or import expenses in `Expense Tracker` to unlock analytics insights.
+          </motion.div>
+        )}
+
         {/* Tab Navigation */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -2685,6 +2682,18 @@ export default function Analytics() {
           </div>
         </motion.div>
 
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>Data status: {analyticsHealth.total} rows loaded, {analyticsHealth.withAmount} value-ready, {analyticsHealth.withTrendFields} trend-ready.</span>
+            <span className="px-2 py-0.5 rounded-full bg-white/80 border border-blue-200 text-xs">
+              Year: {filters.year === 'all' ? 'All' : filters.year}
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-white/80 border border-blue-200 text-xs">
+              Range: {filters.timeRange}
+            </span>
+          </div>
+        </div>
+
         {/* Content based on active tab */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -2726,7 +2735,7 @@ export default function Analytics() {
                   
                   <AnimatedMetricCard
                     title="Total Transactions"
-                    value={expenses.length}
+                    value={effectiveExpenses.length}
                     icon={Shield}
                     color="purple"
                     delay={0.4}
@@ -2743,11 +2752,23 @@ export default function Analytics() {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Breakdown</h3>
-                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                        <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadChartPng('chart-overview-service-breakdown', 'overview-service-breakdown')}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          PNG
+                        </button>
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                          <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
                       </div>
                     </div>
-                    <ServiceBreakdownChart expenses={expenses} />
+                    <div id="chart-overview-service-breakdown">
+                      <ServiceBreakdownChart expenses={effectiveExpenses} />
+                    </div>
                   </motion.div>
 
                   <motion.div
@@ -2758,11 +2779,23 @@ export default function Analytics() {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Distribution</h3>
-                      <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                        <PieChartIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadChartPng('chart-overview-service-distribution', 'overview-service-distribution')}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          PNG
+                        </button>
+                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                          <PieChartIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        </div>
                       </div>
                     </div>
-                    <ServiceDistributionChart expenses={expenses} />
+                    <div id="chart-overview-service-distribution">
+                      <ServiceDistributionChart expenses={effectiveExpenses} />
+                    </div>
                   </motion.div>
                 </div>
 
@@ -2777,11 +2810,23 @@ export default function Analytics() {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Expense Trend</h3>
-                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                        <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadChartPng('chart-overview-monthly-trend', 'overview-monthly-expense-trend')}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          PNG
+                        </button>
+                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                          <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
                       </div>
                     </div>
-                    <MonthlyExpenseTrendChart data={expenses} filters={filters} />
+                    <div id="chart-overview-monthly-trend">
+                      <MonthlyExpenseTrendChart data={effectiveExpenses} filters={filters} />
+                    </div>
                   </motion.div>
 
                   {/* Departmental Expenses Chart */}
@@ -2793,11 +2838,23 @@ export default function Analytics() {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white">Departmental Expenses</h3>
-                      <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-                        <BarChart3 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadChartPng('chart-overview-departmental', 'overview-departmental-expenses')}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          PNG
+                        </button>
+                        <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                          <BarChart3 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        </div>
                       </div>
                     </div>
-                    <DepartmentalExpensesLineChart data={expenses} />
+                    <div id="chart-overview-departmental">
+                      <DepartmentalExpensesLineChart data={effectiveExpenses} />
+                    </div>
                   </motion.div>
                 </div>
 
@@ -2811,11 +2868,23 @@ export default function Analytics() {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white">Average Spending by Service</h3>
-                      <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                        <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadChartPng('chart-overview-average-spending', 'overview-average-spending')}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          PNG
+                        </button>
+                        <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+                          <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        </div>
                       </div>
                     </div>
-                    <AverageSpendingChart data={expenses} />
+                    <div id="chart-overview-average-spending">
+                      <AverageSpendingChart data={effectiveExpenses} />
+                    </div>
                   </motion.div>
 
                   {/* Top Expense Categories Chart */}
@@ -2827,11 +2896,23 @@ export default function Analytics() {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white">Top Expense Categories</h3>
-                      <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
-                        <Star className="w-4 h-4 text-pink-600 dark:text-pink-400" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadChartPng('chart-overview-top-categories', 'overview-top-expense-categories')}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          PNG
+                        </button>
+                        <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
+                          <Star className="w-4 h-4 text-pink-600 dark:text-pink-400" />
+                        </div>
                       </div>
                     </div>
-                    <TopExpenseCategories data={expenses} />
+                    <div id="chart-overview-top-categories">
+                      <TopExpenseCategories data={effectiveExpenses} />
+                    </div>
                   </motion.div>
                 </div>
 
@@ -2842,7 +2923,7 @@ export default function Analytics() {
                   transition={{ delay: 0.7 }}
                   className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                 >
-                  <IndividualServiceCharts expenses={expenses} filters={filters} />
+                  <IndividualServiceCharts expenses={effectiveExpenses} filters={filters} />
                 </motion.div>
               </div>
             )}
@@ -2857,11 +2938,23 @@ export default function Analytics() {
                 <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Service Breakdown</h3>
-                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                      <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => downloadChartPng('chart-service-breakdown', 'service-breakdown')}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PNG
+                      </button>
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
                     </div>
                   </div>
-                  <ServiceBreakdownChart expenses={expenses} />
+                  <div id="chart-service-breakdown">
+                    <ServiceBreakdownChart expenses={effectiveExpenses} />
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -2876,11 +2969,23 @@ export default function Analytics() {
                 <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Service Distribution</h3>
-                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                      <PieChartIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => downloadChartPng('chart-service-distribution', 'service-distribution')}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PNG
+                      </button>
+                      <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                        <PieChartIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      </div>
                     </div>
                   </div>
-                  <ServiceDistributionChart expenses={expenses} />
+                  <div id="chart-service-distribution">
+                    <ServiceDistributionChart expenses={effectiveExpenses} />
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -2895,12 +3000,24 @@ export default function Analytics() {
                 <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Monthly Service Expense Breakdown</h3>
-                    <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                      <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => downloadChartPng('chart-monthly-breakdown', 'monthly-breakdown')}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PNG
+                      </button>
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                        <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
                     </div>
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">Click on any service bar to see detailed monthly breakdown with payment information</p>
-                  <MonthlyBreakdownCharts expenses={expenses} />
+                  <div id="chart-monthly-breakdown">
+                    <MonthlyBreakdownCharts expenses={effectiveExpenses} />
+                  </div>
                 </div>
               </motion.div>
             )}
