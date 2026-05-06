@@ -37,11 +37,12 @@ function findFieldForHeader(header) {
   }
 
   // 2) Fallback fuzzy match: choose the most specific alias (longest string).
-  // This avoids generic tokens stealing more specific headers.
+  // Only match when header contains alias, never the opposite.
+  // This avoids short generic headers (like "date") matching unrelated fields.
   let best = null;
   for (const [field, aliases] of Object.entries(COLUMN_ALIASES)) {
     for (const alias of aliases) {
-      if (normalized.includes(alias) || alias.includes(normalized)) {
+      if (normalized.includes(alias)) {
         if (!best || alias.length > best.aliasLength) {
           best = { field, aliasLength: alias.length };
         }
@@ -97,7 +98,7 @@ function parseDate(value) {
         return `${y}-${m}-${d}`;
       }
     }
-    // DD/MM/YYYY or similar
+    // Flexible delimited dates (/, -, .)
     const parts = trimmed.split(/[/\-.]/);
     if (parts.length === 3) {
       const [aRaw, bRaw, cRaw] = parts.map((p) => String(p).trim());
@@ -114,10 +115,18 @@ function parseDate(value) {
           ''
         );
       }
-      // YY-MM-DD from spreadsheets (e.g. 26-01-03 => 2026-01-03)
+      // Short-year inputs. For slash formats from spreadsheets (e.g. 2/8/26),
+      // treat as month/day/year by default, with simple ambiguity handling.
       if (aRaw.length <= 2 && bRaw.length <= 2 && cRaw.length <= 2) {
-        const yyyy = toFourDigitYear(a);
-        return toIsoDate(yyyy, b, c) || '';
+        const yyyy = toFourDigitYear(c);
+        if (Number.isNaN(yyyy)) return '';
+
+        // If one side is definitely a day (>12), use that to resolve month/day.
+        if (a > 12 && b <= 12) return toIsoDate(yyyy, b, a) || '';
+        if (b > 12 && a <= 12) return toIsoDate(yyyy, a, b) || '';
+
+        // Default to MM/DD/YY, which matches the current import template values.
+        return toIsoDate(yyyy, a, b) || '';
       }
 
       return '';

@@ -537,6 +537,8 @@ export default function ExpenseTracker() {
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Service</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Amount</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Date Paid</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Invoice Gen Date</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Invoice Due Date</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Department</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Status</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Issues</th>
@@ -551,6 +553,8 @@ export default function ExpenseTracker() {
                           <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.service_name || "—"}</td>
                           <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.amount_aed ? `AED ${item.expense.amount_aed}` : "—"}</td>
                           <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.date_paid || "—"}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.invoice_generation_date || "—"}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.invoice_due_date || "—"}</td>
                           <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.department || "—"}</td>
                           <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.service_status || "—"}</td>
                           <td className="px-3 py-2 text-amber-600 dark:text-amber-400 text-xs">
