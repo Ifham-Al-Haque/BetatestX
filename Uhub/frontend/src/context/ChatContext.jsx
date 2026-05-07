@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
-import chatService from '../services/chatServiceImproved';
+import chatService from '../services/chatService';
 
 const ChatContext = createContext();
 

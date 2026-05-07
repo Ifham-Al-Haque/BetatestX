@@ -867,6 +867,8 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
 
 // Service Breakdown Bar Chart Component
 const ServiceBreakdownChart = ({ expenses }) => {
+  const [selectedService, setSelectedService] = useState(null);
+
   const serviceData = useMemo(() => {
     if (!expenses || expenses.length === 0) return [];
 
@@ -923,6 +925,68 @@ const ServiceBreakdownChart = ({ expenses }) => {
     }
     return top;
   }, [expenses]);
+
+  useEffect(() => {
+    if (!serviceData.length) {
+      setSelectedService(null);
+      return;
+    }
+
+    const hasSelection = serviceData.some((item) => item.service === selectedService);
+    if (!hasSelection) {
+      const firstDrillableService = serviceData.find((item) => !item.service.startsWith('Others ('));
+      setSelectedService(firstDrillableService?.service || null);
+    }
+  }, [serviceData, selectedService]);
+
+  const selectedServiceMonthlyData = useMemo(() => {
+    if (!selectedService || !expenses?.length || selectedService.startsWith('Others (')) {
+      return [];
+    }
+
+    const monthlyTotals = {};
+    expenses.forEach((expense) => {
+      if (!expense.service_name || expense.amount_aed == null || expense.amount_aed === '') {
+        return;
+      }
+
+      const normalizedService = canonicalServiceName(expense.service_name);
+      if (normalizedService !== selectedService) {
+        return;
+      }
+
+      const rawDate = expense.date_paid || expense.date || expense.created_at;
+      if (!rawDate) return;
+
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return;
+
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyTotals[monthKey]) {
+        monthlyTotals[monthKey] = { total: 0, transactions: 0 };
+      }
+      monthlyTotals[monthKey].total += parseFloat(expense.amount_aed) || 0;
+      monthlyTotals[monthKey].transactions += 1;
+    });
+
+    return Object.entries(monthlyTotals)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([monthKey, stats]) => {
+        const [year, month] = monthKey.split('-').map(Number);
+        const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', {
+          month: 'short',
+          year: '2-digit'
+        });
+        return { monthKey, monthLabel, total: stats.total, transactions: stats.transactions };
+      });
+  }, [expenses, selectedService]);
+
+  const handleServiceClick = (entry) => {
+    if (!entry?.service || entry.service.startsWith('Others (')) {
+      return;
+    }
+    setSelectedService(entry.service);
+  };
 
   if (!expenses || expenses.length === 0) {
     return (
@@ -1024,17 +1088,120 @@ const ServiceBreakdownChart = ({ expenses }) => {
             strokeWidth={2}
             filter="url(#barShadow)"
             animationDuration={500}
+            onClick={handleServiceClick}
+            cursor="pointer"
           >
             {serviceData.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
                 fill={entry.color}
-                className="hover:opacity-80 transition-opacity duration-200"
+                className={`hover:opacity-80 transition-opacity duration-200 ${
+                  selectedService === entry.service ? 'opacity-100' : 'opacity-90'
+                }`}
+                stroke={selectedService === entry.service ? '#1E293B' : '#FFFFFF'}
+                strokeWidth={selectedService === entry.service ? 3 : 2}
               />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+
+      <div className="mt-5 rounded-xl border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/40 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              {selectedService ? `${selectedService} monthly spending` : 'Select a service to view monthly trend'}
+            </p>
+            <div className="hidden sm:flex items-center gap-2 text-[11px] text-gray-600 dark:text-gray-300">
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-blue-500" />
+                AED Total
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Transactions
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedService && (
+              <button
+                type="button"
+                onClick={() => setSelectedService(null)}
+                className="inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                Reset
+              </button>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400">Click any bar to drill down</p>
+          </div>
+        </div>
+        {selectedServiceMonthlyData.length ? (
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={selectedServiceMonthlyData} margin={{ top: 8, right: 18, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.25} />
+                <XAxis
+                  dataKey="monthLabel"
+                  tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 500 }}
+                  axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                  tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                />
+                <YAxis
+                  yAxisId="amount"
+                  tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
+                  tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 500 }}
+                  axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                  tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                />
+                <YAxis
+                  yAxisId="transactions"
+                  orientation="right"
+                  tickFormatter={(value) => `${value}`}
+                  tick={{ fontSize: 11, fill: '#059669', fontWeight: 600 }}
+                  axisLine={{ stroke: '#10B981', strokeWidth: 1 }}
+                  tickLine={{ stroke: '#10B981', strokeWidth: 1 }}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === 'Total') return [`AED ${Number(value).toLocaleString()}`, 'Total'];
+                    return [Number(value).toLocaleString(), 'Transactions'];
+                  }}
+                  labelFormatter={(label) => `Month: ${label}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  name="Total"
+                  yAxisId="amount"
+                  stroke="#3B82F6"
+                  strokeWidth={3}
+                  dot={{ r: 3, fill: '#2563EB', strokeWidth: 1, stroke: '#ffffff' }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="transactions"
+                  name="Transactions"
+                  yAxisId="transactions"
+                  stroke="#10B981"
+                  strokeWidth={2}
+                  strokeDasharray="5 4"
+                  dot={{ r: 2, fill: '#059669', strokeWidth: 1, stroke: '#ffffff' }}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
+            {selectedService
+              ? 'No monthly history available for this service.'
+              : 'Choose a service in the bar chart to see its monthly trend.'}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

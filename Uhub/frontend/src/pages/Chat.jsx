@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import chatService from '../services/chatServiceImproved';
+import chatService from '../services/chatService';
 import { formatDistanceToNow } from 'date-fns';
 
 const Chat = () => {
@@ -91,8 +91,10 @@ const Chat = () => {
       setLoading(true);
       const data = await chatService.getConversations();
       setConversations(data);
+      return data;
     } catch (err) {
       showError('Error', 'Failed to load conversations');
+      return [];
     } finally {
       setLoading(false);
     }
@@ -264,9 +266,9 @@ const Chat = () => {
       const conversationId = await chatService.createDirectConversation(userId);
       if (conversationId) {
         // Reload conversations to get the new one
-        await loadConversations();
+        const updatedConversations = await loadConversations();
         // Find and select the new conversation
-        const newConversation = conversations.find(c => c.id === conversationId);
+        const newConversation = updatedConversations.find(c => c.id === conversationId);
         if (newConversation) {
           setSelectedConversation(newConversation);
         }
@@ -337,14 +339,19 @@ const Chat = () => {
           </div>
           <div className="flex space-x-2">
             {onlineUsers.slice(0, 5).map((onlineUser) => (
+              (() => {
+                const displayUser = onlineUser.user || onlineUser.users;
+                return (
               <motion.div
-                key={onlineUser.user.id}
+                key={displayUser?.id || displayUser?.auth_user_id || onlineUser.user_id}
                 whileHover={{ scale: 1.1 }}
                 className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold border-2 border-white shadow-lg"
-                title={onlineUser.user.full_name}
+                title={displayUser?.full_name || 'Unknown User'}
               >
-                {onlineUser.user.full_name?.charAt(0)?.toUpperCase() || '?'}
+                {displayUser?.full_name?.charAt(0)?.toUpperCase() || '?'}
               </motion.div>
+                );
+              })()
             ))}
             {onlineUsers.length > 5 && (
               <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-xs font-semibold border-2 border-white">

@@ -27,8 +27,8 @@ This comprehensive SQL script:
 
 **To apply:** Run this script in your Supabase SQL Editor
 
-### 2. Improved Chat Service
-**File:** `src/services/chatServiceImproved.js`
+### 2. Chat Service
+**File:** `src/services/chatService.js`
 
 Key improvements:
 - ✅ **Better Authentication**: Uses `getSession()` instead of `getUser()` for more reliable auth
@@ -38,9 +38,9 @@ Key improvements:
 - ✅ **Session Validation**: Proper session checking before making requests
 
 ### 3. Updated Context and Components
-- ✅ Updated `ChatContext.jsx` to use the improved service
-- ✅ Updated `Chat.jsx` to use the improved service
-- ✅ Maintains backward compatibility
+- ✅ Updated `ChatContext.jsx` to use the unified chat service
+- ✅ Updated `Chat.jsx` to use the unified chat service
+- ✅ Removed duplicate service path to avoid API drift
 
 ## Key Features of the Fix
 

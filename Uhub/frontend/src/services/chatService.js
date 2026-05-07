@@ -277,7 +277,9 @@ class ChatService {
   // Create a direct conversation
   async createDirectConversation(userId) {
     try {
-      const currentUserId = this.getCurrentUser()?.id;
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('User not authenticated');
+      const currentUserId = currentUser.id;
       
       // Check if conversation already exists
       const { data: existingConv } = await supabase
@@ -431,7 +433,8 @@ class ChatService {
   // Get typing indicators for a conversation
   async getTypingIndicators(conversationId) {
     try {
-      const currentUserId = this.getCurrentUser()?.id;
+      const currentUser = await this.getCurrentUser();
+      const currentUserId = currentUser?.id;
       
       const { data, error } = await supabase
         .from('typing_indicators')
