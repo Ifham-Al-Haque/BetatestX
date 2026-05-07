@@ -4,7 +4,7 @@ import {
   User, Mail, Phone, Shield, Key,
   Save, Edit, Camera, Calendar, MapPin, Briefcase,
   Bell, CheckCircle, AlertTriangle,
-  Building, Zap, Clock, Globe
+  Building, Zap, Clock, Globe, Star
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUserProfileData, useUpdateUserProfileData } from '../hooks/useApi';
@@ -12,8 +12,6 @@ import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../supabaseClient';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { AnimatePresence } from 'framer-motion';
 
 export default function UserProfile() {
@@ -104,6 +102,33 @@ export default function UserProfile() {
     if (!profileData.avatar_url) items.push('Avatar');
     return items;
   }, [profileData]);
+
+  const profileInitials = useMemo(() => {
+    const rawName = String(profileData.full_name || '').trim();
+    if (!rawName) return 'U';
+    return rawName
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || '')
+      .join('') || 'U';
+  }, [profileData.full_name]);
+
+  const completionToneClass = profileCompletion >= 80
+    ? 'text-emerald-600'
+    : profileCompletion >= 50
+      ? 'text-amber-600'
+      : 'text-rose-600';
+
+  const profileBadges = useMemo(() => {
+    const badges = [];
+    if (profileCompletion >= 80) badges.push({ label: 'Profile Pro', icon: Star, tone: 'amber' });
+    if (securitySettings.two_factor_enabled) badges.push({ label: '2FA Enabled', icon: Shield, tone: 'emerald' });
+    if (securitySettings.login_notifications) badges.push({ label: 'Alerts On', icon: Bell, tone: 'blue' });
+    if (profileData.bio && profileData.location) badges.push({ label: 'Public Ready', icon: Globe, tone: 'purple' });
+    if (badges.length === 0) badges.push({ label: 'Getting Started', icon: User, tone: 'slate' });
+    return badges.slice(0, 3);
+  }, [profileCompletion, securitySettings, profileData.bio, profileData.location]);
 
   useEffect(() => {
     const onEscape = (e) => {
@@ -340,16 +365,22 @@ export default function UserProfile() {
         <main className="flex-1 p-3 sm:p-6 md:p-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
+            <div className={`flex items-center gap-4 p-4 rounded-2xl border shadow-sm ${
+              isDark ? 'bg-gradient-to-r from-slate-800 to-slate-700 border-slate-700' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'
+            }`}>
+              <div className={`p-3 rounded-lg ${
+                isDark ? 'bg-slate-700' : 'bg-blue-100'
+              }`}>
                 <User className="w-8 h-8 text-blue-600" />
               </div>
               <div>
-                <h1 className={`text-4xl font-bold tracking-tight ${headingClass}`}>User Profile</h1>
+                <h1 className={`text-3xl sm:text-4xl font-bold tracking-tight ${headingClass}`}>User Profile</h1>
                 <p className={textMutedClass}>Manage your account and security settings</p>
+                <p className={`text-sm font-semibold mt-1 ${completionToneClass}`}>
+                  Profile strength: {profileCompletion}%
+                </p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-4"><DarkModeToggle /><UserDropdown /></div>
           </div>
 
           {/* Tab Navigation */}
@@ -559,8 +590,17 @@ export default function UserProfile() {
                     animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
                     transition={{ duration: prefersReducedMotion ? 0.16 : 0.28, delay: 0.12 }}
                   >
+                    <div className={`h-20 -mx-6 -mt-6 mb-4 rounded-t-2xl border-b ${
+                      isDark
+                        ? 'bg-gradient-to-r from-indigo-500/25 via-blue-500/20 to-cyan-500/20 border-slate-700'
+                        : 'bg-gradient-to-r from-indigo-100 via-blue-100 to-cyan-100 border-blue-100'
+                    }`} />
                     <div className="relative inline-block mb-4">
-                      <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto border-4 border-white shadow-lg">
+                      <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto border-4 shadow-lg ${
+                        isDark
+                          ? 'bg-gradient-to-br from-blue-500/30 to-indigo-500/30 border-slate-700'
+                          : 'bg-gradient-to-br from-blue-100 to-indigo-100 border-white'
+                      }`}>
                         {profileData.avatar_url ? (
                           <img
                             src={profileData.avatar_url}
@@ -568,7 +608,7 @@ export default function UserProfile() {
                             className="w-24 h-24 rounded-full object-cover"
                           />
                         ) : (
-                          <User className="w-12 h-12 text-blue-600" />
+                          <span className={`text-2xl font-bold ${isDark ? 'text-blue-200' : 'text-blue-600'}`}>{profileInitials}</span>
                         )}
                       </div>
                       {editing && (
@@ -594,6 +634,30 @@ export default function UserProfile() {
                     <h3 className={`font-bold text-lg mb-1 ${headingClass}`}>{profileData.full_name || 'User'}</h3>
                     <p className="text-blue-600 font-medium mb-1">{profileData.position || 'Employee'}</p>
                     <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{profileData.department || 'Department'}</p>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                      {profileBadges.map((badge) => {
+                        const Icon = badge.icon;
+                        const toneClass = badge.tone === 'amber'
+                          ? (isDark ? 'bg-amber-500/20 text-amber-200 border-amber-500/30' : 'bg-amber-50 text-amber-700 border-amber-200')
+                          : badge.tone === 'emerald'
+                            ? (isDark ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200')
+                            : badge.tone === 'blue'
+                              ? (isDark ? 'bg-blue-500/20 text-blue-200 border-blue-500/30' : 'bg-blue-50 text-blue-700 border-blue-200')
+                              : badge.tone === 'purple'
+                                ? (isDark ? 'bg-purple-500/20 text-purple-200 border-purple-500/30' : 'bg-purple-50 text-purple-700 border-purple-200')
+                                : (isDark ? 'bg-slate-600/40 text-slate-200 border-slate-500/50' : 'bg-slate-50 text-slate-700 border-slate-200');
+                        return (
+                          <span
+                            key={badge.label}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${toneClass}`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {badge.label}
+                          </span>
+                        );
+                      })}
+                    </div>
                     
                     {/* Profile Completion Bar */}
                     <div className="mt-4">
@@ -632,14 +696,18 @@ export default function UserProfile() {
                     <div className="space-y-3">
                       <button 
                         onClick={() => setShowPasswordForm(true)}
-                        className="w-full text-left p-3 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors duration-200 group"
+                        className={`w-full text-left p-3 rounded-xl transition-colors duration-200 group ${
+                          isDark ? 'bg-blue-500/10 hover:bg-blue-500/20' : 'bg-blue-50 hover:bg-blue-100'
+                        }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                              isDark ? 'bg-blue-500/20 group-hover:bg-blue-500/30' : 'bg-blue-100 group-hover:bg-blue-200'
+                            }`}>
                               <Key className="w-4 h-4 text-blue-600" />
                             </div>
-                            <span className="text-sm font-medium text-gray-700">Change Password</span>
+                            <span className={`text-sm font-medium ${headingClass}`}>Change Password</span>
                             
                           </div>
                           <span className="text-blue-600 group-hover:translate-x-1 transition-transform">→</span>
@@ -648,14 +716,18 @@ export default function UserProfile() {
 
                       <button 
                         onClick={() => setShowSecuritySettings(true)}
-                        className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-xl transition-colors duration-200 group"
+                        className={`w-full text-left p-3 rounded-xl transition-colors duration-200 group ${
+                          isDark ? 'bg-green-500/10 hover:bg-green-500/20' : 'bg-green-50 hover:bg-green-100'
+                        }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                              isDark ? 'bg-green-500/20 group-hover:bg-green-500/30' : 'bg-green-100 group-hover:bg-green-200'
+                            }`}>
                               <Shield className="w-4 h-4 text-green-600" />
                             </div>
-                            <span className="text-sm font-medium text-gray-700">Security Settings</span>
+                            <span className={`text-sm font-medium ${headingClass}`}>Security Settings</span>
                           </div>
                           <span className="text-green-600 group-hover:translate-x-1 transition-transform">→</span>
                         </div>
@@ -663,14 +735,18 @@ export default function UserProfile() {
 
                       <button
                         onClick={() => setActiveTab('preferences')}
-                        className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors duration-200 group"
+                        className={`w-full text-left p-3 rounded-xl transition-colors duration-200 group ${
+                          isDark ? 'bg-purple-500/10 hover:bg-purple-500/20' : 'bg-purple-50 hover:bg-purple-100'
+                        }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                              isDark ? 'bg-purple-500/20 group-hover:bg-purple-500/30' : 'bg-purple-100 group-hover:bg-purple-200'
+                            }`}>
                               <Bell className="w-4 h-4 text-purple-600" />
                             </div>
-                            <span className="text-sm font-medium text-gray-700">Notifications</span>
+                            <span className={`text-sm font-medium ${headingClass}`}>Notifications</span>
                           </div>
                           <span className="text-purple-600 group-hover:translate-x-1 transition-transform">→</span>
                         </div>
@@ -691,26 +767,26 @@ export default function UserProfile() {
                     </h3>
                     
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
+                      <div className={`flex items-center justify-between p-3 rounded-xl ${isDark ? 'bg-green-500/10' : 'bg-green-50'}`}>
                         <div className="flex items-center gap-3">
                           <CheckCircle className="w-5 h-5 text-green-500" />
-                          <span className="text-sm font-medium text-gray-700">Email Verified</span>
+                          <span className={`text-sm font-medium ${headingClass}`}>Email Verified</span>
                         </div>
                         <span className="text-xs text-green-600 font-medium">Verified</span>
                       </div>
                       
-                      <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-xl">
+                      <div className={`flex items-center justify-between p-3 rounded-xl ${isDark ? 'bg-yellow-500/10' : 'bg-yellow-50'}`}>
                         <div className="flex items-center gap-3">
                           <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                          <span className="text-sm font-medium text-gray-700">2FA Enabled</span>
+                          <span className={`text-sm font-medium ${headingClass}`}>2FA Enabled</span>
                         </div>
                         <span className="text-xs text-yellow-600 font-medium">Disabled</span>
                       </div>
                       
-                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
+                      <div className={`flex items-center justify-between p-3 rounded-xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
                         <div className="flex items-center gap-3">
                           <Clock className="w-5 h-5 text-blue-500" />
-                          <span className="text-sm font-medium text-gray-700">Last Login</span>
+                          <span className={`text-sm font-medium ${headingClass}`}>Last Login</span>
                         </div>
                         <span className="text-xs text-blue-600 font-medium">Today</span>
                       </div>
@@ -866,37 +942,37 @@ export default function UserProfile() {
               >
                 <h2 className={`text-2xl font-bold mb-6 ${headingClass}`}>Recent Activity</h2>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <div className={`flex items-center gap-4 p-4 rounded-xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
                       <CheckCircle className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="flex-1">
                       <div className={`font-medium ${headingClass}`}>Profile Updated</div>
                       <div className={`text-sm ${textMutedClass}`}>You updated your profile information</div>
                     </div>
-                    <div className="text-xs text-gray-500">2 hours ago</div>
+                    <div className={`text-xs ${textMutedClass}`}>2 hours ago</div>
                   </div>
 
-                  <div className="flex items-center gap-4 p-4 bg-green-50 rounded-xl">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <div className={`flex items-center gap-4 p-4 rounded-xl ${isDark ? 'bg-green-500/10' : 'bg-green-50'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
                       <Shield className="w-5 h-5 text-green-600" />
                     </div>
                     <div className="flex-1">
                       <div className={`font-medium ${headingClass}`}>Password Changed</div>
                       <div className={`text-sm ${textMutedClass}`}>Your password was successfully updated</div>
                     </div>
-                    <div className="text-xs text-gray-500">1 day ago</div>
+                    <div className={`text-xs ${textMutedClass}`}>1 day ago</div>
                   </div>
 
-                  <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <div className={`flex items-center gap-4 p-4 rounded-xl ${isDark ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
                       <Globe className="w-5 h-5 text-purple-600" />
                     </div>
                     <div className="flex-1">
                       <div className={`font-medium ${headingClass}`}>Login from New Device</div>
                       <div className={`text-sm ${textMutedClass}`}>You logged in from a new location</div>
                     </div>
-                    <div className="text-xs text-gray-500">3 days ago</div>
+                    <div className={`text-xs ${textMutedClass}`}>3 days ago</div>
                   </div>
                 </div>
               </motion.div>

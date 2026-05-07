@@ -8,8 +8,6 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import deliveryService from '../services/deliveryService';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
@@ -128,10 +126,6 @@ const DeliveryTracking = () => {
                 <h1 className="text-2xl font-bold text-gray-900">Delivery Tracking</h1>
                 <p className="text-gray-600">Track delivery orders in real-time</p>
               </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <DarkModeToggle />
-              <UserDropdown />
             </div>
           </div>
         </div>

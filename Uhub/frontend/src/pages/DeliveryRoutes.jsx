@@ -10,8 +10,6 @@ import { useToast } from '../context/ToastContext';
 import deliveryService from '../services/deliveryService';
 import fleetService from '../services/fleetService';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
@@ -201,10 +199,6 @@ const DeliveryRoutes = () => {
                 <h1 className="text-2xl font-bold text-gray-900">Delivery Routes</h1>
                 <p className="text-gray-600">Manage delivery routes and optimize logistics</p>
               </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <DarkModeToggle />
-              <UserDropdown />
             </div>
           </div>
         </div>

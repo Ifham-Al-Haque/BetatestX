@@ -16,8 +16,6 @@ import { taskApi } from '../services/taskApi';
 import { supabase } from '../supabaseClient';
 import { DEPARTMENTS } from '../config/departments';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
@@ -707,8 +705,6 @@ const TaskManagement = () => {
                   New Task
                 </Button>
               </motion.div>
-              <DarkModeToggle />
-              <UserDropdown />
             </div>
           </div>
         </motion.div>

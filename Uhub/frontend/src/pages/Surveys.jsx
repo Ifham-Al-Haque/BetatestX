@@ -9,8 +9,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
@@ -275,10 +273,6 @@ const Surveys = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Surveys Management</h1>
             <p className="text-gray-600">Create and manage employee surveys and feedback collection</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <DarkModeToggle />
-            <UserDropdown />
           </div>
         </div>
 

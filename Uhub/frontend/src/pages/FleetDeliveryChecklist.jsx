@@ -60,8 +60,6 @@ import {
   Hash
 } from 'lucide-react';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';

@@ -7,8 +7,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
-import UserDropdown from '../components/UserDropdown';
-import DarkModeToggle from '../components/DarkModeToggle';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 
@@ -155,10 +153,6 @@ const Tasks = () => {
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Task Management</h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Manage and track your assigned tasks</p>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <DarkModeToggle />
-              <UserDropdown />
             </div>
           </div>
         </div>
