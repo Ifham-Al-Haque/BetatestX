@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react"; // Analytics component with real expense data
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useExpenses } from "../hooks/useApi";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { canonicalServiceName, normalizeServiceLabel, parseAmountValue } from "../components/analytics/chartUtils";
 
 const downloadChartPng = async (containerId, fileName) => {
   try {
@@ -58,8 +59,10 @@ const downloadChartPng = async (containerId, fileName) => {
     a.href = canvas.toDataURL("image/png");
     a.download = `${fileName}.png`;
     a.click();
+    return true;
   } catch (error) {
     console.error("Chart export failed:", error);
+    return false;
   }
 };
 
@@ -126,6 +129,7 @@ const AnimatedMetricCard = ({
   delay = 0,
   formatValue = (val) => val.toLocaleString('en-US')
 }) => {
+  const prefersReducedMotion = useReducedMotion();
   const [displayValue, setDisplayValue] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -272,11 +276,11 @@ const AnimatedMetricCard = ({
           {/* Icon with enhanced animation */}
           <motion.div
             className={`p-3 bg-gradient-to-r ${colors.iconBg} rounded-xl shadow-lg flex-shrink-0`}
-            whileHover={{ 
+            whileHover={prefersReducedMotion ? { scale: 1.03 } : {
               rotate: [0, -10, 10, -10, 0],
               scale: 1.1
             }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: prefersReducedMotion ? 0.15 : 0.5 }}
           >
             <Icon className="w-6 h-6 text-white" />
           </motion.div>
@@ -285,14 +289,14 @@ const AnimatedMetricCard = ({
           <motion.div 
             className={`${colors.dot} rounded-full flex-shrink-0`}
             initial={{ width: 12, height: 12 }}
-            animate={{ 
+            animate={prefersReducedMotion ? { width: 12, height: 12, opacity: 0.9 } : { 
               width: [12, 16, 12],
               height: [12, 16, 12],
               opacity: [1, 0.7, 1]
             }}
             transition={{ 
               duration: 2,
-              repeat: Infinity,
+              repeat: prefersReducedMotion ? 0 : Infinity,
               ease: "easeInOut"
             }}
           />
@@ -428,6 +432,18 @@ const AnalyticsFilter = ({ filters, onFilterChange, isExpanded, onToggle, availa
   );
 };
 
+const ChartEmptyState = ({ title, subtitle, icon: Icon = BarChart3 }) => (
+  <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900 rounded-xl flex items-center justify-center mx-auto mb-4">
+        <Icon className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+      </div>
+      <p className="text-lg font-medium text-gray-500 dark:text-gray-400">{title}</p>
+      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">{subtitle}</p>
+    </div>
+  </div>
+);
+
 // Monthly Breakdown Charts Component
 const MonthlyBreakdownCharts = ({ expenses }) => {
   const [expandedService, setExpandedService] = useState(null);
@@ -459,25 +475,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
     const serviceMap = {};
     expenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '' && expense.date_paid) {
-        // Normalize service names for consistency (same as other charts)
-        let service = expense.service_name.trim();
-        
-        // Handle common variations and typos
-        if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
-          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
-        } else if (service.includes('AUTOMATION')) {
-          service = 'AUTOMATION';
-        } else if (service.includes('AWS') && service.includes('BESPIN')) {
-          service = 'AWS[BESPIN]';
-        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
-          service = 'ELEVEN LABS';
-        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
-          service = 'ZAPIER';
-        } else if (service.includes('IDWISE') || service.includes('ID WISE')) {
-          service = 'IDWISE';
-        } else if (service.includes('MO ENGAGE')) {
-          service = 'MO ENGAGE';
-        }
+        const service = canonicalServiceName(expense.service_name);
         
         const date = new Date(expense.date_paid);
         // Ensure consistent month key format: "MMM YY" (e.g., "Jan 24")
@@ -876,25 +874,7 @@ const ServiceBreakdownChart = ({ expenses }) => {
     const serviceStats = {};
     expenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '') {
-        // Clean and normalize service names for consistency
-        let service = expense.service_name.trim();
-        
-        // Handle common variations and typos
-        if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
-          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
-        } else if (service.includes('AUTOMATION')) {
-          service = 'AUTOMATION';
-        } else if (service.includes('AWS') && service.includes('BESPIN')) {
-          service = 'AWS[BESPIN]';
-        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
-          service = 'ELEVEN LABS';
-        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
-          service = 'ZAPIER';
-        } else if (service.includes('IDWISE') || service.includes('ID WISE')) {
-          service = 'IDWISE';
-        } else if (service.includes('MO ENGAGE')) {
-          service = 'MO ENGAGE';
-        }
+        const service = canonicalServiceName(expense.service_name);
         
         if (!serviceStats[service]) {
           serviceStats[service] = {
@@ -1490,25 +1470,7 @@ const ServiceDistributionChart = ({ expenses }) => {
     const serviceStats = {};
     expenses.forEach(expense => {
       if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '') {
-        // Clean and normalize service names for consistency
-        let service = expense.service_name.trim();
-        
-        // Handle common variations and typos
-        if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
-          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
-        } else if (service.includes('AUTOMATION')) {
-          service = 'AUTOMATION';
-        } else if (service.includes('AWS') && service.includes('BESPIN')) {
-          service = 'AWS[BESPIN]';
-        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
-          service = 'ELEVEN LABS';
-        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
-          service = 'ZAPIER';
-        } else if (service.includes('IDWISE') || service.includes('ID WISE')) {
-          service = 'IDWISE';
-        } else if (service.includes('MO ENGAGE')) {
-          service = 'MO ENGAGE';
-        }
+        const service = canonicalServiceName(expense.service_name);
         
         if (!serviceStats[service]) {
           serviceStats[service] = {
@@ -1542,15 +1504,7 @@ const ServiceDistributionChart = ({ expenses }) => {
   }, [expenses]);
 
   if (!expenses || expenses.length === 0) {
-    return (
-      <div className="h-96 bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <PieChartIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg text-gray-500 font-medium">No expense data available</p>
-          <p className="text-sm text-gray-400 mt-2">Add some expenses to see distribution</p>
-        </div>
-      </div>
-    );
+    return <ChartEmptyState title="No expense data available" subtitle="Add some expenses to see distribution" icon={PieChartIcon} />;
   }
 
   return (
@@ -2179,27 +2133,19 @@ const DepartmentalExpensesLineChart = ({ data }) => {
 // Enhanced Average Spending Chart Component
 const AverageSpendingChart = ({ data }) => {
   if (!data || data.length === 0) {
-    return (
-      <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Target className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No expense data available</p>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add some expenses to see average spending by service</p>
-        </div>
-      </div>
-    );
+    return <ChartEmptyState title="No expense data available" subtitle="Add some expenses to see average spending by service" icon={Target} />;
   }
 
   // Calculate average spending by service - try different possible field names
   const serviceStats = {};
   data.forEach(expense => {
     // Try different possible field names for service and amount
-    const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
-    const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+    const rawServiceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
+    const serviceName = normalizeServiceLabel(rawServiceName);
+    const rawAmount = expense.amount_aed ?? expense.amount ?? expense.value ?? expense.cost ?? 0;
+    const amount = parseAmountValue(rawAmount);
     
-    if (!serviceName || !amount || amount <= 0) return;
+    if (!serviceName || amount <= 0) return;
     
     if (!serviceStats[serviceName]) {
       serviceStats[serviceName] = {
@@ -2207,7 +2153,7 @@ const AverageSpendingChart = ({ data }) => {
         count: 0
       };
     }
-    serviceStats[serviceName].total += parseFloat(amount);
+    serviceStats[serviceName].total += amount;
     serviceStats[serviceName].count += 1;
   });
   
@@ -2222,17 +2168,7 @@ const AverageSpendingChart = ({ data }) => {
 
   // If no valid data, show empty state
   if (chartData.length === 0) {
-    return (
-      <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Target className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <p className="text-lg font-medium text-gray-500 dark:text-gray-400">No spending data available</p>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Check if expense data has service names and amounts</p>
-        </div>
-      </div>
-    );
+    return <ChartEmptyState title="No spending data available" subtitle="Check if expense data has service names and amounts" icon={Target} />;
   }
 
   return (
@@ -2327,10 +2263,12 @@ const TopExpenseCategories = ({ data }) => {
   const serviceStats = {};
   data.forEach(expense => {
     // Try different possible field names for service and amount
-    const serviceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
-    const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
+    const rawServiceName = expense.service_name || expense.service || expense.category || expense.description || 'Unknown Service';
+    const serviceName = normalizeServiceLabel(rawServiceName);
+    const rawAmount = expense.amount_aed ?? expense.amount ?? expense.value ?? expense.cost ?? 0;
+    const amount = parseAmountValue(rawAmount);
     
-    if (!serviceName || !amount || amount <= 0) return;
+    if (!serviceName || amount <= 0) return;
     
     if (!serviceStats[serviceName]) {
       serviceStats[serviceName] = {
@@ -2338,7 +2276,7 @@ const TopExpenseCategories = ({ data }) => {
         count: 0
       };
     }
-    serviceStats[serviceName].total += parseFloat(amount);
+    serviceStats[serviceName].total += amount;
     serviceStats[serviceName].count += 1;
   });
 
@@ -2416,6 +2354,7 @@ export default function Analytics() {
   
   // State
   const [activeTab, setActiveTab] = useState('overview');
+  const [exportToast, setExportToast] = useState(null);
   const [filters, setFilters] = useState({
     timeRange: 'all-time',
     comparison: 'none',
@@ -2437,6 +2376,17 @@ export default function Analytics() {
       year: 'all'
     });
   };
+
+  const handleChartExport = async (containerId, fileName) => {
+    const ok = await downloadChartPng(containerId, fileName);
+    setExportToast(ok ? "Chart exported as PNG" : "Export failed. Please try again.");
+  };
+
+  useEffect(() => {
+    if (!exportToast) return;
+    const t = setTimeout(() => setExportToast(null), 2200);
+    return () => clearTimeout(t);
+  }, [exportToast]);
 
   const availableYears = useMemo(() => {
     const years = new Set();
@@ -2620,6 +2570,12 @@ export default function Analytics() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {exportToast && (
+          <div className="fixed right-6 bottom-6 z-50 rounded-lg bg-gray-900 text-white px-4 py-2 text-sm shadow-xl">
+            {exportToast}
+          </div>
+        )}
+
         {expenses.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -2637,10 +2593,10 @@ export default function Analytics() {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-xl shadow-sm p-1 mb-8"
         >
-          <div className="flex space-x-1">
+          <div className="flex space-x-1 overflow-x-auto scrollbar-thin pb-1">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -2651,7 +2607,7 @@ export default function Analytics() {
             
             <button
               onClick={() => setActiveTab('breakdown')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`min-w-[170px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'breakdown'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -2661,7 +2617,7 @@ export default function Analytics() {
             </button>
             <button
               onClick={() => setActiveTab('distribution')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'distribution'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -2671,7 +2627,7 @@ export default function Analytics() {
             </button>
             <button
               onClick={() => setActiveTab('monthly-breakdown')}
-              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`min-w-[185px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'monthly-breakdown'
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -2693,6 +2649,12 @@ export default function Analytics() {
             </span>
           </div>
         </div>
+
+        {expenses.length > 0 && effectiveExpenses.length === 0 && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Current filters returned no rows. Use `Reset Filters` to restore full analytics.
+          </div>
+        )}
 
         {/* Content based on active tab */}
         <AnimatePresence mode="wait">
@@ -2755,7 +2717,7 @@ export default function Analytics() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => downloadChartPng('chart-overview-service-breakdown', 'overview-service-breakdown')}
+                          onClick={() => handleChartExport('chart-overview-service-breakdown', 'overview-service-breakdown')}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -2782,7 +2744,7 @@ export default function Analytics() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => downloadChartPng('chart-overview-service-distribution', 'overview-service-distribution')}
+                          onClick={() => handleChartExport('chart-overview-service-distribution', 'overview-service-distribution')}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -2813,7 +2775,7 @@ export default function Analytics() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => downloadChartPng('chart-overview-monthly-trend', 'overview-monthly-expense-trend')}
+                          onClick={() => handleChartExport('chart-overview-monthly-trend', 'overview-monthly-expense-trend')}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -2841,7 +2803,7 @@ export default function Analytics() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => downloadChartPng('chart-overview-departmental', 'overview-departmental-expenses')}
+                          onClick={() => handleChartExport('chart-overview-departmental', 'overview-departmental-expenses')}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -2871,7 +2833,7 @@ export default function Analytics() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => downloadChartPng('chart-overview-average-spending', 'overview-average-spending')}
+                          onClick={() => handleChartExport('chart-overview-average-spending', 'overview-average-spending')}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -2899,7 +2861,7 @@ export default function Analytics() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => downloadChartPng('chart-overview-top-categories', 'overview-top-expense-categories')}
+                          onClick={() => handleChartExport('chart-overview-top-categories', 'overview-top-expense-categories')}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -2941,7 +2903,7 @@ export default function Analytics() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => downloadChartPng('chart-service-breakdown', 'service-breakdown')}
+                        onClick={() => handleChartExport('chart-service-breakdown', 'service-breakdown')}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -2972,7 +2934,7 @@ export default function Analytics() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => downloadChartPng('chart-service-distribution', 'service-distribution')}
+                        onClick={() => handleChartExport('chart-service-distribution', 'service-distribution')}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -3003,7 +2965,7 @@ export default function Analytics() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => downloadChartPng('chart-monthly-breakdown', 'monthly-breakdown')}
+                        onClick={() => handleChartExport('chart-monthly-breakdown', 'monthly-breakdown')}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         <Download className="w-3.5 h-3.5" />
