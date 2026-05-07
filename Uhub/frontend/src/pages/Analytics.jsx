@@ -1778,10 +1778,16 @@ const ServiceDistributionChart = ({ expenses }) => {
 };
 
 // Monthly Expense Trend Chart Component
-const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } }) => {
+const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, hideTitle = false }) => {
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [monthBreakdown, setMonthBreakdown] = useState([]);
   const [timeFilter, setTimeFilter] = useState('all-time');
+  const formatMonthLabel = (value) => {
+    if (!value || typeof value !== 'string' || !value.includes('-')) return value || 'N/A';
+    const [year, month] = value.split('-');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+  };
 
   // Process monthly data for charts with filtering
   const monthlyData = useMemo(() => {
@@ -1837,6 +1843,24 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
       .map(([month, total]) => ({ month, total }))
       .sort((a, b) => a.month.localeCompare(b.month));
   }, [data, timeFilter]);
+
+  const trendInsights = useMemo(() => {
+    if (!monthlyData.length) {
+      return {
+        peak: null,
+        average: 0,
+        latestDelta: null
+      };
+    }
+
+    const peak = monthlyData.reduce((max, item) => (item.total > max.total ? item : max), monthlyData[0]);
+    const average = monthlyData.reduce((sum, item) => sum + item.total, 0) / monthlyData.length;
+    const latest = monthlyData[monthlyData.length - 1];
+    const previous = monthlyData[monthlyData.length - 2];
+    const latestDelta = previous ? ((latest.total - previous.total) / (previous.total || 1)) * 100 : null;
+
+    return { peak, average, latestDelta };
+  }, [monthlyData]);
 
   // Handle bar click to show expense breakdown
   const handleBarClick = (barData) => {
@@ -1900,32 +1924,42 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
       {/* Chart Header with Filter and Stats */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
         <div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Expense Trend</h3>
+          {!hideTitle && <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Expense Trend</h3>}
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {monthlyData.length} months of data • Total: AED {monthlyData.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
           </p>
         </div>
         
         {/* Summary Stats */}
-        <div className="flex items-center space-x-4">
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">Peak Month</p>
+        <div className="flex items-center space-x-3">
+          <div className="text-center px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800">
+            <p className="text-xs text-blue-600 dark:text-blue-300 uppercase font-semibold">Peak Month</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {monthlyData.length > 0 ? 
-                monthlyData.reduce((max, item) => item.total > max.total ? item : max, monthlyData[0]).month : 
-                'N/A'
-              }
+              {trendInsights.peak?.month ? formatMonthLabel(trendInsights.peak.month) : 'N/A'}
             </p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-medium">Average</p>
+          <div className="text-center px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800">
+            <p className="text-xs text-emerald-600 dark:text-emerald-300 uppercase font-semibold">Average</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              AED {monthlyData.length > 0 ? 
-                Math.round(monthlyData.reduce((sum, item) => sum + item.total, 0) / monthlyData.length).toLocaleString() : 
-                '0'
-              }
+              AED {Math.round(trendInsights.average).toLocaleString()}
             </p>
           </div>
+          {trendInsights.latestDelta !== null && (
+            <div className={`text-center px-3 py-2 rounded-xl border ${
+              trendInsights.latestDelta >= 0
+                ? 'bg-violet-50 dark:bg-violet-900/30 border-violet-100 dark:border-violet-800'
+                : 'bg-rose-50 dark:bg-rose-900/30 border-rose-100 dark:border-rose-800'
+            }`}>
+              <p className={`text-xs uppercase font-semibold ${
+                trendInsights.latestDelta >= 0 ? 'text-violet-600 dark:text-violet-300' : 'text-rose-600 dark:text-rose-300'
+              }`}>
+                MoM Change
+              </p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                {trendInsights.latestDelta >= 0 ? '+' : ''}{trendInsights.latestDelta.toFixed(1)}%
+              </p>
+            </div>
+          )}
           <div className="flex items-center space-x-2">
             <select
               value={timeFilter}
@@ -2009,7 +2043,18 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' } })
                 strokeWidth={1}
                 onClick={handleBarClick}
                 style={{ cursor: 'pointer' }}
-              />
+              >
+                {monthlyData.map((entry) => {
+                  const isPeak = entry.month === trendInsights.peak?.month;
+                  return (
+                    <Cell
+                      key={`monthly-bar-${entry.month}`}
+                      fill={isPeak ? '#6366F1' : '#3B82F6'}
+                      fillOpacity={isPeak ? 1 : 0.88}
+                    />
+                  );
+                })}
+              </Bar>
             </BarChart>
                     </ResponsiveContainer>
             </div>
@@ -2872,34 +2917,7 @@ export default function Analytics() {
                 </div>
 
                 {/* Enhanced Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Breakdown</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleChartExport('chart-overview-service-breakdown', 'overview-service-breakdown')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          PNG
-                        </button>
-                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                          <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                      </div>
-                    </div>
-                    <div id="chart-overview-service-breakdown">
-                      <ServiceBreakdownChart expenses={effectiveExpenses} />
-                    </div>
-                  </motion.div>
-
+                <div className="grid grid-cols-1 gap-6">
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -2907,7 +2925,7 @@ export default function Analytics() {
                     className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Distribution</h3>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Distribution Snapshot</h3>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -2926,11 +2944,12 @@ export default function Analytics() {
                       <ServiceDistributionChart expenses={effectiveExpenses} />
                     </div>
                   </motion.div>
+
                 </div>
 
                 {/* Additional Enhanced Charts - Stacked Vertically */}
                 <div className="grid grid-cols-1 gap-6">
-                  {/* Monthly Expense Trend Chart */}
+                  {/* Monthly Expense Trend Snapshot */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -2938,7 +2957,7 @@ export default function Analytics() {
                     className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Expense Trend</h3>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Trend Snapshot</h3>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -2954,7 +2973,7 @@ export default function Analytics() {
                       </div>
                     </div>
                     <div id="chart-overview-monthly-trend">
-                      <MonthlyExpenseTrendChart data={effectiveExpenses} filters={filters} />
+                      <MonthlyExpenseTrendChart data={effectiveExpenses} filters={filters} hideTitle />
                     </div>
                   </motion.div>
 
@@ -2962,7 +2981,7 @@ export default function Analytics() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
+                    transition={{ delay: 0.75 }}
                     className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-6">
