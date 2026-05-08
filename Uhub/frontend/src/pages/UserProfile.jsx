@@ -41,6 +41,7 @@ export default function UserProfile() {
     new_password: '',
     confirm_password: ''
   });
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
 
   const [securitySettings, setSecuritySettings] = useState({
     two_factor_enabled: false,
@@ -198,15 +199,53 @@ export default function UserProfile() {
 
   const handlePasswordChange = useCallback(async (e) => {
     e.preventDefault();
-    
+
+    if (!user?.email) {
+      showError("Error", "User not logged in");
+      return;
+    }
+
+    if (!passwordData.current_password) {
+      showError("Error", "Please enter your current password.");
+      return;
+    }
+
+    if (passwordData.new_password.length < 8) {
+      showError("Error", "New password must be at least 8 characters long.");
+      return;
+    }
+
     if (passwordData.new_password !== passwordData.confirm_password) {
       showError("Error", "New passwords do not match!");
       return;
     }
 
+    if (passwordData.current_password === passwordData.new_password) {
+      showError("Error", "New password must be different from current password.");
+      return;
+    }
+
     try {
-      // This would need to be implemented with Supabase auth
-      // For now, we'll show a success message
+      setPasswordUpdating(true);
+
+      // Re-authenticate using current password before changing to a new one.
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passwordData.current_password,
+      });
+
+      if (verifyError) {
+        throw new Error("Current password is incorrect.");
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwordData.new_password,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
       setPasswordData({
         current_password: '',
         new_password: '',
@@ -215,9 +254,11 @@ export default function UserProfile() {
       setShowPasswordForm(false);
       success("Success", "Password updated successfully!");
     } catch (err) {
-      showError("Error", err.message);
+      showError("Error", err.message || "Unable to update password.");
+    } finally {
+      setPasswordUpdating(false);
     }
-  }, [passwordData, success, showError]);
+  }, [passwordData, success, showError, user?.email]);
 
   const handleSecuritySettingsUpdate = useCallback(async () => {
     if (!user) {
@@ -1031,9 +1072,10 @@ export default function UserProfile() {
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex-1"
+                        disabled={passwordUpdating}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex-1 disabled:opacity-50"
                       >
-                        Update Password
+                        {passwordUpdating ? 'Updating...' : 'Update Password'}
                       </button>
                       <button
                         type="button"

@@ -1888,6 +1888,10 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [monthBreakdown, setMonthBreakdown] = useState([]);
   const [timeFilter, setTimeFilter] = useState('all-time');
+  const [hoveredMonth, setHoveredMonth] = useState(null);
+  const [animatedAverage, setAnimatedAverage] = useState(0);
+  const [animatedLatest, setAnimatedLatest] = useState(0);
+  const [animatedDelta, setAnimatedDelta] = useState(0);
   const formatMonthLabel = (value) => {
     if (!value || typeof value !== 'string' || !value.includes('-')) return value || 'N/A';
     const [year, month] = value.split('-');
@@ -1968,6 +1972,32 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
     return { peak, average, latestDelta };
   }, [monthlyData]);
 
+  const latestMonth = monthlyData[monthlyData.length - 1] || null;
+  const totalSpend = monthlyData.reduce((sum, item) => sum + item.total, 0);
+  const momTrendDirection = trendInsights.latestDelta == null ? 'flat' : trendInsights.latestDelta >= 0 ? 'up' : 'down';
+
+  useEffect(() => {
+    const duration = 500;
+    const steps = 24;
+    const avgTarget = trendInsights.average || 0;
+    const latestTarget = latestMonth?.total || 0;
+    const deltaTarget = trendInsights.latestDelta || 0;
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep += 1;
+      const progress = Math.min(currentStep / steps, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setAnimatedAverage(avgTarget * eased);
+      setAnimatedLatest(latestTarget * eased);
+      setAnimatedDelta(deltaTarget * eased);
+
+      if (progress >= 1) clearInterval(timer);
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [trendInsights.average, trendInsights.latestDelta, latestMonth?.total, timeFilter]);
+
   // Handle bar click to show expense breakdown
   const handleBarClick = (barData) => {
     if (!barData || !barData.month) return;
@@ -2032,26 +2062,34 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
         <div>
           {!hideTitle && <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Expense Trend</h3>}
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {monthlyData.length} months of data • Total: AED {monthlyData.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
+            {monthlyData.length} months of data • Total: AED {totalSpend.toLocaleString()}
           </p>
         </div>
         
         {/* Summary Stats */}
-        <div className="flex items-center space-x-3">
-          <div className="text-center px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="text-center px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 shadow-sm">
             <p className="text-xs text-blue-600 dark:text-blue-300 uppercase font-semibold">Peak Month</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
               {trendInsights.peak?.month ? formatMonthLabel(trendInsights.peak.month) : 'N/A'}
             </p>
           </div>
-          <div className="text-center px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800">
+          <div className="text-center px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 shadow-sm">
             <p className="text-xs text-emerald-600 dark:text-emerald-300 uppercase font-semibold">Average</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              AED {Math.round(trendInsights.average).toLocaleString()}
+              AED {Math.round(animatedAverage).toLocaleString()}
             </p>
           </div>
+          {latestMonth && (
+            <div className="text-center px-3 py-2 rounded-xl bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-100 dark:border-cyan-800 shadow-sm">
+              <p className="text-xs text-cyan-600 dark:text-cyan-300 uppercase font-semibold">Latest</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                AED {Math.round(animatedLatest).toLocaleString()}
+              </p>
+            </div>
+          )}
           {trendInsights.latestDelta !== null && (
-            <div className={`text-center px-3 py-2 rounded-xl border ${
+            <div className={`text-center px-3 py-2 rounded-xl border shadow-sm ${
               trendInsights.latestDelta >= 0
                 ? 'bg-violet-50 dark:bg-violet-900/30 border-violet-100 dark:border-violet-800'
                 : 'bg-rose-50 dark:bg-rose-900/30 border-rose-100 dark:border-rose-800'
@@ -2061,12 +2099,22 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
               }`}>
                 MoM Change
               </p>
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                {trendInsights.latestDelta >= 0 ? '+' : ''}{trendInsights.latestDelta.toFixed(1)}%
-              </p>
+              <div className="mt-0.5 flex items-center justify-center gap-1.5">
+                <svg className="w-6 h-3" viewBox="0 0 24 10" fill="none" aria-hidden="true">
+                  <path
+                    d={momTrendDirection === 'down' ? "M1 2.5C5 2.5 7 8 11 8C15 8 17 2.5 23 2.5" : "M1 8C5 8 7 2.5 11 2.5C15 2.5 17 8 23 8"}
+                    stroke={momTrendDirection === 'down' ? "#E11D48" : "#7C3AED"}
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {trendInsights.latestDelta >= 0 ? '+' : ''}{animatedDelta.toFixed(1)}%
+                </p>
+              </div>
             </div>
           )}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 ml-auto">
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
@@ -2082,7 +2130,28 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
         </div>
       </div>
 
-      <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+      {selectedMonth && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-xs font-medium text-blue-700 dark:text-blue-300"
+        >
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          Focused month: {formatMonthLabel(selectedMonth)}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMonth(null);
+              setMonthBreakdown([]);
+            }}
+            className="ml-1 underline decoration-dotted hover:text-blue-900 dark:hover:text-blue-100"
+          >
+            Clear
+          </button>
+        </motion.div>
+      )}
+
+      <div className="h-96 bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/40 dark:from-gray-800 dark:via-blue-900/15 dark:to-indigo-900/20 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
         {monthlyData.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -2103,6 +2172,12 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
               data={monthlyData} 
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
             >
+              <defs>
+                <linearGradient id="monthlyTrendBarGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.95} />
+                  <stop offset="100%" stopColor="#6366F1" stopOpacity={0.7} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
               <XAxis 
                 dataKey="month" 
@@ -2143,20 +2218,28 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
               />
               <Bar 
                 dataKey="total" 
-                fill="#3B82F6"
+                fill="url(#monthlyTrendBarGradient)"
                 radius={[8, 8, 0, 0]}
                 stroke="#1D4ED8"
                 strokeWidth={1}
                 onClick={handleBarClick}
+                onMouseEnter={(barData) => setHoveredMonth(barData?.month || null)}
+                onMouseLeave={() => setHoveredMonth(null)}
                 style={{ cursor: 'pointer' }}
+                animationDuration={700}
+                animationEasing="ease-out"
               >
                 {monthlyData.map((entry) => {
                   const isPeak = entry.month === trendInsights.peak?.month;
+                  const isHovered = hoveredMonth === entry.month;
+                  const isSelected = selectedMonth === entry.month;
                   return (
                     <Cell
                       key={`monthly-bar-${entry.month}`}
                       fill={isPeak ? '#6366F1' : '#3B82F6'}
-                      fillOpacity={isPeak ? 1 : 0.88}
+                      fillOpacity={hoveredMonth && !isHovered ? 0.45 : (isPeak ? 1 : 0.9)}
+                      stroke={isSelected || isHovered ? '#0F172A' : 'none'}
+                      strokeWidth={isSelected || isHovered ? 1.5 : 0}
                     />
                   );
                 })}
@@ -2171,9 +2254,10 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
       {/* Month Breakdown Modal */}
       {selectedMonth && monthBreakdown.length > 0 && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, y: 18, scale: 0.985, filter: "blur(4px)" }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, y: 10, scale: 0.99, filter: "blur(2px)" }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
           className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900 dark:to-indigo-800 rounded-2xl p-6 border-2 border-blue-200 dark:border-blue-700 shadow-xl"
         >
           <div className="flex items-center justify-between mb-6">

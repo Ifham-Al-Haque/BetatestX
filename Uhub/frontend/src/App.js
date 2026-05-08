@@ -54,6 +54,7 @@ function safeLazy(importFn, name) {
 // Lazy load components for better performance
 const Welcome = safeLazy(() => import('./pages/Welcome'), 'Welcome');
 const Login = safeLazy(() => import('./pages/Login'), 'Login');
+const ResetPassword = safeLazy(() => import('./pages/ResetPassword'), 'ResetPassword');
 const Dashboard = safeLazy(() => import('./pages/Dashboard'), 'Dashboard');
 const AdminDashboard = safeLazy(() => import('./pages/AdminDashboard'), 'AdminDashboard');
 const UserManagement = safeLazy(() => import('./pages/UserManagement'), 'UserManagement');
@@ -128,6 +129,7 @@ function App() {
                         {/* Public Routes */}
                         <Route path="/welcome" element={<Welcome />} />
                         <Route path="/login" element={<Login />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
                         
                         {/* Smart Home Route - Redirects based on auth status */}
                         <Route path="/" element={<SmartHomeRoute />} />
