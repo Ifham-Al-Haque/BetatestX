@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react"; // Analytics component with real expense data
+import React, { useMemo, useState, useEffect, useRef } from "react"; // Analytics component with real expense data
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -68,6 +68,16 @@ const downloadChartPng = async (containerId, fileName) => {
 
 // Enhanced color scheme for charts with gradients
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
+const SERVICE_DISTRIBUTION_COLORS = [
+  '#2563EB', // blue
+  '#0EA5E9', // sky
+  '#10B981', // emerald
+  '#22C55E', // green
+  '#A855F7', // purple
+  '#F59E0B', // amber
+  '#F97316', // orange
+  '#EC4899' // pink
+];
 const GRADIENT_COLORS = [
   'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -449,6 +459,14 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
   const [expandedService, setExpandedService] = useState(null);
   const [zoomedMonth, setZoomedMonth] = useState(null);
   const [zoomedService, setZoomedService] = useState(null);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const parseMonthKey = (monthStr) => {
+    const [month, year] = monthStr.split(' ');
+    const monthIndex = monthNames.indexOf(month);
+    const fullYear = 2000 + parseInt(year, 10);
+    return new Date(fullYear, monthIndex);
+  };
 
   const handleServiceClick = (serviceName) => {
     setExpandedService(expandedService === serviceName ? null : serviceName);
@@ -487,7 +505,8 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
             service_name: service,
             category: expense.department || 'Uncategorized',
             service_status: expense.service_status || 'Active',
-            monthly_spending: {}
+            monthly_spending: {},
+            transactions: 0
           };
         }
         
@@ -495,23 +514,14 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
           serviceMap[service].monthly_spending[monthKey] = 0;
         }
         serviceMap[service].monthly_spending[monthKey] += parseFloat(expense.amount_aed) || 0;
+        serviceMap[service].transactions += 1;
       }
     });
 
     // Sort monthly spending chronologically for each service
     Object.values(serviceMap).forEach(service => {
       const sortedMonths = Object.entries(service.monthly_spending)
-        .sort(([monthA], [monthB]) => {
-          // Parse month strings to dates for proper sorting
-          const parseMonth = (monthStr) => {
-            const [month, year] = monthStr.split(' ');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const monthIndex = monthNames.indexOf(month);
-            const fullYear = 2000 + parseInt(year); // Convert 2-digit year to 4-digit
-            return new Date(fullYear, monthIndex);
-          };
-          return parseMonth(monthA) - parseMonth(monthB);
-        });
+        .sort(([monthA], [monthB]) => parseMonthKey(monthA) - parseMonthKey(monthB));
       
       // Rebuild monthly_spending object with sorted order
       const sortedSpending = {};
@@ -519,69 +529,61 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
         sortedSpending[month] = amount;
       });
       service.monthly_spending = sortedSpending;
+      service.totalSpent = Object.values(sortedSpending).reduce((sum, amount) => sum + (amount || 0), 0);
+      service.activeMonths = Object.keys(sortedSpending).length;
     });
 
-    return Object.values(serviceMap);
+    return Object.values(serviceMap).sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
   }, [expenses]);
 
-  // Get payment details from real expense data
-  const getPaymentDetails = (serviceName, month) => {
-    if (!expenses.length) return [];
+  const paymentDetailsMap = useMemo(() => {
+    if (!expenses.length) return {};
 
-    // Parse month string (format: "MMM YY" e.g., "Jan 24")
-    const [monthStr, yearStr] = month.split(' ');
-    if (!monthStr || !yearStr) return [];
+    const detailsMap = {};
+    expenses.forEach((expense) => {
+      if (!expense.date_paid || expense.amount_aed == null || expense.amount_aed === '') return;
 
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthNum = monthNames.indexOf(monthStr);
-    if (monthNum === -1) return [];
-    
-    const fullYear = 2000 + parseInt(yearStr);
+      const normalizedService = canonicalServiceName(expense.service_name || '');
+      if (!normalizedService) return;
 
-    return expenses
-      .filter(expense => {
-        // Normalize service name for matching
-        let service = expense.service_name?.trim() || '';
-        if (service.includes('IDWISE') || service.includes('ID WISE')) {
-          service = 'IDWISE';
-        } else if (service.includes('ATLASSIAN') && service.includes('JIRA')) {
-          service = 'ATLASSIAN [JIRA & CONFLUENCE]';
-        } else if (service.includes('AUTOMATION')) {
-          service = 'AUTOMATION';
-        } else if (service.includes('AWS') && service.includes('BESPIN')) {
-          service = 'AWS[BESPIN]';
-        } else if (service.includes('ELEVEN') && service.includes('LABS')) {
-          service = 'ELEVEN LABS';
-        } else if (service.includes('ZAPIER') || service.includes('ZAIPER')) {
-          service = 'ZAPIER';
-        } else if (service.includes('MO ENGAGE')) {
-          service = 'MO ENGAGE';
-        }
-        
-        if (service !== serviceName) return false;
-        
-        const expenseDate = new Date(expense.date_paid);
-        return expenseDate.getMonth() === monthNum && 
-               expenseDate.getFullYear() === fullYear;
-      })
-      .map(expense => ({
+      const expenseDate = new Date(expense.date_paid);
+      if (Number.isNaN(expenseDate.getTime())) return;
+
+      const monthKey = `${expenseDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}`;
+      const key = `${normalizedService}__${monthKey}`;
+      if (!detailsMap[key]) detailsMap[key] = [];
+
+      detailsMap[key].push({
         payment_date: expense.date_paid,
         due_date: expense.invoice_due_date || expense.date_paid,
         invoice_date: expense.invoice_generation_date || expense.date_paid,
         amount: parseFloat(expense.amount_aed) || 0,
         invoice_number: expense.invoice_number || `INV-${expense.id}`
-      }));
+      });
+    });
+
+    return detailsMap;
+  }, [expenses]);
+
+  const getPaymentDetails = (serviceName, month) => {
+    return paymentDetailsMap[`${serviceName}__${month}`] || [];
   };
 
   return (
     <div className="space-y-8">
       {services.map((service, serviceIndex) => (
-        <div key={service.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
+        <motion.div
+          key={service.id}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: serviceIndex * 0.03 }}
+          className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300"
+        >
           {/* Service Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[serviceIndex % COLORS.length] }}></div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
                 {service.service_name}
               </h3>
               <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-sm rounded-full">
@@ -590,27 +592,34 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
             </div>
             <button
               onClick={() => handleServiceClick(service.service_name)}
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium px-2.5 py-1 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors"
             >
               {expandedService === service.service_name ? 'Collapse' : 'Expand'}
+              {expandedService === service.service_name ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
           </div>
 
           {/* Service Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+            <div className="bg-white/90 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Spent</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                AED {Object.values(service.monthly_spending || {}).reduce((sum, amount) => sum + (amount || 0), 0).toLocaleString()}
+                AED {(service.totalSpent || 0).toLocaleString()}
               </p>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="bg-white/90 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
               <p className="text-sm text-gray-500 dark:text-gray-400">Active Months</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {Object.keys(service.monthly_spending || {}).length}
+                {service.activeMonths}
               </p>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+            <div className="bg-white/90 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Transactions</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {service.transactions}
+              </p>
+            </div>
+            <div className="bg-white/90 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
               <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
                 {service.service_status}
@@ -619,14 +628,16 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
           </div>
 
           {/* Monthly Breakdown Chart */}
+          <AnimatePresence initial={false}>
           {expandedService === service.service_name && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="space-y-6"
+              transition={{ duration: 0.28, ease: "easeInOut" }}
+              className="space-y-6 overflow-hidden"
             >
-              <div className="h-80 bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
+              <div className="h-80 bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-600 shadow-sm">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
                     data={Object.entries(service.monthly_spending || {})
@@ -634,17 +645,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                         month,
                         amount: amount || 0
                       }))
-                      .sort((a, b) => {
-                        // Sort chronologically
-                        const parseMonth = (monthStr) => {
-                          const [month, year] = monthStr.split(' ');
-                          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                          const monthIndex = monthNames.indexOf(month);
-                          const fullYear = 2000 + parseInt(year);
-                          return new Date(fullYear, monthIndex);
-                        };
-                        return parseMonth(a.month) - parseMonth(b.month);
-                      })}
+                      .sort((a, b) => parseMonthKey(a.month) - parseMonthKey(b.month))}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -805,28 +806,18 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                )}
 
                {/* Monthly Details */}
-               <div className="space-y-4">
+               <div className="space-y-3">
                 {Object.entries(service.monthly_spending || {})
-                  .sort(([monthA], [monthB]) => {
-                    // Sort chronologically
-                    const parseMonth = (monthStr) => {
-                      const [month, year] = monthStr.split(' ');
-                      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                      const monthIndex = monthNames.indexOf(month);
-                      const fullYear = 2000 + parseInt(year);
-                      return new Date(fullYear, monthIndex);
-                    };
-                    return parseMonth(monthA) - parseMonth(monthB);
-                  })
+                  .sort(([monthA], [monthB]) => parseMonthKey(monthA) - parseMonthKey(monthB))
                   .map(([month, amount]) => {
                   const paymentDetails = getPaymentDetails(service.service_name, month);
                   const isZoomed = zoomedMonth === month && zoomedService === service.service_name;
                   
                   return (
-                    <div key={month} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                    <div key={month} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden shadow-sm">
                       <div 
-                        className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                          isZoomed ? 'bg-blue-50 dark:bg-blue-900 border-l-4 border-l-blue-500' : ''
+                        className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ${
+                          isZoomed ? 'bg-blue-50 dark:bg-blue-900 border-l-4 border-l-blue-500 shadow-inner' : ''
                         }`}
                         onClick={() => handleMonthClick(month, service)}
                       >
@@ -859,7 +850,8 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
               </div>
             </motion.div>
           )}
-        </div>
+          </AnimatePresence>
+        </motion.div>
       ))}
     </div>
   );
@@ -1630,57 +1622,92 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
 
 // Service Distribution Pie Chart Component
 const ServiceDistributionChart = ({ expenses }) => {
+  const [activeSliceIndex, setActiveSliceIndex] = useState(null);
+  const legendContainerRef = useRef(null);
+
   const pieData = useMemo(() => {
     if (!expenses || expenses.length === 0) return [];
 
     // Group expenses by service and calculate totals
     const serviceStats = {};
-    expenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '') {
-        const service = canonicalServiceName(expense.service_name);
-        
-        if (!serviceStats[service]) {
-          serviceStats[service] = {
-            total: 0,
-            category: expense.department || 'Uncategorized'
-          };
-        }
-        serviceStats[service].total += parseFloat(expense.amount_aed) || 0;
+    expenses.forEach((expense) => {
+      const rawService = expense.service_name || expense.service || expense.category || 'Unknown Service';
+      const service = canonicalServiceName(rawService);
+      const amount = parseAmountValue(
+        expense.amount_aed ?? expense.amount ?? expense.value ?? expense.cost ?? 0
+      );
+
+      if (!service || amount <= 0) return;
+
+      if (!serviceStats[service]) {
+        serviceStats[service] = {
+          total: 0,
+          category: expense.department || 'Uncategorized'
+        };
       }
+      serviceStats[service].total += amount;
     });
 
-    // Convert to array format and filter services with spending
     const servicesWithSpending = Object.entries(serviceStats)
       .map(([name, stats]) => ({
         name,
         value: stats.total,
         category: stats.category
       }))
-      .filter(service => service.value > 0);
+      .filter((service) => service.value > 0)
+      .sort((a, b) => b.value - a.value);
 
-    const totalSpending = servicesWithSpending.reduce((sum, service) => sum + service.value, 0);
-    
-    return servicesWithSpending
-      .map((service, index) => ({
-        ...service,
-        percentage: ((service.value / totalSpending) * 100).toFixed(1),
-        color: COLORS[index % COLORS.length]
-      }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8); // Top 8 services
+    const TOP_SLICES = 7;
+    const topServices = servicesWithSpending.slice(0, TOP_SLICES);
+    const remainingServices = servicesWithSpending.slice(TOP_SLICES);
+    const othersTotal = remainingServices.reduce((sum, item) => sum + item.value, 0);
+
+    const merged = othersTotal > 0
+      ? [
+          ...topServices,
+          {
+            name: 'OTHERS',
+            value: othersTotal,
+            category: `${remainingServices.length} services`
+          }
+        ]
+      : topServices;
+
+    const totalSpending = merged.reduce((sum, service) => sum + service.value, 0);
+
+    return merged.map((service, index) => ({
+      ...service,
+      percentage: totalSpending > 0 ? ((service.value / totalSpending) * 100).toFixed(1) : '0.0',
+      color: SERVICE_DISTRIBUTION_COLORS[index % SERVICE_DISTRIBUTION_COLORS.length]
+    }));
   }, [expenses]);
+
+  const totalSpending = useMemo(
+    () => pieData.reduce((sum, item) => sum + item.value, 0),
+    [pieData]
+  );
+
+  const leadingService = pieData[0] || null;
+  const highlightedService =
+    activeSliceIndex != null && pieData[activeSliceIndex] ? pieData[activeSliceIndex] : leadingService;
+  const totalDisplayedServices = pieData.length;
+
+  useEffect(() => {
+    if (!legendContainerRef.current) return;
+    legendContainerRef.current.scrollTop = 0;
+  }, [pieData]);
 
   if (!expenses || expenses.length === 0) {
     return <ChartEmptyState title="No expense data available" subtitle="Add some expenses to see distribution" icon={PieChartIcon} />;
   }
 
   return (
-    <div className="h-[500px] bg-gradient-to-br from-white via-green-50/30 to-emerald-50/50 dark:from-gray-800 dark:via-green-900/20 dark:to-emerald-900/30 rounded-2xl p-6 border border-gray-200/60 dark:border-gray-700/60 shadow-xl backdrop-blur-sm">
-      <div className="flex h-full">
+    <div className="min-h-[460px] bg-gradient-to-br from-white via-green-50/40 to-emerald-100/50 dark:from-gray-800 dark:via-green-900/20 dark:to-emerald-900/30 rounded-2xl p-5 md:p-6 border border-gray-200/60 dark:border-gray-700/60 shadow-xl backdrop-blur-sm">
+      <div className="flex flex-col lg:flex-row items-start gap-6 h-full">
         {/* Pie Chart */}
-        <div className="flex-1">
+        <div className="flex-1 lg:basis-[62%] relative h-[360px]">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart margin={{ top: 6, right: 6, left: 6, bottom: 6 }}>
               <defs>
                 <filter id="pieGlow">
                   <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -1699,21 +1726,26 @@ const ServiceDistributionChart = ({ expenses }) => {
                 cy="50%"
                 labelLine={false}
                 label={false}
-                outerRadius={100}
-                innerRadius={35}
+                outerRadius={110}
+                innerRadius={58}
                 fill="#8884d8"
                 dataKey="value"
+                minAngle={3}
+                paddingAngle={1}
                 stroke="#fff"
                 strokeWidth={3}
                 filter="url(#pieShadow)"
+                onMouseEnter={(_, index) => setActiveSliceIndex(index)}
+                onMouseLeave={() => setActiveSliceIndex(null)}
               >
                 {pieData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
                     fill={entry.color}
                     stroke="#fff"
-                    strokeWidth={2}
-                    className="hover:opacity-80 transition-opacity duration-200"
+                    strokeWidth={activeSliceIndex === index ? 4 : 2}
+                    fillOpacity={activeSliceIndex == null || activeSliceIndex === index ? 1 : 0.35}
+                    className="transition-all duration-200"
                   />
                 ))}
               </Pie>
@@ -1752,21 +1784,67 @@ const ServiceDistributionChart = ({ expenses }) => {
         </div>
         
         {/* Legend */}
-        <div className="w-48 pl-6 flex flex-col justify-center">
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+        <div className="w-full lg:w-72 lg:pl-2 mt-2 lg:mt-0 flex flex-col self-stretch">
+          <div className="mb-3 rounded-xl border border-emerald-200/80 dark:border-emerald-700/60 bg-white/80 dark:bg-gray-900/60 backdrop-blur px-3 py-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">
+              Spending Insight
+            </p>
+            <p className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5">
+              AED {Math.round(totalSpending).toLocaleString()}
+            </p>
+            {highlightedService && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 font-medium">
+                {activeSliceIndex != null ? 'Focus:' : 'Top Service:'} {highlightedService.name} ({highlightedService.percentage}%)
+              </p>
+            )}
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+              {totalDisplayedServices} categories shown
+            </p>
+          </div>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Top Services</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Share of total</p>
+          </div>
+          <div
+            ref={legendContainerRef}
+            className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1"
+          >
             {pieData.map((entry, index) => (
-              <div key={`legend-${index}`} className="flex items-center space-x-3 group">
-                <div 
-                  className="w-4 h-4 rounded-full shadow-sm flex-shrink-0" 
-                  style={{ backgroundColor: entry.color }}
-                ></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {entry.name}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {entry.percentage}% • AED {entry.value.toLocaleString()}
-                  </p>
+              <div
+                key={`legend-${index}`}
+                onMouseEnter={() => setActiveSliceIndex(index)}
+                onMouseLeave={() => setActiveSliceIndex(null)}
+                className={`p-2.5 rounded-xl border transition-all duration-200 group cursor-pointer ${
+                  activeSliceIndex === index
+                    ? 'border-emerald-300 dark:border-emerald-600 bg-white dark:bg-gray-900/70 shadow-sm ring-1 ring-emerald-200/80 dark:ring-emerald-700/50'
+                    : 'border-gray-200/70 dark:border-gray-700/70 bg-white/70 dark:bg-gray-900/40 hover:bg-white dark:hover:bg-gray-900/60'
+                }`}
+              >
+                <div className="flex items-start space-x-3">
+                  <span className={`text-xs w-5 font-semibold mt-0.5 ${
+                    activeSliceIndex === index ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
+                  }`}>{index + 1}</span>
+                  <div 
+                    className="w-3.5 h-3.5 rounded-full shadow-sm flex-shrink-0 mt-1" 
+                    style={{ backgroundColor: entry.color }}
+                  ></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      {entry.name}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between text-xs">
+                      <span className="text-gray-600 dark:text-gray-400">{entry.percentage}%</span>
+                      <span className="text-gray-800 dark:text-gray-200 font-semibold">
+                        AED {Math.round(entry.value).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-gray-200/80 dark:bg-gray-700/80 overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${Math.min(Number(entry.percentage), 100)}%`, backgroundColor: entry.color }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -2386,7 +2464,7 @@ const AverageSpendingChart = ({ data }) => {
   return (
     <div className="h-96 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} layout="horizontal" margin={{ left: 20, right: 20, top: 20, bottom: 20 }}>
+        <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 20, top: 20, bottom: 20 }}>
           <defs>
             <linearGradient id="averageGradient" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.8} />
