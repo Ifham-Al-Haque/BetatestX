@@ -459,6 +459,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
   const [expandedService, setExpandedService] = useState(null);
   const [zoomedMonth, setZoomedMonth] = useState(null);
   const [zoomedService, setZoomedService] = useState(null);
+  const [hoveredBarKey, setHoveredBarKey] = useState(null);
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const parseMonthKey = (monthStr) => {
@@ -467,6 +468,9 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
     const fullYear = 2000 + parseInt(year, 10);
     return new Date(fullYear, monthIndex);
   };
+
+  const getServiceGradientId = (serviceName) =>
+    `monthly-bar-gradient-${String(serviceName || 'service').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   const handleServiceClick = (serviceName) => {
     setExpandedService(expandedService === serviceName ? null : serviceName);
@@ -639,7 +643,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
             >
               <div className="h-80 bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-600 shadow-sm">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart 
+                  <BarChart
                     data={Object.entries(service.monthly_spending || {})
                       .map(([month, amount]) => ({
                         month,
@@ -648,6 +652,12 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                       .sort((a, b) => parseMonthKey(a.month) - parseMonthKey(b.month))}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
+                    <defs>
+                      <linearGradient id={getServiceGradientId(service.service_name)} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={COLORS[serviceIndex % COLORS.length]} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={COLORS[(serviceIndex + 1) % COLORS.length]} stopOpacity={0.7} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis 
                       dataKey="month" 
@@ -674,13 +684,31 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                         return null;
                       }}
                     />
-                                         <Bar 
-                       dataKey="amount" 
-                       fill={COLORS[serviceIndex % COLORS.length]}
+                     <Bar
+                       dataKey="amount"
+                       fill={`url(#${getServiceGradientId(service.service_name)})`}
                        onClick={(data) => handleMonthClick(data.month, service)}
+                       onMouseEnter={(data) => setHoveredBarKey(`${service.service_name}__${data.month}`)}
+                       onMouseLeave={() => setHoveredBarKey(null)}
                        style={{ cursor: 'pointer' }}
-                       radius={[4, 4, 0, 0]}
-                     />
+                       radius={[6, 6, 0, 0]}
+                       animationDuration={650}
+                       animationEasing="ease-out"
+                     >
+                      {Object.entries(service.monthly_spending || {})
+                        .sort(([monthA], [monthB]) => parseMonthKey(monthA) - parseMonthKey(monthB))
+                        .map(([month]) => {
+                          const isHovered = hoveredBarKey === `${service.service_name}__${month}`;
+                          return (
+                            <Cell
+                              key={`${service.service_name}-${month}`}
+                              fillOpacity={hoveredBarKey && !isHovered ? 0.45 : 1}
+                              stroke={isHovered ? '#1D4ED8' : 'none'}
+                              strokeWidth={isHovered ? 1.5 : 0}
+                            />
+                          );
+                        })}
+                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
                              </div>
