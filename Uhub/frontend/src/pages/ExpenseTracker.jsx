@@ -454,27 +454,43 @@ export default function ExpenseTracker() {
                 onChange={(e) => setForm({ ...form, department: e.target.value })}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               />
-              <input
-                type="date"
-                value={form.date_paid}
-                onChange={(e) => setForm({ ...form, date_paid: e.target.value })}
-                required
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              <input
-                type="date"
-                placeholder="Invoice Generation Date"
-                value={form.invoice_generation_date}
-                onChange={(e) => setForm({ ...form, invoice_generation_date: e.target.value })}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              <input
-                type="date"
-                placeholder="Invoice Due Date"
-                value={form.invoice_due_date}
-                onChange={(e) => setForm({ ...form, invoice_due_date: e.target.value })}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Paid On
+                </label>
+                <input
+                  type="date"
+                  value={form.date_paid}
+                  onChange={(e) => setForm({ ...form, date_paid: e.target.value })}
+                  required
+                  aria-label="Paid On"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Generated On
+                </label>
+                <input
+                  type="date"
+                  value={form.invoice_generation_date}
+                  onChange={(e) => setForm({ ...form, invoice_generation_date: e.target.value })}
+                  aria-label="Generated On"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Due On
+                </label>
+                <input
+                  type="date"
+                  value={form.invoice_due_date}
+                  onChange={(e) => setForm({ ...form, invoice_due_date: e.target.value })}
+                  aria-label="Due On"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                />
+              </div>
               <button
                 type="submit"
                 disabled={createExpenseMutation.isLoading}
