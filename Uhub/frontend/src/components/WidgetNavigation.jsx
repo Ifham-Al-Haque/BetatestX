@@ -116,27 +116,17 @@ const widgetConfig = [
     ]
   },
   {
-    key: 'driver_management',
-    title: 'Driver Management',
-    icon: Car,
-    color: 'from-green-500 to-emerald-600',
-    items: [
-      { label: 'Driver Records', path: '/drivers', icon: Car, feature: 'driver_records', description: 'View drivers' },
-      { label: 'Fleet Records', path: '/driver-operations', icon: Car, feature: 'fleet_records', description: 'Fleet data' },
-      { label: 'Fleet Management', path: '/fleet', icon: Database, feature: 'fleet_management', description: 'Manage fleet' },
-      { label: 'Breakdowns', path: '/breakdowns', icon: AlertTriangle, feature: 'breakdowns', description: 'Track breakdowns' }
-    ]
-  },
-  {
-    key: 'operation_panel',
-    title: 'Operation Panel',
+    key: 'operation',
+    title: 'Operation',
     icon: Cog,
-    color: 'from-slate-500 to-gray-600',
+    color: 'from-slate-600 to-blue-600',
     items: [
-      { label: 'Fleet Onboarding', path: '/fleet-onboarding', icon: CheckSquare, feature: 'fleet_onboarding', description: 'Onboard fleet' },
-      { label: 'Fleet Offboarding', path: '/fleet-offboarding', icon: AlertTriangle, feature: 'fleet_offboarding', description: 'Offboard fleet' },
-      { label: 'Fleet Delivery Checklist', path: '/fleet-delivery-checklist', icon: ClipboardList, feature: 'fleet_delivery_checklist', description: 'Delivery checklist' },
-      { label: 'Fleet Maintenance Record', path: '/fleet-maintenance-record', icon: FileText, feature: 'fleet_maintenance_record', description: 'Maintenance logs' }
+      { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records', description: 'Vehicle profiles' },
+      { label: 'Onboarding & Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle', description: 'Fleet lifecycle' },
+      { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio', description: 'Maintenance-focused fleet ops' },
+      { label: 'Driver & Team Records', path: '/operation/drivers', icon: Car, feature: 'driver_records', description: 'Drivers and teams' },
+      { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster', description: 'Team schedules' },
+      { label: 'Breakdowns', path: '/operation/breakdowns', icon: AlertTriangle, feature: 'breakdowns', description: 'Track breakdowns' }
     ]
   },
   {

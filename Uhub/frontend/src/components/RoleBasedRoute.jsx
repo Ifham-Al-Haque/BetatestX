@@ -251,9 +251,13 @@ export const FEATURE_ACCESS = {
   // Fleet Management Operations - Subscribe Now has access to Fleet Delivery Checklist and Fleet Maintenance Record
   fleet_onboarding: ['admin', 'operation_management'],
   fleet_offboarding: ['admin', 'operation_management'],
+  fleet_lifecycle: ['admin', 'operation_management'],
   fleet_delivery_checklist: ['admin', 'operation_management', 'subscribe_now'],
   fleet_maintenance_record: ['admin', 'operation_management', 'subscribe_now'],
-  
+  udrive_fleetio: ['admin', 'driver_management', 'operation_management', 'subscribe_now'],
+  fleet_dashboard: ['admin', 'driver_management', 'operation_management'],
+  operation_roster: ['admin', 'driver_management', 'operation_management'],
+
   // Subscribe Now Panel - Subscribe Now role has full access, others have limited access
   subscribe_now: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management'],
   
@@ -316,7 +320,7 @@ export const getRoleNavigationAccess = (userRole) => {
   
   const roleAccess = {
     admin: {
-      panels: ['main', 'admin', 'user_profile', 'hr_panel', 'customer_service', 'it_services', 'driver_management', 'operation_panel', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel', 'marketing_panel', 'iot_panel'],
+      panels: ['main', 'admin', 'user_profile', 'hr_panel', 'customer_service', 'it_services', 'operation', 'asset_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'collections_panel', 'marketing_panel', 'iot_panel'],
       items: {
         main: ['home', 'dashboard', 'calendar_view'],
         admin: ['admin_dashboard', 'user_management'],
@@ -324,8 +328,7 @@ export const getRoleNavigationAccess = (userRole) => {
         hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'payroll_calculator', 'epr'],
         customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
         it_services: ['it_requests', 'it_assets', 'it_tickets', 'request_inbox'],
-        driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns', 'delivery_management', 'delivery_tracking', 'delivery_routes'],
-        operation_panel: ['fleet_onboarding', 'fleet_offboarding', 'fleet_delivery_checklist', 'fleet_maintenance_record'],
+        operation: ['fleet_records', 'fleet_lifecycle', 'udrive_fleetio', 'driver_records', 'driver_documents', 'breakdowns', 'operation_roster', 'delivery_management', 'delivery_tracking', 'delivery_routes'],
         asset_management: ['assets', 'simcards', 'vouchers'],
         financial: ['expenses', 'expense_tracker', 'payment_calendar', 'upcoming_payments'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
@@ -338,13 +341,13 @@ export const getRoleNavigationAccess = (userRole) => {
       }
     },
     data_operator: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'driver_management', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'iot_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'operation', 'financial', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel', 'iot_panel'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
         hr_panel: ['employee_records', 'complaints', 'suggestions'],
         it_services: ['it_requests'],
-        driver_management: ['fleet_records'],
+        operation: ['fleet_records'],
         financial: ['expense_tracker'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
@@ -413,7 +416,7 @@ export const getRoleNavigationAccess = (userRole) => {
     }
   },
   driver_management: {
-    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'subscribe_panel'],
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'operation', 'subscribe_panel'],
     items: {
       main: ['home', 'dashboard', 'calendar_view'],
       user_profile: ['profile', 'settings'],
@@ -422,12 +425,12 @@ export const getRoleNavigationAccess = (userRole) => {
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],
       communication: ['communication'],
-      driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
+      operation: ['driver_records', 'driver_documents', 'fleet_records', 'fleet_management', 'udrive_fleetio', 'breakdowns', 'operation_roster'],
       subscribe_panel: ['subscribe_now', 'ltr_reporting']
     }
   },
   operation_management: {
-    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'operation_panel', 'subscribe_panel'],
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'operation', 'subscribe_panel'],
     items: {
       main: ['home', 'dashboard', 'calendar_view'],
       user_profile: ['profile', 'settings'],
@@ -436,13 +439,12 @@ export const getRoleNavigationAccess = (userRole) => {
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],
       communication: ['communication'],
-      driver_management: ['drivers', 'driver_records', 'driver_documents', 'fleet_management', 'fleet_records', 'breakdowns'],
-      operation_panel: ['fleet_onboarding', 'fleet_offboarding', 'fleet_delivery_checklist', 'fleet_maintenance_record'],
+      operation: ['fleet_records', 'fleet_lifecycle', 'udrive_fleetio', 'driver_records', 'driver_documents', 'breakdowns', 'operation_roster'],
       subscribe_panel: ['subscribe_now', 'ltr_reporting']
     }
   },
   hr_manager: {
-    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management', 'subscribe_panel'],
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'operation', 'asset_management', 'subscribe_panel'],
     items: {
       main: ['home', 'dashboard', 'calendar_view'],
       user_profile: ['profile', 'settings'],
@@ -451,13 +453,13 @@ export const getRoleNavigationAccess = (userRole) => {
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],
       communication: ['communication'],
-      driver_management: ['driver_records'], // View only
+      operation: ['driver_records'],
       asset_management: ['assets', 'simcards'],
       subscribe_panel: ['subscribe_now']
     }
   },
   manager: {
-    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'driver_management', 'asset_management', 'subscribe_panel'],
+    panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'operation', 'asset_management', 'subscribe_panel'],
     items: {
       main: ['home', 'dashboard', 'calendar_view'],
       user_profile: ['profile', 'settings'],
@@ -466,7 +468,7 @@ export const getRoleNavigationAccess = (userRole) => {
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],
       communication: ['communication'],
-      driver_management: ['driver_records', 'delivery_management', 'delivery_tracking', 'delivery_routes'], // View only
+      operation: ['driver_records', 'delivery_management', 'delivery_tracking', 'delivery_routes'],
       asset_management: ['assets', 'simcards'],
       subscribe_panel: ['subscribe_now']
     }
@@ -486,13 +488,13 @@ export const getRoleNavigationAccess = (userRole) => {
     }
   },
   subscribe_now: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'operation_panel', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'operation', 'todo_list', 'slice_of_life', 'communication', 'subscribe_panel'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
         hr_panel: ['employees', 'complaints', 'suggestions'],
         it_services: ['it_requests'],
-        operation_panel: ['fleet_delivery_checklist', 'fleet_maintenance_record'],
+        operation: ['udrive_fleetio', 'fleet_delivery_checklist', 'fleet_maintenance_record'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories', 'collections'],
         communication: ['team_chat', 'communication'],
@@ -562,9 +564,27 @@ export const canSeePanel = (userRole, panelKey) => {
   if (userRole === 'admin') {
     return true;
   }
-  
+
   const access = getRoleNavigationAccess(userRole);
-  return access.panels.includes(panelKey);
+  if (access.panels.includes(panelKey)) {
+    return true;
+  }
+  // Unified Operation panel (avoid empty panel for delivery-only roles)
+  if (panelKey === 'operation') {
+    if (access.panels.includes('operation')) return true;
+    const legacyOperationItems = [
+      'fleet_records', 'fleet_management', 'fleet_onboarding', 'fleet_offboarding',
+      'fleet_lifecycle', 'udrive_fleetio', 'driver_records', 'drivers', 'driver_documents',
+      'breakdowns', 'operation_roster',
+    ];
+    const dmItems = access.items.driver_management || [];
+    const opItems = access.items.operation_panel || [];
+    return (
+      dmItems.some((i) => legacyOperationItems.includes(i)) ||
+      opItems.length > 0
+    );
+  }
+  return false;
 };
 
 // Check if user can see a specific navigation item

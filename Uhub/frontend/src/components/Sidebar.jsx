@@ -87,6 +87,7 @@ const Sidebar = () => {
       hr_panel: false,
       customer_service: false,
       it_services: false,
+      operation: false,
       driver_management: false,
       operation_panel: false,
       asset_management: false,
@@ -252,25 +253,16 @@ const Sidebar = () => {
       ]
     },
     {
-      key: 'driver_management',
-      title: 'Driver Management',
-      icon: Car,
-      items: [
-        { label: 'Driver Records', path: '/drivers', icon: Car, feature: 'driver_records' },
-        { label: 'Fleet Records', path: '/driver-operations', icon: Car, feature: 'fleet_records' },
-        { label: 'Fleet Management', path: '/fleet', icon: Database, feature: 'fleet_management' },
-        { label: 'Breakdowns', path: '/breakdowns', icon: AlertTriangle, feature: 'breakdowns' }
-      ]
-    },
-    {
-      key: 'operation_panel',
-      title: 'Operation Panel',
+      key: 'operation',
+      title: 'Operation',
       icon: Cog,
       items: [
-        { label: 'Fleet Onboarding', path: '/fleet-onboarding', icon: CheckSquare, feature: 'fleet_onboarding' },
-        { label: 'Fleet Offboarding', path: '/fleet-offboarding', icon: AlertTriangle, feature: 'fleet_offboarding' },
-        { label: 'Fleet Delivery Checklist', path: '/fleet-delivery-checklist', icon: ClipboardList, feature: 'fleet_delivery_checklist' },
-        { label: 'Fleet Maintenance Record', path: '/fleet-maintenance-record', icon: FileText, feature: 'fleet_maintenance_record' }
+        { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records' },
+        { label: 'Onboarding & Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle' },
+        { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio' },
+        { label: 'Driver & Team Records', path: '/operation/drivers', icon: Users, feature: 'driver_records' },
+        { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster' },
+        { label: 'Breakdowns', path: '/operation/breakdowns', icon: AlertTriangle, feature: 'breakdowns' }
       ]
     },
     {

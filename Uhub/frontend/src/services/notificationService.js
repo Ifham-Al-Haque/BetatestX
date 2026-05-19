@@ -484,7 +484,7 @@ class NotificationService {
   async notifyITRequestCreated(request) {
     try {
       // Notify IT managers and admins (include both role name variants used in the app)
-      const roles = ['it_management', 'it_manager', 'admin'];
+      const roles = ['it_management', 'it_manager', 'it', 'admin'];
       const seen = new Set();
       let totalNotifications = 0;
 

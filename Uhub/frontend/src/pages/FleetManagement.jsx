@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Car, Plus, Search, Filter, Download, Eye, Edit, Trash2, AlertTriangle, 
@@ -11,8 +12,14 @@ import VehicleModal from '../components/fleet/VehicleModal';
 import VehicleDetailsModal from '../components/fleet/VehicleDetailsModal';
 import fleetService from '../services/fleetService';
 import { useToast } from '../context/ToastContext';
+import { getCarDisplayName, businessTypeBadgeClass } from '../utils/fleetRecordUtils';
 
-const FleetManagement = () => {
+const FleetManagement = ({
+  pageTitle = 'Fleet Management',
+  profileBasePath = null,
+  excludeSampleData = false,
+}) => {
+  const navigate = useNavigate();
   const { success, error: showError } = useToast();
   const [fleetData, setFleetData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +64,8 @@ const FleetManagement = () => {
       console.log('Loading fleet data with filters:', { search: searchTerm, ...filters });
       const data = await fleetService.getVehicles({
         search: searchTerm,
-        ...filters
+        ...filters,
+        excludeSampleData,
       });
       
       console.log('Loaded fleet data:', data?.length, 'vehicles');
@@ -73,7 +81,7 @@ const FleetManagement = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchTerm, filters, success, showError]);
+  }, [searchTerm, filters, excludeSampleData, success, showError]);
 
   const loadDepartments = useCallback(async () => {
     try {
@@ -134,6 +142,10 @@ const FleetManagement = () => {
   };
 
   const handleViewVehicle = (vehicleId) => {
+    if (profileBasePath) {
+      navigate(`${profileBasePath}/${vehicleId}`);
+      return;
+    }
     setSelectedVehicleId(vehicleId);
     setShowDetailsModal(true);
   };
@@ -276,10 +288,8 @@ const FleetManagement = () => {
               </div>
               
               <div className="text-center mb-4">
-                <h1 className="text-4xl font-black leading-tight mb-2">
-                  <span className="text-blue-600">Fleet</span>
-                  <br />
-                  <span className="text-indigo-600">Management</span>
+                <h1 className="text-4xl font-black leading-tight mb-2 text-indigo-700">
+                  {pageTitle}
                 </h1>
                 <div className="flex items-center justify-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
@@ -660,12 +670,12 @@ const FleetManagement = () => {
                                   onChange={() => toggleItemSelection(vehicle.id)}
                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 />
-                                <motion.div 
+                              <motion.div
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.9 }}
                                   className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all duration-200 ${
-                                    isSelected 
-                                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 border-blue-500 shadow-lg' 
+                                    isSelected
+                                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 border-blue-500 shadow-lg'
                                       : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50'
                                   }`}
                                 >
@@ -673,18 +683,32 @@ const FleetManagement = () => {
                                 </motion.div>
                               </div>
                               
-                              <div className="relative">
-                                <div className="p-4 bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 rounded-2xl shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                                  <Car className="w-7 h-7 text-white" />
-                                </div>
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
+                              <div className="relative w-20 h-20 shrink-0">
+                                {vehicle.fleet_image_url ? (
+                                  <img
+                                    src={vehicle.fleet_image_url}
+                                    alt={`${vehicle.make} ${vehicle.model}`}
+                                    className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-lg"
+                                  />
+                                ) : (
+                                  <div className="w-20 h-20 flex items-center justify-center bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 rounded-2xl shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+                                    <Car className="w-7 h-7 text-white" />
+                                  </div>
+                                )}
                               </div>
                               
                               <div className="flex-1">
                                 <h3 className="text-xl font-black text-slate-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">
-                                  {vehicle.make} {vehicle.model}
+                                  {getCarDisplayName(vehicle)}
                                 </h3>
                                 <p className="text-slate-600 font-semibold text-lg mb-2">{vehicle.vehicle_number}</p>
+                                {vehicle.business_type && (
+                                  <span
+                                    className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold mb-2 ${businessTypeBadgeClass(vehicle.business_type)}`}
+                                  >
+                                    {vehicle.business_type}
+                                  </span>
+                                )}
                                 <div className="flex items-center">
                                   <MapPin className="w-4 h-4 text-slate-400 mr-2" />
                                   <span className="text-sm text-slate-500 font-medium">{vehicle.license_plate}</span>

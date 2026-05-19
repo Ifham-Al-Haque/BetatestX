@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { isSampleFleetVehicle } from './fleetVehicleMediaService';
 
 class FleetService {
   // ===== VEHICLE MANAGEMENT =====
@@ -26,12 +27,15 @@ class FleetService {
         query = query.ilike('make', `%${filters.make}%`);
       }
       if (filters.search) {
-        query = query.or(`vehicle_number.ilike.%${filters.search}%,license_plate.ilike.%${filters.search}%,make.ilike.%${filters.search}%,model.ilike.%${filters.search}%`);
+        query = query.or(`vehicle_number.ilike.%${filters.search}%,license_plate.ilike.%${filters.search}%,make.ilike.%${filters.search}%,model.ilike.%${filters.search}%,car_name.ilike.%${filters.search}%`);
       }
 
       const { data, error } = await query;
       
       if (error) throw error;
+      if (filters.excludeSampleData) {
+        return (data || []).filter((v) => !isSampleFleetVehicle(v));
+      }
       return data;
     } catch (error) {
       console.error('Error fetching vehicles:', error);

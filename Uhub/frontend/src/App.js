@@ -112,6 +112,11 @@ const PayrollCalculator = safeLazy(() => import('./pages/PayrollCalculator'), 'P
 const Payroll = safeLazy(() => import('./pages/Payroll'), 'Payroll');
 const UpcomingPaymentEvents = safeLazy(() => import('./pages/UpcomingPaymentEvents'), 'UpcomingPaymentEvents');
 const Voucher = safeLazy(() => import('./pages/Voucher'), 'Voucher');
+const FleetLifecycle = safeLazy(() => import('./pages/operation/FleetLifecycle'), 'FleetLifecycle');
+const UDriveFleetio = safeLazy(() => import('./pages/operation/UDriveFleetio'), 'UDriveFleetio');
+const OperationRoster = safeLazy(() => import('./pages/operation/OperationRoster'), 'OperationRoster');
+const FleetRecordProfile = safeLazy(() => import('./pages/operation/FleetRecordProfile'), 'FleetRecordProfile');
+const BreakdownsPage = safeLazy(() => import('./pages/Breakdowns'), 'BreakdownsPage');
 
 function App() {
   return (
@@ -687,6 +692,100 @@ function App() {
                             </Layout>
                           </ProtectedRoute>
                         } />
+
+                        {/* Operation (unified department panel) */}
+                        <Route path="/operation/fleet-records" element={
+                          <ProtectedRoute requiredFeature="fleet_records">
+                            <Layout>
+                              <FleetManagement
+                                pageTitle="Fleet Record"
+                                profileBasePath="/operation/fleet-records"
+                                excludeSampleData
+                              />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleet-records/:id" element={
+                          <ProtectedRoute requiredFeature="fleet_records">
+                            <Layout>
+                              <FleetRecordProfile />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleet-lifecycle" element={
+                          <ProtectedRoute requiredFeature="fleet_lifecycle">
+                            <Layout>
+                              <FleetLifecycle />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleetio" element={
+                          <ProtectedRoute requiredFeature="udrive_fleetio">
+                            <Layout>
+                              <UDriveFleetio />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleetio/dashboard" element={
+                          <ProtectedRoute requiredFeature="udrive_fleetio">
+                            <Layout>
+                              <FleetDashboard />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleetio/maintenance" element={
+                          <ProtectedRoute requiredFeature="fleet_maintenance_record">
+                            <Layout>
+                              <FleetMaintenanceRecord />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleetio/inspections" element={
+                          <ProtectedRoute requiredFeature="fleet_delivery_checklist">
+                            <Layout>
+                              <FleetDeliveryChecklist />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleetio/assignments" element={
+                          <ProtectedRoute requiredFeature="fleet_management">
+                            <Layout>
+                              <FleetDriverCalendar />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/drivers" element={
+                          <ProtectedRoute requiredFeature="driver_records">
+                            <Layout>
+                              <Drivers />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/roster" element={
+                          <ProtectedRoute requiredFeature="operation_roster">
+                            <Layout>
+                              <OperationRoster />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/breakdowns" element={
+                          <ProtectedRoute requiredFeature="breakdowns">
+                            <Layout>
+                              <BreakdownsPage />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Legacy operation/fleet paths → new Operation routes */}
+                        <Route path="/fleet" element={<Navigate to="/operation/fleet-records" replace />} />
+                        <Route path="/fleet-dashboard" element={<Navigate to="/operation/fleetio/dashboard" replace />} />
+                        <Route path="/fleet-onboarding" element={<Navigate to="/operation/fleet-lifecycle?tab=onboarding" replace />} />
+                        <Route path="/fleet-offboarding" element={<Navigate to="/operation/fleet-lifecycle?tab=offboarding" replace />} />
+                        <Route path="/fleet-maintenance-record" element={<Navigate to="/operation/fleetio/maintenance" replace />} />
+                        <Route path="/fleet-delivery-checklist" element={<Navigate to="/operation/fleetio/inspections" replace />} />
+                        <Route path="/fleet-driver-calendar" element={<Navigate to="/operation/fleetio/assignments" replace />} />
+                        <Route path="/driver-operations" element={<Navigate to="/operation/fleet-records" replace />} />
+                        <Route path="/breakdowns" element={<Navigate to="/operation/breakdowns" replace />} />
 
                         {/* Catch all route - redirect to home for authenticated users */}
                         <Route path="*" element={

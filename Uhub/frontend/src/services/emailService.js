@@ -12,15 +12,20 @@ export const emailService = {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: { to, subject, body },
       });
-      if (!error && data?.ok !== false) {
+      if (!error && data?.ok === true) {
         console.log('Email sent via Edge Function to:', to);
         return { success: true, message: 'Email sent.' };
       }
       if (error) {
         console.warn('Edge Function send-email not available or failed:', error.message, '- logging email locally');
+      } else if (data?.ok === false) {
+        console.warn('send-email reported failure:', data?.error || data);
       }
       console.log(`[Email would send] To: ${to} | Subject: ${subject}`);
-      return { success: true, message: 'Email notification simulated (no send-email function).' };
+      return {
+        success: false,
+        message: error?.message || data?.error || 'Email not sent (configure send-email Edge Function and SMTP secrets).',
+      };
     } catch (error) {
       console.error('Error sending email notification:', error);
       return { success: false, message: `Failed to send email: ${error.message}` };

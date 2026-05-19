@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { X, Car, User, Building, Wrench, Fuel, AlertTriangle, Calendar, MapPin, DollarSign } from 'lucide-react';
+import { X, Car, User, Building, Wrench, Fuel, AlertTriangle, Calendar, MapPin, DollarSign, ArrowLeft, FileText, LayoutGrid, PieChart } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import fleetService from '../../services/fleetService';
+import FleetVehicleMediaSection from './FleetVehicleMediaSection';
+import FleetRecordOverview from './FleetRecordOverview';
+import FleetRecordEconomicsTab from './FleetRecordEconomicsTab';
+import { getCarDisplayName, formatFleetCurrency } from '../../utils/fleetRecordUtils';
 
-const VehicleDetailsModal = ({ isOpen, onClose, vehicleId }) => {
+const VehicleDetailsModal = ({
+  isOpen,
+  onClose,
+  vehicleId,
+  variant = 'modal',
+  listPath = '/operation/fleet-records',
+}) => {
+  const isPage = variant === 'page';
   const [vehicle, setVehicle] = useState(null);
   const [maintenanceRecords, setMaintenanceRecords] = useState([]);
   const [fuelLogs, setFuelLogs] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    if (isOpen && vehicleId) {
+    if (vehicleId && (isPage || isOpen)) {
       loadVehicleDetails();
     }
-  }, [isOpen, vehicleId]);
+  }, [isOpen, vehicleId, isPage]);
 
   const loadVehicleDetails = async () => {
     try {
@@ -43,11 +55,8 @@ const VehicleDetailsModal = ({ isOpen, onClose, vehicleId }) => {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return 'Not set';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    if (amount == null || amount === '') return 'Not set';
+    return formatFleetCurrency(amount);
   };
 
   const getStatusColor = (status) => {
@@ -80,7 +89,8 @@ const VehicleDetailsModal = ({ isOpen, onClose, vehicleId }) => {
     }
   };
 
-  if (!isOpen || !vehicleId) return null;
+  if (!isPage && (!isOpen || !vehicleId)) return null;
+  if (isPage && !vehicleId) return null;
 
   if (loading) {
     return (
@@ -114,39 +124,50 @@ const VehicleDetailsModal = ({ isOpen, onClose, vehicleId }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+    <div className={isPage ? 'min-h-screen bg-gray-50 py-8 px-4' : 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'}>
+      <div className={isPage ? 'bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-6xl mx-auto overflow-y-auto' : 'bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto'}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Car className="w-6 h-6 text-blue-600" />
+            {isPage && (
+              <Link to={listPath} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg" aria-label="Back">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            )}
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-blue-100 border border-gray-200 flex items-center justify-center shrink-0">
+              {vehicle.fleet_image_url ? (
+                <img src={vehicle.fleet_image_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <Car className="w-8 h-8 text-blue-600" />
+              )}
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {vehicle.make} {vehicle.model} - {vehicle.vehicle_number}
+                {isPage ? 'Fleet Record — ' : ''}{getCarDisplayName(vehicle)} ({vehicle.vehicle_number})
               </h2>
               <p className="text-sm text-gray-500">
                 License: {vehicle.license_plate} • Status: {vehicle.status}
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          {!isPage && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
+          <nav className="flex flex-wrap gap-x-6 gap-y-1 px-6">
             {[
-              { id: 'details', label: 'Details', icon: Car },
+              { id: 'overview', label: 'Overview', icon: LayoutGrid },
+              { id: 'fleet', label: 'Fleet & Documents', icon: FileText },
+              { id: 'economics', label: 'Unit economics', icon: PieChart },
               { id: 'maintenance', label: 'Maintenance', icon: Wrench },
               { id: 'fuel', label: 'Fuel Logs', icon: Fuel },
-              { id: 'incidents', label: 'Incidents', icon: AlertTriangle }
+              { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
+              { id: 'details', label: 'All details', icon: Car },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -169,6 +190,25 @@ const VehicleDetailsModal = ({ isOpen, onClose, vehicleId }) => {
 
         {/* Tab Content */}
         <div className="p-6">
+          {activeTab === 'overview' && (
+            <FleetRecordOverview
+              vehicle={vehicle}
+              maintenanceRecords={maintenanceRecords}
+              fuelLogs={fuelLogs}
+              incidents={incidents}
+              onTabChange={setActiveTab}
+            />
+          )}
+
+          {activeTab === 'economics' && (
+            <FleetRecordEconomicsTab
+              vehicle={vehicle}
+              maintenanceRecords={maintenanceRecords}
+              fuelLogs={fuelLogs}
+              incidents={incidents}
+            />
+          )}
+
           {/* Details Tab */}
           {activeTab === 'details' && (
             <div className="space-y-6">
@@ -330,6 +370,14 @@ const VehicleDetailsModal = ({ isOpen, onClose, vehicleId }) => {
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === 'fleet' && (
+            <FleetVehicleMediaSection
+              vehicleId={vehicleId}
+              fleetImageUrl={vehicle.fleet_image_url}
+              onFleetImageUpdated={(url) => setVehicle((v) => (v ? { ...v, fleet_image_url: url } : v))}
+            />
           )}
 
           {/* Maintenance Tab */}

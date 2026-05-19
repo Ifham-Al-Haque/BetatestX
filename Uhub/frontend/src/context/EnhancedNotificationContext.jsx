@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 import notificationService from '../services/notificationService';
 import soundNotificationService from '../services/soundNotificationService';
 import { getSafeInternalUrl } from '../utils/security';
+import { isItAlertRecipientRole } from '../utils/notificationRoles';
 
 const NotificationContext = createContext();
 
@@ -296,8 +297,7 @@ export const NotificationProvider = ({ children }) => {
           schema: 'public',
           table: 'it_requests'
         }, (payload) => {
-          // Only notify if user is admin or IT manager
-          if (user.role === 'admin' || user.role === 'it_management') {
+          if (isItAlertRecipientRole(user.role)) {
             addNotification({
               type: 'it_request',
               title: 'New IT Request Created',
@@ -318,11 +318,31 @@ export const NotificationProvider = ({ children }) => {
           schema: 'public',
           table: 'it_requests'
         }, (payload) => {
-          if (payload.new.requester_id === user.id) {
+          const oldStatus = payload.old?.status;
+          const newStatus = payload.new?.status;
+          const statusChanged =
+            payload.old != null &&
+            newStatus !== undefined &&
+            oldStatus !== undefined &&
+            oldStatus !== newStatus;
+
+          if (statusChanged && payload.new.requester_id === user.id) {
             addNotification({
               type: 'it_request_update',
               title: 'IT Request Status Updated',
               message: `Your IT request "${payload.new.title}" status changed to ${payload.new.status}`,
+              priority: 'medium',
+              data: payload.new
+            });
+          } else if (
+            statusChanged &&
+            isItAlertRecipientRole(user.role) &&
+            payload.new.requester_id !== user.id
+          ) {
+            addNotification({
+              type: 'it_request_update',
+              title: 'IT Request Status Updated',
+              message: `Request "${payload.new.title}" is now ${payload.new.status}`,
               priority: 'medium',
               data: payload.new
             });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Car, User, Building, Search } from 'lucide-react';
 import fleetService from '../../services/fleetService';
 import { decodeVin } from '../../services/vinDecodeService';
+import { BODY_TYPES, POWERTRAIN_TYPES, BUSINESS_TYPES } from '../../utils/fleetRecordUtils';
 
 const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -26,7 +27,14 @@ const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
     last_service_date: '',
     next_service_date: '',
     fuel_efficiency: '',
-    notes: ''
+    notes: '',
+    car_name: '',
+    body_type: '',
+    powertrain_type: '',
+    seat_count: '',
+    fuel_tank_capacity_liters: '',
+    business_type: '',
+    iot_device_id: '',
   });
 
   const [departments, setDepartments] = useState([]);
@@ -77,7 +85,14 @@ const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
           last_service_date: vehicle.last_service_date || '',
           next_service_date: vehicle.next_service_date || '',
           fuel_efficiency: vehicle.fuel_efficiency || '',
-          notes: vehicle.notes || ''
+          notes: vehicle.notes || '',
+          car_name: vehicle.car_name || '',
+          body_type: vehicle.body_type || '',
+          powertrain_type: vehicle.powertrain_type || '',
+          seat_count: vehicle.seat_count ?? '',
+          fuel_tank_capacity_liters: vehicle.fuel_tank_capacity_liters ?? '',
+          business_type: vehicle.business_type || '',
+          iot_device_id: vehicle.iot_device_id || '',
         });
       }
     } catch (error) {
@@ -142,10 +157,25 @@ const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
 
     setLoading(true);
     try {
+      const payload = {
+        ...formData,
+        seat_count: formData.seat_count === '' || formData.seat_count == null
+          ? null
+          : parseInt(formData.seat_count, 10),
+        fuel_tank_capacity_liters:
+          formData.fuel_tank_capacity_liters === '' || formData.fuel_tank_capacity_liters == null
+            ? null
+            : parseFloat(formData.fuel_tank_capacity_liters),
+        car_name: formData.car_name?.trim() || null,
+        body_type: formData.body_type || null,
+        powertrain_type: formData.powertrain_type || null,
+        business_type: formData.business_type || null,
+        iot_device_id: formData.iot_device_id?.trim() || null,
+      };
       if (isEditMode) {
-        await fleetService.updateVehicle(vehicle.id, formData);
+        await fleetService.updateVehicle(vehicle.id, payload);
       } else {
-        await fleetService.createVehicle(formData);
+        await fleetService.createVehicle(payload);
       }
       
       onSuccess();
@@ -387,6 +417,98 @@ const VehicleModal = ({ isOpen, onClose, vehicle = null, onSuccess }) => {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., White"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Car name</label>
+              <input
+                type="text"
+                name="car_name"
+                value={formData.car_name}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Display name (optional)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Model type</label>
+              <select
+                name="body_type"
+                value={formData.body_type}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">Select</option>
+                {BODY_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle type</label>
+              <select
+                name="powertrain_type"
+                value={formData.powertrain_type}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">Select</option>
+                {POWERTRAIN_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Business type</label>
+              <select
+                name="business_type"
+                value={formData.business_type}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">Select</option>
+                {BUSINESS_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Seats</label>
+              <input
+                type="number"
+                name="seat_count"
+                value={formData.seat_count}
+                onChange={handleInputChange}
+                min="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Fuel tank (L)</label>
+              <input
+                type="number"
+                name="fuel_tank_capacity_liters"
+                value={formData.fuel_tank_capacity_liters}
+                onChange={handleInputChange}
+                step="0.1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">IoT device ID</label>
+              <input
+                type="text"
+                name="iot_device_id"
+                value={formData.iot_device_id}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
 
