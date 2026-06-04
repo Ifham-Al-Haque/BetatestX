@@ -40,6 +40,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 import { useTheme } from '../context/ThemeContext';
 import { canSeePanel, hasFeatureAccess } from './RoleBasedRoute';
+import { isPanelVisibleInEdition } from '../config/edition';
 
 const Sidebar = () => {
   const { isCollapsed, toggleSidebar, isMobile, isMobileOpen, closeMobileSidebar } = useSidebar();
@@ -337,9 +338,10 @@ const Sidebar = () => {
     }
   ];
 
-  // Filter panels based on user role
+  // Filter panels based on user role (and the active app edition)
   const filteredPanels = navigationPanels.filter(panel => {
     if (!userRole) return false;
+    if (!isPanelVisibleInEdition(panel.key)) return false;
     return canSeePanel(userRole, panel.key);
   });
 

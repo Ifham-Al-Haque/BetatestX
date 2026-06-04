@@ -14,6 +14,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SmartHomeRoute from './components/SmartHomeRoute';
 import RoutePrefetcher from './components/RoutePrefetcher';
+import EditionGuard from './components/EditionGuard';
+import PushIdentity from './components/PushIdentity';
 const isDev = process.env.NODE_ENV === 'development';
 
 // React Query configuration
@@ -133,6 +135,8 @@ function App() {
                 <ThemeProvider>
                   <Router>
                     <RoutePrefetcher />
+                    <EditionGuard />
+                    <PushIdentity />
                     <Suspense fallback={<RouteSkeleton title="Loading route and preparing data..." />}>
                       <Routes>
                         {/* Public Routes */}

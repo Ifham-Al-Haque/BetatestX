@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { isSampleFleetVehicle } from './fleetVehicleMediaService';
+import notificationService from './notificationService';
 
 class FleetService {
   // ===== VEHICLE MANAGEMENT =====
@@ -885,6 +886,14 @@ class FleetService {
         .single();
 
       if (error) throw error;
+
+      // Notify the assignee of the new fleet task (in-app + email + push). Fire-and-forget.
+      if (data?.assigned_to) {
+        notificationService.sendFleetTaskAssignmentNotification(data).catch((e) =>
+          console.warn('Fleet task assignment notification failed:', e?.message)
+        );
+      }
+
       return data;
     } catch (error) {
       console.error('Error creating maintenance ticket:', error);
@@ -967,12 +976,23 @@ class FleetService {
           : Promise.resolve({ data: null })
       ]);
 
-      return {
+      const result = {
         ...data,
         fleet_vehicles: vehicleData.data,
         employees: requestedByData.data,
         assigned_employee: assignedToData.data
       };
+
+      // If the ticket was just assigned (or re-assigned), notify the new assignee.
+      const assigneeChanged =
+        data.assigned_to && data.assigned_to !== currentTicket.assigned_to;
+      if (assigneeChanged) {
+        notificationService.sendFleetTaskAssignmentNotification(result).catch((e) =>
+          console.warn('Fleet task assignment notification failed:', e?.message)
+        );
+      }
+
+      return result;
     } catch (error) {
       console.error('Error updating maintenance ticket:', error);
       throw error;

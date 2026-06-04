@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { emailService } from './emailService';
+import { sendPushToUser } from './pushService';
 
 class NotificationService {
   constructor() {
@@ -657,6 +658,109 @@ class NotificationService {
     } catch (error) {
       console.error('Error notifying IT request assignment:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Notify the assignee of a fleet maintenance task/ticket (in-app + email + push).
+   * Resolves the assignee from users/employees (assigned_to may be an employee id).
+   * @param {Object} ticket - { id, title, ticket_number, assigned_to, priority, vehicle_id, fleet_vehicles? }
+   */
+  async sendFleetTaskAssignmentNotification(ticket) {
+    const assigneeId = ticket?.assigned_to;
+    if (!assigneeId) return 0;
+    try {
+      // Resolve assignee (UDrive employee OR UHub user). For in-app we need the auth id.
+      let assigneeEmail = null;
+      let assigneeName = null;
+      let notificationUserId = assigneeId;
+      const [byUsersId, byUsersAuth, byEmpId, byEmpAuth] = await Promise.all([
+        supabase.from('users').select('id, auth_user_id, email, full_name').eq('id', assigneeId).maybeSingle(),
+        supabase.from('users').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeId).maybeSingle(),
+        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('id', assigneeId).maybeSingle(),
+        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeId).maybeSingle(),
+      ]);
+      const u = byUsersId.data || byUsersAuth.data || byEmpId.data || byEmpAuth.data;
+      if (u) {
+        assigneeEmail = u.email;
+        assigneeName = u.full_name;
+        if (u.auth_user_id) notificationUserId = u.auth_user_id;
+      }
+
+      const vehicleLabel = ticket.fleet_vehicles?.vehicle_number || ticket.vehicle_number || '';
+      const taskTitle = ticket.title || ticket.ticket_number || 'Fleet maintenance task';
+      const actionUrl = '/operation/fleetio/maintenance';
+      const isHigh = ['High', 'Critical', 'Urgent'].includes(ticket.priority);
+
+      // 1) In-app notification
+      if (notificationUserId) {
+        try {
+          await this.createNotification({
+            userId: notificationUserId,
+            type: 'fleet_task_assigned',
+            title: 'Fleet Task Assigned to You',
+            message: `You have been assigned a fleet maintenance task: ${taskTitle}${vehicleLabel ? ` (${vehicleLabel})` : ''}`,
+            data: {
+              ticket_id: ticket.id,
+              ticket_number: ticket.ticket_number,
+              vehicle: vehicleLabel,
+            },
+            priority: isHigh ? 'high' : 'medium',
+            actionUrl,
+            actionLabel: 'View Task',
+          });
+        } catch (e) {
+          console.warn('Fleet in-app notification failed (create_notification RPC may be missing):', e?.message);
+        }
+      }
+
+      // 2) Email notification
+      if (assigneeEmail && String(assigneeEmail).trim()) {
+        const subject = `Fleet Task Assigned: ${taskTitle}`;
+        const body = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e1e5e9; border-radius: 8px; overflow: hidden;">
+            <div style="background: #2563eb; color: #fff; padding: 20px; text-align: center;">
+              <h1 style="margin: 0; font-size: 22px;">Fleet Maintenance Task Assigned</h1>
+            </div>
+            <div style="padding: 20px; background: #f8f9fa; color: #111;">
+              <p>Hi ${assigneeName || 'there'},</p>
+              <p>You have been assigned a fleet maintenance task.</p>
+              <p><strong>Task:</strong> ${taskTitle}</p>
+              ${ticket.ticket_number ? `<p><strong>Ticket:</strong> ${ticket.ticket_number}</p>` : ''}
+              ${vehicleLabel ? `<p><strong>Vehicle:</strong> ${vehicleLabel}</p>` : ''}
+              ${ticket.priority ? `<p><strong>Priority:</strong> ${ticket.priority}</p>` : ''}
+              <div style="text-align:center; margin: 24px 0;">
+                <a href="${(typeof window !== 'undefined' ? window.location.origin : '')}${actionUrl}" style="background:#2563eb; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px; display:inline-block;">View Task</a>
+              </div>
+            </div>
+            <div style="background:#f1f5f9; padding:12px; text-align:center; color:#64748b; font-size:12px;">Automated notification from Udrive Fleet.</div>
+          </div>`;
+        try {
+          await emailService.sendNotification(assigneeEmail, subject, body);
+        } catch (emailErr) {
+          console.error('Fleet assignment email failed:', emailErr);
+        }
+      } else {
+        console.warn('Fleet assignment email skipped: no email found for assignee', assigneeId);
+      }
+
+      // 3) Push (OneSignal) — no-ops until configured + send-push function deployed
+      if (notificationUserId) {
+        try {
+          await sendPushToUser(notificationUserId, {
+            title: 'Fleet Task Assigned',
+            message: `${taskTitle}${vehicleLabel ? ` (${vehicleLabel})` : ''}`,
+            url: actionUrl,
+          });
+        } catch {
+          /* noop */
+        }
+      }
+
+      return 1;
+    } catch (err) {
+      console.error('Failed to send fleet task assignment notification:', err);
+      return 0;
     }
   }
 

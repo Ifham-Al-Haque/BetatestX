@@ -1,9 +1,10 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Navigate } from 'react-router-dom';
 import Welcome from '../pages/Welcome';
 import UserWelcome from '../pages/UserWelcome';
 import Layout from './Layout';
+import { isOperationEdition, OPERATION_HOME_PATH } from '../config/edition';
 
 const SmartHomeRoute = () => {
   const { user, loading, userProfile } = useAuth();
@@ -28,6 +29,11 @@ const SmartHomeRoute = () => {
         </div>
       </div>
     );
+  }
+
+  // Operation-only edition: send authenticated users straight to the fleet/operation home
+  if (user && isOperationEdition) {
+    return <Navigate to={OPERATION_HOME_PATH} replace />;
   }
 
   // If user is authenticated, show their personalized welcome page
