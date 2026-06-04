@@ -1,8 +1,11 @@
 -- =============================================================================
--- Fleet vehicle photo + document attachments
--- Run in Supabase SQL Editor after remove_fleet_sample_data.sql (optional)
+-- Fleet vehicle photo + document attachments (DATABASE ONLY)
+-- Run in Supabase SQL Editor.
+--
+-- Storage: do NOT run policies on storage.objects here — you will get:
+--   ERROR 42501: must be owner of table objects
+-- Create bucket + policies in Dashboard instead (see FLEET_ASSETS_STORAGE_SETUP.md).
 -- =============================================================================
--- Create storage bucket "fleet-assets" in Dashboard → Storage (public) if insert fails.
 
 ALTER TABLE public.fleet_vehicles
   ADD COLUMN IF NOT EXISTS fleet_image_url TEXT;
@@ -39,27 +42,3 @@ CREATE POLICY fleet_vehicle_documents_authenticated ON public.fleet_vehicle_docu
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.fleet_vehicle_documents TO authenticated;
-
--- Storage policies for bucket fleet-assets (paths: fleet/{vehicle_id}/...)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS fleet_assets_insert ON storage.objects;
-CREATE POLICY fleet_assets_insert ON storage.objects
-  FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'fleet-assets' AND (storage.foldername(name))[1] = 'fleet');
-
-DROP POLICY IF EXISTS fleet_assets_select ON storage.objects;
-CREATE POLICY fleet_assets_select ON storage.objects
-  FOR SELECT TO authenticated
-  USING (bucket_id = 'fleet-assets');
-
-DROP POLICY IF EXISTS fleet_assets_update ON storage.objects;
-CREATE POLICY fleet_assets_update ON storage.objects
-  FOR UPDATE TO authenticated
-  USING (bucket_id = 'fleet-assets')
-  WITH CHECK (bucket_id = 'fleet-assets');
-
-DROP POLICY IF EXISTS fleet_assets_delete ON storage.objects;
-CREATE POLICY fleet_assets_delete ON storage.objects
-  FOR DELETE TO authenticated
-  USING (bucket_id = 'fleet-assets');

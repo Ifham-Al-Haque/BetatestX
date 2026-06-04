@@ -1,138 +1,263 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Car, Wrench, Clock, MapPin } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Plus, MapPin, ExternalLink } from 'lucide-react';
+import OperationSubLayout from '../components/operation/OperationSubLayout';
+import OperationStatCard from '../components/operation/OperationStatCard';
+import OperationEmptyState from '../components/operation/OperationEmptyState';
+import operationService from '../services/operationService';
+import fleetService from '../services/fleetService';
+import { useToast } from '../context/ToastContext';
+import { getCarDisplayName } from '../utils/fleetRecordUtils';
 
+const statusBadgeClass = (status) => {
+  if (status === 'Open') return 'bg-red-100 text-red-800';
+  if (status === 'Under Investigation') return 'bg-amber-100 text-amber-800';
+  if (status === 'Resolved' || status === 'Closed') return 'bg-green-100 text-green-800';
+  return 'bg-gray-100 text-gray-700';
+};
 
 const Breakdowns = () => {
+  const { success, error: showError } = useToast();
   const [breakdowns, setBreakdowns] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    vehicle_id: '',
+    description: '',
+    location: '',
+    severity: 'Moderate',
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [incidents, vehicleList] = await Promise.all([
+        operationService.getBreakdownIncidents(),
+        fleetService.getVehicles({ excludeSampleData: true }),
+      ]);
+      setBreakdowns(incidents);
+      setVehicles(vehicleList || []);
+    } catch {
+      showError('Failed to load breakdowns');
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
 
   useEffect(() => {
-    // TODO: Fetch breakdowns data from API
-    setLoading(false);
-  }, []);
+    load();
+  }, [load]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading breakdowns data...</p>
-        </div>
-      </div>
-    );
-  }
+  const stats = useMemo(() => {
+    const active = breakdowns.filter((b) => b.status === 'Open').length;
+    const repair = breakdowns.filter((b) => b.status === 'Under Investigation').length;
+    const resolvedToday = breakdowns.filter((b) => {
+      if (b.status !== 'Resolved' && b.status !== 'Closed') return false;
+      const d = new Date(b.incident_date);
+      const today = new Date();
+      return d.toDateString() === today.toDateString();
+    }).length;
+    return { active, repair, resolvedToday, total: breakdowns.length };
+  }, [breakdowns]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.vehicle_id || !form.description.trim()) return;
+    setSaving(true);
+    try {
+      await operationService.createBreakdown({
+        vehicle_id: form.vehicle_id,
+        description: form.description.trim(),
+        location: form.location || null,
+        severity: form.severity,
+        incident_date: new Date().toISOString(),
+        status: 'Open',
+      });
+      success('Breakdown reported');
+      setShowForm(false);
+      setForm({ vehicle_id: '', description: '', location: '', severity: 'Moderate' });
+      load();
+    } catch {
+      showError('Failed to report breakdown');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      
-      <div className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Vehicle Breakdowns</h1>
-              <div className="flex space-x-3">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Report Breakdown
-                </button>
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                  Generate Report
-                </button>
-              </div>
-            </div>
+    <OperationSubLayout
+      breadcrumbs={[{ label: 'Breakdowns' }]}
+      title="Vehicle Breakdowns"
+      description="Track roadside breakdowns and repair status. Linked to Fleet Record incident history."
+      icon={AlertTriangle}
+      actions={
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Report breakdown
+        </button>
+      }
+    >
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <OperationStatCard label="Active" value={stats.active} tone="red" sub="Require attention" />
+        <OperationStatCard label="Under repair" value={stats.repair} tone="yellow" />
+        <OperationStatCard label="Resolved today" value={stats.resolvedToday} tone="green" />
+        <OperationStatCard label="Total logged" value={stats.total} tone="blue" />
+      </div>
 
-            {/* Breakdown Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                <h3 className="text-lg font-semibold text-red-900">Active Breakdowns</h3>
-                <p className="text-3xl font-bold text-red-600">3</p>
-                <p className="text-sm text-red-700">Require attention</p>
-              </div>
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <h3 className="text-lg font-semibold text-yellow-900">Under Repair</h3>
-                <p className="text-3xl font-bold text-yellow-600">2</p>
-                <p className="text-sm text-yellow-700">Being fixed</p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <h3 className="text-lg font-semibold text-green-900">Resolved Today</h3>
-                <p className="text-3xl font-bold text-green-600">1</p>
-                <p className="text-sm text-green-700">Back in service</p>
-              </div>
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h3 className="text-lg font-semibold text-blue-900">Avg. Repair Time</h3>
-                <p className="text-3xl font-bold text-blue-600">4.2</p>
-                <p className="text-sm text-blue-700">Hours</p>
-              </div>
-            </div>
-
-            {/* Breakdowns Table */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Breakdown Records</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Vehicle
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Issue
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Location
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <Car className="w-6 h-6 text-red-600" />
-                          </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-gray-900">Toyota Hiace</div>
-                            <div className="text-sm text-gray-500">ABC-123</div>
-                          </div>
-                        </div>
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent" />
+        </div>
+      ) : breakdowns.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl">
+          <OperationEmptyState
+            icon={AlertTriangle}
+            title="No breakdowns recorded"
+            description="When a vehicle breaks down, report it here. It will appear on the vehicle's Fleet Record under Incidents."
+            action={
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+              >
+                Report first breakdown
+              </button>
+            }
+          />
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {['Vehicle', 'Issue', 'Location', 'Severity', 'Status', 'Date', ''].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {breakdowns.map((row) => {
+                  const v = row.fleet_vehicles;
+                  const vehicleLabel = v ? getCarDisplayName(v) : 'Unknown';
+                  return (
+                    <tr key={row.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{vehicleLabel}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">{row.description}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {row.location ? (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {row.location}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <AlertTriangle className="w-4 h-4 text-red-500 mr-2" />
-                          <span className="text-sm text-gray-900">Engine overheating</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">Karachi - M9 Highway</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Critical
+                      <td className="px-4 py-3 text-sm">{row.severity}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeClass(row.status)}`}>
+                          {row.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                        <button className="text-green-600 hover:text-green-900">Update</button>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {new Date(row.incident_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        {v?.id && (
+                          <Link
+                            to={`/operation/fleet-records/${v.id}`}
+                            className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
+                          >
+                            Fleet Record
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        )}
                       </td>
                     </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      {showForm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowForm(false)} />
+          <form
+            onSubmit={handleSubmit}
+            className="relative bg-white rounded-xl shadow-xl max-w-lg w-full p-6 border border-gray-200"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Report breakdown</h3>
+            <div className="space-y-3">
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                value={form.vehicle_id}
+                onChange={(e) => setForm((f) => ({ ...f, vehicle_id: e.target.value }))}
+                required
+              >
+                <option value="">Select vehicle</option>
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {getCarDisplayName(v)} ({v.vehicle_number})
+                  </option>
+                ))}
+              </select>
+              <textarea
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                placeholder="Describe the issue"
+                rows={3}
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                required
+              />
+              <input
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                placeholder="Location (optional)"
+                value={form.location}
+                onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+              />
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                value={form.severity}
+                onChange={(e) => setForm((f) => ({ ...f, severity: e.target.value }))}
+              >
+                {['Minor', 'Moderate', 'Major', 'Critical'].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Submit'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </OperationSubLayout>
   );
 };
 

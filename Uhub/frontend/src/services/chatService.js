@@ -31,16 +31,39 @@ class ChatService {
   // Get all conversations for the current user
   async getConversations() {
     try {
-      // First get conversations
-      const { data: conversationsData, error: conversationsError } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('is_active', true)
-        .order('last_message_at', { ascending: false });
+      const baseQuery = () =>
+        supabase.from('conversations').select('*').eq('is_active', true);
+
+      let conversationsData = null;
+      let conversationsError = null;
+
+      ({ data: conversationsData, error: conversationsError } = await baseQuery().order(
+        'last_message_at',
+        { ascending: false }
+      ));
+
+      if (conversationsError) {
+        ({ data: conversationsData, error: conversationsError } = await baseQuery().order(
+          'updated_at',
+          { ascending: false }
+        ));
+      }
+
+      if (conversationsError) {
+        ({ data: conversationsData, error: conversationsError } = await supabase
+          .from('conversations')
+          .select('*')
+          .order('created_at', { ascending: false }));
+      }
 
       if (conversationsError) {
         // If it's a missing table error, return empty array
-        if (conversationsError.code === 'PGRST116' || conversationsError.status === 404 || conversationsError.code === '42P01' || conversationsError.message?.includes('does not exist')) {
+        if (
+          conversationsError.code === 'PGRST116' ||
+          conversationsError.status === 404 ||
+          conversationsError.code === '42P01' ||
+          conversationsError.message?.includes('does not exist')
+        ) {
           console.warn('Conversations table not found, returning empty array');
           return [];
         }

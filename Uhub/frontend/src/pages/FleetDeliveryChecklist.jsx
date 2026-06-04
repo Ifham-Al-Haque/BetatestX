@@ -64,6 +64,8 @@ import Button from '../components/ui/button';
 import Input from '../components/ui/input';
 import Label from '../components/ui/label';
 import Textarea from '../components/ui/textarea';
+import OperationBreadcrumb from '../components/operation/OperationBreadcrumb';
+import FleetioSubNav from '../components/operation/FleetioSubNav';
 
 const FleetDeliveryChecklist = () => {
   const { user, userProfile } = useAuth();
@@ -500,6 +502,15 @@ const FleetDeliveryChecklist = () => {
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-200/30 to-indigo-200/30 rounded-full translate-y-24 -translate-x-24"></div>
       
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 relative z-10">
+        <OperationBreadcrumb
+          items={[
+            { label: 'UDrive Fleetio', href: '/operation/fleetio/modules' },
+            { label: 'Delivery & Inspections' },
+          ]}
+        />
+        <div className="mb-6 border-b border-gray-200/70 pb-3">
+          <FleetioSubNav />
+        </div>
         {/* Enhanced Header with Glassmorphism */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}

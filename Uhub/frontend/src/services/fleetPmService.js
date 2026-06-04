@@ -127,6 +127,24 @@ class FleetPmService {
     return data;
   }
 
+  async deleteSchedule(scheduleId) {
+    const { error } = await supabase
+      .from('fleet_pm_schedules')
+      .delete()
+      .eq('id', scheduleId);
+    if (error) throw error;
+    return true;
+  }
+
+  async deleteTemplate(templateId) {
+    const { error } = await supabase
+      .from('fleet_pm_templates')
+      .update({ is_active: false })
+      .eq('id', templateId);
+    if (error) throw error;
+    return true;
+  }
+
   /** Create a maintenance ticket for a due PM (so it shows in work orders) */
   async createTicketForDueSchedule(schedule) {
     const vehicle = schedule.fleet_vehicles;

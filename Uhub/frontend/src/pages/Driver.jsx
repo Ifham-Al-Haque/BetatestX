@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import { useDrivers, useDeleteDriver } from "../hooks/useApi";
 import { 
@@ -215,8 +215,8 @@ export default function Driver() {
                 <Car className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Driver Records</h1>
-                <p className="text-sm text-gray-600">Manage and monitor all driver information with advanced analytics</p>
+                <h1 className="text-2xl font-bold text-gray-900">Driver & Team Records</h1>
+                <p className="text-sm text-gray-600">Manage drivers, teams, and operational assignments</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -233,27 +233,13 @@ export default function Driver() {
                 Add New Driver
               </motion.button>
               
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+              <Link
+                to="/operation/teams"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium"
               >
-                <Download className="w-4 h-4" />
-                Export Data
-              </motion.button>
-              
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  console.log('🔍 Test button clicked, navigating to /driver/test');
-                  navigate("/driver/test");
-                }}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                Analytics
-              </motion.button>
+                <Users className="w-4 h-4" />
+                Teams
+              </Link>
             </div>
           </div>
         </div>

@@ -112,11 +112,15 @@ const PayrollCalculator = safeLazy(() => import('./pages/PayrollCalculator'), 'P
 const Payroll = safeLazy(() => import('./pages/Payroll'), 'Payroll');
 const UpcomingPaymentEvents = safeLazy(() => import('./pages/UpcomingPaymentEvents'), 'UpcomingPaymentEvents');
 const Voucher = safeLazy(() => import('./pages/Voucher'), 'Voucher');
+const OperationHome = safeLazy(() => import('./pages/operation/OperationHome'), 'OperationHome');
+const OperationTeams = safeLazy(() => import('./pages/operation/OperationTeams'), 'OperationTeams');
 const FleetLifecycle = safeLazy(() => import('./pages/operation/FleetLifecycle'), 'FleetLifecycle');
 const UDriveFleetio = safeLazy(() => import('./pages/operation/UDriveFleetio'), 'UDriveFleetio');
 const OperationRoster = safeLazy(() => import('./pages/operation/OperationRoster'), 'OperationRoster');
 const FleetRecordProfile = safeLazy(() => import('./pages/operation/FleetRecordProfile'), 'FleetRecordProfile');
 const BreakdownsPage = safeLazy(() => import('./pages/Breakdowns'), 'BreakdownsPage');
+const FleetPmSchedules = safeLazy(() => import('./pages/operation/FleetPmSchedules'), 'FleetPmSchedules');
+const OperationTeamAllocation = safeLazy(() => import('./pages/operation/OperationTeamAllocation'), 'OperationTeamAllocation');
 
 function App() {
   return (
@@ -404,21 +408,30 @@ function App() {
                           </ProtectedRoute>
                         } />
 
-                        <Route path="/fleet" element={
-                          <ProtectedRoute requiredFeature="fleet_management">
-                            <Layout>
-                              <FleetManagement />
-                            </Layout>
-                          </ProtectedRoute>
+                        <Route path="/fleet" element={<Navigate to="/operation/fleet-records" replace />} />
+                        <Route path="/fleet-dashboard" element={<Navigate to="/operation/fleetio/dashboard" replace />} />
+
+                        <Route path="/fleet-onboarding" element={
+                          <Navigate to="/operation/fleet-lifecycle?tab=onboarding" replace />
                         } />
 
-                        <Route path="/fleet-dashboard" element={
-                          <ProtectedRoute requiredFeature="fleet_management">
-                            <Layout>
-                              <FleetDashboard />
-                            </Layout>
-                          </ProtectedRoute>
+                        <Route path="/fleet-offboarding" element={
+                          <Navigate to="/operation/fleet-lifecycle?tab=offboarding" replace />
                         } />
+
+                        <Route path="/fleet-maintenance-record" element={
+                          <Navigate to="/operation/fleetio/maintenance" replace />
+                        } />
+
+                        <Route path="/fleet-delivery-checklist" element={
+                          <Navigate to="/operation/fleetio/inspections" replace />
+                        } />
+
+                        <Route path="/fleet-driver-calendar" element={
+                          <Navigate to="/operation/fleetio/assignments" replace />
+                        } />
+
+                        {/* Legacy fleet pages removed — use /operation/* routes above */}
 
                         {/* Delivery Management Routes */}
                         <Route path="/delivery-management" element={
@@ -694,6 +707,13 @@ function App() {
                         } />
 
                         {/* Operation (unified department panel) */}
+                        <Route path="/operation" element={
+                          <ProtectedRoute requiredFeature="fleet_management">
+                            <Layout>
+                              <OperationHome />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
                         <Route path="/operation/fleet-records" element={
                           <ProtectedRoute requiredFeature="fleet_records">
                             <Layout>
@@ -720,6 +740,9 @@ function App() {
                           </ProtectedRoute>
                         } />
                         <Route path="/operation/fleetio" element={
+                          <Navigate to="/operation/fleetio/dashboard" replace />
+                        } />
+                        <Route path="/operation/fleetio/modules" element={
                           <ProtectedRoute requiredFeature="udrive_fleetio">
                             <Layout>
                               <UDriveFleetio />
@@ -754,6 +777,13 @@ function App() {
                             </Layout>
                           </ProtectedRoute>
                         } />
+                        <Route path="/operation/fleetio/preventive-maintenance" element={
+                          <ProtectedRoute requiredFeature="fleet_maintenance_record">
+                            <Layout>
+                              <FleetPmSchedules />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
                         <Route path="/operation/drivers" element={
                           <ProtectedRoute requiredFeature="driver_records">
                             <Layout>
@@ -761,10 +791,24 @@ function App() {
                             </Layout>
                           </ProtectedRoute>
                         } />
+                        <Route path="/operation/teams" element={
+                          <ProtectedRoute requiredFeature="driver_records">
+                            <Layout>
+                              <OperationTeams />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
                         <Route path="/operation/roster" element={
                           <ProtectedRoute requiredFeature="operation_roster">
                             <Layout>
                               <OperationRoster />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/team-allocation" element={
+                          <ProtectedRoute requiredFeature="operation_roster">
+                            <Layout>
+                              <OperationTeamAllocation />
                             </Layout>
                           </ProtectedRoute>
                         } />
@@ -777,13 +821,6 @@ function App() {
                         } />
 
                         {/* Legacy operation/fleet paths → new Operation routes */}
-                        <Route path="/fleet" element={<Navigate to="/operation/fleet-records" replace />} />
-                        <Route path="/fleet-dashboard" element={<Navigate to="/operation/fleetio/dashboard" replace />} />
-                        <Route path="/fleet-onboarding" element={<Navigate to="/operation/fleet-lifecycle?tab=onboarding" replace />} />
-                        <Route path="/fleet-offboarding" element={<Navigate to="/operation/fleet-lifecycle?tab=offboarding" replace />} />
-                        <Route path="/fleet-maintenance-record" element={<Navigate to="/operation/fleetio/maintenance" replace />} />
-                        <Route path="/fleet-delivery-checklist" element={<Navigate to="/operation/fleetio/inspections" replace />} />
-                        <Route path="/fleet-driver-calendar" element={<Navigate to="/operation/fleetio/assignments" replace />} />
                         <Route path="/driver-operations" element={<Navigate to="/operation/fleet-records" replace />} />
                         <Route path="/breakdowns" element={<Navigate to="/operation/breakdowns" replace />} />
 

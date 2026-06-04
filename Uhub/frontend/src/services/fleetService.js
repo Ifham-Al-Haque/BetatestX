@@ -102,12 +102,27 @@ class FleetService {
   // Delete vehicle
   async deleteVehicle(id) {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('fleet_vehicles')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error(
+            'This vehicle is linked to other records (deliveries, offboarding, etc.). Remove those links first or contact an admin.'
+          );
+        }
+        throw error;
+      }
+
+      if (!data?.length) {
+        throw new Error(
+          'Delete was blocked — you may not have permission. Ask an admin to run fix_fleet_vehicles_delete_rls.sql in Supabase.'
+        );
+      }
+
       return true;
     } catch (error) {
       console.error('Error deleting vehicle:', error);

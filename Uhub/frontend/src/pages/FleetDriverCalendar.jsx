@@ -5,6 +5,8 @@ import { format, parse, startOfWeek, getDay, endOfDay } from 'date-fns';
 import enUS from 'date-fns/locale/en-US';
 import { CalendarDays } from 'lucide-react';
 import fleetService from '../services/fleetService';
+import FleetioLayout from '../components/operation/FleetioLayout';
+import OperationEmptyState from '../components/operation/OperationEmptyState';
 
 const locales = { 'en-US': enUS };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
@@ -45,25 +47,30 @@ const FleetDriverCalendar = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-      </div>
+      <FleetioLayout title="Driver Assignments" description="Loading calendar…" icon={CalendarDays}>
+        <div className="flex justify-center py-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+        </div>
+      </FleetioLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <CalendarDays className="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Driver Assignment Calendar</h1>
-            <p className="text-sm text-gray-600">View when drivers are assigned to vehicles</p>
-          </div>
+    <FleetioLayout
+      title="Driver Assignment Calendar"
+      description="View when drivers are assigned to vehicles. Manage drivers under Operation Team Records."
+      icon={CalendarDays}
+    >
+      {events.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200">
+          <OperationEmptyState
+            icon={CalendarDays}
+            title="No assignments scheduled"
+            description="Driver–vehicle assignments will appear on this calendar once recorded in the system."
+          />
         </div>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="p-4">
             <Calendar
               localizer={localizer}
@@ -74,12 +81,12 @@ const FleetDriverCalendar = () => {
               views={['month', 'week', 'agenda']}
               defaultView="month"
               style={{ minHeight: 500 }}
-              eventPropGetter={() => ({ style: { backgroundColor: '#2563eb', color: 'white' } })}
+              eventPropGetter={() => ({ style: { backgroundColor: '#2563eb', color: 'white', borderRadius: 6 } })}
             />
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </FleetioLayout>
   );
 };
 

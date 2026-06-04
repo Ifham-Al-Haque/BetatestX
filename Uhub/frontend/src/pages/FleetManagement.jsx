@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Car, Plus, Search, Filter, Download, Eye, Edit, Trash2, AlertTriangle, 
@@ -13,12 +13,19 @@ import VehicleDetailsModal from '../components/fleet/VehicleDetailsModal';
 import fleetService from '../services/fleetService';
 import { useToast } from '../context/ToastContext';
 import { getCarDisplayName, businessTypeBadgeClass } from '../utils/fleetRecordUtils';
+import OperationBreadcrumb from '../components/operation/OperationBreadcrumb';
+import OperationPageHeader from '../components/operation/OperationPageHeader';
+import OperationStatCard from '../components/operation/OperationStatCard';
+import ConfirmDialog from '../components/operation/ConfirmDialog';
+import FilterChip from '../components/operation/FilterChip';
 
 const FleetManagement = ({
   pageTitle = 'Fleet Management',
   profileBasePath = null,
   excludeSampleData = false,
+  embedded = false,
 }) => {
+  const embeddedMode = embedded || !!profileBasePath;
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
   const [fleetData, setFleetData] = useState([]);
@@ -52,6 +59,9 @@ const FleetManagement = ({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+  const [quickFilter, setQuickFilter] = useState('all');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadFleetData = useCallback(async (forceRefresh = false) => {
     try {
@@ -150,16 +160,34 @@ const FleetManagement = ({
     setShowDetailsModal(true);
   };
 
-  const handleDeleteVehicle = async (vehicleId) => {
-    if (window.confirm('Are you sure you want to delete this vehicle? This action cannot be undone.')) {
-      try {
-        await fleetService.deleteVehicle(vehicleId);
-        loadFleetData();
-        loadStatistics();
-      } catch (error) {
-        console.error('Error deleting vehicle:', error);
-        alert('Failed to delete vehicle. Please try again.');
-      }
+  const displayedFleet = useMemo(() => {
+    let list = fleetData;
+    if (quickFilter === 'Active') list = list.filter((v) => v.status === 'Active');
+    else if (quickFilter === 'Maintenance') list = list.filter((v) => v.status === 'Maintenance');
+    else if (quickFilter === 'PPM') list = list.filter((v) => v.business_type === 'PPM');
+    else if (quickFilter === 'Daily') list = list.filter((v) => v.business_type === 'Daily');
+    else if (quickFilter === 'EV') list = list.filter((v) => v.powertrain_type === 'EV');
+    return list;
+  }, [fleetData, quickFilter]);
+
+  const handleDeleteVehicle = (vehicleId) => {
+    setDeleteTarget(vehicleId);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await fleetService.deleteVehicle(deleteTarget);
+      setDeleteTarget(null);
+      loadFleetData();
+      loadStatistics();
+      success('Vehicle deleted');
+    } catch (error) {
+      console.error('Error deleting vehicle:', error);
+      showError(error.message || 'Failed to delete vehicle');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -249,7 +277,9 @@ const FleetManagement = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+    <div className={`min-h-screen relative overflow-hidden ${embeddedMode ? 'bg-gray-50' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100'}`}>
+      {!embeddedMode && (
+      <>
       {/* Background Pattern */}
       <div 
         className="absolute inset-0 opacity-30"
@@ -261,9 +291,48 @@ const FleetManagement = ({
       {/* Decorative corner shapes */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-200/30 to-indigo-200/30 rounded-full -translate-y-32 translate-x-32"></div>
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-purple-200/30 to-pink-200/30 rounded-full translate-y-24 -translate-x-24"></div>
+      </>
+      )}
       
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-12 relative z-10">
-        {/* Enhanced Header with Glassmorphism */}
+      <div className={`max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 ${embeddedMode ? 'py-6' : 'py-12'} relative z-10`}>
+        {embeddedMode && (
+          <>
+            <OperationBreadcrumb items={[{ label: 'Fleet Record' }]} />
+            <OperationPageHeader
+              icon={Car}
+              title={pageTitle}
+              description="Browse vehicles, open profiles, and manage fleet photos and documents."
+              actions={
+                <>
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-white flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddVehicle}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add vehicle
+                  </button>
+                </>
+              }
+            />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <OperationStatCard label="Total" value={statistics.total_vehicles} tone="blue" />
+              <OperationStatCard label="Active" value={statistics.active_vehicles} tone="green" />
+              <OperationStatCard label="Maintenance" value={statistics.maintenance_vehicles} tone="yellow" />
+              <OperationStatCard label="Out of service" value={statistics.out_of_service_vehicles} tone="red" />
+            </div>
+          </>
+        )}
+        {!embeddedMode && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -396,6 +465,7 @@ const FleetManagement = ({
           </div>
         </div>
         </motion.div>
+        )}
 
         {/* Enhanced Filters and Controls with Glassmorphism */}
         <motion.div 
@@ -548,6 +618,24 @@ const FleetManagement = ({
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-200/50">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'Active', label: 'Active' },
+                { id: 'Maintenance', label: 'Maintenance' },
+                { id: 'PPM', label: 'PPM' },
+                { id: 'Daily', label: 'Daily' },
+                { id: 'EV', label: 'EV' },
+              ].map((chip) => (
+                <FilterChip
+                  key={chip.id}
+                  label={chip.label}
+                  active={quickFilter === chip.id}
+                  onClick={() => setQuickFilter(chip.id)}
+                />
+              ))}
+            </div>
           </div>
         </motion.div>
 
@@ -567,7 +655,7 @@ const FleetManagement = ({
               <div>
                 <h3 className="text-2xl font-bold text-gray-900">Vehicle Fleet</h3>
                 <p className="text-gray-600 mt-1">
-                  {fleetData.length} vehicle(s) found
+                  {displayedFleet.length} vehicle(s) found
                   {searchTerm && ` matching "${searchTerm}"`}
                 </p>
               </div>
@@ -583,7 +671,7 @@ const FleetManagement = ({
             </div>
 
             {/* Enhanced Vehicle Grid/Table */}
-            {fleetData.length === 0 ? (
+            {displayedFleet.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -636,10 +724,49 @@ const FleetManagement = ({
                   )}
                 </div>
               </motion.div>
+            ) : viewMode === 'list' ? (
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Vehicle', 'Plate', 'Status', 'Business', 'Mileage', 'Actions'].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {displayedFleet.map((vehicle) => (
+                      <tr key={vehicle.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-900">{getCarDisplayName(vehicle)}</div>
+                          <div className="text-xs text-gray-500">{vehicle.vehicle_number}</div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{vehicle.license_plate}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(vehicle.status)}`}>{vehicle.status}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {vehicle.business_type ? (
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${businessTypeBadgeClass(vehicle.business_type)}`}>{vehicle.business_type}</span>
+                          ) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{formatMileage(vehicle.mileage)} km</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => handleViewVehicle(vehicle.id)} className="text-blue-600 hover:underline text-xs">View</button>
+                            <button type="button" onClick={() => handleEditVehicle(vehicle)} className="text-emerald-600 hover:underline text-xs">Edit</button>
+                            <button type="button" onClick={() => handleDeleteVehicle(vehicle.id)} className="text-red-600 hover:underline text-xs">Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 <AnimatePresence>
-                  {fleetData.map((vehicle, index) => {
+                  {displayedFleet.map((vehicle, index) => {
                     const isExpanded = expandedCard === vehicle.id;
                     const isSelected = selectedItems.includes(vehicle.id);
                     
@@ -886,6 +1013,18 @@ const FleetManagement = ({
           </div>
         </motion.div>
       </div>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete vehicle?"
+        message="This action cannot be undone. All linked documents will be removed."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
 
       {/* Add Vehicle Modal */}
       <VehicleModal

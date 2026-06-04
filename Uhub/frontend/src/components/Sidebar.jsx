@@ -28,6 +28,7 @@ import {
   Heart,
   Camera,
   Sparkles,
+  LayoutGrid,
   MessageCircle,
   Bell,
   Folder,
@@ -257,11 +258,13 @@ const Sidebar = () => {
       title: 'Operation',
       icon: Cog,
       items: [
+        { label: 'Overview', path: '/operation', icon: LayoutGrid, feature: 'fleet_management' },
         { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records' },
         { label: 'Onboarding & Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle' },
         { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio' },
         { label: 'Driver & Team Records', path: '/operation/drivers', icon: Users, feature: 'driver_records' },
         { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster' },
+        { label: 'Team Allocation', path: '/operation/team-allocation', icon: Users, feature: 'operation_roster' },
         { label: 'Breakdowns', path: '/operation/breakdowns', icon: AlertTriangle, feature: 'breakdowns' }
       ]
     },

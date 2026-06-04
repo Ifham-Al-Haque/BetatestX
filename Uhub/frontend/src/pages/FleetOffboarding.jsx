@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -9,7 +10,7 @@ import fleetService from '../services/fleetService';
 import fleetOffboardingService, { OFFBOARDING_REASONS } from '../services/fleetOffboardingService';
 import { useToast } from '../context/ToastContext';
 
-const FleetOffboarding = () => {
+const FleetOffboarding = ({ embedded = false }) => {
   const { userProfile } = useAuth();
   const { success, error: showError } = useToast();
   const [offboardingRecords, setOffboardingRecords] = useState([]);
@@ -160,8 +161,9 @@ const FleetOffboarding = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className={embedded ? 'bg-gray-50' : 'min-h-screen bg-gray-50'}>
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${embedded ? 'py-6' : 'py-8'}`}>
+        {!embedded && (
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -180,6 +182,18 @@ const FleetOffboarding = () => {
             </button>
           </div>
         </div>
+        )}
+        {embedded && (
+          <div className="flex justify-end mb-6">
+            <button
+              onClick={handleStartOffboarding}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center text-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Start Offboarding
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -304,7 +318,14 @@ const FleetOffboarding = () => {
                             <h3 className="text-lg font-semibold text-gray-900">
                               {record.vehicle_number || 'Vehicle'} – {record.make} {record.model}
                             </h3>
-                            <p className="text-gray-600">Vehicle ID: {record.vehicle_id?.slice(0, 8)}…</p>
+                            {record.vehicle_id && (
+                              <Link
+                                to={`/operation/fleet-records/${record.vehicle_id}`}
+                                className="text-sm text-blue-600 hover:underline"
+                              >
+                                View Fleet Record →
+                              </Link>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-4">

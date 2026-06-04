@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -42,7 +43,7 @@ import fleetOnboardingService from '../services/fleetOnboardingService';
 import FleetOnboardingModal from '../components/fleet/FleetOnboardingModal';
 import FleetChecklistModal from '../components/fleet/FleetChecklistModal';
 
-const FleetOnboarding = () => {
+const FleetOnboarding = ({ embedded = false }) => {
   const { userProfile } = useAuth();
   const [onboardingRecords, setOnboardingRecords] = useState([]);
   const [statistics, setStatistics] = useState(null);
@@ -200,8 +201,10 @@ const FleetOnboarding = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className={embedded ? 'bg-gray-50' : 'min-h-screen bg-gradient-to-br from-gray-50 to-blue-50'}>
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${embedded ? 'py-6' : 'py-8'}`}>
+        {!embedded && (
+        <>
         {/* Enhanced Header */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -242,6 +245,28 @@ const FleetOnboarding = () => {
             </div>
           </div>
         </div>
+        </>
+        )}
+
+        {embedded && (
+          <div className="flex flex-wrap items-center justify-end gap-2 mb-6">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 flex items-center text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={handleStartOnboarding}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center text-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Start Onboarding
+            </button>
+          </div>
+        )}
 
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -553,6 +578,15 @@ const FleetOnboarding = () => {
                           <Edit className="w-4 h-4 mr-1" />
                           Edit Vehicle
                         </button>
+                        {record.onboarding_status === 'Completed' && record.id && (
+                          <Link
+                            to={`/operation/fleet-records/${record.id}`}
+                            className="text-indigo-600 hover:text-indigo-800 flex items-center text-sm font-medium transition-colors"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Fleet Record
+                          </Link>
+                        )}
                         {record.onboarding_status !== 'Completed' && (
                           <button 
                             onClick={() => handleDeleteVehicle(record.id)}

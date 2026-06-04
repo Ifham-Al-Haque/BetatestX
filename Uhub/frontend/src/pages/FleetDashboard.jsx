@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import fleetService from '../services/fleetService';
 import fleetPmService from '../services/fleetPmService';
 import { useToast } from '../context/ToastContext';
+import FleetioLayout from '../components/operation/FleetioLayout';
 
 const FleetDashboard = () => {
   const navigate = useNavigate();
@@ -65,20 +66,20 @@ const FleetDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-      </div>
+      <FleetioLayout title="Fleet Dashboard" description="Loading fleet overview…" icon={Car}>
+        <div className="flex justify-center py-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+        </div>
+      </FleetioLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 flex items-center">
-          <Car className="w-8 h-8 mr-3 text-blue-600" />
-          Fleet Dashboard
-        </h1>
-
+    <FleetioLayout
+      title="Fleet Dashboard"
+      description="Live overview: PM due, expiring documents, open tickets, and fleet statistics."
+      icon={Car}
+    >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -92,7 +93,7 @@ const FleetDashboard = () => {
               </div>
               <Car className="w-10 h-10 text-blue-500" />
             </div>
-            <button onClick={() => navigate('/fleet')} className="mt-2 text-sm text-blue-600 hover:underline flex items-center">
+            <button onClick={() => navigate('/operation/fleet-records')} className="mt-2 text-sm text-blue-600 hover:underline flex items-center">
               View fleet <ChevronRight className="w-4 h-4" />
             </button>
           </motion.div>
@@ -122,7 +123,7 @@ const FleetDashboard = () => {
               </div>
               <Wrench className="w-10 h-10 text-amber-500" />
             </div>
-            <button onClick={() => navigate('/fleet-maintenance-record')} className="mt-2 text-sm text-blue-600 hover:underline flex items-center">
+            <button onClick={() => navigate('/operation/fleetio/maintenance')} className="mt-2 text-sm text-blue-600 hover:underline flex items-center">
               View maintenance <ChevronRight className="w-4 h-4" />
             </button>
           </motion.div>
@@ -170,7 +171,7 @@ const FleetDashboard = () => {
                 </ul>
               )}
               {upcomingMaintenance.length > 0 && (
-                <button onClick={() => navigate('/fleet-maintenance-record')} className="mt-2 text-sm text-blue-600 hover:underline">
+                <button onClick={() => navigate('/operation/fleetio/maintenance')} className="mt-2 text-sm text-blue-600 hover:underline">
                   View all
                 </button>
               )}
@@ -230,7 +231,7 @@ const FleetDashboard = () => {
                 </ul>
               )}
               {openTickets.length > 0 && (
-                <button onClick={() => navigate('/fleet-maintenance-record')} className="mt-2 text-sm text-blue-600 hover:underline">
+                <button onClick={() => navigate('/operation/fleetio/maintenance')} className="mt-2 text-sm text-blue-600 hover:underline">
                   View all
                 </button>
               )}
@@ -291,8 +292,7 @@ const FleetDashboard = () => {
             </div>
           </div>
         </motion.div>
-      </div>
-    </div>
+    </FleetioLayout>
   );
 };
 
