@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Shield, Lock } from 'lucide-react';
+import { isItStaffRole, IT_STAFF_ROLES, isAdminRole } from '../utils/notificationRoles';
 
 // Role hierarchy and permissions
 export const ROLE_PERMISSIONS = {
@@ -201,11 +202,13 @@ export const FEATURE_ACCESS = {
   payroll: ['admin', 'hr_manager'],
   epr: ['admin', 'hr_manager'],
   
-  // IT Service Panel - Subscribe Now has access to IT Request Section
-  it_requests: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
-  it_assets: ['admin', 'it_management'],
+  // IT Service Panel — any UHub account holder can raise IT requests
+  it_requests: ['all'],
+  it_assets: IT_STAFF_ROLES,
   it_tickets: ['admin'],
-  request_inbox: ['admin', 'it_management'],
+  // IT staff assign and resolve incoming requests
+  request_inbox: IT_STAFF_ROLES,
+  it_tools: IT_STAFF_ROLES,
   
   // Todo List Panel - Subscribe Now has access to ALL sections
   todo_list: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
@@ -287,8 +290,8 @@ export const hasFeatureAccess = (userRole, feature) => {
     return false;
   }
   
-  // Admin users have access to everything
-  if (userRole === 'admin') {
+  // Admin users have access to everything (including Request Inbox, IT Tools, all IT requests)
+  if (isAdminRole(userRole)) {
     console.log('🔍 hasFeatureAccess: Admin user - granting access to all features', { userRole, feature });
     return true;
   }
@@ -327,7 +330,7 @@ export const getRoleNavigationAccess = (userRole) => {
         user_profile: ['profile', 'settings'],
         hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'attendance', 'payroll', 'payroll_calculator', 'epr'],
         customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
-        it_services: ['it_requests', 'it_assets', 'it_tickets', 'request_inbox'],
+        it_services: ['it_requests', 'it_assets', 'it_tickets', 'request_inbox', 'it_tools'],
         operation: ['fleet_records', 'fleet_lifecycle', 'udrive_fleetio', 'driver_records', 'driver_documents', 'breakdowns', 'operation_roster', 'delivery_management', 'delivery_tracking', 'delivery_routes'],
         asset_management: ['assets', 'simcards', 'vouchers'],
         financial: ['expenses', 'expense_tracker', 'payment_calendar', 'upcoming_payments'],
@@ -555,13 +558,38 @@ export const getRoleNavigationAccess = (userRole) => {
     }
   };
   
-  return roleAccess[userRole] || { panels: [], items: {} };
+  let access = roleAccess[userRole] || { panels: [], items: {} };
+
+  // IT staff and admin — ensure Request Inbox + IT Tools in nav
+  if (isItStaffRole(userRole) || isAdminRole(userRole)) {
+    const panels = new Set(access.panels || []);
+    panels.add('main');
+    panels.add('user_profile');
+    panels.add('it_services');
+    panels.add('todo_list');
+
+    const itServices = new Set(access.items?.it_services || ['it_requests']);
+    itServices.add('request_inbox');
+    itServices.add('it_tools');
+
+    access = {
+      panels: [...panels],
+      items: {
+        ...access.items,
+        main: access.items?.main || ['home', 'calendar_view'],
+        user_profile: access.items?.user_profile || ['profile'],
+        it_services: [...itServices],
+        todo_list: access.items?.todo_list || ['todo_list', 'task_management', 'my_tasks'],
+      },
+    };
+  }
+
+  return access;
 };
 
 // Check if user can see a specific panel
 export const canSeePanel = (userRole, panelKey) => {
-  // Admin users can see all panels
-  if (userRole === 'admin') {
+  if (isAdminRole(userRole)) {
     return true;
   }
 
@@ -589,8 +617,7 @@ export const canSeePanel = (userRole, panelKey) => {
 
 // Check if user can see a specific navigation item
 export const canSeeItem = (userRole, panelKey, itemKey) => {
-  // Admin users can see all items
-  if (userRole === 'admin') {
+  if (isAdminRole(userRole)) {
     return true;
   }
   

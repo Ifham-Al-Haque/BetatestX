@@ -389,7 +389,7 @@ function App() {
                         } />
 
                         <Route path="/request-inbox" element={
-                          <ProtectedRoute requiredFeature="it_requests" requiredRoles={['admin', 'it_management']}>
+                          <ProtectedRoute requiredFeature="request_inbox">
                             <Layout>
                               <RequestInbox />
                             </Layout>
@@ -397,7 +397,7 @@ function App() {
                         } />
 
                         <Route path="/it-tools" element={
-                          <ProtectedRoute requiredFeature="it_requests" requiredRoles={['admin', 'it_management']}>
+                          <ProtectedRoute requiredFeature="it_tools">
                             <Layout>
                               <ITTools />
                             </Layout>

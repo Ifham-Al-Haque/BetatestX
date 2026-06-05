@@ -32,7 +32,6 @@ import { safeMotion, fadeUp } from '../utils/motion';
 import { TableSkeleton } from '../components/LoadingSkeleton';
 import ITRequestFormModal from '../components/it-services/ITRequestFormModal';
 import { getCategoryIcon, formatDescriptionWithSubcategory, parseSubcategoryFromDescription, stripSubcategoryPrefix } from '../constants/itServiceCategories';
-import { resolveItRequestRequesterId } from '../services/unifiedNotify';
 
 // Priority colors and icons
 const priorityConfig = {
@@ -136,7 +135,6 @@ const ITRequestsEnhanced = () => {
   // Extract stable values to prevent infinite loops - use primitive values directly
   // This prevents object reference changes from causing re-renders
   const userId = user?.id ?? null;
-  const usersTableId = userProfile?.usersTableId ?? null;
   const userRole = userProfile?.role ?? null;
   const isAdminOrManager = useMemo(() => 
     userRole === 'admin' || userRole === 'hr_manager', 
@@ -173,7 +171,6 @@ const ITRequestsEnhanced = () => {
     memoizedFilters.sortBy,
     memoizedFilters.sortOrder,
     userId,
-    usersTableId,
     userRole
   ], [
     memoizedFilters.status,
@@ -184,17 +181,14 @@ const ITRequestsEnhanced = () => {
     memoizedFilters.sortBy,
     memoizedFilters.sortOrder,
     userId,
-    usersTableId,
     userRole
   ]);
 
   // Memoize query function to prevent recreation on every render
   const fetchRequests = useCallback(async () => {
-    const requesterUsersId =
-      usersTableId || (userId ? await resolveItRequestRequesterId(userId) : null);
-    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole, requesterUsersId);
+    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole);
     return data || [];
-  }, [memoizedFilters, userId, userRole, usersTableId]);
+  }, [memoizedFilters, userId, userRole]);
 
   // React Query hooks for data fetching
   const { data: requestsData, isLoading: requestsLoading, refetch: refetchRequests, isRefetching: isRefetchingRequests } = useQuery({
@@ -343,19 +337,9 @@ const ITRequestsEnhanced = () => {
     setFormSubmitting(true);
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      let requesterId = editingRequest?.requester_id;
-      if (!requesterId) {
-        requesterId =
-          usersTableId ||
-          (authUser?.id ? await resolveItRequestRequesterId(authUser.id) : null);
-      } else {
-        requesterId = await resolveItRequestRequesterId(requesterId);
-      }
+      const requesterId = editingRequest?.requester_id || authUser?.id || user?.id || null;
       if (!requesterId && !editingRequest) {
-        showError(
-          'Cannot create request',
-          'Your account is not linked in the UHub users table. Please ask IT to link your login to a UHub user record.'
-        );
+        showError('Cannot create request', 'You must be logged in to raise a ticket. Please sign in and try again.');
         setFormSubmitting(false);
         return;
       }

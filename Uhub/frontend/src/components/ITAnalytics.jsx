@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { itServicesApi } from '../services/itServicesApi';
+import { canManageItRequestQueue } from '../utils/notificationRoles';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
 import Label from '../components/ui/label';
@@ -41,7 +42,7 @@ const ITAnalytics = ({ onClose }) => {
     try {
       setLoading(true);
       const role = userProfile?.role;
-      const isStaff = role && ['admin', 'it_manager', 'it_technician', 'super_admin', 'hr_manager'].includes(role);
+      const isStaff = canManageItRequestQueue(role);
 
       const [stats, requestsResult] = await Promise.all([
         itServicesApi.requests.getStats(user?.id, role),

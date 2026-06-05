@@ -97,7 +97,7 @@ const RequestInbox = () => {
       const [categoriesData, prioritiesData, requestsResult, usersData, itStaffData] = await Promise.all([
         itServicesApi.categories.getAll(),
         itServicesApi.priorities.getAll(),
-        itServicesApi.requests.getAll({}, null, 'admin'), // All requests for tech (cancelled excluded); client-side filters applied in UI
+        itServicesApi.requests.getAll({}, user?.id, userProfile?.role),
         fetchUsers(),
         itServicesApi.users.getITStaff()
       ]);

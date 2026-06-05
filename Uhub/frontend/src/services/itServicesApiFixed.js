@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
 import { emailService } from './emailService';
 import { resolveItRequestRequesterId } from './unifiedNotify';
+import { canManageItRequestQueue } from '../utils/notificationRoles';
 
 // IT Services API Service - FIXED VERSION
 export const itServicesApi = {
@@ -188,10 +189,10 @@ export const itServicesApi = {
   // IT Requests - SIMPLIFIED AND FIXED
   requests: {
     // Get all requests - SIMPLIFIED VERSION
-    getAll: async (filters = {}, userId = null, userRole = null, uhubUserId = null) => {
+    getAll: async (filters = {}, userId = null, userRole = null) => {
       try {
         console.log('Fetching requests with filters:', filters, 'userId:', userId, 'userRole:', userRole);
-        const isITStaff = userRole && ['admin', 'it_manager', 'it_technician', 'super_admin', 'it_management', 'it'].includes(userRole);
+        const isITStaff = canManageItRequestQueue(userRole);
 
         // Fetch requests with requester and category/priority for display; exclude soft-deleted (cancelled)
         let query = supabase
@@ -205,14 +206,9 @@ export const itServicesApi = {
           .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
 
-        // Role-based: non-IT users see only their own requests (match users.id or legacy auth id)
-        if (!isITStaff && (userId || uhubUserId)) {
-          const requesterIds = [...new Set([userId, uhubUserId].filter(Boolean))];
-          if (requesterIds.length === 1) {
-            query = query.eq('requester_id', requesterIds[0]);
-          } else {
-            query = query.in('requester_id', requesterIds);
-          }
+        // Role-based: non-IT users see only their own requests (requester_id = auth uid)
+        if (!isITStaff && userId) {
+          query = query.eq('requester_id', userId);
         }
 
         // Apply filters
@@ -270,17 +266,9 @@ export const itServicesApi = {
     create: async (requestData) => {
       try {
         console.log('Creating request with data:', requestData);
-        let requesterId = requestData.requester_id;
+        const requesterId = (await resolveItRequestRequesterId()) || requestData.requester_id || null;
         if (!requesterId) {
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          requesterId = authUser?.id ? await resolveItRequestRequesterId(authUser.id) : null;
-        } else {
-          requesterId = await resolveItRequestRequesterId(requesterId);
-        }
-        if (!requesterId) {
-          throw new Error(
-            'Your account is not linked in the UHub users table. Please ask IT to link your login to a UHub user record.'
-          );
+          throw new Error('You must be logged in to submit an IT request.');
         }
         const { data, error } = await supabase
           .from('it_requests')

@@ -104,7 +104,7 @@ const widgetConfig = [
       { label: 'Overview', path: '/it-services', icon: LayoutGrid, feature: 'it_requests', description: 'IT Services hub' },
       { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests', description: 'Tech support' },
       { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox', description: 'View requests' },
-      { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_requests', description: 'Analytics & reports' }
+      { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_tools', description: 'Analytics & reports' }
     ]
   },
   {

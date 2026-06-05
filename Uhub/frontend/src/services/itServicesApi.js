@@ -1,6 +1,8 @@
 import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
 import { emailService } from './emailService';
+import { resolveItRequestRequesterId } from './unifiedNotify';
+import { canManageItRequestQueue, IT_STAFF_ROLES } from '../utils/notificationRoles';
 
 // IT Services API Service
 export const itServicesApi = {
@@ -212,7 +214,7 @@ export const itServicesApi = {
             .order('created_at', { ascending: false });
 
           // Apply role-based filtering - non-IT users see only their own requests
-          if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
+          if (!canManageItRequestQueue(userRole)) {
             query = query.eq('requester_id', userId);
           }
 
@@ -402,7 +404,7 @@ export const itServicesApi = {
         // Exclude soft-deleted (cancelled) - in case view didn't filter
         let filteredData = (data || []).filter(request => request.status !== 'cancelled');
         // Apply role-based filtering for view data - non-IT users see only their own requests
-        if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
+        if (!canManageItRequestQueue(userRole)) {
           filteredData = filteredData.filter(request => request.requester_id === userId);
         }
 
@@ -532,6 +534,10 @@ export const itServicesApi = {
 
     create: async (requestData) => {
       try {
+        const requesterId = (await resolveItRequestRequesterId()) || requestData.requester_id || null;
+        if (!requesterId) {
+          throw new Error('You must be logged in to submit an IT request.');
+        }
         const { data, error } = await supabase
           .from('it_requests')
           .insert({
@@ -540,7 +546,7 @@ export const itServicesApi = {
             request_type: requestData.request_type || 'it_service',
             category_id: requestData.category_id,
             priority_id: requestData.priority_id,
-            requester_id: requestData.requester_id,
+            requester_id: requesterId,
             estimated_completion_date: requestData.estimated_completion_date || null,
             status: 'open'
           })
@@ -868,7 +874,7 @@ export const itServicesApi = {
             .neq('status', 'cancelled'); // Exclude soft-deleted items
 
           // Apply role-based filtering for statistics - non-IT users see only their own requests
-          if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
+          if (!canManageItRequestQueue(userRole)) {
             if (userId) {
               query = query.eq('requester_id', userId);
             }
@@ -947,7 +953,7 @@ export const itServicesApi = {
           }
 
           // Apply role-based filtering - non-IT users see only their own requests
-          if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
+          if (!canManageItRequestQueue(userRole)) {
             query = query.eq('requester_id', userId);
           }
 
@@ -960,7 +966,7 @@ export const itServicesApi = {
 
         // Apply role-based filtering for view data - non-IT users see only their own requests
         let filteredData = data || [];
-        if (!userRole || !['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole)) {
+        if (!canManageItRequestQueue(userRole)) {
           filteredData = filteredData.filter(request => request.requester_id === userId);
         }
 
@@ -1436,7 +1442,7 @@ export const itServicesApi = {
         const { data, error } = await supabase
           .from('users')
           .select('id, full_name, email, role, department')
-          .in('role', ['admin', 'it_manager', 'it_technician', 'super_admin'])
+          .in('role', IT_STAFF_ROLES)
           .eq('status', 'active')
           .order('full_name', { ascending: true });
 

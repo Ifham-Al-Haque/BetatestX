@@ -21,32 +21,22 @@ export function getAppOrigin() {
   return process.env.REACT_APP_APP_URL || '';
 }
 
-/** Resolve public.users.id for it_requests.requester_id FK (never employees.id or auth uid alone). */
-export async function resolveItRequestRequesterId(authOrUserId) {
-  if (!authOrUserId) return null;
-  const id = String(authOrUserId);
-
-  const { data: byAuth, error: authError } = await supabase
-    .from('users')
-    .select('id, status')
-    .eq('auth_user_id', id)
-    .maybeSingle();
-
-  if (authError) {
-    console.warn('resolveItRequestRequesterId auth lookup failed:', authError.message);
+/**
+ * it_requests.requester_id must be auth.users.id (Supabase auth uid).
+ * Live DB: FK + RLS use auth.uid() = requester_id; existing rows store auth ids.
+ * Do NOT use public.users.id or employees.id here.
+ */
+export async function resolveItRequestRequesterId() {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) {
+    console.warn('resolveItRequestRequesterId:', error.message);
+    return null;
   }
-  if (byAuth?.id) return byAuth.id;
-
-  const { data: byUsersId } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (byUsersId?.id) return byUsersId.id;
-
-  return null;
+  return user?.id ?? null;
 }
+
+/** @deprecated alias */
+export const getItRequestRequesterId = resolveItRequestRequesterId;
 
 /**
  * Resolve a person id to a UHub account holder (users first, employees fallback).
