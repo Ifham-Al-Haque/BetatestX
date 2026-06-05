@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Car, User, Building, Wrench, Fuel, AlertTriangle, Calendar, MapPin, DollarSign, ArrowLeft, FileText, LayoutGrid, PieChart } from 'lucide-react';
+import { X, Car, Wrench, Fuel, AlertTriangle, Calendar, MapPin, DollarSign, ArrowLeft, FileText, LayoutGrid, PieChart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import fleetService from '../../services/fleetService';
 import FleetVehicleMediaSection from './FleetVehicleMediaSection';
@@ -279,41 +279,24 @@ const VehicleDetailsModal = ({
                 </div>
               </div>
 
-              {/* Assignment Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Building className="w-5 h-5 mr-2" />
-                    Department Assignment
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Department:</span>
-                      <span className="font-medium">
-                        {vehicle.departments?.name || 'Not assigned'}
-                      </span>
-                    </div>
+              {/* Ownership & Contract */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <FileText className="w-5 h-5 mr-2" />
+                  Ownership & Contract
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600">Car owned by</div>
+                    <div className="font-medium">{vehicle.owned_by || 'Not specified'}</div>
                   </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <User className="w-5 h-5 mr-2" />
-                    Driver Assignment
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Assigned Driver:</span>
-                      <span className="font-medium">
-                        {vehicle.employees?.full_name || 'Not assigned'}
-                      </span>
-                    </div>
-                    {vehicle.employees?.email && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Driver Email:</span>
-                        <span className="font-medium">{vehicle.employees.email}</span>
-                      </div>
-                    )}
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600">Contract number</div>
+                    <div className="font-medium">{vehicle.contract_number || 'Not specified'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600">Contract expiry</div>
+                    <div className="font-medium">{formatDate(vehicle.contract_expiry)}</div>
                   </div>
                 </div>
               </div>
@@ -334,8 +317,29 @@ const VehicleDetailsModal = ({
                     <div className="font-medium">{formatDate(vehicle.insurance_expiry)}</div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-sm text-gray-600">Registration Expiry</div>
+                    <div className="text-sm text-gray-600">Registration / Mulkiya Expiry</div>
                     <div className="font-medium">{formatDate(vehicle.registration_expiry)}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600">Mulkiya Number</div>
+                    <div className="font-medium">{vehicle.mulkiya_number || 'Not specified'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600">Mulkiya Document</div>
+                    <div className="font-medium">
+                      {vehicle.mulkiya_document_url ? (
+                        <a
+                          href={vehicle.mulkiya_document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                        >
+                          <FileText className="w-4 h-4" /> View
+                        </a>
+                      ) : (
+                        'Not attached'
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm text-gray-600">Last Service</div>
