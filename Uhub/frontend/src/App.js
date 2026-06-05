@@ -74,6 +74,7 @@ const AssetProfile = safeLazy(() => import('./pages/AssetProfile'), 'AssetProfil
 const AssetEdit = safeLazy(() => import('./pages/AssetEdit'), 'AssetEdit');
 const ITAssets = safeLazy(() => import('./pages/ITAssets'), 'ITAssets');
 const ITRequests = safeLazy(() => import('./pages/ITRequestsEnhanced'), 'ITRequests');
+const ITServicesHome = safeLazy(() => import('./pages/ITServicesHome'), 'ITServicesHome');
 const RequestInbox = safeLazy(() => import('./pages/RequestInbox'), 'RequestInbox');
 const CSPA = safeLazy(() => import('./pages/CSPA'), 'CSPA');
 const Complaints = safeLazy(() => import('./pages/Complaints'), 'Complaints');
@@ -101,7 +102,6 @@ const EventPictureUpload = safeLazy(() => import('./pages/EventPictureUpload'), 
 const UserWelcome = safeLazy(() => import('./pages/UserWelcome'), 'UserWelcome');
 const SubscribeNow = safeLazy(() => import('./pages/SubscribeNow'), 'SubscribeNow');
 const Collections = safeLazy(() => import('./pages/Collections'), 'Collections');
-const FleetOnboarding = safeLazy(() => import('./pages/FleetOnboarding'), 'FleetOnboarding');
 const FleetOffboarding = safeLazy(() => import('./pages/FleetOffboarding'), 'FleetOffboarding');
 const FleetDeliveryChecklist = safeLazy(() => import('./pages/FleetDeliveryChecklist'), 'FleetDeliveryChecklist');
 const FleetMaintenanceRecord = safeLazy(() => import('./pages/FleetMaintenanceRecord'), 'FleetMaintenanceRecord');
@@ -372,6 +372,14 @@ function App() {
                           </ProtectedRoute>
                         } />
 
+                        <Route path="/it-services" element={
+                          <ProtectedRoute requiredFeature="it_requests">
+                            <Layout>
+                              <ITServicesHome />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
                         <Route path="/it-requests" element={
                           <ProtectedRoute requiredFeature="it_requests">
                             <Layout>
@@ -416,7 +424,7 @@ function App() {
                         <Route path="/fleet-dashboard" element={<Navigate to="/operation/fleetio/dashboard" replace />} />
 
                         <Route path="/fleet-onboarding" element={
-                          <Navigate to="/operation/fleet-lifecycle?tab=onboarding" replace />
+                          <Navigate to="/operation/fleet-lifecycle" replace />
                         } />
 
                         <Route path="/fleet-offboarding" element={
@@ -634,12 +642,9 @@ function App() {
                         } />
 
                         {/* Fleet Management Routes */}
+                        {/* Fleet onboarding removed — adding a vehicle in Fleet Records covers it. */}
                         <Route path="/fleet-onboarding" element={
-                          <ProtectedRoute requiredFeature="fleet_onboarding">
-                            <Layout>
-                              <FleetOnboarding />
-                            </Layout>
-                          </ProtectedRoute>
+                          <Navigate to="/operation/fleet-lifecycle" replace />
                         } />
 
                         <Route path="/fleet-offboarding" element={

@@ -8,11 +8,20 @@ export const itServicesApi = {
   categories: {
     getAll: async () => {
       try {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('it_request_categories')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true });
+
+        if (error?.message?.includes('is_active')) {
+          const fallback = await supabase
+            .from('it_request_categories')
+            .select('*')
+            .order('sort_order', { ascending: true });
+          data = fallback.data;
+          error = fallback.error;
+        }
 
         if (error) {
           console.error('Categories fetch error:', error);

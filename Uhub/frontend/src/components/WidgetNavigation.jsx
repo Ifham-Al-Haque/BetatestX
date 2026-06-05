@@ -23,6 +23,7 @@ import {
   Sparkles,
   UserCheck,
   Database,
+  LayoutGrid,
   ClipboardList,
   Bell,
   Folder,
@@ -100,6 +101,7 @@ const widgetConfig = [
     icon: Cog,
     color: 'from-teal-500 to-cyan-600',
     items: [
+      { label: 'Overview', path: '/it-services', icon: LayoutGrid, feature: 'it_requests', description: 'IT Services hub' },
       { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests', description: 'Tech support' },
       { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox', description: 'View requests' },
       { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_requests', description: 'Analytics & reports' }
@@ -122,7 +124,7 @@ const widgetConfig = [
     color: 'from-slate-600 to-blue-600',
     items: [
       { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records', description: 'Vehicle profiles' },
-      { label: 'Onboarding & Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle', description: 'Fleet lifecycle' },
+      { label: 'Fleet Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle', description: 'Retire fleet vehicles' },
       { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio', description: 'Maintenance-focused fleet ops' },
       { label: 'Driver & Team Records', path: '/operation/drivers', icon: Car, feature: 'driver_records', description: 'Drivers and teams' },
       { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster', description: 'Team schedules' },

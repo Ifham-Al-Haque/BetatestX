@@ -1,5 +1,45 @@
 import { supabase } from '../supabaseClient';
 
+/**
+ * Map onboarding-form field names to the unified fleet_vehicles columns.
+ * Fleet Records (fleet_vehicles) is the single source of truth; onboarding is
+ * a process layered on top of it.
+ */
+function mapOnboardingToVehicle(d = {}) {
+  const num = (v) => (v === '' || v == null ? null : parseFloat(v));
+  const str = (v) => {
+    const t = typeof v === 'string' ? v.trim() : v;
+    return t === '' || t == null ? null : t;
+  };
+  return {
+    vehicle_number: str(d.vehicle_number),
+    make: str(d.make),
+    model: str(d.model),
+    year: d.model_year ? parseInt(d.model_year, 10) : null,
+    color: str(d.color),
+    chassis_number: str(d.chassis_number),
+    vin: str(d.vin_number),
+    license_plate: str(d.license_plate),
+    iot_device_id: str(d.iot_device_imei),
+    sim_card_imei: str(d.sim_card_imei),
+    fleet_intended_location: str(d.fleet_intended_location),
+    department_id: d.department_id || null,
+    assigned_driver_id: d.assigned_driver_id || null,
+    fuel_type: str(d.fuel_type),
+    transmission: str(d.transmission),
+    engine_size: str(d.engine_size),
+    purchase_date: d.purchase_date || null,
+    purchase_price: num(d.purchase_price),
+    insurance_expiry: d.insurance_expiry || null,
+    registration_expiry: d.registration_expiry || null,
+    owned_by: str(d.owned_by),
+    contract_number: str(d.contract_number),
+    contract_expiry: d.contract_expiry || null,
+    mulkiya_number: str(d.mulkiya_number),
+    notes: str(d.notes),
+  };
+}
+
 class FleetOnboardingService {
   // ===== VEHICLE ONBOARDING =====
 
@@ -54,17 +94,19 @@ class FleetOnboardingService {
     }
   }
 
-  // Create new vehicle for onboarding
+  // Create new vehicle for onboarding (writes to the unified fleet_vehicles table)
   async createVehicleForOnboarding(vehicleData) {
     try {
-      // Start a transaction
       const { data: vehicle, error: vehicleError } = await supabase
-        .from('fleet_vehicles_enhanced')
+        .from('fleet_vehicles')
         .insert([{
-          ...vehicleData,
+          ...mapOnboardingToVehicle(vehicleData),
           status: 'Onboarding',
           onboarding_status: 'Not Started',
-          onboarding_progress: 0
+          onboarding_progress: 0,
+          onboarding_started_at: new Date().toISOString(),
+          created_by: vehicleData.created_by || null,
+          updated_by: vehicleData.updated_by || null,
         }])
         .select()
         .single();
@@ -99,13 +141,14 @@ class FleetOnboardingService {
     }
   }
 
-  // Update vehicle information
+  // Update vehicle information (unified fleet_vehicles table)
   async updateVehicleInfo(vehicleId, updates) {
     try {
       const { data, error } = await supabase
-        .from('fleet_vehicles_enhanced')
+        .from('fleet_vehicles')
         .update({
-          ...updates,
+          ...mapOnboardingToVehicle(updates),
+          updated_by: updates.updated_by || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', vehicleId)
@@ -262,8 +305,9 @@ class FleetOnboardingService {
   async getOnboardingStatistics() {
     try {
       const { data, error } = await supabase
-        .from('fleet_vehicles_enhanced')
-        .select('onboarding_status, onboarding_progress, created_at');
+        .from('fleet_vehicles')
+        .select('onboarding_status, onboarding_progress, created_at')
+        .not('onboarding_status', 'is', null);
 
       if (error) throw error;
 
@@ -382,7 +426,7 @@ class FleetOnboardingService {
       }
 
       const { error } = await supabase
-        .from('fleet_vehicles_enhanced')
+        .from('fleet_vehicles')
         .delete()
         .eq('id', vehicleId);
 

@@ -27,8 +27,7 @@ export const suggestionsApi = {
 
       // Send suggestion notifications (in-app + email)
       try {
-        const { default: SimpleNotificationService } = await import('./simpleNotificationService');
-        const notificationService = new SimpleNotificationService();
+        const notificationService = (await import('./notificationService')).default;
         await notificationService.notifySuggestionCreated(data);
         console.log('✅ Suggestion notification sent successfully');
       } catch (notificationError) {

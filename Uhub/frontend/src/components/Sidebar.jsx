@@ -249,6 +249,7 @@ const Sidebar = () => {
       title: 'IT Services',
       icon: Cog,
       items: [
+        { label: 'Overview', path: '/it-services', icon: LayoutGrid, feature: 'it_requests' },
         { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests' },
         { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox' },
         { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_requests' }
@@ -261,7 +262,7 @@ const Sidebar = () => {
       items: [
         { label: 'Overview', path: '/operation', icon: LayoutGrid, feature: 'fleet_management' },
         { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records' },
-        { label: 'Onboarding & Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle' },
+        { label: 'Fleet Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle' },
         { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio' },
         { label: 'Driver & Team Records', path: '/operation/drivers', icon: Users, feature: 'driver_records' },
         { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster' },

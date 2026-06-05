@@ -744,6 +744,9 @@ const FleetManagement = ({
                         <td className="px-4 py-3 text-gray-600">{vehicle.license_plate}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(vehicle.status)}`}>{vehicle.status}</span>
+                          {vehicle.status === 'Retired' && (
+                            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700">Offboarded</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           {vehicle.business_type ? (
@@ -850,6 +853,11 @@ const FleetManagement = ({
                               >
                                 {vehicle.status.toUpperCase()}
                               </motion.span>
+                              {vehicle.status === 'Retired' && (
+                                <span className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-200 text-gray-700">
+                                  OFFBOARDED
+                                </span>
+                              )}
                               
                               <motion.button
                                 whileHover={{ scale: 1.05 }}

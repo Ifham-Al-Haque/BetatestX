@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
@@ -29,28 +30,8 @@ import activityService from '../services/activityService';
 import PaginationControls from '../components/ui/PaginationControls';
 import { safeMotion, fadeUp } from '../utils/motion';
 import { TableSkeleton } from '../components/LoadingSkeleton';
-
-// Icon mapping for categories
-const categoryIcons = {
-  'hardware': Monitor,
-  'software': Code,
-  'network': Wifi,
-  'access': Key,
-  'email': Mail,
-  'phone': Phone,
-  'printer': Printer,
-  'security': Shield,
-  'backup': HardDrive,
-  'other': HelpCircle,
-  'monitor': Monitor,
-  'download': Download,
-  'wifi': Wifi,
-  'key': Key,
-  'mail': Mail,
-  'shield': Shield,
-  'hard-drive': HardDrive,
-  'help-circle': HelpCircle
-};
+import ITRequestFormModal from '../components/it-services/ITRequestFormModal';
+import { getCategoryIcon, formatDescriptionWithSubcategory, parseSubcategoryFromDescription, stripSubcategoryPrefix } from '../constants/itServiceCategories';
 
 // Priority colors and icons
 const priorityConfig = {
@@ -79,6 +60,7 @@ const ITRequestsEnhanced = () => {
   const prefersReducedMotion = useReducedMotion();
   const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // UI state
   const [activeSection, setActiveSection] = useState('requests'); // 'requests' | 'udrive-access'
@@ -125,7 +107,8 @@ const ITRequestsEnhanced = () => {
     description: '',
     category_id: '',
     priority_id: '',
-    request_type: 'it_service'
+    request_type: 'it_service',
+    subcategory: ''
   });
 
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -138,6 +121,14 @@ const ITRequestsEnhanced = () => {
     }, 300);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  // Open form when navigated from IT Services hub (?new=1)
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowForm(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Statistics - now calculated via useMemo, no longer need state
 
@@ -355,8 +346,10 @@ const ITRequestsEnhanced = () => {
       }
       const requestData = {
         ...formData,
-        requester_id: requesterId ?? editingRequest?.requester_id // Requester = person raising the ticket
+        description: formatDescriptionWithSubcategory(formData.subcategory, formData.description),
+        requester_id: requesterId ?? editingRequest?.requester_id
       };
+      delete requestData.subcategory;
 
       if (editingRequest) {
         await itServicesApi.requests.update(editingRequest.id, requestData);
@@ -456,13 +449,9 @@ const ITRequestsEnhanced = () => {
       description: '',
       category_id: '',
       priority_id: '',
-      request_type: 'it_service'
+      request_type: 'it_service',
+      subcategory: ''
     });
-  };
-
-  const getCategoryIcon = (category) => {
-    const IconComponent = categoryIcons[category?.icon] || HelpCircle;
-    return IconComponent;
   };
 
   const getPriorityConfig = (priority) => {
@@ -553,13 +542,15 @@ const ITRequestsEnhanced = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
+                        const parsed = parseSubcategoryFromDescription(request.description);
                         setEditingRequest(request);
                         setFormData({
                           title: request.title,
-                          description: request.description,
+                          description: parsed.body,
                           category_id: request.category_id,
                           priority_id: request.priority_id,
-                          request_type: request.request_type
+                          request_type: request.request_type,
+                          subcategory: parsed.subcategory
                         });
                         setShowForm(true);
                       }}
@@ -574,7 +565,7 @@ const ITRequestsEnhanced = () => {
               </div>
             </div>
             <p className="text-sm mb-3 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
-              {request.description}
+              {stripSubcategoryPrefix(request.description)}
             </p>
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span
@@ -1266,143 +1257,17 @@ const ITRequestsEnhanced = () => {
         )}
       </div>
 
-      {/* Request Form Modal */}
-      <AnimatePresence>
-        {showForm && (
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-            onClick={closeFormModal}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {editingRequest ? 'Edit Request' : 'New IT Service Request'}
-                    </h2>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                      {editingRequest ? 'Update your request details' : 'Submit a new IT service request'}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={closeFormModal}
-                    className="p-2"
-                  >
-                    <XCircle className="w-5 h-5" />
-                  </Button>
-                </div>
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Title */}
-                  <div>
-                    <Label htmlFor="title" className="text-sm font-medium mb-2 block">
-                      Request Title *
-                    </Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      required
-                      placeholder="Brief description of your request..."
-                      className="h-12"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <Label htmlFor="description" className="text-sm font-medium mb-2 block">
-                      Detailed Description *
-                    </Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      required
-                      rows={4}
-                      placeholder="Provide detailed information about your request, including any specific requirements or context..."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Category */}
-                    <div>
-                      <Label htmlFor="category_id" className="text-sm font-medium mb-2 block">
-                        Category *
-                      </Label>
-                      <select
-                        id="category_id"
-                        value={formData.category_id}
-                        onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                        required
-                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      >
-                        <option value="">Select Category</option>
-                        {categories.map(category => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Priority */}
-                    <div>
-                      <Label htmlFor="priority_id" className="text-sm font-medium mb-2 block">
-                        Priority *
-                      </Label>
-                      <select
-                        id="priority_id"
-                        value={formData.priority_id}
-                        onChange={(e) => setFormData({ ...formData, priority_id: e.target.value })}
-                        required
-                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      >
-                        <option value="">Select Priority</option>
-                        {priorities.map(priority => (
-                          <option key={priority.id} value={priority.id}>
-                            {priority.name} - {priority.description}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-
-                  {/* Form Actions */}
-                  <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={closeFormModal}
-                      disabled={formSubmitting}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={formSubmitting}
-                      className="text-white border-0 flex items-center gap-2"
-                      style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)' }}
-                    >
-                      {formSubmitting && <RefreshCw className="w-4 h-4 animate-spin" />}
-                      {editingRequest ? 'Update Request' : 'Submit Request'}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ITRequestFormModal
+        open={showForm}
+        onClose={closeFormModal}
+        editingRequest={editingRequest}
+        formData={formData}
+        setFormData={setFormData}
+        categories={categories}
+        priorities={priorities}
+        formSubmitting={formSubmitting}
+        onSubmit={handleSubmit}
+      />
 
       {/* Request Details Modal */}
       <AnimatePresence>
@@ -1444,9 +1309,24 @@ const ITRequestsEnhanced = () => {
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                       {selectedRequest.title}
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {selectedRequest.description}
-                    </p>
+                    {(() => {
+                      const parsed = parseSubcategoryFromDescription(selectedRequest.description);
+                      return (
+                        <>
+                          {parsed.subcategory && (
+                            <span
+                              className="inline-flex mb-2 px-2.5 py-1 rounded-full text-xs font-medium"
+                              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                            >
+                              {parsed.subcategory}
+                            </span>
+                          )}
+                          <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                            {parsed.body || selectedRequest.description}
+                          </p>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

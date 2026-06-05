@@ -52,11 +52,9 @@ export const complaintsApi = {
 
       if (error) throw error;
 
-      // Send notifications to HR Manager and Admin roles
+      // Notify HR and admin UHub users (in-app + push + email)
       try {
-        // Import the simple notification service
-        const { default: SimpleNotificationService } = await import('./simpleNotificationService');
-        const notificationService = new SimpleNotificationService();
+        const notificationService = (await import('./notificationService')).default;
         await notificationService.notifyComplaintCreated(data);
         console.log('✅ Complaint notification sent successfully');
       } catch (notificationError) {
@@ -149,8 +147,7 @@ export const complaintsApi = {
       // Send notification if status changed
       if (currentComplaint && updateData.status && currentComplaint.status !== updateData.status) {
         try {
-          const { default: SimpleNotificationService } = await import('./simpleNotificationService');
-          const notificationService = new SimpleNotificationService();
+          const notificationService = (await import('./notificationService')).default;
           await notificationService.notifyComplaintStatusUpdate(data, currentComplaint.status, updateData.status);
           console.log('✅ Complaint status update notification sent successfully');
         } catch (notificationError) {

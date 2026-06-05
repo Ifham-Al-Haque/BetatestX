@@ -59,7 +59,13 @@ const FleetOnboardingModal = ({ isOpen, onClose, vehicle = null, onSuccess }) =>
     purchase_price: '',
     insurance_expiry: '',
     registration_expiry: '',
-    
+
+    // Ownership & contract
+    owned_by: '',
+    contract_number: '',
+    contract_expiry: '',
+    mulkiya_number: '',
+
     // Additional Information
     notes: ''
   });
@@ -125,6 +131,10 @@ const FleetOnboardingModal = ({ isOpen, onClose, vehicle = null, onSuccess }) =>
         purchase_price: vehicle.purchase_price || '',
         insurance_expiry: vehicle.insurance_expiry || '',
         registration_expiry: vehicle.registration_expiry || '',
+        owned_by: vehicle.owned_by || '',
+        contract_number: vehicle.contract_number || '',
+        contract_expiry: vehicle.contract_expiry || '',
+        mulkiya_number: vehicle.mulkiya_number || '',
         notes: vehicle.notes || ''
       });
     }
@@ -245,6 +255,10 @@ const FleetOnboardingModal = ({ isOpen, onClose, vehicle = null, onSuccess }) =>
       purchase_price: '',
       insurance_expiry: '',
       registration_expiry: '',
+      owned_by: '',
+      contract_number: '',
+      contract_expiry: '',
+      mulkiya_number: '',
       notes: ''
     });
     setErrors({});
@@ -705,6 +719,59 @@ const FleetOnboardingModal = ({ isOpen, onClose, vehicle = null, onSuccess }) =>
                   placeholder="Any additional information about the vehicle..."
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
+              </div>
+            </div>
+
+            {/* Ownership & contract (kept in sync with the Fleet Record form) */}
+            <div className="bg-emerald-50 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <CreditCard className="w-5 h-5 mr-2 text-emerald-600" />
+                Ownership & Contract
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Car owned by</label>
+                  <input
+                    type="text"
+                    name="owned_by"
+                    value={formData.owned_by}
+                    onChange={handleInputChange}
+                    placeholder="e.g., UDrive / Leasing company"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contract number</label>
+                  <input
+                    type="text"
+                    name="contract_number"
+                    value={formData.contract_number}
+                    onChange={handleInputChange}
+                    placeholder="e.g., CN-2026-0142"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contract expiry</label>
+                  <input
+                    type="date"
+                    name="contract_expiry"
+                    value={formData.contract_expiry}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mulkiya number</label>
+                  <input
+                    type="text"
+                    name="mulkiya_number"
+                    value={formData.mulkiya_number}
+                    onChange={handleInputChange}
+                    placeholder="Registration card no."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                </div>
               </div>
             </div>
           </motion.div>

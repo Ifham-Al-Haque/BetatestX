@@ -1,11 +1,30 @@
 import { supabase } from '../supabaseClient';
-import { emailService } from './emailService';
 import { sendPushToUser } from './pushService';
+import {
+  IT_NOTIFY_ROLES,
+  HR_NOTIFY_ROLES,
+  getCurrentActor,
+  notifyUhubUser,
+  notifyUhubUsersByRoles,
+  getUhubUsersByRoles,
+} from './unifiedNotify';
 
 class NotificationService {
   constructor() {
     this.subscriptions = new Map();
-    this.createNotificationAvailable = true;
+  }
+
+  // Client-side fallback when create_notifications_for_role RPC fails.
+  async _notifyRoleViaUsersTable(role, payload) {
+    const users = await getUhubUsersByRoles([role]);
+    let count = 0;
+    for (const u of users) {
+      const authId = u.auth_user_id || u.id;
+      if (!authId) continue;
+      const n = await this.createNotification({ ...payload, userId: authId });
+      if (n) count += 1;
+    }
+    return count;
   }
 
   // Best-effort browser/native push for a single user (auth id). No-ops if push unconfigured.
@@ -47,9 +66,7 @@ class NotificationService {
     actionLabel = null,
     expiresAt = null
   }) {
-    if (!this.createNotificationAvailable) {
-      return null;
-    }
+    if (!userId) return null;
 
     try {
       const { data: notification, error } = await supabase
@@ -69,8 +86,8 @@ class NotificationService {
       this._dispatchPush(userId, { title, message, actionUrl });
       return notification;
     } catch (error) {
-      console.warn('Notification service: disabling create_notification RPC due to error:', error);
-      this.createNotificationAvailable = false;
+      console.warn('create_notification RPC failed, dispatching push only:', error?.message || error);
+      this._dispatchPush(userId, { title, message, actionUrl });
       return null;
     }
   }
@@ -87,9 +104,7 @@ class NotificationService {
     actionLabel = null,
     expiresAt = null
   }) {
-    if (!this.createNotificationAvailable) {
-      return 0;
-    }
+    if (!userIds?.length) return 0;
 
     try {
       const { data: count, error } = await supabase
@@ -109,9 +124,15 @@ class NotificationService {
       (userIds || []).forEach((id) => this._dispatchPush(id, { title, message, actionUrl }));
       return count;
     } catch (error) {
-      console.warn('Notification service: disabling create_notification RPC due to error:', error);
-      this.createNotificationAvailable = false;
-      return 0;
+      console.warn('create_notifications_for_users RPC failed:', error?.message || error);
+      let count = 0;
+      for (const id of userIds) {
+        const n = await this.createNotification({
+          userId: id, type, title, message, data, priority, actionUrl, actionLabel, expiresAt
+        });
+        if (n) count += 1;
+      }
+      return count;
     }
   }
 
@@ -127,9 +148,7 @@ class NotificationService {
     actionLabel = null,
     expiresAt = null
   }) {
-    if (!this.createNotificationAvailable) {
-      return 0;
-    }
+    const payload = { type, title, message, data, priority, actionUrl, actionLabel, expiresAt };
 
     try {
       const { data: count, error } = await supabase
@@ -149,9 +168,10 @@ class NotificationService {
       this._dispatchPushToRole(role, { title, message, actionUrl });
       return count;
     } catch (error) {
-      console.warn('Notification service: disabling create_notification RPC due to error:', error);
-      this.createNotificationAvailable = false;
-      return 0;
+      console.warn('create_notifications_for_role RPC failed, using users table fallback:', error?.message || error);
+      const count = await this._notifyRoleViaUsersTable(role, payload);
+      this._dispatchPushToRole(role, { title, message, actionUrl });
+      return count;
     }
   }
 
@@ -403,32 +423,37 @@ class NotificationService {
   // Complaint notifications
   async notifyComplaintCreated(complaint) {
     try {
-      // Notify admins and HR managers
-      const roles = ['admin', 'hr_manager'];
-      let totalNotifications = 0;
+      const actionUrl = `/complaints/${complaint.id}`;
+      const priority = complaint.priority === 'urgent' ? 'urgent'
+        : complaint.priority === 'high' ? 'high' : 'medium';
+      const emailLines = [
+        { label: 'Title', value: complaint.title },
+        { label: 'Category', value: complaint.category },
+        { label: 'Priority', value: complaint.priority },
+        { label: 'Status', value: complaint.status || 'open' },
+      ];
 
-      for (const role of roles) {
-        const count = await this.createNotificationsForRole({
-          role,
-          type: 'complaint',
-          title: 'New Complaint Submitted',
-          message: `A new complaint has been submitted: ${complaint.title}`,
-          data: {
-            complaint_id: complaint.id,
-            complaint_title: complaint.title,
-            complaint_type: complaint.complaint_type,
-            priority: complaint.priority,
-            requester_id: complaint.requester_id
-          },
-          priority: complaint.priority === 'urgent' ? 'urgent' : 
-                   complaint.priority === 'high' ? 'high' : 'medium',
-          actionUrl: `/complaints/${complaint.id}`,
-          actionLabel: 'View Complaint'
-        });
-        totalNotifications += count;
-      }
+      const result = await notifyUhubUsersByRoles(this, HR_NOTIFY_ROLES, {
+        type: 'complaint',
+        title: 'New Complaint Submitted',
+        message: `A new complaint has been submitted: ${complaint.title}`,
+        data: {
+          complaint_id: complaint.id,
+          complaint_title: complaint.title,
+          complaint_type: complaint.category,
+          priority: complaint.priority,
+          requester_id: complaint.complainant_id,
+        },
+        priority,
+        actionUrl,
+        actionLabel: 'View Complaint',
+        emailSubject: `UHub Complaint: ${complaint.title}`,
+        emailHeading: 'New Complaint Submitted',
+        emailLines,
+        emailAccentColor: '#7c3aed',
+      });
 
-      return totalNotifications;
+      return result.inApp + result.push;
     } catch (error) {
       console.error('Error notifying complaint creation:', error);
       throw error;
@@ -437,47 +462,55 @@ class NotificationService {
 
   async notifyComplaintStatusUpdate(complaint, oldStatus, newStatus) {
     try {
-      // Notify the requester
-      await this.createNotification({
-        userId: complaint.requester_id,
-        type: 'complaint_update',
-        title: 'Complaint Status Updated',
-        message: `Your complaint "${complaint.title}" status has been updated from ${oldStatus} to ${newStatus}`,
-        data: {
-          complaint_id: complaint.id,
-          complaint_title: complaint.title,
-          old_status: oldStatus,
-          new_status: newStatus
-        },
-        priority: 'medium',
-        actionUrl: `/complaints/${complaint.id}`,
-        actionLabel: 'View Complaint'
-      });
+      const actionUrl = `/complaints/${complaint.id}`;
+      const requesterId = complaint.complainant_id || complaint.requester_id;
 
-      // Notify admins and HR managers
-      const roles = ['admin', 'hr_manager'];
-      let totalNotifications = 1;
-
-      for (const role of roles) {
-        const count = await this.createNotificationsForRole({
-          role,
+      if (requesterId) {
+        await notifyUhubUser(this, {
+          personId: requesterId,
           type: 'complaint_update',
           title: 'Complaint Status Updated',
-          message: `Complaint "${complaint.title}" status has been updated to ${newStatus}`,
+          message: `Your complaint "${complaint.title}" status changed from ${oldStatus} to ${newStatus}`,
           data: {
             complaint_id: complaint.id,
             complaint_title: complaint.title,
             old_status: oldStatus,
-            new_status: newStatus
+            new_status: newStatus,
           },
           priority: 'medium',
-          actionUrl: `/complaints/${complaint.id}`,
-          actionLabel: 'View Complaint'
+          actionUrl,
+          actionLabel: 'View Complaint',
+          emailSubject: `Complaint update: ${complaint.title}`,
+          emailLines: [
+            { label: 'Previous status', value: oldStatus },
+            { label: 'New status', value: newStatus },
+          ],
+          emailAccentColor: '#7c3aed',
         });
-        totalNotifications += count;
       }
 
-      return totalNotifications;
+      const teamResult = await notifyUhubUsersByRoles(this, HR_NOTIFY_ROLES, {
+        type: 'complaint_update',
+        title: 'Complaint Status Updated',
+        message: `Complaint "${complaint.title}" status updated to ${newStatus}`,
+        data: {
+          complaint_id: complaint.id,
+          complaint_title: complaint.title,
+          old_status: oldStatus,
+          new_status: newStatus,
+        },
+        priority: 'medium',
+        actionUrl,
+        actionLabel: 'View Complaint',
+        emailSubject: `Complaint status: ${complaint.title} → ${newStatus}`,
+        emailLines: [
+          { label: 'Previous status', value: oldStatus },
+          { label: 'New status', value: newStatus },
+        ],
+        emailAccentColor: '#7c3aed',
+      });
+
+      return 1 + teamResult.inApp;
     } catch (error) {
       console.error('Error notifying complaint status update:', error);
       throw error;
@@ -487,9 +520,8 @@ class NotificationService {
   // Suggestion notifications
   async notifySuggestionCreated(suggestion) {
     try {
-      // Notify admins
-      const count = await this.createNotificationsForRole({
-        role: 'admin',
+      const actionUrl = `/suggestions/${suggestion.id}`;
+      const result = await notifyUhubUsersByRoles(this, ['admin', 'super_admin'], {
         type: 'suggestion',
         title: 'New Suggestion Submitted',
         message: `A new suggestion has been submitted: ${suggestion.title}`,
@@ -497,14 +529,21 @@ class NotificationService {
           suggestion_id: suggestion.id,
           suggestion_title: suggestion.title,
           suggestion_type: suggestion.suggestion_type,
-          requester_id: suggestion.requester_id
+          requester_id: suggestion.suggester_id,
         },
         priority: 'medium',
-        actionUrl: `/suggestions/${suggestion.id}`,
-        actionLabel: 'View Suggestion'
+        actionUrl,
+        actionLabel: 'View Suggestion',
+        emailSubject: `UHub Suggestion: ${suggestion.title}`,
+        emailLines: [
+          { label: 'Title', value: suggestion.title },
+          { label: 'Category', value: suggestion.category },
+          { label: 'Type', value: suggestion.suggestion_type },
+        ],
+        emailAccentColor: '#2563eb',
       });
 
-      return count;
+      return result.inApp;
     } catch (error) {
       console.error('Error notifying suggestion creation:', error);
       throw error;
@@ -514,34 +553,34 @@ class NotificationService {
   // IT Request notifications
   async notifyITRequestCreated(request) {
     try {
-      // Notify IT managers and admins (include both role name variants used in the app)
-      const roles = ['it_management', 'it_manager', 'it', 'admin'];
-      const seen = new Set();
-      let totalNotifications = 0;
+      const actionUrl = `/request-inbox${request.id ? `?view=${request.id}` : ''}`;
+      const emailLines = [
+        { label: 'Title', value: request.title },
+        { label: 'Request ID', value: request.request_number || request.id },
+        { label: 'Status', value: request.status || 'open' },
+      ];
 
-      for (const role of roles) {
-        if (seen.has(role)) continue;
-        seen.add(role);
-        const count = await this.createNotificationsForRole({
-          role,
-          type: 'it_request',
-          title: 'New IT Request Created',
-          message: `A new IT request has been created: ${request.title}`,
-          data: {
-            request_id: request.id,
-            request_title: request.title,
-            request_type: request.request_type,
-            priority: request.priority_id,
-            requester_id: request.requester_id
-          },
-          priority: 'high', // IT requests are generally high priority
-          actionUrl: `/it-requests/${request.id}`,
-          actionLabel: 'View Request'
-        });
-        totalNotifications += count;
-      }
+      const result = await notifyUhubUsersByRoles(this, IT_NOTIFY_ROLES, {
+        type: 'it_request',
+        title: 'New IT Request Created',
+        message: `A new IT request has been created: ${request.title}`,
+        data: {
+          request_id: request.id,
+          request_title: request.title,
+          request_type: request.request_type,
+          priority: request.priority_id,
+          requester_id: request.requester_id,
+        },
+        priority: 'high',
+        actionUrl,
+        actionLabel: 'View Request',
+        emailSubject: `UHub IT Request: ${request.title}`,
+        emailHeading: 'New IT Request',
+        emailLines,
+        emailAccentColor: '#0d9488',
+      });
 
-      return totalNotifications;
+      return result.inApp + result.push;
     } catch (error) {
       console.error('Error notifying IT request creation:', error);
       throw error;
@@ -550,43 +589,52 @@ class NotificationService {
 
   async notifyITRequestStatusUpdate(request, oldStatus, newStatus) {
     try {
-      // Notify the requester
-      await this.createNotification({
-        userId: request.requester_id,
-        type: 'it_request_update',
-        title: 'IT Request Status Updated',
-        message: `Your IT request "${request.title}" status has been updated from ${oldStatus} to ${newStatus}`,
-        data: {
-          request_id: request.id,
-          request_title: request.title,
-          old_status: oldStatus,
-          new_status: newStatus
-        },
-        priority: 'medium',
-        actionUrl: `/it-requests/${request.id}`,
-        actionLabel: 'View Request'
-      });
+      const actionUrl = `/it-requests/${request.id}`;
 
-      // Notify assigned user if different from requester
-      if (request.assigned_to && request.assigned_to !== request.requester_id) {
-        await this.createNotification({
-          userId: request.assigned_to,
+      if (request.requester_id) {
+        await notifyUhubUser(this, {
+          personId: request.requester_id,
           type: 'it_request_update',
-          title: 'Assigned Request Status Updated',
-          message: `Request "${request.title}" status has been updated to ${newStatus}`,
+          title: 'IT Request Status Updated',
+          message: `Your IT request "${request.title}" changed from ${oldStatus} to ${newStatus}`,
           data: {
             request_id: request.id,
             request_title: request.title,
             old_status: oldStatus,
-            new_status: newStatus
+            new_status: newStatus,
           },
           priority: 'medium',
-          actionUrl: `/it-requests/${request.id}`,
-          actionLabel: 'View Request'
+          actionUrl,
+          actionLabel: 'View Request',
+          emailSubject: `IT Request update: ${request.title}`,
+          emailLines: [
+            { label: 'Previous status', value: oldStatus },
+            { label: 'New status', value: newStatus },
+          ],
+          emailAccentColor: '#0d9488',
         });
       }
 
-      return 2; // Notified requester and assigned user
+      if (request.assigned_to && String(request.assigned_to) !== String(request.requester_id)) {
+        await notifyUhubUser(this, {
+          personId: request.assigned_to,
+          type: 'it_request_update',
+          title: 'Assigned Request Status Updated',
+          message: `Request "${request.title}" status updated to ${newStatus}`,
+          data: {
+            request_id: request.id,
+            request_title: request.title,
+            old_status: oldStatus,
+            new_status: newStatus,
+          },
+          priority: 'medium',
+          actionUrl: `/request-inbox${request.id ? `?view=${request.id}` : ''}`,
+          actionLabel: 'View Request',
+          channels: { inApp: true, push: true, email: false },
+        });
+      }
+
+      return 2;
     } catch (error) {
       console.error('Error notifying IT request status update:', error);
       throw error;
@@ -594,188 +642,92 @@ class NotificationService {
   }
 
   /**
-   * Fetch assignee + current user and send assignment notification (in-app + email).
-   * Call this after an IT request is assigned; no need to resolve emails yourself.
-   * @param {Object} request - Updated request (id, title, request_number, assigned_to, priority optional)
+   * Notify assignee when an IT request is assigned (in-app + push + email).
    */
   async sendITRequestAssignmentNotification(request) {
     const assigneeUserId = request?.assigned_to;
     if (!assigneeUserId) return 0;
+
     try {
-      // Resolve assignee: try users.id, users.auth_user_id, employees.id, employees.auth_user_id (assignee may be from users or employees)
-      let assignee = null;
-      let notificationUserId = assigneeUserId; // For in-app: use auth_user_id when available so the notification shows for the logged-in user
-      const [byUsersId, byUsersAuth, byEmpId, byEmpAuth] = await Promise.all([
-        supabase.from('users').select('id, auth_user_id, email, full_name').eq('id', assigneeUserId).maybeSingle(),
-        supabase.from('users').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeUserId).maybeSingle(),
-        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('id', assigneeUserId).maybeSingle(),
-        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeUserId).maybeSingle()
-      ]);
-      const u = byUsersId.data || byUsersAuth.data || byEmpId.data || byEmpAuth.data;
-      if (u) {
-        assignee = { email: u.email, full_name: u.full_name };
-        if (u.auth_user_id) notificationUserId = u.auth_user_id; // Prefer auth user id for notification delivery
-      }
-      if (!assignee?.email) {
-        console.warn('Assignment notification skipped: no assignee email found for id', assigneeUserId);
-        return 0;
-      }
+      const assignedBy = await getCurrentActor();
+      const actionUrl = `/request-inbox${request.id ? `?view=${request.id}` : ''}`;
 
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      let assignedBy = { full_name: 'IT Team', email: '' };
-      if (authUser?.id) {
-        const cur = (await supabase.from('users').select('full_name, email').eq('id', authUser.id).maybeSingle()).data
-          || (await supabase.from('users').select('full_name, email').eq('auth_user_id', authUser.id).maybeSingle()).data
-          || (await supabase.from('employees').select('full_name, email').eq('auth_user_id', authUser.id).maybeSingle()).data;
-        if (cur) assignedBy = { full_name: cur.full_name || cur.email, email: cur.email || '' };
-      }
+      const result = await notifyUhubUser(this, {
+        personId: assigneeUserId,
+        type: 'it_request_assigned',
+        title: 'IT Request Assigned to You',
+        message: `You have been assigned to request: ${request.title}`,
+        data: {
+          request_id: request.id,
+          request_title: request.title,
+          request_number: request.request_number,
+          assigned_by: assignedBy.fullName,
+        },
+        priority: 'high',
+        actionUrl,
+        actionLabel: 'View Request',
+        emailSubject: `IT Request Assigned: ${request.title}`,
+        emailHeading: 'IT Request Assigned',
+        emailIntro: `Hi, you have been assigned an IT request by ${assignedBy.fullName}.`,
+        emailLines: [
+          { label: 'Request', value: request.title },
+          { label: 'Request ID', value: request.request_number || request.id },
+          { label: 'Assigned by', value: assignedBy.fullName },
+        ],
+        emailAccentColor: '#0d9488',
+      });
 
-      return await this.notifyITRequestAssigned(request, notificationUserId, assignee.email, assignedBy);
+      return result.inApp || result.push || result.email ? 1 : 0;
     } catch (err) {
       console.error('Failed to send assignment notification:', err);
       return 0;
     }
   }
 
-  /**
-   * Notify assignee when an IT request is assigned to them (in-app + email).
-   * @param {Object} request - Updated request (id, title, request_number, priority, assignee optional)
-   * @param {string} assigneeUserId - User ID of the assignee (for in-app notification)
-   * @param {string} assigneeEmail - Email address to send assignment email to
-   * @param {Object} assignedByUser - { full_name, email } of the user who performed the assignment
-   */
+  /** @deprecated Use sendITRequestAssignmentNotification */
   async notifyITRequestAssigned(request, assigneeUserId, assigneeEmail, assignedByUser) {
-    const email = assigneeEmail && String(assigneeEmail).trim();
-    if (!email) {
-      console.warn('Cannot send assignment notification: no assignee email');
-      return 0;
-    }
-    try {
-      // In-app notification for assignee (RPC may not exist; continue to email either way)
-      try {
-        await this.createNotification({
-          userId: assigneeUserId,
-          type: 'it_request_assigned',
-          title: 'IT Request Assigned to You',
-          message: `You have been assigned to request: ${request.title}`,
-          data: {
-            request_id: request.id,
-            request_title: request.title,
-            request_number: request.request_number,
-            assigned_by: assignedByUser?.full_name || assignedByUser?.email
-          },
-          priority: 'high',
-          actionUrl: `/request-inbox` + (request.id ? `?view=${request.id}` : ''),
-          actionLabel: 'View Request'
-        });
-      } catch (e) {
-        console.warn('In-app notification failed (create_notification RPC may be missing):', e?.message);
-      }
-
-      // Email notification to assignee (always attempt when we have email)
-      try {
-        const result = await emailService.sendAssignmentNotification(request, email, assignedByUser || { full_name: 'IT Team', email: '' });
-        if (result?.success) {
-          console.log('Assignment email sent to', email);
-        } else {
-          console.warn('Assignment email result:', result?.message || 'unknown');
-        }
-      } catch (emailErr) {
-        console.error('Failed to send assignment email:', emailErr);
-      }
-
-      return 1;
-    } catch (error) {
-      console.error('Error notifying IT request assignment:', error);
-      throw error;
-    }
+    return this.sendITRequestAssignmentNotification({
+      ...request,
+      assigned_to: assigneeUserId || request.assigned_to,
+    });
   }
 
-  /**
-   * Notify the assignee of a fleet maintenance task/ticket (in-app + email + push).
-   * Resolves the assignee from users/employees (assigned_to may be an employee id).
-   * @param {Object} ticket - { id, title, ticket_number, assigned_to, priority, vehicle_id, fleet_vehicles? }
-   */
+  /** Notify fleet maintenance assignee (in-app + push + email). */
   async sendFleetTaskAssignmentNotification(ticket) {
     const assigneeId = ticket?.assigned_to;
     if (!assigneeId) return 0;
-    try {
-      // Resolve assignee (UDrive employee OR UHub user). For in-app we need the auth id.
-      let assigneeEmail = null;
-      let assigneeName = null;
-      let notificationUserId = assigneeId;
-      const [byUsersId, byUsersAuth, byEmpId, byEmpAuth] = await Promise.all([
-        supabase.from('users').select('id, auth_user_id, email, full_name').eq('id', assigneeId).maybeSingle(),
-        supabase.from('users').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeId).maybeSingle(),
-        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('id', assigneeId).maybeSingle(),
-        supabase.from('employees').select('id, auth_user_id, email, full_name').eq('auth_user_id', assigneeId).maybeSingle(),
-      ]);
-      const u = byUsersId.data || byUsersAuth.data || byEmpId.data || byEmpAuth.data;
-      if (u) {
-        assigneeEmail = u.email;
-        assigneeName = u.full_name;
-        if (u.auth_user_id) notificationUserId = u.auth_user_id;
-      }
 
+    try {
       const vehicleLabel = ticket.fleet_vehicles?.vehicle_number || ticket.vehicle_number || '';
       const taskTitle = ticket.title || ticket.ticket_number || 'Fleet maintenance task';
       const actionUrl = '/operation/fleetio/maintenance';
       const isHigh = ['High', 'Critical', 'Urgent'].includes(ticket.priority);
 
-      // 1) In-app notification
-      if (notificationUserId) {
-        try {
-          await this.createNotification({
-            userId: notificationUserId,
-            type: 'fleet_task_assigned',
-            title: 'Fleet Task Assigned to You',
-            message: `You have been assigned a fleet maintenance task: ${taskTitle}${vehicleLabel ? ` (${vehicleLabel})` : ''}`,
-            data: {
-              ticket_id: ticket.id,
-              ticket_number: ticket.ticket_number,
-              vehicle: vehicleLabel,
-            },
-            priority: isHigh ? 'high' : 'medium',
-            actionUrl,
-            actionLabel: 'View Task',
-          });
-        } catch (e) {
-          console.warn('Fleet in-app notification failed (create_notification RPC may be missing):', e?.message);
-        }
-      }
+      const result = await notifyUhubUser(this, {
+        personId: assigneeId,
+        type: 'fleet_task_assigned',
+        title: 'Fleet Task Assigned to You',
+        message: `You have been assigned: ${taskTitle}${vehicleLabel ? ` (${vehicleLabel})` : ''}`,
+        data: {
+          ticket_id: ticket.id,
+          ticket_number: ticket.ticket_number,
+          vehicle: vehicleLabel,
+        },
+        priority: isHigh ? 'high' : 'medium',
+        actionUrl,
+        actionLabel: 'View Task',
+        emailSubject: `Fleet Task Assigned: ${taskTitle}`,
+        emailHeading: 'Fleet Maintenance Task Assigned',
+        emailLines: [
+          { label: 'Task', value: taskTitle },
+          { label: 'Ticket', value: ticket.ticket_number },
+          { label: 'Vehicle', value: vehicleLabel },
+          { label: 'Priority', value: ticket.priority },
+        ].filter((l) => l.value),
+        emailAccentColor: '#2563eb',
+      });
 
-      // 2) Email notification
-      if (assigneeEmail && String(assigneeEmail).trim()) {
-        const subject = `Fleet Task Assigned: ${taskTitle}`;
-        const body = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e1e5e9; border-radius: 8px; overflow: hidden;">
-            <div style="background: #2563eb; color: #fff; padding: 20px; text-align: center;">
-              <h1 style="margin: 0; font-size: 22px;">Fleet Maintenance Task Assigned</h1>
-            </div>
-            <div style="padding: 20px; background: #f8f9fa; color: #111;">
-              <p>Hi ${assigneeName || 'there'},</p>
-              <p>You have been assigned a fleet maintenance task.</p>
-              <p><strong>Task:</strong> ${taskTitle}</p>
-              ${ticket.ticket_number ? `<p><strong>Ticket:</strong> ${ticket.ticket_number}</p>` : ''}
-              ${vehicleLabel ? `<p><strong>Vehicle:</strong> ${vehicleLabel}</p>` : ''}
-              ${ticket.priority ? `<p><strong>Priority:</strong> ${ticket.priority}</p>` : ''}
-              <div style="text-align:center; margin: 24px 0;">
-                <a href="${(typeof window !== 'undefined' ? window.location.origin : '')}${actionUrl}" style="background:#2563eb; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px; display:inline-block;">View Task</a>
-              </div>
-            </div>
-            <div style="background:#f1f5f9; padding:12px; text-align:center; color:#64748b; font-size:12px;">Automated notification from Udrive Fleet.</div>
-          </div>`;
-        try {
-          await emailService.sendNotification(assigneeEmail, subject, body);
-        } catch (emailErr) {
-          console.error('Fleet assignment email failed:', emailErr);
-        }
-      } else {
-        console.warn('Fleet assignment email skipped: no email found for assignee', assigneeId);
-      }
-
-      // Push is dispatched centrally by createNotification() above.
-      return 1;
+      return result.inApp || result.push || result.email ? 1 : 0;
     } catch (err) {
       console.error('Failed to send fleet task assignment notification:', err);
       return 0;
@@ -822,10 +774,11 @@ class NotificationService {
   }
 
   // Task notifications
-  async notifyTaskAssigned(task, assigneeId) {
+  async notifyTaskAssigned(task, assigneeId, assignedByName) {
     try {
-      await this.createNotification({
-        userId: assigneeId,
+      const actionUrl = `/tasks/${task.id}`;
+      const result = await notifyUhubUser(this, {
+        personId: assigneeId,
         type: 'task_assigned',
         title: 'New Task Assigned',
         message: `A new task has been assigned to you: ${task.title}`,
@@ -833,14 +786,24 @@ class NotificationService {
           task_id: task.id,
           task_title: task.title,
           due_date: task.due_date,
-          priority: task.priority
+          priority: task.priority,
         },
         priority: task.priority === 'high' ? 'high' : 'medium',
-        actionUrl: `/tasks/${task.id}`,
-        actionLabel: 'View Task'
+        actionUrl,
+        actionLabel: 'View Task',
+        emailSubject: `Task assigned: ${task.title}`,
+        emailIntro: assignedByName
+          ? `${assignedByName} assigned you a task.`
+          : 'You have been assigned a new task.',
+        emailLines: [
+          { label: 'Task', value: task.title },
+          { label: 'Due date', value: task.due_date },
+          { label: 'Priority', value: task.priority },
+        ].filter((l) => l.value),
+        emailAccentColor: '#059669',
       });
 
-      return 1;
+      return result.inApp || result.push || result.email ? 1 : 0;
     } catch (error) {
       console.error('Error notifying task assignment:', error);
       throw error;

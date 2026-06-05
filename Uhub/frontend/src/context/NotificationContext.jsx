@@ -4,7 +4,8 @@ import { useChat } from './ChatContext';
 import { supabase } from '../supabaseClient';
 import notificationService from '../services/notificationService';
 import soundNotificationService from '../services/soundNotificationService';
-import { isItAlertRecipientRole } from '../utils/notificationRoles';
+import { isItAlertRecipientRole, isHrAlertRecipientRole } from '../utils/notificationRoles';
+import { isUserAssignee } from '../utils/notificationAssignee';
 
 const NotificationContext = createContext();
 
@@ -17,11 +18,12 @@ export const useNotifications = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, userProfile, role: authRole } = useAuth();
   const { addMessageToConversation } = useChat();
   
   // State for different notification types
   const [notifications, setNotifications] = useState([]);
+  const [toastAlerts, setToastAlerts] = useState([]);
   const [chatPopups, setChatPopups] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -84,7 +86,65 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [removeNotification]);
 
-  // Add a chat popup (appears in center of screen)
+  const removeToastAlert = useCallback((id) => {
+    setToastAlerts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  /** On-screen popup toast (top-right). Separate from bell list. */
+  const showToastAlert = useCallback((alert) => {
+    const priority = alert?.priority || 'medium';
+    const durationSec =
+      priority === 'urgent' ? 15 : priority === 'high' ? 12 : 10;
+
+    const soundType = (() => {
+      switch (alert?.type) {
+        case 'task_assignment':
+        case 'task_assigned':
+          return 'task_assigned';
+        case 'it_request_assigned':
+          return 'it_request_assigned';
+        case 'it_request':
+        case 'it_request_update':
+          return alert.type;
+        case 'fleet_task_assigned':
+          return 'task_assigned';
+        default:
+          return alert?.type || priority || 'default';
+      }
+    })();
+
+    soundNotificationService.playNotificationSound(soundType, priority);
+
+    const id = alert?.id ?? Date.now() + Math.random();
+    setToastAlerts((prev) => [...prev.slice(-4), { ...alert, id, durationSec }]);
+    return id;
+  }, []);
+
+  /** Popup toast + bell entry (persistent in dropdown). */
+  const notifyTicketEvent = useCallback(
+    (alert, bellOpts = {}) => {
+      showToastAlert(alert);
+      addNotification(
+        {
+          type: alert.type,
+          title: alert.title,
+          message: alert.message,
+          priority: alert.priority,
+          data: alert.data,
+          actionUrl: alert.actionUrl,
+        },
+        {
+          autoDismiss: false,
+          preserveId: false,
+          playSound: false,
+          ...bellOpts,
+        }
+      );
+    },
+    [showToastAlert, addNotification]
+  );
+
+  const userRole = authRole || userProfile?.role;
   const addChatPopup = useCallback((popup) => {
     const id = Date.now() + Math.random();
     const newPopup = {
@@ -271,13 +331,18 @@ export const NotificationProvider = ({ children }) => {
           schema: 'public',
           table: 'complaints'
         }, (payload) => {
-          if (payload.new.complainant_id !== user.id) {
-            addNotification({
+          if (
+            isHrAlertRecipientRole(userRole) &&
+            payload.new.complainant_id !== user.id
+          ) {
+            notifyTicketEvent({
               type: 'complaint',
               title: 'New Complaint Filed',
               message: `A new complaint "${payload.new.title}" has been filed`,
-              priority: payload.new.priority,
-              data: payload.new
+              priority: payload.new.priority || 'medium',
+              actionUrl: `/complaints/${payload.new.id}`,
+              actionLabel: 'View Complaint',
+              data: payload.new,
             });
           }
         })
@@ -293,12 +358,24 @@ export const NotificationProvider = ({ children }) => {
           table: 'complaints'
         }, (payload) => {
           if (payload.new.complainant_id === user.id) {
-            addNotification({
+            notifyTicketEvent({
               type: 'complaint_update',
               title: 'Complaint Status Updated',
               message: `Your complaint "${payload.new.title}" status changed to ${payload.new.status}`,
               priority: 'medium',
-              data: payload.new
+              actionUrl: `/complaints/${payload.new.id}`,
+              actionLabel: 'View Complaint',
+              data: payload.new,
+            });
+          } else if (isHrAlertRecipientRole(userRole)) {
+            notifyTicketEvent({
+              type: 'complaint_update',
+              title: 'Complaint Status Updated',
+              message: `Complaint "${payload.new.title}" is now ${payload.new.status}`,
+              priority: 'medium',
+              actionUrl: `/complaints/${payload.new.id}`,
+              actionLabel: 'View Complaint',
+              data: payload.new,
             });
           }
         })
@@ -313,13 +390,16 @@ export const NotificationProvider = ({ children }) => {
           schema: 'public',
           table: 'suggestions'
         }, (payload) => {
-          if (payload.new.suggester_id !== user.id) {
-            addNotification({
+          const isAdmin = ['admin', 'super_admin'].includes(String(userRole || '').toLowerCase());
+          if (isAdmin && payload.new.suggester_id !== user.id) {
+            notifyTicketEvent({
               type: 'suggestion',
               title: 'New Suggestion Submitted',
               message: `A new suggestion "${payload.new.title}" has been submitted`,
               priority: 'medium',
-              data: payload.new
+              actionUrl: `/suggestions/${payload.new.id}`,
+              actionLabel: 'View Suggestion',
+              data: payload.new,
             });
           }
         })
@@ -334,13 +414,28 @@ export const NotificationProvider = ({ children }) => {
           schema: 'public',
           table: 'it_requests'
         }, (payload) => {
-          if (isItAlertRecipientRole(user.role)) {
-            addNotification({
+          if (
+            isItAlertRecipientRole(userRole) &&
+            payload.new.requester_id !== user.id
+          ) {
+            notifyTicketEvent({
               type: 'it_request',
               title: 'New IT Request',
               message: `A new IT request "${payload.new.title}" has been submitted`,
-              priority: payload.new.priority || 'medium',
-              data: payload.new
+              priority: payload.new.priority || 'high',
+              actionUrl: `/request-inbox?view=${payload.new.id}`,
+              actionLabel: 'Open Inbox',
+              data: payload.new,
+            });
+          } else if (payload.new.requester_id === user.id) {
+            notifyTicketEvent({
+              type: 'it_request_update',
+              title: 'Request Submitted',
+              message: `Your IT request "${payload.new.title}" was created successfully`,
+              priority: 'medium',
+              actionUrl: `/it-requests?view=${payload.new.id}`,
+              actionLabel: 'View Request',
+              data: payload.new,
             });
           }
         })
@@ -357,36 +452,107 @@ export const NotificationProvider = ({ children }) => {
         }, (payload) => {
           const oldStatus = payload.old?.status;
           const newStatus = payload.new?.status;
+          const oldAssignee = payload.old?.assigned_to;
+          const newAssignee = payload.new?.assigned_to;
           const statusChanged =
             payload.old != null &&
             newStatus !== undefined &&
             oldStatus !== undefined &&
             oldStatus !== newStatus;
+          const assigneeChanged =
+            newAssignee &&
+            String(newAssignee) !== String(oldAssignee ?? '');
+
+          if (assigneeChanged && isUserAssignee(user, userProfile, newAssignee)) {
+            notifyTicketEvent({
+              type: 'it_request_assigned',
+              title: 'IT Request Assigned to You',
+              message: `You have been assigned: "${payload.new.title}"`,
+              priority: 'high',
+              actionUrl: `/request-inbox?view=${payload.new.id}`,
+              actionLabel: 'View Request',
+              data: payload.new,
+            });
+          }
 
           if (statusChanged && payload.new.requester_id === user.id) {
-            addNotification({
+            notifyTicketEvent({
               type: 'it_request_update',
               title: 'IT Request Updated',
               message: `Your IT request "${payload.new.title}" status changed to ${payload.new.status}`,
               priority: 'medium',
-              data: payload.new
+              actionUrl: `/it-requests?view=${payload.new.id}`,
+              actionLabel: 'View Request',
+              data: payload.new,
             });
           } else if (
             statusChanged &&
-            isItAlertRecipientRole(user.role) &&
-            payload.new.requester_id !== user.id
+            isItAlertRecipientRole(userRole) &&
+            payload.new.requester_id !== user.id &&
+            !assigneeChanged
           ) {
-            addNotification({
+            notifyTicketEvent({
               type: 'it_request_update',
               title: 'IT Request Updated',
               message: `Request "${payload.new.title}" is now ${payload.new.status}`,
               priority: 'medium',
-              data: payload.new
+              actionUrl: `/request-inbox?view=${payload.new.id}`,
+              actionLabel: 'Open Inbox',
+              data: payload.new,
             });
           }
         })
         .subscribe();
       subs.push(itRequestUpdatesSub);
+
+      // Fleet maintenance tickets — assignment popups for assignee
+      const fleetTicketsSub = supabase
+        .channel('fleet_maintenance_tickets_alerts')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'fleet_maintenance_tickets',
+        }, (payload) => {
+          const assignee = payload.new?.assigned_to;
+          if (assignee && isUserAssignee(user, userProfile, assignee)) {
+            const title = payload.new.title || payload.new.ticket_number || 'Fleet maintenance task';
+            notifyTicketEvent({
+              type: 'fleet_task_assigned',
+              title: 'Fleet Task Assigned to You',
+              message: `You have been assigned: ${title}`,
+              priority: ['High', 'Critical', 'Urgent'].includes(payload.new.priority) ? 'high' : 'medium',
+              actionUrl: '/operation/fleetio/maintenance',
+              actionLabel: 'View Task',
+              data: payload.new,
+            });
+          }
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'fleet_maintenance_tickets',
+        }, (payload) => {
+          const oldAssignee = payload.old?.assigned_to;
+          const newAssignee = payload.new?.assigned_to;
+          if (
+            newAssignee &&
+            String(newAssignee) !== String(oldAssignee ?? '') &&
+            isUserAssignee(user, userProfile, newAssignee)
+          ) {
+            const title = payload.new.title || payload.new.ticket_number || 'Fleet maintenance task';
+            notifyTicketEvent({
+              type: 'fleet_task_assigned',
+              title: 'Fleet Task Assigned to You',
+              message: `You have been assigned: ${title}`,
+              priority: ['High', 'Critical', 'Urgent'].includes(payload.new.priority) ? 'high' : 'medium',
+              actionUrl: '/operation/fleetio/maintenance',
+              actionLabel: 'View Task',
+              data: payload.new,
+            });
+          }
+        })
+        .subscribe();
+      subs.push(fleetTicketsSub);
 
       // Subscribe to new messages for chat popups
       const messagesSub = supabase
@@ -408,7 +574,16 @@ export const NotificationProvider = ({ children }) => {
       // Setup additional notification types using the notification service
       try {
         await notificationService.setupAllNotifications((notification) => {
-          addNotification(notification, { autoDismiss: false, preserveId: true, playSound: true });
+          showToastAlert({
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            priority: notification.priority || 'medium',
+            actionUrl: notification.data?.action_url || notification.actionUrl,
+            actionLabel: notification.data?.action_label || 'View',
+            data: notification.data,
+          });
+          addNotification(notification, { autoDismiss: false, preserveId: true, playSound: false });
         });
       } catch (error) {
         console.error('Error setting up notification service:', error);
@@ -419,7 +594,8 @@ export const NotificationProvider = ({ children }) => {
         .channel(`user_${user.id}_notifications`)
         .on('broadcast', { event: 'notification' }, (payload) => {
           console.log('📨 Received user notification:', payload.payload);
-          addNotification(payload.payload, { autoDismiss: false, preserveId: true, playSound: true });
+          showToastAlert(payload.payload);
+          addNotification(payload.payload, { autoDismiss: false, preserveId: true, playSound: false });
         })
         .subscribe();
       subs.push(userNotificationSub);
@@ -451,7 +627,20 @@ export const NotificationProvider = ({ children }) => {
               timestamp: payload.new.created_at ? new Date(payload.new.created_at) : new Date(),
               source: 'task'
             };
-            addNotification(newNotif, { autoDismiss: false, preserveId: true, playSound: true });
+            if (payload.new.type === 'assignment') {
+              showToastAlert({
+                type: 'task_assigned',
+                title: newNotif.title,
+                message: newNotif.message,
+                priority: 'high',
+                actionUrl: `/tasks/${payload.new.task_id}`,
+                actionLabel: 'View Task',
+                data: newNotif.data,
+              });
+              addNotification(newNotif, { autoDismiss: false, preserveId: true, playSound: false });
+            } else {
+              addNotification(newNotif, { autoDismiss: false, preserveId: true, playSound: true });
+            }
           })
           .on('postgres_changes', {
             event: 'UPDATE',
@@ -476,7 +665,7 @@ export const NotificationProvider = ({ children }) => {
     } catch (error) {
       console.error('Error setting up notification subscriptions:', error);
     }
-  }, [user, addNotification]);
+  }, [user, userProfile, userRole, addNotification, notifyTicketEvent, showToastAlert]);
 
   // Check if user is participant in conversation before showing popup
   const checkConversationParticipation = useCallback(async (conversationId, message) => {
@@ -546,11 +735,15 @@ export const NotificationProvider = ({ children }) => {
   const value = {
     // State
     notifications,
+    toastAlerts,
     chatPopups,
     unreadCount,
     
     // Actions
     addNotification,
+    showToastAlert,
+    notifyTicketEvent,
+    removeToastAlert,
     addChatPopup,
     removeNotification,
     removeChatPopup,

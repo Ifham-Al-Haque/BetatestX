@@ -27,8 +27,8 @@ const MODULES = [
     tone: 'blue',
   },
   {
-    title: 'Onboarding & Offboarding',
-    description: 'Vehicle lifecycle from intake to retirement.',
+    title: 'Fleet Offboarding',
+    description: 'Retire vehicles from the active fleet.',
     path: '/operation/fleet-lifecycle',
     icon: CheckSquare,
     feature: 'fleet_lifecycle',

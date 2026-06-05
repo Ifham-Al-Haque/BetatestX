@@ -8,14 +8,23 @@ export const itServicesApi = {
   categories: {
     getAll: async () => {
       try {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('it_request_categories')
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true });
 
+        if (error?.message?.includes('is_active')) {
+          const fallback = await supabase
+            .from('it_request_categories')
+            .select('*')
+            .order('sort_order', { ascending: true });
+          data = fallback.data;
+          error = fallback.error;
+        }
+
         if (error) throw error;
-        return data;
+        return data || [];
       } catch (error) {
         console.error('Error fetching categories:', error);
         throw error;
@@ -623,11 +632,8 @@ export const itServicesApi = {
           console.warn('⚠️ Requester notification block failed:', requesterNotifyErr?.message || requesterNotifyErr);
         }
 
-        // Send notifications to IT Management and Admin roles
+        // Notify IT staff UHub users (in-app + push + email)
         try {
-          // Import the simple notification service
-          const { default: SimpleNotificationService } = await import('./simpleNotificationService');
-          const notificationService = new SimpleNotificationService();
           await notificationService.notifyITRequestCreated(data);
           console.log('✅ IT Request notification sent successfully');
         } catch (notificationError) {
@@ -685,9 +691,7 @@ export const itServicesApi = {
         if (currentRequest && updateData.status && currentRequest.status !== updateData.status) {
           setTimeout(async () => {
             try {
-              const { default: SimpleNotificationService } = await import('./simpleNotificationService');
-              const svc = new SimpleNotificationService();
-              await svc.notifyITRequestStatusUpdate(data, currentRequest.status, updateData.status);
+              await notificationService.notifyITRequestStatusUpdate(data, currentRequest.status, updateData.status);
               console.log('✅ IT Request status update notification sent successfully');
             } catch (notificationError) {
               console.error('⚠️ Failed to send IT request status update notification:', notificationError);

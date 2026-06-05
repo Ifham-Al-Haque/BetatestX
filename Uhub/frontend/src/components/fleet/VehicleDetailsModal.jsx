@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Car, Wrench, Fuel, AlertTriangle, Calendar, MapPin, DollarSign, ArrowLeft, FileText, LayoutGrid, PieChart } from 'lucide-react';
+import { X, Car, Wrench, Fuel, AlertTriangle, Calendar, MapPin, DollarSign, ArrowLeft, FileText, LayoutGrid, PieChart, UserX, CheckCircle, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import fleetService from '../../services/fleetService';
+import fleetOffboardingService, { OFFBOARDING_REASONS } from '../../services/fleetOffboardingService';
 import FleetVehicleMediaSection from './FleetVehicleMediaSection';
 import FleetRecordOverview from './FleetRecordOverview';
 import FleetRecordEconomicsTab from './FleetRecordEconomicsTab';
+import StartFleetOffboardingModal from './StartFleetOffboardingModal';
 import { getCarDisplayName, formatFleetCurrency } from '../../utils/fleetRecordUtils';
 
 const VehicleDetailsModal = ({
@@ -21,6 +23,8 @@ const VehicleDetailsModal = ({
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [offboardingRecord, setOffboardingRecord] = useState(null);
+  const [showOffboardModal, setShowOffboardModal] = useState(false);
 
   useEffect(() => {
     if (vehicleId && (isPage || isOpen)) {
@@ -31,17 +35,19 @@ const VehicleDetailsModal = ({
   const loadVehicleDetails = async () => {
     try {
       setLoading(true);
-      const [vehicleData, maintenanceData, fuelData, incidentsData] = await Promise.all([
+      const [vehicleData, maintenanceData, fuelData, incidentsData, offboarding] = await Promise.all([
         fleetService.getVehicle(vehicleId),
         fleetService.getMaintenanceRecords(vehicleId),
         fleetService.getFuelLogs(vehicleId),
-        fleetService.getIncidents(vehicleId)
+        fleetService.getIncidents(vehicleId),
+        fleetOffboardingService.getRecordByVehicleId(vehicleId)
       ]);
 
       setVehicle(vehicleData);
       setMaintenanceRecords(maintenanceData);
       setFuelLogs(fuelData);
       setIncidents(incidentsData);
+      setOffboardingRecord(offboarding);
     } catch (error) {
       console.error('Error loading vehicle details:', error);
     } finally {
@@ -150,11 +156,39 @@ const VehicleDetailsModal = ({
               </p>
             </div>
           </div>
-          {!isPage && (
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-              <X className="w-6 h-6" />
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {(() => {
+              const offComplete = vehicle.status === 'Retired' || offboardingRecord?.status === 'completed';
+              const offActive = offboardingRecord && offboardingRecord.status !== 'completed';
+              if (offComplete) {
+                return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                    <UserX className="w-3.5 h-3.5" /> Offboarded
+                  </span>
+                );
+              }
+              if (offActive) {
+                return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    <Clock className="w-3.5 h-3.5" /> Offboarding in progress
+                  </span>
+                );
+              }
+              return (
+                <button
+                  onClick={() => setShowOffboardModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
+                >
+                  <UserX className="w-4 h-4" /> Offboard
+                </button>
+              );
+            })()}
+            {!isPage && (
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -212,6 +246,75 @@ const VehicleDetailsModal = ({
           {/* Details Tab */}
           {activeTab === 'details' && (
             <div className="space-y-6">
+              {/* Vehicle Lifecycle */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <CheckCircle className="w-5 h-5 mr-2 text-blue-600" />
+                    Onboarding
+                  </h3>
+                  {vehicle.onboarding_status ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Status:</span>
+                        <span className="font-medium">{vehicle.onboarding_status}</span>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-600">Progress</span>
+                          <span className="font-medium">{vehicle.onboarding_progress || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${vehicle.onboarding_progress || 0}%` }} />
+                        </div>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Started:</span>
+                        <span className="font-medium">{formatDate(vehicle.onboarding_started_at || vehicle.created_at)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Added directly to Fleet Records (not onboarded through the onboarding workflow).</p>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <UserX className="w-5 h-5 mr-2 text-red-600" />
+                    Offboarding
+                  </h3>
+                  {offboardingRecord ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Status:</span>
+                        <span className="font-medium capitalize">{(offboardingRecord.status || '').replace('_', ' ')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Reason:</span>
+                        <span className="font-medium">{OFFBOARDING_REASONS.find((r) => r.value === offboardingRecord.reason)?.label || offboardingRecord.reason || '—'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Date:</span>
+                        <span className="font-medium">{formatDate(offboardingRecord.offboarding_date)}</span>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-600">Progress</span>
+                          <span className="font-medium">{offboardingRecord.progress_percentage || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-red-600 h-2 rounded-full" style={{ width: `${offboardingRecord.progress_percentage || 0}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : vehicle.status === 'Retired' ? (
+                    <p className="text-sm text-gray-500">This vehicle is retired.</p>
+                  ) : (
+                    <p className="text-sm text-gray-500">Active in fleet. Use the Offboard button above to start offboarding.</p>
+                  )}
+                </div>
+              </div>
+
               {/* Basic Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -566,6 +669,13 @@ const VehicleDetailsModal = ({
           )}
         </div>
       </div>
+
+      <StartFleetOffboardingModal
+        isOpen={showOffboardModal}
+        onClose={() => setShowOffboardModal(false)}
+        vehicle={vehicle}
+        onSuccess={loadVehicleDetails}
+      />
     </div>
   );
 };

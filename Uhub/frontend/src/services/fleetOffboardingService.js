@@ -14,8 +14,11 @@ const DEFAULT_CHECKLIST_ITEMS = [
 ];
 
 export const OFFBOARDING_REASONS = [
-  { value: 'vehicle_replacement', label: 'Vehicle Replacement' },
+  { value: 'total_loss', label: 'Total Loss' },
+  { value: 'lease_contract_expired', label: 'Lease Contract Expired' },
   { value: 'end_of_service', label: 'End of Service' },
+  { value: 'vehicle_replacement', label: 'Vehicle Replacement' },
+  { value: 'sold', label: 'Sold' },
   { value: 'damage', label: 'Vehicle Damage' },
   { value: 'upgrade', label: 'Fleet Upgrade' },
   { value: 'other', label: 'Other' },
@@ -124,6 +127,31 @@ class FleetOffboardingService {
     }
   }
 
+  /** Latest offboarding record for a given fleet vehicle (or null). */
+  async getRecordByVehicleId(vehicleId) {
+    try {
+      const { data, error } = await supabase
+        .from('fleet_offboarding_records')
+        .select('*')
+        .eq('vehicle_id', vehicleId)
+        .order('offboarding_date', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const record = (data || [])[0];
+      if (!record) return null;
+      const { data: items } = await supabase
+        .from('fleet_offboarding_checklist_items')
+        .select('*')
+        .eq('offboarding_record_id', record.id)
+        .order('sort_order');
+      return { ...record, checklist_items: items || [] };
+    } catch (err) {
+      if (err.code === '42P01' || err.code === 'PGRST116') return null;
+      console.error('Fleet offboarding getRecordByVehicleId:', err);
+      return null;
+    }
+  }
+
   async startOffboarding({ vehicle_id, reason, offboarding_date, notes, started_by }) {
     try {
       const { data: record, error } = await supabase
@@ -208,6 +236,14 @@ class FleetOffboardingService {
         .select()
         .single();
       if (error) throw error;
+
+      // Retire the fleet record (kept visible with an Offboarded badge)
+      if (data?.vehicle_id) {
+        await supabase
+          .from('fleet_vehicles')
+          .update({ status: 'Retired', updated_at: new Date().toISOString() })
+          .eq('id', data.vehicle_id);
+      }
       return data;
     } catch (err) {
       console.error('Fleet offboarding completeOffboarding:', err);
