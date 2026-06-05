@@ -8,6 +8,33 @@ class NotificationService {
     this.createNotificationAvailable = true;
   }
 
+  // Best-effort browser/native push for a single user (auth id). No-ops if push unconfigured.
+  _dispatchPush(userId, { title, message, actionUrl } = {}) {
+    if (!userId || !title) return;
+    try {
+      sendPushToUser(userId, { title, message, url: actionUrl || undefined }).catch(() => {});
+    } catch {
+      /* noop */
+    }
+  }
+
+  // Best-effort push to every user holding a given role.
+  async _dispatchPushToRole(role, { title, message, actionUrl } = {}) {
+    if (!role || !title) return;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('auth_user_id')
+        .eq('role', role);
+      if (error || !data) return;
+      data.forEach((u) => {
+        if (u.auth_user_id) this._dispatchPush(u.auth_user_id, { title, message, actionUrl });
+      });
+    } catch {
+      /* noop */
+    }
+  }
+
   // Create a single notification
   async createNotification({
     userId,
@@ -39,6 +66,7 @@ class NotificationService {
         });
 
       if (error) throw error;
+      this._dispatchPush(userId, { title, message, actionUrl });
       return notification;
     } catch (error) {
       console.warn('Notification service: disabling create_notification RPC due to error:', error);
@@ -78,6 +106,7 @@ class NotificationService {
         });
 
       if (error) throw error;
+      (userIds || []).forEach((id) => this._dispatchPush(id, { title, message, actionUrl }));
       return count;
     } catch (error) {
       console.warn('Notification service: disabling create_notification RPC due to error:', error);
@@ -117,6 +146,7 @@ class NotificationService {
         });
 
       if (error) throw error;
+      this._dispatchPushToRole(role, { title, message, actionUrl });
       return count;
     } catch (error) {
       console.warn('Notification service: disabling create_notification RPC due to error:', error);
@@ -744,19 +774,7 @@ class NotificationService {
         console.warn('Fleet assignment email skipped: no email found for assignee', assigneeId);
       }
 
-      // 3) Push (OneSignal) — no-ops until configured + send-push function deployed
-      if (notificationUserId) {
-        try {
-          await sendPushToUser(notificationUserId, {
-            title: 'Fleet Task Assigned',
-            message: `${taskTitle}${vehicleLabel ? ` (${vehicleLabel})` : ''}`,
-            url: actionUrl,
-          });
-        } catch {
-          /* noop */
-        }
-      }
-
+      // Push is dispatched centrally by createNotification() above.
       return 1;
     } catch (err) {
       console.error('Failed to send fleet task assignment notification:', err);
