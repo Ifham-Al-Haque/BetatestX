@@ -464,8 +464,8 @@ const RequestInbox = () => {
               <motion.div 
                 className="p-3.5 rounded-2xl"
                 style={{
-                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)'
+                  background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)',
+                  boxShadow: '0 4px 14px rgba(20, 184, 166, 0.35)'
                 }}
                 whileHover={safeMotion(prefersReducedMotion, { scale: 1.03 }, {})}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}

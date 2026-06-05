@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  BarChart3, Search, FileText, Download, X, 
-  TrendingUp, Filter, Calendar, Package, Ticket
+  BarChart3, Search, FileText, Download,
+  TrendingUp, Package, Ticket, Wrench
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ITAnalytics from '../components/ITAnalytics';
@@ -11,27 +11,46 @@ import ITReportTemplates from '../components/ITReportTemplates';
 import ITDataExport from '../components/ITDataExport';
 import { Card, CardContent } from '../components/ui/card';
 import Button from '../components/ui/button';
+import { itServicesApi } from '../services/itServicesApi';
+import { fadeUp } from '../utils/motion';
 
 const ITTools = () => {
   const { user, userProfile } = useAuth();
-  
   const [activeTool, setActiveTool] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setStatsLoading(true);
+        const data = await itServicesApi.requests.getStats(user?.id, userProfile?.role);
+        if (!cancelled) setStats(data);
+      } catch {
+        if (!cancelled) setStats(null);
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, userProfile?.role]);
 
   const tools = [
     {
       id: 'analytics',
       name: 'Analytics Dashboard',
-      description: 'Comprehensive insights into IT requests, tickets, and assets with trends and performance metrics',
+      description: 'Insights into IT requests with trends, SLA compliance, and performance metrics',
       icon: BarChart3,
-      color: 'from-blue-500 to-cyan-600',
+      color: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)',
       component: ITAnalytics
     },
     {
       id: 'search',
       name: 'Advanced Search',
-      description: 'Search across IT requests, assets, and tickets with saved filter presets',
+      description: 'Search across IT requests with saved filter presets',
       icon: Search,
-      color: 'from-purple-500 to-pink-600',
+      color: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
       component: ITAdvancedSearch
     },
     {
@@ -39,7 +58,7 @@ const ITTools = () => {
       name: 'Report Templates',
       description: 'Pre-built reports with scheduling and export options',
       icon: FileText,
-      color: 'from-green-500 to-emerald-600',
+      color: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
       component: ITReportTemplates
     },
     {
@@ -47,195 +66,140 @@ const ITTools = () => {
       name: 'Data Export',
       description: 'Export filtered data in CSV, Excel, or JSON formats',
       icon: Download,
-      color: 'from-orange-500 to-red-600',
+      color: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)',
       component: ITDataExport
     }
   ];
 
-  const handleToolClick = (tool) => {
-    setActiveTool(tool);
-  };
+  const openRequests = stats
+    ? (stats.open_requests ?? 0) + (stats.in_progress_requests ?? 0) + (stats.assigned_requests ?? 0)
+    : null;
 
-  const handleCloseTool = () => {
-    setActiveTool(null);
-  };
+  const quickStats = [
+    { label: 'Total Requests', value: stats?.total_requests, icon: Ticket, color: 'var(--accent-primary)' },
+    { label: 'Open / Active', value: openRequests, icon: FileText, color: 'var(--accent-warning)' },
+    { label: 'Unassigned', value: stats?.unassigned_requests, icon: Wrench, color: 'var(--accent-info)' },
+    { label: 'Resolved', value: stats?.resolved_requests, icon: TrendingUp, color: 'var(--accent-success)' },
+  ];
 
   const ToolComponent = activeTool?.component;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
+    <div
+      className="min-h-screen p-4 md:p-6 transition-colors duration-300"
+      style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+    >
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">IT Tools & Analytics</h1>
-          <p className="text-gray-600 text-lg">
-            Powerful tools for analyzing, searching, reporting, and exporting IT service data
-          </p>
+        <motion.div {...fadeUp(0)} className="mb-8">
+          <div className="flex items-center gap-4 mb-2">
+            <div
+              className="p-3.5 rounded-2xl"
+              style={{
+                background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)',
+                boxShadow: '0 4px 14px rgba(20, 184, 166, 0.35)'
+              }}
+            >
+              <BarChart3 className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                IT Tools & Analytics
+              </h1>
+              <p className="text-sm md:text-base mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Analyze, search, report, and export IT service data
+              </p>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Tools Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
           {tools.map((tool, index) => {
             const Icon = tool.icon;
             return (
               <motion.div
                 key={tool.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.02, y: -4 }}
+                transition={{ delay: index * 0.08, duration: 0.3 }}
+                whileHover={{ y: -3 }}
                 className="cursor-pointer"
-                onClick={() => handleToolClick(tool)}
+                onClick={() => setActiveTool(tool)}
               >
-                <Card className="h-full hover:shadow-xl transition-all duration-300 border-0 overflow-hidden">
-                  <div className={`bg-gradient-to-r ${tool.color} p-1`}>
-                    <CardContent className="bg-white p-6">
-                      <div className="flex items-start gap-4">
-                        <div className={`p-4 rounded-xl bg-gradient-to-r ${tool.color} shadow-lg`}>
-                          <Icon className="w-8 h-8 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-900 mb-2">
-                            {tool.name}
-                          </h3>
-                          <p className="text-gray-600 text-sm mb-4">
-                            {tool.description}
-                          </p>
-                          <Button
-                            className={`bg-gradient-to-r ${tool.color} text-white hover:opacity-90`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToolClick(tool);
-                            }}
-                          >
-                            Open Tool
-                          </Button>
-                        </div>
+                <Card
+                  className="h-full overflow-hidden rounded-xl border transition-shadow duration-200 hover:shadow-lg"
+                  style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                >
+                  <div className="h-1" style={{ background: tool.color }} />
+                  <CardContent className="p-5 md:p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-xl shadow-md" style={{ background: tool.color }}>
+                        <Icon className="w-7 h-7 text-white" />
                       </div>
-                    </CardContent>
-                  </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                          {tool.name}
+                        </h3>
+                        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+                          {tool.description}
+                        </p>
+                        <Button
+                          size="sm"
+                          className="text-white border-0"
+                          style={{ background: tool.color }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveTool(tool);
+                          }}
+                        >
+                          Open Tool
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               </motion.div>
             );
           })}
         </div>
 
-        {/* Quick Stats */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"
+          {...fadeUp(0.2)}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4"
         >
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Requests</p>
-                  <p className="text-3xl font-bold text-gray-900">-</p>
-                </div>
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Ticket className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Assets</p>
-                  <p className="text-3xl font-bold text-gray-900">-</p>
-                </div>
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <Package className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Open Tickets</p>
-                  <p className="text-3xl font-bold text-gray-900">-</p>
-                </div>
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <FileText className="w-6 h-6 text-yellow-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">SLA Compliance</p>
-                  <p className="text-3xl font-bold text-gray-900">-</p>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Info Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card className="bg-white">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">About IT Tools</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Analytics Dashboard</h4>
-                  <p className="text-sm text-gray-600">
-                    Get comprehensive insights into IT service performance, including trends, 
-                    SLA compliance, resolution times, and category breakdowns.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Advanced Search</h4>
-                  <p className="text-sm text-gray-600">
-                    Search across all IT data types with advanced filters. Save your search 
-                    presets for quick access to common queries.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Report Templates</h4>
-                  <p className="text-sm text-gray-600">
-                    Use pre-built report templates for common analysis needs. Schedule reports 
-                    to be automatically generated and emailed.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Data Export</h4>
-                  <p className="text-sm text-gray-600">
-                    Export filtered data in multiple formats (CSV, Excel, JSON) with custom 
-                    field selection for your specific needs.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {quickStats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Card
+                key={stat.label}
+                className="rounded-xl border"
+                style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+              >
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate mb-1" style={{ color: 'var(--text-muted)' }}>
+                        {stat.label}
+                      </p>
+                      <p className="text-2xl md:text-3xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                        {statsLoading ? '…' : (stat.value ?? '—')}
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-lg flex-shrink-0" style={{ background: stat.color }}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </motion.div>
       </div>
 
-      {/* Tool Modals */}
       {activeTool && ToolComponent && (
         <ToolComponent
-          onClose={handleCloseTool}
+          onClose={() => setActiveTool(null)}
           onResultSelect={(type, item) => {
             console.log('Selected:', type, item);
-            // Handle result selection - could navigate to detail page
           }}
         />
       )}

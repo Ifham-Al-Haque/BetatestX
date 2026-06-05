@@ -40,55 +40,126 @@ const ITAnalytics = ({ onClose }) => {
   const fetchAnalytics = React.useCallback(async () => {
     try {
       setLoading(true);
-      const stats = await itServicesApi.requests.getStats(user?.id, userProfile?.role);
-      
-      // Calculate additional metrics
+      const role = userProfile?.role;
+      const isStaff = role && ['admin', 'it_manager', 'it_technician', 'super_admin', 'hr_manager'].includes(role);
+
+      const [stats, requestsResult] = await Promise.all([
+        itServicesApi.requests.getStats(user?.id, role),
+        itServicesApi.requests.getAll({}, isStaff ? null : user?.id, isStaff ? role : role)
+      ]);
+
+      const allRequests = Array.isArray(requestsResult)
+        ? requestsResult
+        : (requestsResult?.data ?? []);
+
+      const daysAgo = parseInt(dateRange, 10);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - daysAgo);
+
+      const requests = allRequests.filter((r) => {
+        if (!r?.created_at) return false;
+        return new Date(r.created_at) >= cutoff;
+      });
+
+      const total = requests.length;
+
+      const countBy = (getKey) => {
+        const map = {};
+        requests.forEach((r) => {
+          const key = getKey(r) || 'Unknown';
+          map[key] = (map[key] || 0) + 1;
+        });
+        return Object.entries(map)
+          .map(([name, count]) => ({
+            name,
+            count,
+            percentage: total ? Math.round((count / total) * 100) : 0
+          }))
+          .sort((a, b) => b.count - a.count);
+      };
+
+      const categoryBreakdown = countBy((r) => r.category?.name);
+      const priorityBreakdown = countBy((r) => r.priority?.name);
+
+      const requesterMap = {};
+      requests.forEach((r) => {
+        const name = r.requester?.full_name || r.requester_name || 'Unknown';
+        const dept = r.requester?.department || '';
+        if (!requesterMap[name]) requesterMap[name] = { name, count: 0, department: dept };
+        requesterMap[name].count += 1;
+      });
+      const topRequesters = Object.values(requesterMap)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
       const now = new Date();
-      const daysAgo = parseInt(dateRange);
-      
+      let overdueCount = 0;
+      let slaEligible = 0;
+      requests.forEach((r) => {
+        if (!['open', 'assigned', 'in_progress', 'pending_user', 'pending_approval'].includes(r.status)) return;
+        const slaHours = r.priority?.sla_hours || 72;
+        const hoursElapsed = (now - new Date(r.created_at)) / (1000 * 60 * 60);
+        slaEligible += 1;
+        if (hoursElapsed > slaHours) overdueCount += 1;
+      });
+      const slaCompliance = slaEligible
+        ? Math.round(((slaEligible - overdueCount) / slaEligible) * 100)
+        : 100;
+
+      const resolvedList = requests.filter((r) =>
+        ['resolved', 'closed'].includes(r.status) && r.updated_at
+      );
+      let avgHours = 0;
+      if (resolvedList.length > 0) {
+        const totalHours = resolvedList.reduce((sum, r) => {
+          const created = new Date(r.created_at);
+          const updated = new Date(r.updated_at);
+          return sum + (updated - created) / (1000 * 60 * 60);
+        }, 0);
+        avgHours = Math.round(totalHours / resolvedList.length);
+      }
+
+      const catResolution = {};
+      resolvedList.forEach((r) => {
+        const cat = r.category?.name || 'Uncategorized';
+        const hours = (new Date(r.updated_at) - new Date(r.created_at)) / (1000 * 60 * 60);
+        if (!catResolution[cat]) catResolution[cat] = { total: 0, count: 0 };
+        catResolution[cat].total += hours;
+        catResolution[cat].count += 1;
+      });
+      const resolutionTimeByCategory = Object.entries(catResolution)
+        .map(([category, { total: t, count }]) => ({
+          category,
+          avgHours: Math.round(t / count)
+        }))
+        .sort((a, b) => b.avgHours - a.avgHours);
+
+      const monthMap = {};
+      requests.forEach((r) => {
+        const d = new Date(r.created_at);
+        const key = d.toLocaleString('en-US', { month: 'short', year: '2-digit' });
+        if (!monthMap[key]) monthMap[key] = { month: key, requests: 0, resolved: 0 };
+        monthMap[key].requests += 1;
+        if (['resolved', 'closed'].includes(r.status)) monthMap[key].resolved += 1;
+      });
+      const monthlyTrends = Object.values(monthMap).slice(-6);
+
       setAnalytics({
-        totalRequests: stats.total_requests,
-        openRequests: stats.open_requests,
-        inProgressRequests: stats.in_progress_requests,
-        resolvedRequests: stats.resolved_requests,
-        closedRequests: stats.closed_requests,
-        cancelledRequests: stats.cancelled_requests,
-        averageResolutionTime: 24, // Mock data - would be calculated from actual data
-        categoryBreakdown: [
-          { name: 'Hardware', count: 15, percentage: 30 },
-          { name: 'Software', count: 12, percentage: 24 },
-          { name: 'Access', count: 10, percentage: 20 },
-          { name: 'Network', count: 8, percentage: 16 },
-          { name: 'Other', count: 5, percentage: 10 }
-        ],
-        priorityBreakdown: [
-          { name: 'Critical', count: 5, percentage: 10 },
-          { name: 'High', count: 15, percentage: 30 },
-          { name: 'Medium', count: 20, percentage: 40 },
-          { name: 'Low', count: 10, percentage: 20 }
-        ],
-        monthlyTrends: [
-          { month: 'Jan', requests: 45, resolved: 42 },
-          { month: 'Feb', requests: 52, resolved: 48 },
-          { month: 'Mar', requests: 38, resolved: 35 },
-          { month: 'Apr', requests: 61, resolved: 58 },
-          { month: 'May', requests: 47, resolved: 44 },
-          { month: 'Jun', requests: 55, resolved: 52 }
-        ],
-        unassignedRequests: stats.unassigned_requests,
-        overdueRequests: 3, // Mock data
-        topRequesters: [
-          { name: 'John Doe', count: 12, department: 'Sales' },
-          { name: 'Jane Smith', count: 8, department: 'Marketing' },
-          { name: 'Mike Johnson', count: 6, department: 'IT' }
-        ],
-        resolutionTimeByCategory: [
-          { category: 'Hardware', avgHours: 48 },
-          { category: 'Software', avgHours: 24 },
-          { category: 'Access', avgHours: 12 },
-          { category: 'Network', avgHours: 72 }
-        ],
-        slaCompliance: 85 // Mock data
+        totalRequests: total || stats.total_requests || 0,
+        openRequests: stats.open_requests ?? 0,
+        inProgressRequests: stats.in_progress_requests ?? 0,
+        resolvedRequests: stats.resolved_requests ?? 0,
+        closedRequests: stats.closed_requests ?? 0,
+        cancelledRequests: stats.cancelled_requests ?? 0,
+        averageResolutionTime: avgHours,
+        categoryBreakdown,
+        priorityBreakdown,
+        monthlyTrends,
+        unassignedRequests: stats.unassigned_requests ?? 0,
+        overdueRequests: overdueCount,
+        topRequesters,
+        resolutionTimeByCategory,
+        slaCompliance
       });
     } catch (err) {
       console.error('Error fetching analytics:', err);
