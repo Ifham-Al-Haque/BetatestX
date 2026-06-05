@@ -23,6 +23,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ITAnalytics from '../components/ITAnalytics';
 import { CardSkeleton, TableSkeleton } from '../components/LoadingSkeleton';
 import PaginationControls from '../components/ui/PaginationControls';
+import { getAssigneeDisplayName } from '../utils/itRequestEnrichment';
+import ITRequestDetailModal from '../components/it-services/ITRequestDetailModal';
+import ITRequestTicketCard from '../components/it-services/ITRequestTicketCard';
 import { fadeUp, safeMotion } from '../utils/motion';
 
 const RequestInbox = () => {
@@ -44,6 +47,7 @@ const RequestInbox = () => {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailSaving, setDetailSaving] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // grid, list, kanban
   
   // Enhanced filters
@@ -1011,6 +1015,7 @@ const RequestInbox = () => {
                       <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Status</th>
                       <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Priority</th>
                       <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Requester</th>
+                      <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Assignee</th>
                       <th className="text-left py-3 px-4 font-semibold backdrop-blur-sm" style={{ color: 'var(--text-muted)' }}>Date</th>
                       <th className="w-10 backdrop-blur-sm"></th>
                     </tr>
@@ -1052,6 +1057,9 @@ const RequestInbox = () => {
                             </span>
                           </td>
                           <td className="py-3 px-4" style={{ color: 'var(--text-secondary)' }}>{request.requester?.full_name || request.requester_name || 'Unknown'}</td>
+                          <td className="py-3 px-4" style={{ color: 'var(--text-secondary)' }}>
+                            {getAssigneeDisplayName(request) || (request.assigned_to ? '—' : 'Unassigned')}
+                          </td>
                           <td className="py-3 px-4" style={{ color: 'var(--text-muted)' }}>{formatDate(request.created_at)}</td>
                           <td className="py-3 px-2">
                             <Button variant="ghost" size="sm" className="p-1.5" onClick={(e) => { e.stopPropagation(); openRequestDetail(request); }}>
@@ -1067,251 +1075,20 @@ const RequestInbox = () => {
             </div>
           ) : (
             <div className="grid gap-4">
-              {pagedRequests.map((request, index) => {
-              const sla = getSLAStatus(request);
-                const statusColor = getStatusColor(request.status);
-                const priorityColor = getPriorityColor(request.priority);
-                const StatusIcon = getStatusIcon(request.status);
-                const PriorityIcon = getPriorityIcon(request.priority);
-                
-              return (
-                  <motion.div
-                    key={request.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: prefersReducedMotion ? 0 : Math.min(index * 0.04, 0.3), duration: 0.3 }}
-                    whileHover={safeMotion(prefersReducedMotion, { y: -2 }, {})}
-                    className="transition-shadow duration-200"
-                  >
-                    <Card 
-                      className="cursor-pointer group overflow-hidden rounded-xl border shadow-sm hover:shadow-lg relative transition-all duration-200"
-                      style={{
-                        background: 'var(--card-bg)',
-                        borderColor: 'var(--card-border)'
-                      }}
-                      onClick={() => openRequestDetail(request)}
-                    >
-                      {/* Gradient accent bar */}
-                      <div 
-                        className="absolute top-0 left-0 w-full h-1"
-                        style={{
-                          background: `linear-gradient(90deg, ${statusColor.bg} 0%, ${priorityColor.bg} 100%)`
-                        }}
-                      ></div>
-                  <CardContent className="p-6 pt-7">
-                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                          {/* Main Content */}
-                      <div className="flex-1">
-                            {/* Header */}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                              <div className="flex items-center gap-3">
-                                <h3 
-                                  className="text-xl font-semibold group-hover:underline"
-                                  style={{ color: 'var(--text-primary)' }}
-                                >
-                            {request.title}
-                          </h3>
-                                {request.request_number && (
-                                  <span 
-                                    className="px-2 py-1 text-xs font-mono rounded-md"
-                                    style={{
-                                      background: 'var(--bg-tertiary)',
-                                      color: 'var(--text-muted)',
-                                      border: '1px solid var(--border-primary)'
-                                    }}
-                                  >
-                                    {request.request_number}
-                          </span>
-                                )}
-                              </div>
-                              
-                              {/* Status and Priority Badges */}
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span 
-                                  className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
-                                  style={{
-                                    background: statusColor.bg,
-                                    color: statusColor.text,
-                                    border: `1px solid ${statusColor.border}`
-                                  }}
-                                >
-                                  <StatusIcon className="w-4 h-4" />
-                                  {request.status.replace('_', ' ').toUpperCase()}
-                          </span>
-                                
-                                <span 
-                                  className="px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2"
-                                  style={{
-                                    background: priorityColor.bg,
-                                    color: priorityColor.text,
-                                    border: `1px solid ${priorityColor.border}`
-                                  }}
-                                >
-                                  <PriorityIcon className="w-4 h-4" />
-                                  {request.priority?.name || 'Unknown'}
-                                </span>
-                                
-                          {sla && (
-                                  <span 
-                                    className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-2 ${
-                                      sla.status === 'overdue' ? 'bg-red-500 text-white' :
-                                      sla.status === 'warning' ? 'bg-yellow-500 text-white' :
-                                      'bg-green-500 text-white'
-                                    }`}
-                                  >
-                                    <Timer className="w-4 h-4" />
-                              {sla.status === 'overdue' ? `Overdue ${sla.hours}h` :
-                               sla.status === 'warning' ? `${sla.hours}h left` :
-                               `${sla.hours}h left`}
-                            </span>
-                          )}
-                              </div>
-                        </div>
-                        
-                            {/* Requester Info */}
-                            <div className="flex items-center gap-2 mb-3">
-                              <User className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-                              <span 
-                                className="text-sm font-medium"
-                                style={{ color: 'var(--text-muted)' }}
-                              >
-                                Requested by: {request.requester?.full_name || request.requester_name || 'Unknown User'}
-                              </span>
-                              {(request.requester?.email || request.requester_email) && (
-                                <span 
-                                  className="text-xs px-2 py-1 rounded-md"
-                                  style={{
-                                    background: 'var(--bg-tertiary)',
-                                    color: 'var(--text-muted)'
-                                  }}
-                                >
-                                  {request.requester?.email || request.requester_email}
-                                </span>
-                              )}
-                              {(request.requester?.department || request.requester_department) && (
-                                <span 
-                                  className="text-xs px-2 py-1 rounded-md"
-                                  style={{
-                                    background: 'var(--accent-primary)',
-                                    color: 'white'
-                                  }}
-                                >
-                                  {request.requester?.department || request.requester_department}
-                                </span>
-                              )}
-                            </div>
-                            
-                            {/* Description */}
-                            <p 
-                              className="text-base mb-4 line-clamp-2"
-                              style={{ color: 'var(--text-secondary)' }}
-                            >
-                              {request.description}
-                            </p>
-                            
-                            {/* Meta Information */}
-                            <div className="flex flex-wrap items-center gap-4 text-sm mb-4">
-                              <span 
-                                className="flex items-center gap-2"
-                                style={{ color: 'var(--text-muted)' }}
-                              >
-                            <Tag className="w-4 h-4" />
-                                {request.category?.name || 'Unknown Category'}
-                          </span>
-                              <span 
-                                className="flex items-center gap-2"
-                                style={{ color: 'var(--text-muted)' }}
-                              >
-                            <Calendar className="w-4 h-4" />
-                            {formatDate(request.created_at)}
-                          </span>
-                              <span 
-                                className="flex items-center gap-2"
-                                style={{ color: 'var(--text-muted)' }}
-                              >
-                            <User className="w-4 h-4" />
-                                {request.requester?.full_name || request.requester?.email || 'Unknown User'}
-                          </span>
-                          {request.assigned_to && (
-                                <span 
-                                  className="flex items-center gap-2"
-                                  style={{ color: 'var(--text-muted)' }}
-                                >
-                              <Wrench className="w-4 h-4" />
-                              Assigned to {request.assignee?.full_name || 'Unknown'}
-                            </span>
-                          )}
-                        </div>
-
-                            {/* Resolution Notes */}
-                        {request.resolution_notes && (
-                              <div 
-                                className="p-4 rounded-lg mb-4"
-                                style={{
-                                  background: 'var(--bg-tertiary)',
-                                  border: '1px solid var(--border-primary)'
-                                }}
-                              >
-                                <p 
-                                  className="text-sm"
-                                  style={{ color: 'var(--text-primary)' }}
-                                >
-                                  <strong>Response:</strong> {request.resolution_notes}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      
-                          {/* Actions */}
-                          <div className="flex flex-col sm:flex-row lg:flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <motion.div whileHover={safeMotion(prefersReducedMotion, { scale: 1.05 }, {})} whileTap={safeMotion(prefersReducedMotion, { scale: 0.95 }, {})}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openRequestDetail(request);
-                              }}
-                              className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-md"
-                              style={{
-                                background: 'var(--bg-tertiary)',
-                                borderColor: 'var(--border-primary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            >
-                              <Eye className="w-4 h-4" />
-                              <span>View</span>
-                          </Button>
-                        </motion.div>
-                        
-                          <motion.div whileHover={safeMotion(prefersReducedMotion, { scale: 1.05 }, {})} whileTap={safeMotion(prefersReducedMotion, { scale: 0.95 }, {})}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openRequestDetail(request);
-                                }}
-                                className="flex items-center gap-2 w-full transition-all duration-200 hover:shadow-lg"
-                                style={{
-                                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                  color: 'white',
-                                  border: 'none'
-                                }}
-                              >
-                                <Settings className="w-4 h-4" />
-                                <span>Manage</span>
-                            </Button>
-                          </motion.div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                  </motion.div>
-              );
-              })}
-        </div>
-                    )}
+              {pagedRequests.map((request, index) => (
+                <ITRequestTicketCard
+                  key={request.id}
+                  request={request}
+                  index={index}
+                  categories={categories}
+                  priorities={priorities}
+                  prefersReducedMotion={prefersReducedMotion}
+                  onOpen={openRequestDetail}
+                  onManage={openRequestDetail}
+                />
+              ))}
+            </div>
+          )}
 
           <PaginationControls
             page={currentPage}
@@ -1336,366 +1113,41 @@ const RequestInbox = () => {
         )}
 
         {/* Request Detail Modal */}
-        <AnimatePresence>
-          {selectedRequest && !detailLoading && (
-            <motion.div 
-              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-              onClick={() => setSelectedRequest(null)}
-            >
-              <motion.div
-                initial={prefersReducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={prefersReducedMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
-                transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
-                className="rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-                style={{
-                  background: 'var(--card-bg)',
-                  border: '1px solid var(--card-border)',
-                  boxShadow: 'var(--shadow-xl)'
-                }}
-              >
-                <div className="p-6">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <div 
-                        className="p-3 rounded-xl"
-                        style={{
-                          background: 'var(--gradient-primary)',
-                          boxShadow: 'var(--shadow-md)'
-                        }}
-                      >
-                        <Eye className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h2 
-                          className="text-2xl font-bold"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          Request Details
-                        </h2>
-                        <p 
-                          className="text-sm"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {selectedRequest.request_number} • View and manage this request
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedRequest(null)}
-                      className="p-2"
-                      style={{
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-muted)'
-                      }}
-                    >
-                      <XCircle className="w-5 h-5" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Main Content */}
-                    <motion.div
-                      {...fadeUp(0.02)}
-                      className="lg:col-span-2 space-y-6"
-                    >
-                      {/* Request Info */}
-                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-                        <CardHeader>
-                          <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            Request Information
-                          </h3>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div>
-                            <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                              Title
-                            </Label>
-                            <p className="text-base font-medium" style={{ color: 'var(--text-primary)' }}>
-                              {selectedRequest.title}
-                            </p>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                              Description
-                            </Label>
-                            <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
-                              {selectedRequest.description}
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                                Category
-                              </Label>
-                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
-                                {selectedRequest.category_name || selectedRequest.category?.name || 'N/A'}
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                                Priority
-                              </Label>
-                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
-                                {selectedRequest.priority_name || selectedRequest.priority?.name || 'N/A'}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Requester Details */}
-                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-                        <CardHeader>
-                          <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                            <User className="w-5 h-5" />
-                            Requester Details
-                          </h3>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                                Name
-                              </Label>
-                              <p className="text-base font-medium" style={{ color: 'var(--text-primary)' }}>
-                                {selectedRequest.requester?.full_name || selectedRequest.requester_name || 'Unknown User'}
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                                Email
-                              </Label>
-                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
-                                {selectedRequest.requester?.email || selectedRequest.requester_email || 'N/A'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                                Department
-                              </Label>
-                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
-                                {selectedRequest.requester?.department || selectedRequest.requester_department || 'N/A'}
-                              </p>
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                                Role
-                              </Label>
-                              <p className="text-base" style={{ color: 'var(--text-primary)' }}>
-                                {selectedRequest.requester?.role || selectedRequest.requester_role || 'N/A'}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-
-                    {/* Management Actions */}
-                    <motion.div
-                      {...fadeUp(0.06)}
-                      className="space-y-6"
-                    >
-                      {/* Status & Assignment */}
-                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-                        <CardHeader>
-                          <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            Management
-                          </h3>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div>
-                            <Label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-muted)' }}>
-                              Status
-                            </Label>
-                            <select
-                              value={selectedRequest.status}
-                              onChange={(e) => {
-                                // Handle status change
-                                const newStatus = e.target.value;
-                                setSelectedRequest(prev => ({ ...prev, status: newStatus }));
-                              }}
-                              className="w-full p-2 rounded-lg border"
-                              style={{
-                                background: 'var(--bg-tertiary)',
-                                borderColor: 'var(--border-primary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            >
-                              <option value="open">Open</option>
-                              <option value="assigned">Assigned</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="pending_approval">Pending Approval</option>
-                              <option value="resolved">Resolved</option>
-                              <option value="closed">Closed</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-muted)' }}>
-                              Assign to IT Staff
-                            </Label>
-                            <select
-                              value={selectedRequest.assigned_to || ''}
-                              onChange={(e) => {
-                                // Handle assignment change
-                                const assignedTo = e.target.value;
-                                setSelectedRequest(prev => ({ ...prev, assigned_to: assignedTo }));
-                              }}
-                              className="w-full p-2 rounded-lg border"
-                              style={{
-                                background: 'var(--bg-tertiary)',
-                                borderColor: 'var(--border-primary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            >
-                              <option value="">Unassigned</option>
-                              {itStaff.map(staff => (
-                                <option key={staff.id} value={staff.id}>
-                                  {staff.full_name} ({staff.role})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-muted)' }}>
-                              Resolution Notes
-                            </Label>
-                            <Textarea
-                              placeholder="Add resolution notes..."
-                              rows={3}
-                              className="w-full p-2 rounded-lg border"
-                              style={{
-                                background: 'var(--bg-tertiary)',
-                                borderColor: 'var(--border-primary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            />
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              onClick={async () => {
-                                try {
-                                  console.log('Updating request:', selectedRequest.id, {
-                                    status: selectedRequest.status,
-                                    assigned_to: selectedRequest.assigned_to
-                                  });
-                                  
-                                  await itServicesApi.requests.update(selectedRequest.id, {
-                                    status: selectedRequest.status,
-                                    assigned_to: selectedRequest.assigned_to || null
-                                  });
-                                  
-                                  if (selectedRequest.assigned_to) {
-                                    const assignee = itStaff.find(s => s.id === selectedRequest.assigned_to);
-                                    success(assignee?.email
-                                      ? `Request updated. Notification sent to ${assignee.email}`
-                                      : 'Request updated. Assignment notification sent to assignee.');
-                                  } else {
-                                    success('Request updated successfully!');
-                                  }
-                                  setSelectedRequest(null);
-                                  fetchData();
-                                } catch (error) {
-                                  console.error('Failed to update request:', error);
-                                  showError('Failed to update request', error.message || 'Unknown error occurred');
-                                }
-                              }}
-                              className="w-full"
-                              style={{
-                                background: 'var(--gradient-primary)',
-                                color: 'white',
-                                border: 'none'
-                              }}
-                            >
-                              <Settings className="w-4 h-4 mr-2" />
-                              Save Changes
-                            </Button>
-                            
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                // Handle ticket creation from request
-                                console.log('Create ticket for request:', selectedRequest.id);
-                              }}
-                              className="w-full"
-                              style={{
-                                background: 'var(--bg-tertiary)',
-                                borderColor: 'var(--border-primary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            >
-                              <Wrench className="w-4 h-4 mr-2" />
-                              Create Ticket
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Request Timeline */}
-                      <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
-                        <CardHeader>
-                          <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                            <Clock className="w-5 h-5" />
-                            Timeline
-                          </h3>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="text-sm">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                              <span style={{ color: 'var(--text-muted)' }}>Created</span>
-                            </div>
-                            <p className="text-xs ml-4" style={{ color: 'var(--text-secondary)' }}>
-                              {new Date(selectedRequest.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                          
-                          {selectedRequest.assigned_at && (
-                            <div className="text-sm">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                <span style={{ color: 'var(--text-muted)' }}>Assigned</span>
-                              </div>
-                              <p className="text-xs ml-4" style={{ color: 'var(--text-secondary)' }}>
-                                {new Date(selectedRequest.assigned_at).toLocaleString()}
-                              </p>
-                            </div>
-                          )}
-                          
-                          {selectedRequest.actual_completion_date && (
-                            <div className="text-sm">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span style={{ color: 'var(--text-muted)' }}>Completed</span>
-                              </div>
-                              <p className="text-xs ml-4" style={{ color: 'var(--text-secondary)' }}>
-                                {new Date(selectedRequest.actual_completion_date).toLocaleString()}
-                              </p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {selectedRequest && !detailLoading && (
+          <ITRequestDetailModal
+            request={selectedRequest}
+            onClose={() => setSelectedRequest(null)}
+            mode="manage"
+            categories={categories}
+            priorities={priorities}
+            itStaff={itStaff}
+            saving={detailSaving}
+            prefersReducedMotion={prefersReducedMotion}
+            onSave={async (updates) => {
+              try {
+                setDetailSaving(true);
+                await itServicesApi.requests.update(selectedRequest.id, updates);
+                if (updates.assigned_to) {
+                  const assignee = itStaff.find((s) => String(s.id) === String(updates.assigned_to));
+                  success(
+                    assignee?.email
+                      ? `Request updated. Notification sent to ${assignee.email}`
+                      : 'Request updated. Assignment notification sent to assignee.'
+                  );
+                } else {
+                  success('Request updated successfully!');
+                }
+                setSelectedRequest(null);
+                fetchData();
+              } catch (error) {
+                console.error('Failed to update request:', error);
+                showError('Failed to update request', error.message || 'Unknown error occurred');
+              } finally {
+                setDetailSaving(false);
+              }
+            }}
+          />
+        )}
 
         {/* Analytics Modal */}
         <AnimatePresence>

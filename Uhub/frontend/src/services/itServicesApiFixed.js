@@ -3,6 +3,10 @@ import notificationService from './notificationService';
 import { emailService } from './emailService';
 import { resolveItRequestRequesterId } from './unifiedNotify';
 import { canManageItRequestQueue } from '../utils/notificationRoles';
+import {
+  normalizeItRequestList,
+  enrichItRequestsWithAssignees,
+} from '../utils/itRequestEnrichment';
 
 // IT Services API Service - FIXED VERSION
 export const itServicesApi = {
@@ -200,8 +204,9 @@ export const itServicesApi = {
           .select(`
             *,
             requester:requester_id(full_name, email),
+            assignee:assigned_to(id, full_name, email, role, department),
             category:category_id(name, icon, color),
-            priority:priority_id(name, level, color)
+            priority:priority_id(name, level, color, sla_hours)
           `)
           .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
@@ -235,8 +240,10 @@ export const itServicesApi = {
 
         // Safety: exclude any cancelled that might slip through (e.g. view/RLS)
         const list = (data || []).filter((r) => r.status !== 'cancelled');
-        console.log('Fetched requests (excluding cancelled):', list.length);
-        return list;
+        let normalized = normalizeItRequestList(list);
+        normalized = await enrichItRequestsWithAssignees(supabase, normalized);
+        console.log('Fetched requests (excluding cancelled):', normalized.length);
+        return normalized;
         
       } catch (error) {
         console.error('Error fetching requests:', error);

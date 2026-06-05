@@ -31,6 +31,8 @@ import PaginationControls from '../components/ui/PaginationControls';
 import { safeMotion, fadeUp } from '../utils/motion';
 import { TableSkeleton } from '../components/LoadingSkeleton';
 import ITRequestFormModal from '../components/it-services/ITRequestFormModal';
+import ITRequestDetailModal from '../components/it-services/ITRequestDetailModal';
+import ITRequestTicketCard from '../components/it-services/ITRequestTicketCard';
 import { getCategoryIcon, formatDescriptionWithSubcategory, parseSubcategoryFromDescription, stripSubcategoryPrefix } from '../constants/itServiceCategories';
 
 // Priority colors and icons
@@ -491,137 +493,18 @@ const ITRequestsEnhanced = () => {
     }
   };
 
-  const renderRequestCard = (request, index) => {
-    const category = request.category || categories.find(c => c.id === request.category_id);
-    const priority = request.priority || priorities.find(p => p.id === request.priority_id);
-    const CategoryIcon = getCategoryIcon(category);
-    const priorityCfg = getPriorityConfig(priority);
-    const statusConfigItem = getStatusConfig(request.status);
-    const StatusIcon = statusConfigItem.icon;
-    const requesterName = request.requester?.full_name || request.requester?.email || null;
-    const sla = getSLAStatus(request);
-
-    return (
-      <motion.div
-        key={request.id}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : Math.min(index * 0.05, 0.35) }}
-        whileHover={safeMotion(prefersReducedMotion, { y: -4, transition: { duration: 0.2 } }, {})}
-        className="group"
-      >
-        <Card
-          className="h-full shadow-sm hover:shadow-lg transition-all duration-300 border overflow-hidden rounded-xl cursor-pointer"
-          style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
-          onClick={() => setSelectedRequest(request)}
-        >
-          <div className="h-1 w-full" style={{ backgroundColor: priorityCfg.color }} />
-          <CardContent className="p-5 md:p-6">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-3 min-w-0">
-                <div className="p-2 rounded-lg flex-shrink-0" style={{ backgroundColor: `${category?.color || '#14b8a6'}20` }}>
-                  <CategoryIcon className="w-5 h-5" style={{ color: category?.color || '#14b8a6' }} />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-semibold truncate transition-colors" style={{ color: 'var(--text-primary)' }}>
-                    {request.title}
-                  </h3>
-                  <p className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>
-                    {request.request_number}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedRequest(request)} aria-label="View details">
-                  <Eye className="w-4 h-4" />
-                </Button>
-                {(isAdminOrManager || request.requester_id === userId) && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const parsed = parseSubcategoryFromDescription(request.description);
-                        setEditingRequest(request);
-                        setFormData({
-                          title: request.title,
-                          description: parsed.body,
-                          category_id: request.category_id,
-                          priority_id: request.priority_id,
-                          request_type: request.request_type,
-                          subcategory: parsed.subcategory
-                        });
-                        setShowForm(true);
-                      }}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(request.id)} className="text-red-500 hover:text-red-600">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-            <p className="text-sm mb-3 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
-              {stripSubcategoryPrefix(request.description)}
-            </p>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: statusConfigItem.bgColor, color: statusConfigItem.color }}
-              >
-                <StatusIcon className="w-3 h-3" />
-                {statusConfigItem.label}
-              </span>
-              <span
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: priorityCfg.bgColor, color: priorityCfg.color }}
-              >
-                {(() => {
-                  const PriorityIcon = priorityCfg.icon;
-                  return <PriorityIcon className="w-3 h-3" />;
-                })()}
-                {priority?.name}
-              </span>
-              {sla && (
-                <span
-                  className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                    sla.status === 'overdue' ? 'bg-red-500 text-white' :
-                    sla.status === 'warning' ? 'bg-amber-500 text-white' :
-                    'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-                  }`}
-                >
-                  {sla.status === 'overdue' ? `Overdue ${sla.hours}h` : `${sla.hours}h left`}
-                </span>
-              )}
-              {category?.name && (
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
-                  style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
-                >
-                  <Tag className="w-3 h-3" />
-                  {category.name}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-              {requesterName && (
-                <span className="flex items-center gap-1">
-                  <User className="w-3 h-3" />
-                  {requesterName}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {formatDate(request.created_at)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    );
-  };
+  const renderRequestCard = (request, index) => (
+    <ITRequestTicketCard
+      key={request.id}
+      request={request}
+      index={index}
+      categories={categories}
+      priorities={priorities}
+      prefersReducedMotion={prefersReducedMotion}
+      showManage={false}
+      onOpen={setSelectedRequest}
+    />
+  );
 
   const renderRequestList = () => (
     <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
@@ -1268,165 +1151,16 @@ const ITRequestsEnhanced = () => {
         onSubmit={handleSubmit}
       />
 
-      {/* Request Details Modal */}
-      <AnimatePresence>
-        {selectedRequest && (
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-            onClick={closeDetailModal}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
-              style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      Request Details
-                    </h2>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                      {selectedRequest.request_number}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={closeDetailModal}
-                    className="p-2"
-                  >
-                    <XCircle className="w-5 h-5" />
-                  </Button>
-                </div>
-                
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                      {selectedRequest.title}
-                    </h3>
-                    {(() => {
-                      const parsed = parseSubcategoryFromDescription(selectedRequest.description);
-                      return (
-                        <>
-                          {parsed.subcategory && (
-                            <span
-                              className="inline-flex mb-2 px-2.5 py-1 rounded-full text-xs font-medium"
-                              style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
-                            >
-                              {parsed.subcategory}
-                            </span>
-                          )}
-                          <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                            {parsed.body || selectedRequest.description}
-                          </p>
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">Status</h4>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const statusConfig = getStatusConfig(selectedRequest.status);
-                          const StatusIcon = statusConfig.icon;
-                          return (
-                            <span 
-                              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-                              style={{ 
-                                backgroundColor: statusConfig.bgColor,
-                                color: statusConfig.color 
-                              }}
-                            >
-                              <StatusIcon className="w-4 h-4" />
-                              {statusConfig.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">Priority</h4>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const priority = priorities.find(p => p.id === selectedRequest.priority_id);
-                          const priorityConfig = getPriorityConfig(priority);
-                          return (
-                            <span 
-                              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-                              style={{ 
-                                backgroundColor: priorityConfig.bgColor,
-                                color: priorityConfig.color 
-                              }}
-                            >
-                              {(() => {
-                                const PriorityIcon = priorityConfig.icon;
-                                return <PriorityIcon className="w-4 h-4" />;
-                              })()}
-                              {priority?.name}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">Category</h4>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const category = categories.find(c => c.id === selectedRequest.category_id);
-                          const CategoryIcon = getCategoryIcon(category);
-                          return (
-                            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                              <CategoryIcon className="w-4 h-4" />
-                              {category?.name}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">Created</h4>
-                      <p className="text-gray-600 dark:text-gray-300">
-                        {new Date(selectedRequest.created_at).toLocaleString()}
-                      </p>
-                    </div>
-
-                    {(selectedRequest.requester?.full_name || selectedRequest.requester?.email) && (
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">Requester</h4>
-                        <p className="text-gray-600 dark:text-gray-300">
-                          {selectedRequest.requester?.full_name || selectedRequest.requester?.email}
-                          {selectedRequest.requester?.department && (
-                            <span className="text-gray-500 dark:text-gray-400 text-sm"> · {selectedRequest.requester.department}</span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-
-                    {selectedRequest.resolution_notes && (
-                      <div className="md:col-span-2">
-                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">Resolution notes</h4>
-                        <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                          {selectedRequest.resolution_notes}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {selectedRequest && (
+        <ITRequestDetailModal
+          request={selectedRequest}
+          onClose={closeDetailModal}
+          mode="view"
+          categories={categories}
+          priorities={priorities}
+          prefersReducedMotion={prefersReducedMotion}
+        />
+      )}
 
       {/* UDRIVE ACCESS Form Modal */}
       <AnimatePresence>

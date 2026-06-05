@@ -3,6 +3,16 @@ import notificationService from './notificationService';
 import { emailService } from './emailService';
 import { resolveItRequestRequesterId } from './unifiedNotify';
 import { canManageItRequestQueue, IT_STAFF_ROLES } from '../utils/notificationRoles';
+import {
+  normalizeItRequestList,
+  enrichItRequestsWithAssignees,
+} from '../utils/itRequestEnrichment';
+
+async function finalizeItRequestRows(rows) {
+  let list = normalizeItRequestList(rows || []);
+  list = await enrichItRequestsWithAssignees(supabase, list);
+  return list;
+}
 
 // IT Services API Service
 export const itServicesApi = {
@@ -203,6 +213,7 @@ export const itServicesApi = {
               *,
               category:category_id(name, description, icon, color),
               priority:priority_id(name, level, color, sla_hours, description),
+              assignee:assigned_to(id, full_name, email, role, department),
               requester:requester_id(
                 full_name,
                 email,
@@ -396,6 +407,7 @@ export const itServicesApi = {
             }
           }
           
+          processedData = await finalizeItRequestRows(processedData);
           return { data: processedData };
         }
 
@@ -492,6 +504,7 @@ export const itServicesApi = {
           }
         }
 
+        filteredData = await finalizeItRequestRows(filteredData);
         return { data: filteredData };
       } catch (error) {
         console.error('Error fetching requests:', error);
@@ -508,6 +521,7 @@ export const itServicesApi = {
             *,
             category:category_id(name, description, icon, color),
             priority:priority_id(name, level, color, sla_hours, description),
+            assignee:assigned_to(id, full_name, email, role, department),
             requester:requester_id(full_name, email, role, department)
           `)
           .eq('id', id)
@@ -524,6 +538,10 @@ export const itServicesApi = {
             const { data: u2 } = await supabase.from('users').select('full_name, email, department, role').eq('auth_user_id', data.requester_id).single();
             if (u2) data.requester = u2;
           }
+        }
+        if (data.assigned_to && (!data.assignee || !data.assignee.full_name)) {
+          const [one] = await finalizeItRequestRows([data]);
+          return one;
         }
         return data;
       } catch (error) {
