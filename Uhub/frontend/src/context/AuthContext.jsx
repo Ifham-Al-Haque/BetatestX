@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
       console.log("🔍 Checking users table for auth_user_id:", userId);
       const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("role, status, employee_id, email")
+        .select("id, role, status, employee_id, email, auth_user_id")
         .eq("auth_user_id", userId)
         .maybeSingle();
       
@@ -75,6 +75,8 @@ export const AuthProvider = ({ children }) => {
             // Fallback to user data only
             const profile = {
               id: userId,
+              usersTableId: userData.id,
+              employeeId: userData.employee_id,
               auth_user_id: userId,
               email: authUser.email,
               role: userData.role,
@@ -91,6 +93,8 @@ export const AuthProvider = ({ children }) => {
           // Create profile with employee data (Udrive Company data)
           const profile = {
             id: employeeData.id,
+            usersTableId: userData.id,
+            employeeId: employeeData.id,
             auth_user_id: userId,
             email: authUser.email,
             role: userData.role,
@@ -109,6 +113,8 @@ export const AuthProvider = ({ children }) => {
           console.log("🎯 Creating basic profile from users table data (no employee link)");
           const profile = {
             id: userId,
+            usersTableId: userData.id,
+            employeeId: userData.employee_id ?? null,
             auth_user_id: userId,
             email: authUser.email,
             role: userData.role,
@@ -155,6 +161,8 @@ export const AuthProvider = ({ children }) => {
               // Create profile from existing employee data
               const profile = {
                 id: existingEmployee.id,
+                usersTableId: userData.id,
+                employeeId: existingEmployee.id,
                 auth_user_id: userId,
                 email: authUser.email,
                 role: userData.role,
@@ -272,6 +280,8 @@ export const AuthProvider = ({ children }) => {
           const employeeDetails = existingEmployee || newEmployee;
           const profile = {
             id: employeeId,
+            usersTableId: newUser.id,
+            employeeId: employeeId,
             auth_user_id: userId,
             email: authUser.email,
             role: newUser.role,
@@ -381,6 +391,8 @@ export const AuthProvider = ({ children }) => {
           const employeeDetails = existingEmployee || newEmployee;
           const profile = {
             id: employeeId,
+            usersTableId: newUser.id,
+            employeeId: employeeId,
             auth_user_id: userId,
             email: authUser.email,
             role: newUser.role,

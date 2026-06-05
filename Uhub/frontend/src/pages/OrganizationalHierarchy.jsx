@@ -6,20 +6,21 @@ import {
   ChevronDown, ChevronRight, User, Mail, Phone, MapPin,
   Calendar, Award, Target, BarChart3, PieChart, Crown,
   Shield, Star, Zap, Globe, Briefcase, Clock, UserPlus,
-  Settings, MoreVertical, ExternalLink, Copy, Share2, X
+  Settings, MoreVertical, ExternalLink, Copy, Share2, X, Network
 } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, Area, AreaChart } from 'recharts';
 import OrgChart from '../components/OrgChart';
 import AnimatedOrgChart from '../components/AnimatedOrgChart';
 import CompleteOrgChart from '../components/CompleteOrgChart';
+import OrgChartBuilder from '../components/OrgChartBuilder';
 import { useEmployees } from '../hooks/useEmployees';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const OrganizationalHierarchy = () => {
-  const { data: employees, isLoading: employeesLoading } = useEmployees();
+  const { data: employees, isLoading: employeesLoading, isFetching: employeesFetching, refetch } = useEmployees();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [viewMode, setViewMode] = useState('departments'); // 'chart', 'list', 'analytics', 'departments', 'tree', 'complete'
+  const [viewMode, setViewMode] = useState('departments'); // 'chart', 'list', 'analytics', 'departments', 'tree', 'complete', 'builder'
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCards, setExpandedCards] = useState({});
   const [expandedDepartments, setExpandedDepartments] = useState({});
@@ -183,8 +184,8 @@ const OrganizationalHierarchy = () => {
                   </p>
                   <div className="flex items-center gap-6 text-sm">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-gray-600 dark:text-gray-400">Live Data</span>
+                      <Network className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-600 dark:text-gray-400">Drag &amp; drop editing</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Shield className="w-4 h-4 text-gray-500" />
@@ -192,7 +193,7 @@ const OrganizationalHierarchy = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-600 dark:text-gray-400">Global View</span>
+                      <span className="text-gray-600 dark:text-gray-400">Company-wide view</span>
                     </div>
                   </div>
                 </div>
@@ -212,14 +213,13 @@ const OrganizationalHierarchy = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="p-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200">
-                    <RefreshCw className="w-5 h-5" />
-                  </button>
-                  <button className="p-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200">
-                    <Download className="w-5 h-5" />
-                  </button>
-                  <button className="p-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200">
-                    <Settings className="w-5 h-5" />
+                  <button
+                    onClick={() => refetch()}
+                    disabled={employeesFetching}
+                    title="Refresh data"
+                    className="p-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-5 h-5 ${employeesFetching ? 'animate-spin' : ''}`} />
                   </button>
                 </div>
               </div>
@@ -336,15 +336,16 @@ const OrganizationalHierarchy = () => {
                   >
                     <Users className="w-5 h-5" />
                   </button>
-                </div>
-
-                {/* Export Options */}
-                <div className="flex items-center gap-2">
-                  <button className="p-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200 group">
-                    <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </button>
-                  <button className="p-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all duration-200 group">
-                    <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <button
+                    onClick={() => setViewMode('builder')}
+                    className={`p-3 rounded-lg transition-all duration-200 ${
+                      viewMode === 'builder'
+                        ? 'bg-white dark:bg-gray-600 text-violet-600 dark:text-violet-400 shadow-lg transform scale-105'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50'
+                    }`}
+                    title="Hierarchy Builder (drag & drop)"
+                  >
+                    <Network className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -367,8 +368,10 @@ const OrganizationalHierarchy = () => {
                   <Users className="w-7 h-7 text-white" />
                 </div>
                 <div className="text-right">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Live</span>
+                  <div className="flex items-center gap-1 justify-end">
+                    <UserCheck className="w-4 h-4 text-green-500" />
+                  </div>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Active</span>
                 </div>
               </div>
               <div>
@@ -396,11 +399,11 @@ const OrganizationalHierarchy = () => {
                   <Building className="w-7 h-7 text-white" />
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-1">
-                    <TrendingUp className="w-4 h-4 text-green-500" />
-                    <span className="text-xs text-green-600 dark:text-green-400 font-semibold">+2</span>
+                  <div className="flex items-center gap-1 justify-end">
+                    <Building className="w-4 h-4 text-green-500" />
+                    <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{analytics?.metrics.avgEmployeesPerDept}</span>
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">vs last month</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">avg / dept</span>
                 </div>
               </div>
               <div>
@@ -651,7 +654,6 @@ const OrganizationalHierarchy = () => {
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     {Object.keys(employeesByDepartment).length} Departments
                   </span>
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 </div>
               </div>
 
@@ -800,7 +802,6 @@ const OrganizationalHierarchy = () => {
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {filteredEmployees.length} Employees
                     </span>
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                   </div>
                 </div>
 
@@ -856,8 +857,116 @@ const OrganizationalHierarchy = () => {
               />
             </motion.div>
           )}
+
+          {viewMode === 'builder' && (
+            <motion.div
+              key="builder"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 sm:p-8"
+            >
+              <OrgChartBuilder
+                employees={employees || []}
+                loading={employeesLoading}
+                onEmployeeClick={(employee) => {
+                  setSelectedEmployee(employee);
+                  setShowEmployeeModal(true);
+                }}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
+
+      {/* Employee Detail Modal */}
+      <AnimatePresence>
+        {showEmployeeModal && selectedEmployee && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowEmployeeModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="h-24 bg-gradient-to-r from-blue-600 to-indigo-600" />
+              <button
+                onClick={() => setShowEmployeeModal(false)}
+                className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-xl text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="px-6 pb-6 -mt-12">
+                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center overflow-hidden ring-4 ring-white dark:ring-gray-800 shadow-lg mb-4">
+                  {selectedEmployee.profile_picture || selectedEmployee.photo_url ? (
+                    <img
+                      src={selectedEmployee.profile_picture || selectedEmployee.photo_url}
+                      alt={selectedEmployee.full_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-12 h-12 text-blue-600 dark:text-blue-400" />
+                  )}
+                </div>
+
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedEmployee.full_name}</h3>
+                <p className="text-gray-600 dark:text-gray-400">{selectedEmployee.position || 'No position'}</p>
+
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-center gap-3 text-sm">
+                    <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-gray-700 dark:text-gray-300">{selectedEmployee.department || 'Unassigned'}</span>
+                  </div>
+                  {selectedEmployee.employee_id && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Award className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-700 dark:text-gray-300">ID: {selectedEmployee.employee_id}</span>
+                    </div>
+                  )}
+                  {selectedEmployee.email && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <a href={`mailto:${selectedEmployee.email}`} className="text-blue-600 dark:text-blue-400 hover:underline truncate">
+                        {selectedEmployee.email}
+                      </a>
+                    </div>
+                  )}
+                  {selectedEmployee.phone && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-700 dark:text-gray-300">{selectedEmployee.phone}</span>
+                    </div>
+                  )}
+                  {selectedEmployee.location && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-700 dark:text-gray-300">{selectedEmployee.location}</span>
+                    </div>
+                  )}
+                  {selectedEmployee.reporting_manager?.full_name && (
+                    <div className="flex items-center gap-3 text-sm pt-3 border-t border-gray-100 dark:border-gray-700">
+                      <Shield className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-700 dark:text-gray-300">
+                        Reports to <span className="font-semibold">{selectedEmployee.reporting_manager.full_name}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -372,8 +372,8 @@ const CompleteOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
         </div>
         
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span>Live Updates</span>
+          <UserCheck className="w-4 h-4" />
+          <span>{orgData.totalManagers} managers</span>
         </div>
       </div>
 

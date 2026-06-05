@@ -21,11 +21,31 @@ export function getAppOrigin() {
   return process.env.REACT_APP_APP_URL || '';
 }
 
-/** Prefer users.id for it_requests.requester_id FK; fall back to auth id. */
+/** Resolve public.users.id for it_requests.requester_id FK (never employees.id or auth uid alone). */
 export async function resolveItRequestRequesterId(authOrUserId) {
   if (!authOrUserId) return null;
-  const resolved = await resolveUhubUser(authOrUserId);
-  return resolved?.usersId || resolved?.authUserId || authOrUserId;
+  const id = String(authOrUserId);
+
+  const { data: byAuth, error: authError } = await supabase
+    .from('users')
+    .select('id, status')
+    .eq('auth_user_id', id)
+    .maybeSingle();
+
+  if (authError) {
+    console.warn('resolveItRequestRequesterId auth lookup failed:', authError.message);
+  }
+  if (byAuth?.id) return byAuth.id;
+
+  const { data: byUsersId } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (byUsersId?.id) return byUsersId.id;
+
+  return null;
 }
 
 /**

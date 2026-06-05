@@ -278,7 +278,9 @@ export const itServicesApi = {
           requesterId = await resolveItRequestRequesterId(requesterId);
         }
         if (!requesterId) {
-          throw new Error('Could not resolve your UHub user account. Please contact IT support.');
+          throw new Error(
+            'Your account is not linked in the UHub users table. Please ask IT to link your login to a UHub user record.'
+          );
         }
         const { data, error } = await supabase
           .from('it_requests')

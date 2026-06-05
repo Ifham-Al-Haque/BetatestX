@@ -243,10 +243,6 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
                   <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                 )}
               </div>
-              {/* Online Status */}
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              </div>
             </div>
             
             <div className="flex-1 min-w-0">
@@ -453,10 +449,6 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span>Live Updates</span>
-          </div>
           <div className="text-right">
             <div className="text-sm font-semibold text-gray-900 dark:text-white">
               {orgStructure.reportingChains.length} Reporting Chains
@@ -571,10 +563,6 @@ const AnimatedOrgChart = ({ employees = [], loading = false, onEmployeeClick }) 
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-purple-500" />
           <span>Manager Info</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span>Online Status</span>
         </div>
       </div>
     </div>

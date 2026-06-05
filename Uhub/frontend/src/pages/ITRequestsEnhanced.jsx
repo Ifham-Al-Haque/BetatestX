@@ -136,7 +136,7 @@ const ITRequestsEnhanced = () => {
   // Extract stable values to prevent infinite loops - use primitive values directly
   // This prevents object reference changes from causing re-renders
   const userId = user?.id ?? null;
-  const uhubUserId = userProfile?.id ?? null;
+  const usersTableId = userProfile?.usersTableId ?? null;
   const userRole = userProfile?.role ?? null;
   const isAdminOrManager = useMemo(() => 
     userRole === 'admin' || userRole === 'hr_manager', 
@@ -173,7 +173,7 @@ const ITRequestsEnhanced = () => {
     memoizedFilters.sortBy,
     memoizedFilters.sortOrder,
     userId,
-    uhubUserId,
+    usersTableId,
     userRole
   ], [
     memoizedFilters.status,
@@ -184,15 +184,17 @@ const ITRequestsEnhanced = () => {
     memoizedFilters.sortBy,
     memoizedFilters.sortOrder,
     userId,
-    uhubUserId,
+    usersTableId,
     userRole
   ]);
 
   // Memoize query function to prevent recreation on every render
   const fetchRequests = useCallback(async () => {
-    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole, uhubUserId);
+    const requesterUsersId =
+      usersTableId || (userId ? await resolveItRequestRequesterId(userId) : null);
+    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole, requesterUsersId);
     return data || [];
-  }, [memoizedFilters, userId, userRole, uhubUserId]);
+  }, [memoizedFilters, userId, userRole, usersTableId]);
 
   // React Query hooks for data fetching
   const { data: requestsData, isLoading: requestsLoading, refetch: refetchRequests, isRefetching: isRefetchingRequests } = useQuery({
@@ -344,12 +346,16 @@ const ITRequestsEnhanced = () => {
       let requesterId = editingRequest?.requester_id;
       if (!requesterId) {
         requesterId =
-          uhubUserId ||
-          (authUser?.id ? await resolveItRequestRequesterId(authUser.id) : null) ||
-          user?.id;
+          usersTableId ||
+          (authUser?.id ? await resolveItRequestRequesterId(authUser.id) : null);
+      } else {
+        requesterId = await resolveItRequestRequesterId(requesterId);
       }
       if (!requesterId && !editingRequest) {
-        showError('Cannot create request', 'You must be logged in to raise a ticket. Please sign in and try again.');
+        showError(
+          'Cannot create request',
+          'Your account is not linked in the UHub users table. Please ask IT to link your login to a UHub user record.'
+        );
         setFormSubmitting(false);
         return;
       }
