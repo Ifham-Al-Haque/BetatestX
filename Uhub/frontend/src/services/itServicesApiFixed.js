@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
 import { emailService } from './emailService';
+import { resolveItRequestRequesterId } from './unifiedNotify';
 
 // IT Services API Service - FIXED VERSION
 export const itServicesApi = {
@@ -187,10 +188,10 @@ export const itServicesApi = {
   // IT Requests - SIMPLIFIED AND FIXED
   requests: {
     // Get all requests - SIMPLIFIED VERSION
-    getAll: async (filters = {}, userId = null, userRole = null) => {
+    getAll: async (filters = {}, userId = null, userRole = null, uhubUserId = null) => {
       try {
         console.log('Fetching requests with filters:', filters, 'userId:', userId, 'userRole:', userRole);
-        const isITStaff = userRole && ['admin', 'it_manager', 'it_technician', 'super_admin'].includes(userRole);
+        const isITStaff = userRole && ['admin', 'it_manager', 'it_technician', 'super_admin', 'it_management', 'it'].includes(userRole);
 
         // Fetch requests with requester and category/priority for display; exclude soft-deleted (cancelled)
         let query = supabase
@@ -204,9 +205,14 @@ export const itServicesApi = {
           .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
 
-        // Role-based: non-IT users see only their own requests
-        if (!isITStaff && userId) {
-          query = query.eq('requester_id', userId);
+        // Role-based: non-IT users see only their own requests (match users.id or legacy auth id)
+        if (!isITStaff && (userId || uhubUserId)) {
+          const requesterIds = [...new Set([userId, uhubUserId].filter(Boolean))];
+          if (requesterIds.length === 1) {
+            query = query.eq('requester_id', requesterIds[0]);
+          } else {
+            query = query.in('requester_id', requesterIds);
+          }
         }
 
         // Apply filters
@@ -267,7 +273,12 @@ export const itServicesApi = {
         let requesterId = requestData.requester_id;
         if (!requesterId) {
           const { data: { user: authUser } } = await supabase.auth.getUser();
-          requesterId = authUser?.id ?? null;
+          requesterId = authUser?.id ? await resolveItRequestRequesterId(authUser.id) : null;
+        } else {
+          requesterId = await resolveItRequestRequesterId(requesterId);
+        }
+        if (!requesterId) {
+          throw new Error('Could not resolve your UHub user account. Please contact IT support.');
         }
         const { data, error } = await supabase
           .from('it_requests')
@@ -285,7 +296,7 @@ export const itServicesApi = {
 
         if (error) {
           console.error('Request creation error:', error);
-          throw error;
+          throw new Error(error.message || 'Failed to create IT request');
         }
 
         console.log('Request created successfully:', data);

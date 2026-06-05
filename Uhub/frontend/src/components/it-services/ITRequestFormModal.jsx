@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XCircle, RefreshCw, Send, FileText, CheckCircle2 } from 'lucide-react';
 import Button from '../ui/button';
@@ -29,13 +29,15 @@ const ITRequestFormModal = ({
   formSubmitting,
   onSubmit,
 }) => {
+  const [validationHint, setValidationHint] = useState('');
+
   const selectedCategory = useMemo(
-    () => categories.find((c) => c.id === formData.category_id),
+    () => categories.find((c) => String(c.id) === String(formData.category_id)),
     [categories, formData.category_id]
   );
 
   const selectedPriority = useMemo(
-    () => priorities.find((p) => p.id === formData.priority_id),
+    () => priorities.find((p) => String(p.id) === String(formData.priority_id)),
     [priorities, formData.priority_id]
   );
 
@@ -47,12 +49,39 @@ const ITRequestFormModal = ({
     ? (CATEGORY_SUB_OPTIONS[selectedCategory.name] || [])
     : [];
 
-  const canSubmit =
-    formData.title?.trim() &&
-    formData.description?.trim() &&
-    formData.category_id &&
-    formData.priority_id &&
-    (subOptions.length === 0 || formData.subcategory?.trim());
+  // Default to Medium priority when the form opens
+  useEffect(() => {
+    if (!open || formData.priority_id || priorities.length === 0) return;
+    const medium =
+      priorities.find((p) => String(p.name || '').toLowerCase() === 'medium') ||
+      priorities[0];
+    if (medium?.id) {
+      setFormData((prev) => ({ ...prev, priority_id: medium.id }));
+    }
+  }, [open, priorities, formData.priority_id, setFormData]);
+
+  useEffect(() => {
+    if (open) setValidationHint('');
+  }, [open]);
+
+  const getValidationError = useCallback(() => {
+    if (!formData.category_id) return 'Please select a category.';
+    if (!formData.priority_id) return 'Please select a priority.';
+    if (!formData.title?.trim()) return 'Please enter a request title.';
+    if (!formData.description?.trim()) return 'Please describe your request in the details field.';
+    return null;
+  }, [formData]);
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    const error = getValidationError();
+    if (error) {
+      setValidationHint(error);
+      return;
+    }
+    setValidationHint('');
+    onSubmit(e);
+  };
 
   if (!open) return null;
 
@@ -102,7 +131,7 @@ const ITRequestFormModal = ({
             </div>
           </div>
 
-          <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 min-h-0">
             <div className="overflow-y-auto flex-1 px-5 sm:px-6 py-5 space-y-6">
             {/* Category picker */}
             <section>
@@ -115,7 +144,7 @@ const ITRequestFormModal = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                 {categories.map((category) => {
                   const Icon = getCategoryIcon(category);
-                  const isSelected = formData.category_id === category.id;
+                  const isSelected = String(formData.category_id) === String(category.id);
                   const accent = category.color || '#14b8a6';
                   return (
                     <button
@@ -164,10 +193,10 @@ const ITRequestFormModal = ({
             {subOptions.length > 0 && (
               <section>
                 <Label className="text-sm font-semibold mb-1 block" style={{ color: 'var(--text-primary)' }}>
-                  Specific type <span className="text-red-500">*</span>
+                  Specific type <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>(optional)</span>
                 </Label>
                 <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-                  Narrow down your {selectedCategory?.name?.toLowerCase()} request
+                  Narrow down your {selectedCategory?.name?.toLowerCase()} request — helps IT route faster
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {subOptions.map((opt) => {
@@ -223,7 +252,7 @@ const ITRequestFormModal = ({
                   style={fieldStyle}
                 />
                 <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
-                  {formData.description.length} characters — include device name, location, or error messages if relevant
+                  {(formData.description || '').length} characters — include device name, location, or error messages if relevant
                 </p>
               </div>
             </section>
@@ -240,7 +269,7 @@ const ITRequestFormModal = ({
                 {priorities.map((priority) => {
                   const visual = PRIORITY_VISUAL[priority.name] || PRIORITY_VISUAL.Medium;
                   const PIcon = visual.icon;
-                  const isSelected = formData.priority_id === priority.id;
+                  const isSelected = String(formData.priority_id) === String(priority.id);
                   return (
                     <button
                       key={priority.id}
@@ -316,21 +345,24 @@ const ITRequestFormModal = ({
 
             {/* Footer */}
             <div
-              className="px-5 sm:px-6 py-4 border-t flex items-center justify-end gap-3 shrink-0"
+              className="px-5 sm:px-6 py-4 border-t shrink-0"
               style={{ borderColor: 'var(--border-primary)', background: 'var(--card-bg)' }}
             >
+              {validationHint && (
+                <p className="text-sm text-red-600 mb-3 text-right" role="alert">
+                  {validationHint}
+                </p>
+              )}
+              <div className="flex items-center justify-end gap-3">
               <Button type="button" variant="outline" onClick={onClose} disabled={formSubmitting} style={fieldStyle}>
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={formSubmitting || !canSubmit}
+                disabled={formSubmitting}
                 className="text-white border-0 flex items-center gap-2 min-w-[140px] justify-center"
                 style={{
-                  background: canSubmit
-                    ? 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)'
-                    : 'var(--bg-tertiary)',
-                  opacity: canSubmit ? 1 : 0.6,
+                  background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)',
                 }}
               >
                 {formSubmitting ? (
@@ -340,6 +372,7 @@ const ITRequestFormModal = ({
                 )}
                 {editingRequest ? 'Update Request' : 'Submit Request'}
               </Button>
+              </div>
             </div>
           </form>
         </motion.div>

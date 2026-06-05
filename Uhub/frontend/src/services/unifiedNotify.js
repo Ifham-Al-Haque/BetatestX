@@ -21,6 +21,13 @@ export function getAppOrigin() {
   return process.env.REACT_APP_APP_URL || '';
 }
 
+/** Prefer users.id for it_requests.requester_id FK; fall back to auth id. */
+export async function resolveItRequestRequesterId(authOrUserId) {
+  if (!authOrUserId) return null;
+  const resolved = await resolveUhubUser(authOrUserId);
+  return resolved?.usersId || resolved?.authUserId || authOrUserId;
+}
+
 /**
  * Resolve a person id to a UHub account holder (users first, employees fallback).
  * Returns auth user id for in-app/push and email from the users/employees record.

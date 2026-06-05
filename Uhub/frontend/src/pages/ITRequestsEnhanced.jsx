@@ -32,6 +32,7 @@ import { safeMotion, fadeUp } from '../utils/motion';
 import { TableSkeleton } from '../components/LoadingSkeleton';
 import ITRequestFormModal from '../components/it-services/ITRequestFormModal';
 import { getCategoryIcon, formatDescriptionWithSubcategory, parseSubcategoryFromDescription, stripSubcategoryPrefix } from '../constants/itServiceCategories';
+import { resolveItRequestRequesterId } from '../services/unifiedNotify';
 
 // Priority colors and icons
 const priorityConfig = {
@@ -135,6 +136,7 @@ const ITRequestsEnhanced = () => {
   // Extract stable values to prevent infinite loops - use primitive values directly
   // This prevents object reference changes from causing re-renders
   const userId = user?.id ?? null;
+  const uhubUserId = userProfile?.id ?? null;
   const userRole = userProfile?.role ?? null;
   const isAdminOrManager = useMemo(() => 
     userRole === 'admin' || userRole === 'hr_manager', 
@@ -171,6 +173,7 @@ const ITRequestsEnhanced = () => {
     memoizedFilters.sortBy,
     memoizedFilters.sortOrder,
     userId,
+    uhubUserId,
     userRole
   ], [
     memoizedFilters.status,
@@ -181,14 +184,15 @@ const ITRequestsEnhanced = () => {
     memoizedFilters.sortBy,
     memoizedFilters.sortOrder,
     userId,
+    uhubUserId,
     userRole
   ]);
 
   // Memoize query function to prevent recreation on every render
   const fetchRequests = useCallback(async () => {
-    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole);
+    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole, uhubUserId);
     return data || [];
-  }, [memoizedFilters, userId, userRole]);
+  }, [memoizedFilters, userId, userRole, uhubUserId]);
 
   // React Query hooks for data fetching
   const { data: requestsData, isLoading: requestsLoading, refetch: refetchRequests, isRefetching: isRefetchingRequests } = useQuery({
@@ -336,9 +340,14 @@ const ITRequestsEnhanced = () => {
     e.preventDefault();
     setFormSubmitting(true);
     try {
-      // Get the current authenticated user (who is raising the ticket)
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      const requesterId = authUser?.id ?? user?.id;
+      let requesterId = editingRequest?.requester_id;
+      if (!requesterId) {
+        requesterId =
+          uhubUserId ||
+          (authUser?.id ? await resolveItRequestRequesterId(authUser.id) : null) ||
+          user?.id;
+      }
       if (!requesterId && !editingRequest) {
         showError('Cannot create request', 'You must be logged in to raise a ticket. Please sign in and try again.');
         setFormSubmitting(false);
@@ -347,7 +356,7 @@ const ITRequestsEnhanced = () => {
       const requestData = {
         ...formData,
         description: formatDescriptionWithSubcategory(formData.subcategory, formData.description),
-        requester_id: requesterId ?? editingRequest?.requester_id
+        requester_id: requesterId
       };
       delete requestData.subcategory;
 
