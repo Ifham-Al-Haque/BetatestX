@@ -64,16 +64,45 @@ export function getRequesterInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// Priorities with a fixed (non-editable) SLA — policy driven
+export const FIXED_SLA_PRIORITIES = ['Critical', 'High'];
+
+export function isSlaFixedForPriority(priority) {
+  const name = priority?.name || priority?.priority_name;
+  return FIXED_SLA_PRIORITIES.includes(name);
+}
+
 export function getSLAStatus(request) {
-  if (!request?.created_at) return null;
+  if (!request) return null;
   const priority = request.priority || {};
-  const slaHours = priority.sla_hours || request.priority_sla_hours || 72;
+  const slaHours = priority.sla_hours || request.sla_hours || request.priority_sla_hours || 72;
+
+  // SLA clock paused while waiting on the requester (pending_user)
+  if (request.sla_paused_at) {
+    return { status: 'paused', hours: 0, label: 'SLA paused', dueAt: request.sla_due_at || null };
+  }
+
+  // Preferred: real due date stored on the ticket
+  if (request.sla_due_at) {
+    const msLeft = new Date(request.sla_due_at).getTime() - Date.now();
+    const hours = Math.abs(Math.floor(msLeft / (1000 * 60 * 60)));
+    if (msLeft < 0) {
+      return { status: 'overdue', hours, label: 'Overdue', dueAt: request.sla_due_at };
+    }
+    if (msLeft < slaHours * 0.2 * 60 * 60 * 1000) {
+      return { status: 'warning', hours, label: 'Due soon', dueAt: request.sla_due_at };
+    }
+    return { status: 'ok', hours, label: 'On track', dueAt: request.sla_due_at };
+  }
+
+  // Fallback: estimate from created_at + priority SLA hours
+  if (!request.created_at) return null;
   const hoursElapsed = (Date.now() - new Date(request.created_at).getTime()) / (1000 * 60 * 60);
   if (hoursElapsed > slaHours) {
-    return { status: 'overdue', hours: Math.floor(hoursElapsed - slaHours), label: 'Overdue' };
+    return { status: 'overdue', hours: Math.floor(hoursElapsed - slaHours), label: 'Overdue', dueAt: null };
   }
   if (hoursElapsed > slaHours * 0.8) {
-    return { status: 'warning', hours: Math.floor(slaHours - hoursElapsed), label: 'Due soon' };
+    return { status: 'warning', hours: Math.floor(slaHours - hoursElapsed), label: 'Due soon', dueAt: null };
   }
-  return { status: 'ok', hours: Math.floor(slaHours - hoursElapsed), label: 'On track' };
+  return { status: 'ok', hours: Math.floor(slaHours - hoursElapsed), label: 'On track', dueAt: null };
 }

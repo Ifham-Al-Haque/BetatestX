@@ -160,6 +160,14 @@ export async function notifyUhubUser(service, {
     return { inApp: false, push: false, email: false };
   }
 
+  if (!user.authUserId) {
+    // Bell + RLS are keyed by auth.users.id; without the link the user can never see the in-app row.
+    console.error(
+      `notifyUhubUser: user "${user.fullName || personId}" has no auth_user_id link in the users table. ` +
+      'In-app/bell notification will not be visible to them. Fix users.auth_user_id for this account.'
+    );
+  }
+
   const notifyUserId = user.authUserId || personId;
   let inApp = false;
   let push = false;
@@ -178,6 +186,29 @@ export async function notifyUhubUser(service, {
     });
     inApp = !!n;
     if (inApp) push = true;
+
+    // Live popup via broadcast — reaches the user's open session even when
+    // Postgres realtime on the notifications table is not enabled.
+    try {
+      await supabase.channel(`user_${notifyUserId}_notifications`).send({
+        type: 'broadcast',
+        event: 'notification',
+        payload: {
+          id: `${type}_${Date.now()}`,
+          type,
+          title,
+          message,
+          priority,
+          data,
+          actionUrl,
+          actionLabel,
+          timestamp: new Date(),
+          read: false,
+        },
+      });
+    } catch (broadcastErr) {
+      console.warn('notifyUhubUser broadcast failed:', broadcastErr?.message || broadcastErr);
+    }
   }
 
   if (channels.push !== false && user.authUserId && !push) {

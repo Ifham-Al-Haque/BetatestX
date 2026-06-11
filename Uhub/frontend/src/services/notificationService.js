@@ -86,9 +86,38 @@ class NotificationService {
       this._dispatchPush(userId, { title, message, actionUrl });
       return notification;
     } catch (error) {
-      console.warn('create_notification RPC failed, dispatching push only:', error?.message || error);
-      this._dispatchPush(userId, { title, message, actionUrl });
-      return null;
+      console.warn('create_notification RPC failed, trying direct insert:', error?.message || error);
+
+      // Fallback: direct insert into notifications table (works if RLS permits authenticated inserts)
+      try {
+        const { data: row, error: insertError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            type,
+            title,
+            message,
+            data,
+            priority,
+            action_url: actionUrl,
+            action_label: actionLabel,
+            expires_at: expiresAt,
+          })
+          .select('id')
+          .single();
+
+        if (insertError) throw insertError;
+        this._dispatchPush(userId, { title, message, actionUrl });
+        return row?.id || null;
+      } catch (insertErr) {
+        console.error(
+          'In-app notification NOT saved (RPC and direct insert both failed). ' +
+          'Run fix_notification_rpc.sql in Supabase. Insert error:',
+          insertErr?.message || insertErr
+        );
+        this._dispatchPush(userId, { title, message, actionUrl });
+        return null;
+      }
     }
   }
 

@@ -34,6 +34,7 @@ import ITRequestFormModal from '../components/it-services/ITRequestFormModal';
 import ITRequestDetailModal from '../components/it-services/ITRequestDetailModal';
 import ITRequestTicketCard from '../components/it-services/ITRequestTicketCard';
 import { getCategoryIcon, formatDescriptionWithSubcategory, parseSubcategoryFromDescription, stripSubcategoryPrefix } from '../constants/itServiceCategories';
+import { isAdminRole } from '../utils/notificationRoles';
 
 // Priority colors and icons
 const priorityConfig = {
@@ -65,7 +66,7 @@ const ITRequestsEnhanced = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
   // UI state
-  const [activeSection, setActiveSection] = useState('requests'); // 'requests' | 'udrive-access'
+  const [activeSection, setActiveSection] = useState('requests'); // 'requests' | 'resolved' | 'archive' | 'udrive-access'
   const [showForm, setShowForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(true);
@@ -243,9 +244,24 @@ const ITRequestsEnhanced = () => {
       open: requests.filter(r => r.status === 'open').length,
       inProgress: requests.filter(r => r.status === 'in_progress').length,
       resolved: requests.filter(r => r.status === 'resolved').length,
-      pending: requests.filter(r => r.status === 'pending_user').length
+      pending: requests.filter(r => r.status === 'pending_user').length,
+      closed: requests.filter(r => r.status === 'closed').length
     };
   }, [requests]);
+
+  // Requester confirms a resolved ticket → closed → moves to Request Archive
+  const handleCloseTicket = async (request) => {
+    if (!window.confirm(`Confirm that "${request.title}" is resolved and close the ticket? It will move to the Request Archive.`)) return;
+    try {
+      await itServicesApi.requests.closeByRequester(request.id);
+      success('Ticket closed — thank you for confirming! Find it in the Request Archive.');
+      setSelectedRequest(null);
+      queryClient.invalidateQueries({ queryKey: ['itRequests'] });
+    } catch (err) {
+      console.error('Error closing ticket:', err);
+      showError('Failed to close ticket', err.message || 'Unknown error');
+    }
+  };
 
   const handleRefresh = async () => {
     try {
@@ -493,6 +509,10 @@ const ITRequestsEnhanced = () => {
     }
   };
 
+  // Requester closes their own ticket; admins (full access) can close any resolved ticket
+  const canCloseRequest = (request) =>
+    request?.status === 'resolved' && (isAdminRole(userRole) || isAdminOrManager || request?.requester_id === userId);
+
   const renderRequestCard = (request, index) => (
     <ITRequestTicketCard
       key={request.id}
@@ -503,6 +523,7 @@ const ITRequestsEnhanced = () => {
       prefersReducedMotion={prefersReducedMotion}
       showManage={false}
       onOpen={setSelectedRequest}
+      onCloseTicket={canCloseRequest(request) ? handleCloseTicket : undefined}
     />
   );
 
@@ -583,7 +604,12 @@ const ITRequestsEnhanced = () => {
       return [];
     }
 
-    let filtered = [...requests]; // Create a copy to avoid mutating original array
+    // Partition by section: active queue / resolved awaiting closure / archive (closed)
+    let filtered = requests.filter((r) => {
+      if (activeSection === 'resolved') return r?.status === 'resolved';
+      if (activeSection === 'archive') return r?.status === 'closed';
+      return r?.status !== 'resolved' && r?.status !== 'closed';
+    });
 
     if (filters.search) {
       filtered = filtered.filter(request =>
@@ -621,7 +647,7 @@ const ITRequestsEnhanced = () => {
     });
 
     return filtered;
-  }, [requests, filters]);
+  }, [requests, filters, activeSection]);
 
   useEffect(() => {
     setRequestPage(1);
@@ -678,13 +704,27 @@ const ITRequestsEnhanced = () => {
                   IT Services Panel
                 </h1>
                 <p className="text-sm md:text-base mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {activeSection === 'requests'
-                    ? 'Manage and track your IT service requests'
-                    : 'UDRIVE ACCESS — platforms, departments, amounts'}
+                  {activeSection === 'requests' && 'Manage and track your IT service requests'}
+                  {activeSection === 'resolved' && 'Resolved tickets awaiting your confirmation'}
+                  {activeSection === 'archive' && 'Closed tickets — Request Archive'}
+                  {activeSection === 'udrive-access' && 'UDRIVE ACCESS — platforms, departments, amounts'}
                 </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {(activeSection === 'resolved' || activeSection === 'archive') && (
+                <EnhancedButton
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  variant="secondary"
+                  size="sm"
+                  className="flex items-center gap-2 rounded-xl"
+                  style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)', color: 'var(--text-primary)' }}
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </EnhancedButton>
+              )}
               {activeSection === 'requests' && (
                 <>
                   <EnhancedButton
@@ -767,6 +807,38 @@ const ITRequestsEnhanced = () => {
             </button>
             <button
               type="button"
+              onClick={() => setActiveSection('resolved')}
+              className="px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 rounded-lg"
+              style={{
+                background: activeSection === 'resolved' ? 'var(--accent-primary)' : 'transparent',
+                color: activeSection === 'resolved' ? 'white' : 'var(--text-secondary)'
+              }}
+            >
+              <CheckCircle className="w-4 h-4" />
+              Resolved
+              {stats.resolved > 0 && (
+                <span
+                  className="ml-0.5 min-w-[18px] px-1.5 py-0.5 rounded-full text-[10px] font-bold text-center leading-none text-white"
+                  style={{ background: activeSection === 'resolved' ? 'rgba(255,255,255,0.3)' : '#f59e0b' }}
+                >
+                  {stats.resolved}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection('archive')}
+              className="px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 rounded-lg"
+              style={{
+                background: activeSection === 'archive' ? 'var(--accent-primary)' : 'transparent',
+                color: activeSection === 'archive' ? 'white' : 'var(--text-secondary)'
+              }}
+            >
+              <Archive className="w-4 h-4" />
+              Request Archive
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveSection('udrive-access')}
               className="px-4 py-2 text-sm font-medium transition-all flex items-center gap-2 rounded-lg"
               style={{
@@ -794,7 +866,7 @@ const ITRequestsEnhanced = () => {
               {[
                 { key: 'open', label: 'Open', value: stats.open, icon: AlertCircle, color: 'var(--accent-primary)', filter: 'open' },
                 { key: 'in_progress', label: 'In Progress', value: stats.inProgress, icon: Activity, color: 'var(--accent-warning)', filter: 'in_progress' },
-                { key: 'resolved', label: 'Resolved', value: stats.resolved, icon: CheckCircle, color: 'var(--accent-success)', filter: 'resolved' },
+                { key: 'resolved', label: 'Resolved', value: stats.resolved, icon: CheckCircle, color: 'var(--accent-success)', filter: '', section: 'resolved' },
                 { key: 'pending', label: 'Pending User', value: stats.pending, icon: User, color: 'var(--accent-secondary)', filter: 'pending_user' },
                 { key: 'total', label: 'Total', value: stats.total, icon: FileText, color: 'var(--accent-info)', filter: '' },
               ].map((stat, i) => {
@@ -816,10 +888,16 @@ const ITRequestsEnhanced = () => {
                       }}
                       whileHover={safeMotion(prefersReducedMotion, { y: -2 }, {})}
                       whileTap={{ scale: 0.99 }}
-                      onClick={() => setFilters((f) => ({
-                        ...f,
-                        status: stat.filter ? (f.status === stat.filter ? '' : stat.filter) : ''
-                      }))}
+                      onClick={() => {
+                        if (stat.section) {
+                          setActiveSection(stat.section);
+                          return;
+                        }
+                        setFilters((f) => ({
+                          ...f,
+                          status: stat.filter ? (f.status === stat.filter ? '' : stat.filter) : ''
+                        }));
+                      }}
                     >
                       <div className="p-4 flex items-center gap-3">
                         <div className="p-2.5 rounded-lg" style={{ background: stat.color }}>
@@ -942,8 +1020,6 @@ const ITRequestsEnhanced = () => {
                         <option value="in_progress">In Progress</option>
                         <option value="pending_approval">Pending Approval</option>
                         <option value="pending_user">Pending User</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="closed">Closed</option>
                       </select>
                     </div>
                     <div>
@@ -1056,6 +1132,111 @@ const ITRequestsEnhanced = () => {
           </>
         )}
 
+        {/* Resolved (awaiting closure) & Request Archive sections */}
+        {(activeSection === 'resolved' || activeSection === 'archive') && (
+          <>
+            {activeSection === 'resolved' && (
+              <motion.div
+                {...fadeUp(0.04)}
+                className="mb-5 rounded-xl border p-4 flex items-start gap-3"
+                style={{ background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.35)' }}
+              >
+                <div className="p-2 rounded-lg shrink-0" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm md:text-base" style={{ color: 'var(--text-primary)' }}>
+                    Action needed — confirm your resolved tickets
+                  </p>
+                  <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    IT has marked these requests as resolved. Review the resolution and click
+                    {' '}<strong>Confirm &amp; Close</strong> to close the ticket. Closed tickets move to the Request Archive.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+            {activeSection === 'archive' && (
+              <motion.div
+                {...fadeUp(0.04)}
+                className="mb-5 rounded-xl border p-4 flex items-start gap-3"
+                style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)' }}
+              >
+                <div className="p-2 rounded-lg shrink-0" style={{ background: 'var(--accent-primary)' }}>
+                  <Archive className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm md:text-base" style={{ color: 'var(--text-primary)' }}>
+                    Request Archive
+                  </p>
+                  <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    Tickets you have confirmed and closed. They are kept here for your records.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={`section-skeleton-${i}`}
+                    className="rounded-xl border overflow-hidden"
+                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                  >
+                    <div className="p-6 space-y-4">
+                      <div className="h-4 w-48 rounded animate-pulse" style={{ background: 'var(--bg-tertiary)' }} />
+                      <div className="h-3 w-full rounded animate-pulse" style={{ background: 'var(--bg-tertiary)' }} />
+                      <div className="h-3 w-2/3 rounded animate-pulse" style={{ background: 'var(--bg-tertiary)' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {pagedRequests.map((request, index) => renderRequestCard(request, index))}
+              </div>
+            )}
+
+            <PaginationControls
+              page={requestCurrentPage}
+              totalPages={requestTotalPages}
+              totalItems={filteredRequests.length}
+              pageSize={REQUEST_PAGE_SIZE}
+              onPageChange={setRequestPage}
+            />
+
+            {!loading && filteredRequests.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-14 px-4 rounded-xl border mt-4"
+                style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+              >
+                <div
+                  className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                  style={{
+                    background: activeSection === 'resolved'
+                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                      : 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)'
+                  }}
+                >
+                  {activeSection === 'resolved'
+                    ? <CheckCircle className="w-8 h-8 text-white" />
+                    : <Archive className="w-8 h-8 text-white" />}
+                </div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  {activeSection === 'resolved' ? 'No resolved tickets awaiting confirmation' : 'No archived tickets yet'}
+                </h3>
+                <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--text-muted)' }}>
+                  {activeSection === 'resolved'
+                    ? 'When IT resolves one of your requests, it will appear here for you to confirm and close.'
+                    : 'Tickets you confirm and close will be archived here for your records.'}
+                </p>
+              </motion.div>
+            )}
+          </>
+        )}
+
         {/* UDRIVE ACCESS section */}
         {activeSection === 'udrive-access' && (
           <div className="space-y-6">
@@ -1159,6 +1340,7 @@ const ITRequestsEnhanced = () => {
           categories={categories}
           priorities={priorities}
           prefersReducedMotion={prefersReducedMotion}
+          onCloseTicket={canCloseRequest(selectedRequest) ? handleCloseTicket : undefined}
         />
       )}
 

@@ -432,6 +432,40 @@ export const itServicesApi = {
       }
     },
 
+    // Requester confirms a resolved ticket and closes it → moves to Request Archive
+    closeByRequester: async (id) => {
+      try {
+        const { data, error } = await supabase
+          .from('it_requests')
+          .update({
+            status: 'closed',
+            actual_completion_date: new Date().toISOString(),
+            closed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+          .eq('status', 'resolved')
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) {
+          throw new Error('Ticket could not be closed — it may not be in Resolved state, or you lack permission.');
+        }
+
+        // Tell IT staff/assignee the requester confirmed closure (non-blocking)
+        setTimeout(() => {
+          notificationService.notifyITRequestStatusUpdate(data, 'resolved', 'closed')
+            .catch((e) => console.warn('Close-confirmation notification failed:', e));
+        }, 0);
+
+        return data;
+      } catch (error) {
+        console.error('Error closing ticket:', error);
+        throw error;
+      }
+    },
+
     delete: async (id) => {
       const updatePayload = (status) => ({
         status,

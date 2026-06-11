@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Eye, Settings, Calendar, Tag, UserCheck, Timer, Inbox,
+  Eye, Settings, Calendar, Tag, UserCheck, Timer, Inbox, CheckCircle,
 } from 'lucide-react';
 import Button from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -62,6 +62,7 @@ export default function ITRequestTicketCard({
   priorities = [],
   onOpen,
   onManage,
+  onCloseTicket,
   showManage = true,
   prefersReducedMotion = false,
 }) {
@@ -159,11 +160,17 @@ export default function ITRequestTicketCard({
                             ? 'bg-red-500 text-white'
                             : sla.status === 'warning'
                               ? 'bg-amber-500 text-white'
-                              : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                              : sla.status === 'paused'
+                                ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                                : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                         }`}
                       >
                         <Timer className="h-3.5 w-3.5" />
-                        {sla.status === 'overdue' ? `${sla.hours}h overdue` : `${sla.hours}h left`}
+                        {sla.status === 'overdue'
+                          ? `${sla.hours}h overdue`
+                          : sla.status === 'paused'
+                            ? 'SLA paused'
+                            : `${sla.hours}h left`}
                       </span>
                     )}
                   </div>
@@ -258,6 +265,17 @@ export default function ITRequestTicketCard({
                 >
                   <Settings className="h-4 w-4" />
                   Manage
+                </Button>
+              )}
+              {onCloseTicket && (
+                <Button
+                  size="sm"
+                  onClick={() => onCloseTicket(request)}
+                  className="flex flex-1 items-center justify-center gap-2 border-0 text-white lg:flex-none"
+                  style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Confirm & Close
                 </Button>
               )}
             </div>

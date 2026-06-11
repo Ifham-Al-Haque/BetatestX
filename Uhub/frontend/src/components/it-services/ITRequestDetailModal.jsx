@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Copy, Check, Mail, Building2, BadgeCheck, Tag, Flag,
-  Clock, User, Settings, Wrench, MessageSquare, CalendarDays,
-  UserCheck, CircleCheck,
+  Clock, User, Settings, MessageSquare, CalendarDays,
+  UserCheck, CircleCheck, ListChecks, Plus, Trash2, Lock, Archive,
+  AlertTriangle, PauseCircle,
 } from 'lucide-react';
 import Button from '../ui/button';
 import Label from '../ui/label';
@@ -17,8 +18,19 @@ import {
   getRelativeTime,
   getRequesterInitials,
   getSLAStatus,
+  isSlaFixedForPriority,
 } from '../../constants/itRequestVisuals';
 import { getAssigneeDisplayName } from '../../utils/itRequestEnrichment';
+import itSubtasksApi from '../../services/itSubtasksApi';
+
+// Format a date for <input type="datetime-local">
+function toDatetimeLocal(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 function MetaChip({ icon: Icon, label, value, accent }) {
   return (
@@ -86,6 +98,7 @@ export default function ITRequestDetailModal({
   priorities = [],
   itStaff = [],
   onSave,
+  onCloseTicket,
   saving = false,
   prefersReducedMotion = false,
 }) {
@@ -94,7 +107,15 @@ export default function ITRequestDetailModal({
     status: request?.status || 'open',
     assigned_to: request?.assigned_to || '',
     resolution_notes: request?.resolution_notes || '',
+    sla_due_at: toDatetimeLocal(request?.sla_due_at),
   });
+  const [resolutionError, setResolutionError] = useState('');
+
+  // Subtasks (checklist)
+  const [subtasks, setSubtasks] = useState([]);
+  const [subtasksLoading, setSubtasksLoading] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [subtaskBusy, setSubtaskBusy] = useState(false);
 
   useEffect(() => {
     if (!request) return;
@@ -102,8 +123,28 @@ export default function ITRequestDetailModal({
       status: request.status || 'open',
       assigned_to: request.assigned_to || '',
       resolution_notes: request.resolution_notes || '',
+      sla_due_at: toDatetimeLocal(request.sla_due_at),
     });
+    setResolutionError('');
   }, [request]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!request?.id) {
+      setSubtasks([]);
+      return undefined;
+    }
+    setSubtasksLoading(true);
+    itSubtasksApi.getByRequest(request.id)
+      .then((rows) => { if (!cancelled) setSubtasks(rows); })
+      .catch((e) => {
+        // Table may not exist yet if migration hasn't been run — degrade gracefully
+        console.warn('Could not load subtasks:', e?.message);
+        if (!cancelled) setSubtasks([]);
+      })
+      .finally(() => { if (!cancelled) setSubtasksLoading(false); });
+    return () => { cancelled = true; };
+  }, [request?.id]);
 
   const category = useMemo(
     () => request?.category || categories.find((c) => c.id === request?.category_id),
@@ -149,12 +190,68 @@ export default function ITRequestDetailModal({
     }
   };
 
+  const slaFixed = isSlaFixedForPriority(priority);
+  const doneCount = subtasks.filter((s) => s.is_done).length;
+
+  const handleAddSubtask = async () => {
+    const title = newSubtaskTitle.trim();
+    if (!title || subtaskBusy) return;
+    setSubtaskBusy(true);
+    try {
+      const row = await itSubtasksApi.add(request.id, title);
+      setSubtasks((prev) => [...prev, row]);
+      setNewSubtaskTitle('');
+    } catch (e) {
+      console.error('Failed to add subtask:', e);
+    } finally {
+      setSubtaskBusy(false);
+    }
+  };
+
+  const handleToggleSubtask = async (subtask) => {
+    // optimistic toggle
+    setSubtasks((prev) => prev.map((s) => (s.id === subtask.id ? { ...s, is_done: !s.is_done } : s)));
+    try {
+      const row = await itSubtasksApi.toggle(subtask.id, !subtask.is_done);
+      setSubtasks((prev) => prev.map((s) => (s.id === row.id ? row : s)));
+    } catch (e) {
+      console.error('Failed to toggle subtask:', e);
+      setSubtasks((prev) => prev.map((s) => (s.id === subtask.id ? { ...s, is_done: subtask.is_done } : s)));
+    }
+  };
+
+  const handleDeleteSubtask = async (subtask) => {
+    try {
+      await itSubtasksApi.remove(subtask.id);
+      setSubtasks((prev) => prev.filter((s) => s.id !== subtask.id));
+    } catch (e) {
+      console.error('Failed to delete subtask:', e);
+    }
+  };
+
   const handleSave = () => {
-    onSave?.({
+    if (draft.status === 'resolved' && !draft.resolution_notes.trim()) {
+      setResolutionError('Resolution notes are required before marking a ticket as resolved.');
+      return;
+    }
+    if (draft.status === 'resolved' && subtasks.some((s) => !s.is_done)) {
+      const ok = window.confirm(
+        `${subtasks.length - doneCount} subtask(s) are still unchecked. Mark the ticket as resolved anyway?`
+      );
+      if (!ok) return;
+    }
+    setResolutionError('');
+
+    const payload = {
       status: draft.status,
       assigned_to: draft.assigned_to || null,
       resolution_notes: draft.resolution_notes || null,
-    });
+    };
+    // SLA due date is policy-fixed for Critical/High; editable for the rest
+    if (!slaFixed && draft.sla_due_at) {
+      payload.sla_due_at = new Date(draft.sla_due_at).toISOString();
+    }
+    onSave?.(payload);
   };
 
   if (!request) return null;
@@ -230,16 +327,22 @@ export default function ITRequestDetailModal({
                             ? 'rgba(254,226,226,0.95)'
                             : sla.status === 'warning'
                               ? 'rgba(254,243,199,0.95)'
-                              : 'rgba(209,250,229,0.95)',
+                              : sla.status === 'paused'
+                                ? 'rgba(237,233,254,0.95)'
+                                : 'rgba(209,250,229,0.95)',
                         color:
                           sla.status === 'overdue'
                             ? '#B91C1C'
                             : sla.status === 'warning'
                               ? '#B45309'
-                              : '#047857',
+                              : sla.status === 'paused'
+                                ? '#6D28D9'
+                                : '#047857',
                       }}
                     >
-                      <Clock className="h-3.5 w-3.5" />
+                      {sla.status === 'paused'
+                        ? <PauseCircle className="h-3.5 w-3.5" />
+                        : <Clock className="h-3.5 w-3.5" />}
                       {sla.status === 'overdue'
                         ? `${sla.hours}h overdue`
                         : sla.status === 'warning'
@@ -336,6 +439,115 @@ export default function ITRequestDetailModal({
                     />
                   )}
                 </div>
+
+                {/* Subtasks checklist — editable in manage mode, read-only in view mode */}
+                {(mode === 'manage' || subtasks.length > 0) && (
+                  <Card style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          <ListChecks className="h-4 w-4" />
+                          Subtasks
+                        </h3>
+                        {subtasks.length > 0 && (
+                          <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                            {doneCount}/{subtasks.length} done
+                          </span>
+                        )}
+                      </div>
+                      {subtasks.length > 0 && (
+                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--bg-tertiary)' }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.round((doneCount / subtasks.length) * 100)}%`,
+                              background: doneCount === subtasks.length
+                                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                : 'var(--gradient-primary)',
+                            }}
+                          />
+                        </div>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {subtasksLoading && (
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading subtasks…</p>
+                      )}
+                      {!subtasksLoading && subtasks.length === 0 && mode === 'manage' && (
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                          Break this ticket into steps (e.g. “Order part”, “Install”, “Verify with user”).
+                        </p>
+                      )}
+                      {subtasks.map((subtask) => (
+                        <div
+                          key={subtask.id}
+                          className="group flex items-center gap-3 rounded-lg px-3 py-2"
+                          style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}
+                        >
+                          <button
+                            type="button"
+                            disabled={mode !== 'manage'}
+                            onClick={() => mode === 'manage' && handleToggleSubtask(subtask)}
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors"
+                            style={{
+                              background: subtask.is_done ? '#10b981' : 'transparent',
+                              borderColor: subtask.is_done ? '#10b981' : 'var(--border-primary)',
+                              cursor: mode === 'manage' ? 'pointer' : 'default',
+                            }}
+                            aria-label={subtask.is_done ? 'Mark as not done' : 'Mark as done'}
+                          >
+                            {subtask.is_done && <Check className="h-3.5 w-3.5 text-white" />}
+                          </button>
+                          <span
+                            className="min-w-0 flex-1 text-sm"
+                            style={{
+                              color: subtask.is_done ? 'var(--text-muted)' : 'var(--text-primary)',
+                              textDecoration: subtask.is_done ? 'line-through' : 'none',
+                            }}
+                          >
+                            {subtask.title}
+                          </span>
+                          {mode === 'manage' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubtask(subtask)}
+                              className="rounded-md p-1 opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:hover:bg-red-900/20"
+                              aria-label="Delete subtask"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {mode === 'manage' && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="text"
+                            value={newSubtaskTitle}
+                            onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubtask(); } }}
+                            placeholder="Add a subtask…"
+                            className="h-9 min-w-0 flex-1 rounded-lg border px-3 text-sm"
+                            style={{
+                              background: 'var(--bg-tertiary)',
+                              borderColor: 'var(--border-primary)',
+                              color: 'var(--text-primary)',
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleAddSubtask}
+                            disabled={!newSubtaskTitle.trim() || subtaskBusy}
+                            className="shrink-0 border-0 text-white"
+                            style={{ background: 'var(--gradient-primary)' }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Resolution notes (read-only in view mode when present) */}
                 {mode === 'view' && request.resolution_notes && (
@@ -477,23 +689,80 @@ export default function ITRequestDetailModal({
 
                       <div>
                         <Label className="mb-1.5 block text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                          SLA due date
+                        </Label>
+                        {slaFixed ? (
+                          <div
+                            className="flex items-center gap-2.5 rounded-lg border px-3 py-2.5"
+                            style={{ background: 'var(--bg-tertiary)', borderColor: 'var(--border-primary)' }}
+                          >
+                            <Lock className="h-4 w-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {request.sla_due_at ? formatRequestDate(request.sla_due_at) : 'Set automatically'}
+                              </p>
+                              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                Fixed by policy for {priority?.name} priority
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <input
+                              type="datetime-local"
+                              value={draft.sla_due_at}
+                              onChange={(e) => setDraft((d) => ({ ...d, sla_due_at: e.target.value }))}
+                              className="w-full rounded-lg border px-3 py-2.5 text-sm"
+                              style={{
+                                background: 'var(--bg-tertiary)',
+                                borderColor: 'var(--border-primary)',
+                                color: 'var(--text-primary)',
+                              }}
+                            />
+                            <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                              Adjustable for {priority?.name || 'this'} priority
+                            </p>
+                          </>
+                        )}
+                        {request.sla_paused_at && (
+                          <p className="mt-1.5 flex items-center gap-1 text-xs font-medium" style={{ color: '#6D28D9' }}>
+                            <PauseCircle className="h-3.5 w-3.5" />
+                            SLA paused — waiting on the requester
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label className="mb-1.5 block text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
                           Resolution notes
+                          {draft.status === 'resolved' && (
+                            <span className="ml-1 normal-case text-red-500">*</span>
+                          )}
                         </Label>
                         <Textarea
                           value={draft.resolution_notes}
-                          onChange={(e) => setDraft((d) => ({ ...d, resolution_notes: e.target.value }))}
+                          onChange={(e) => {
+                            setDraft((d) => ({ ...d, resolution_notes: e.target.value }));
+                            if (resolutionError) setResolutionError('');
+                          }}
                           placeholder="Document what was done to resolve this request…"
                           rows={4}
                           className="w-full resize-none rounded-lg border text-sm"
                           style={{
                             background: 'var(--bg-tertiary)',
-                            borderColor: 'var(--border-primary)',
+                            borderColor: resolutionError ? '#EF4444' : 'var(--border-primary)',
                             color: 'var(--text-primary)',
                           }}
                         />
+                        {resolutionError && (
+                          <p className="mt-1.5 flex items-start gap-1 text-xs font-medium text-red-500">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            {resolutionError}
+                          </p>
+                        )}
                       </div>
 
-                      <div className="flex flex-col gap-2 pt-1">
+                      <div className="pt-1">
                         <Button
                           onClick={handleSave}
                           disabled={saving}
@@ -502,21 +771,6 @@ export default function ITRequestDetailModal({
                         >
                           <Check className="mr-2 h-4 w-4" />
                           {saving ? 'Saving…' : 'Save changes'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          style={{
-                            background: 'var(--bg-tertiary)',
-                            borderColor: 'var(--border-primary)',
-                            color: 'var(--text-primary)',
-                          }}
-                          onClick={() => {
-                            /* future: create ticket flow */
-                          }}
-                        >
-                          <Wrench className="mr-2 h-4 w-4" />
-                          Create ticket
                         </Button>
                       </div>
                     </CardContent>
@@ -529,6 +783,24 @@ export default function ITRequestDetailModal({
                       </h3>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                      {request.status === 'resolved' && onCloseTicket && (
+                        <div
+                          className="rounded-xl p-3"
+                          style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+                        >
+                          <p className="mb-2 text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                            IT marked this request as resolved. Please confirm and close the ticket.
+                          </p>
+                          <Button
+                            onClick={() => onCloseTicket(request)}
+                            className="w-full border-0 text-white"
+                            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                          >
+                            <CircleCheck className="mr-2 h-4 w-4" />
+                            Confirm & Close Ticket
+                          </Button>
+                        </div>
+                      )}
                       <div
                         className="flex items-center gap-3 rounded-xl p-3"
                         style={{ background: statusVisual.bgColor }}
@@ -580,7 +852,7 @@ export default function ITRequestDetailModal({
                         label="Assigned to IT"
                         date={request.assigned_at}
                         active
-                        isLast={!request.actual_completion_date}
+                        isLast={!request.actual_completion_date && request.updated_at === request.created_at}
                       />
                     )}
                     {request.updated_at && request.updated_at !== request.created_at && (
@@ -595,8 +867,17 @@ export default function ITRequestDetailModal({
                     {request.actual_completion_date && (
                       <TimelineStep
                         icon={CircleCheck}
-                        label="Completed"
+                        label="Resolved"
                         date={request.actual_completion_date}
+                        active
+                        isLast={request.status !== 'closed'}
+                      />
+                    )}
+                    {request.status === 'closed' && (
+                      <TimelineStep
+                        icon={Archive}
+                        label="Closed & archived"
+                        date={request.closed_at || request.updated_at}
                         active
                         isLast
                       />
