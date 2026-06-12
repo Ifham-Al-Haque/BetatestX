@@ -1,10 +1,9 @@
 // src/components/Sidebar.jsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrefetch } from '../hooks/usePrefetch';
 import { 
-  Settings,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -38,39 +37,186 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
-import { useTheme } from '../context/ThemeContext';
 import { canSeePanel, hasFeatureAccess } from './RoleBasedRoute';
 import { isPanelVisibleInEdition } from '../config/edition';
+import Logo from './ui/logo';
+
+const NAVIGATION_PANELS = [
+  {
+    key: 'main',
+    title: 'Home Panel',
+    icon: Home,
+    items: [
+      { label: 'Home', path: '/', icon: Home, feature: 'home' },
+      { label: 'Dashboard', path: '/dashboard', icon: BarChart3, feature: 'dashboard' },
+      { label: 'Calendar View', path: '/calendar-view', icon: Calendar, feature: 'calendar_view' },
+      { label: 'Organizational Hierarchy', path: '/organizational-hierarchy', icon: Users, feature: 'organizational_hierarchy' }
+    ]
+  },
+  {
+    key: 'slice_of_life',
+    title: 'Slice of Life',
+    icon: Heart,
+    items: [
+      { label: 'Events', path: '/events', icon: Calendar, feature: 'events' },
+      { label: 'Memories', path: '/memories', icon: Heart, feature: 'memories' },
+      { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections' },
+      { label: 'Picture Upload', path: '/event-picture-upload', icon: Camera, feature: 'events' }
+    ]
+  },
+  {
+    key: 'communication',
+    title: 'Communication',
+    icon: MessageCircle,
+    items: [
+      { label: 'Team Chat', path: '/chat', icon: MessageCircle, feature: 'communication' }
+    ]
+  },
+  {
+    key: 'admin',
+    title: 'Administration',
+    icon: Shield,
+    items: [
+      { label: 'Admin Dashboard', path: '/admin/dashboard', icon: Shield, feature: 'admin_dashboard' },
+      { label: 'User Management', path: '/user-management', icon: Users, feature: 'user_management' }
+    ]
+  },
+  {
+    key: 'user_profile',
+    title: 'User Profile',
+    icon: UserCheck,
+    items: [
+      { label: 'User Profile', path: '/profile', icon: UserCheck, feature: 'user_profile' }
+    ]
+  },
+  {
+    key: 'hr_panel',
+    title: 'HR Panel',
+    icon: UserCheck,
+    items: [
+      { label: 'Employees', path: '/employees', icon: Users, feature: 'employees' },
+      { label: 'Payroll', path: '/payroll', icon: Calculator, feature: 'payroll' },
+      { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
+      { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },
+      { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
+      { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints' },
+      { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox' },
+      { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions' }
+    ]
+  },
+  {
+    key: 'customer_service',
+    title: 'Customer Service',
+    icon: Headphones,
+    items: [
+      { label: 'CSPA', path: '/cspa', icon: Headphones, feature: 'cspa' },
+      { label: 'CS Tickets', path: '/tickets', icon: FileText, feature: 'cs_tickets' }
+    ]
+  },
+  {
+    key: 'it_services',
+    title: 'IT Services',
+    icon: Cog,
+    items: [
+      { label: 'Overview', path: '/it-services', icon: LayoutGrid, feature: 'it_requests' },
+      { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests' },
+      { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox' },
+      { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_tools' }
+    ]
+  },
+  {
+    key: 'operation',
+    title: 'Operation',
+    icon: Cog,
+    items: [
+      { label: 'Overview', path: '/operation', icon: LayoutGrid, feature: 'fleet_management' },
+      { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records' },
+      { label: 'Fleet Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle' },
+      { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio' },
+      { label: 'Driver & Team Records', path: '/operation/drivers', icon: Users, feature: 'driver_records' },
+      { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster' },
+      { label: 'Team Allocation', path: '/operation/team-allocation', icon: Users, feature: 'operation_roster' },
+      { label: 'Breakdowns', path: '/operation/breakdowns', icon: AlertTriangle, feature: 'breakdowns' }
+    ]
+  },
+  {
+    key: 'asset_management',
+    title: 'Asset Management',
+    icon: Building,
+    items: [
+      { label: 'Assets', path: '/assets', icon: Building, feature: 'assets' },
+      { label: 'Sim Cards', path: '/simcards', icon: Database, feature: 'simcards' }
+    ]
+  },
+  {
+    key: 'financial',
+    title: 'Financial',
+    icon: BarChart3,
+    items: [
+      { label: 'Expense Tracker', path: '/expenses', icon: BarChart3, feature: 'expense_tracker' },
+      { label: 'Payment Calendar', path: '/payment-calendar', icon: Calendar, feature: 'payment_calendar' },
+      { label: 'Upcoming Payments', path: '/upcoming-payments', icon: Calendar, feature: 'upcoming_payments' },
+      { label: 'Vouchers', path: '/vouchers', icon: FileText, feature: 'vouchers' },
+      { label: 'Analytics', path: '/analytics', icon: BarChart3, feature: 'analytics' }
+    ]
+  },
+  {
+    key: 'todo_list',
+    title: 'To Do List',
+    icon: ClipboardList,
+    items: [
+      { label: 'Task Management', path: '/task-management', icon: ClipboardList, feature: 'task_management' },
+      { label: 'My Tasks', path: '/tasks', icon: CheckSquare, feature: 'my_tasks' },
+      { label: 'Reports', path: '/reports', icon: BarChart3, feature: 'reports' }
+    ]
+  },
+  {
+    key: 'subscribe_panel',
+    title: 'Subscribe Now',
+    icon: Bell,
+    items: [
+      { label: 'Subscribe Now', path: '/subscribe-now', icon: Bell, feature: 'subscribe_now' },
+      { label: 'LTR Reporting', path: '/subscribe-now#ltr-reporting', icon: BarChart3, feature: 'ltr_reporting' }
+    ]
+  },
+  {
+    key: 'collections_panel',
+    title: 'Collections',
+    icon: Folder,
+    items: [
+      { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections' }
+    ]
+  },
+  {
+    key: 'marketing_panel',
+    title: 'Marketing',
+    icon: Sparkles,
+    items: [
+      { label: 'Marketing Calendar', path: '/marketing-calendar', icon: Calendar, feature: 'marketing_calendar' },
+      { label: 'Marketing Dashboard', path: '/marketing-dashboard', icon: BarChart3, feature: 'marketing_dashboard' },
+      { label: 'Marketing Events', path: '/marketing-events', icon: Calendar, feature: 'marketing_events' },
+      { label: 'Marketing Analytics', path: '/marketing-analytics', icon: BarChart3, feature: 'marketing_analytics' }
+    ]
+  },
+  {
+    key: 'iot_panel',
+    title: 'IOT',
+    icon: Cpu,
+    items: [
+      { label: 'IOT Record', path: '/iot-record', icon: Database, feature: 'iot_record' }
+    ]
+  }
+];
 
 const Sidebar = () => {
   const { isCollapsed, toggleSidebar, isMobile, isMobileOpen, closeMobileSidebar } = useSidebar();
-  const { isDark } = useTheme();
   const location = useLocation();
-  const { user, userProfile, signOut } = useAuth();
-  
-  // Add safety check for userProfile
+  const { user, userProfile } = useAuth();
+  const { prefetchRoute } = usePrefetch();
+
   const userRole = userProfile?.role || user?.role || 'loading';
-  
-  console.log('🔍 Sidebar component rendering:', {
-    hasUser: !!user,
-    hasUserProfile: !!userProfile,
-    userRole: userRole,
-    userEmail: user?.email,
-    profileName: userProfile?.full_name,
-    userProfileDetails: userProfile,
-    userDetails: user,
-    isDark
-  });
-  
-  // Debug role detection
-  console.log('🔍 Role detection debug:', {
-    userProfileRole: userProfile?.role,
-    userRole: user?.role,
-    finalRole: userRole,
-    userProfileExists: !!userProfile,
-    userExists: !!user
-  });
-  
+  const isAuthLoading = !user && !userProfile;
+
   // Initialize expanded panels from localStorage or default to collapsed (only main panel expanded)
   const [expandedPanels, setExpandedPanels] = useState(() => {
     try {
@@ -108,14 +254,6 @@ const Sidebar = () => {
   const prefetchedRoutesRef = useRef(new Set());
   const prefetchTimeoutRef = useRef(null);
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
   const togglePanel = (panelKey) => {
     setExpandedPanels(prev => {
       const newState = {
@@ -132,14 +270,80 @@ const Sidebar = () => {
     });
   };
 
-  const isActive = (path) => location.pathname === path;
-  const { prefetchRoute } = usePrefetch();
+  const filteredPanels = useMemo(
+    () =>
+      NAVIGATION_PANELS.filter((panel) => {
+        if (!userRole || userRole === 'loading') return false;
+        if (!isPanelVisibleInEdition(panel.key)) return false;
+        return canSeePanel(userRole, panel.key);
+      }),
+    [userRole]
+  );
 
-  // Safety check - don't render if auth is not initialized
-  if (!user && !userProfile) {
-    console.log('🔍 Sidebar: Auth not initialized yet, showing loading state');
+  const getFilteredItems = useCallback(
+    (panel) => {
+      if (!userRole || userRole === 'loading') return [];
+      return panel.items.filter((item) => {
+        if (!item.feature) return true;
+        return hasFeatureAccess(userRole, item.feature);
+      });
+    },
+    [userRole]
+  );
+
+  const getActiveNavPath = useCallback(
+    (pathname) => {
+      const allItems = filteredPanels.flatMap((panel) => getFilteredItems(panel));
+      let bestMatch = null;
+
+      for (const item of allItems) {
+        const basePath = item.path.split('#')[0];
+        if (basePath === '/' && pathname === '/') return '/';
+        if (pathname === basePath || pathname.startsWith(`${basePath}/`)) {
+          if (!bestMatch || basePath.length > bestMatch.length) {
+            bestMatch = basePath;
+          }
+        }
+      }
+
+      return bestMatch;
+    },
+    [filteredPanels, getFilteredItems]
+  );
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+
+    const activePath = getActiveNavPath(location.pathname);
+    if (!activePath) return;
+
+    const panelWithActiveItem = filteredPanels.find((panel) =>
+      getFilteredItems(panel).some((item) => item.path.split('#')[0] === activePath)
+    );
+
+    if (!panelWithActiveItem) return;
+
+    setExpandedPanels((prev) => {
+      if (prev[panelWithActiveItem.key]) return prev;
+
+      const newState = { ...prev, [panelWithActiveItem.key]: true };
+      try {
+        localStorage.setItem('sidebar-expanded-panels', JSON.stringify(newState));
+      } catch (error) {
+        console.warn('Error saving sidebar panel state:', error);
+      }
+      return newState;
+    });
+  }, [isAuthLoading, location.pathname, filteredPanels, getFilteredItems, getActiveNavPath]);
+
+  const isActive = (path) => {
+    const activePath = getActiveNavPath(location.pathname);
+    return activePath === path.split('#')[0];
+  };
+
+  if (isAuthLoading) {
     return (
-      <div 
+      <div
         className="h-screen border-r shadow-lg flex-shrink-0 w-80 transition-all duration-500"
         style={{
           background: 'var(--bg-sidebar)',
@@ -148,17 +352,17 @@ const Sidebar = () => {
         }}
       >
         <div className="flex flex-col h-full">
-          <div 
+          <div
             className="p-4 border-b"
             style={{
               borderColor: 'var(--border-primary)',
               background: 'var(--gradient-primary)'
             }}
           >
-            <div className="text-white font-semibold text-lg">UHub</div>
+            <Logo size="sm" variant="negative" showText={true} textClassName="text-white" />
           </div>
           <div className="flex-1 flex items-center justify-center">
-            <div 
+            <div
               className="transition-colors duration-300"
               style={{ color: 'var(--text-muted)' }}
             >
@@ -169,190 +373,6 @@ const Sidebar = () => {
       </div>
     );
   }
-
-  // Navigation panels configuration with role-based filtering
-  const navigationPanels = [
-    {
-      key: 'main',
-      title: 'Home Panel',
-      icon: Home,
-      items: [
-        { label: 'Home', path: '/', icon: Home, feature: 'home' },
-        { label: 'Dashboard', path: '/dashboard', icon: BarChart3, feature: 'dashboard' },
-        { label: 'Calendar View', path: '/calendar-view', icon: Calendar, feature: 'calendar_view' },
-        { label: 'Organizational Hierarchy', path: '/organizational-hierarchy', icon: Users, feature: 'organizational_hierarchy' }
-      ]
-    },
-    {
-      key: 'slice_of_life',
-      title: 'Slice of Life',
-      icon: Heart,
-      items: [
-        { label: 'Events', path: '/events', icon: Calendar, feature: 'events' },
-        { label: 'Memories', path: '/memories', icon: Heart, feature: 'memories' },
-        { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections' },
-        { label: 'Picture Upload', path: '/event-picture-upload', icon: Camera, feature: 'events' }
-      ]
-    },
-    {
-      key: 'communication',
-      title: 'Communication',
-      icon: MessageCircle,
-      items: [
-        { label: 'Team Chat', path: '/chat', icon: MessageCircle, feature: 'communication' }
-      ]
-    },
-    {
-      key: 'admin',
-      title: 'Administration',
-      icon: Shield,
-      items: [
-        { label: 'Admin Dashboard', path: '/admin/dashboard', icon: Shield, feature: 'admin_dashboard' },
-        { label: 'User Management', path: '/user-management', icon: Users, feature: 'user_management' }
-      ]
-    },
-    {
-      key: 'user_profile',
-      title: 'User Profile',
-      icon: UserCheck,
-      items: [
-        { label: 'User Profile', path: '/profile', icon: UserCheck, feature: 'user_profile' }
-      ]
-    },
-    {
-      key: 'hr_panel',
-      title: 'HR Panel',
-      icon: UserCheck,
-      items: [
-        { label: 'Employees', path: '/employees', icon: Users, feature: 'employees' },
-        { label: 'Payroll', path: '/payroll', icon: Calculator, feature: 'payroll' },
-        { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
-        { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },
-        { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
-        { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints' },
-        { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox' },
-        { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions' }
-      ]
-    },
-    {
-      key: 'customer_service',
-      title: 'Customer Service',
-      icon: Headphones,
-      items: [
-        { label: 'CSPA', path: '/cspa', icon: Headphones, feature: 'cspa' },
-        { label: 'CS Tickets', path: '/tickets', icon: FileText, feature: 'cs_tickets' }
-      ]
-    },
-    {
-      key: 'it_services',
-      title: 'IT Services',
-      icon: Cog,
-      items: [
-        { label: 'Overview', path: '/it-services', icon: LayoutGrid, feature: 'it_requests' },
-        { label: 'IT Requests', path: '/it-requests', icon: FileText, feature: 'it_requests' },
-        { label: 'Request Inbox', path: '/request-inbox', icon: Inbox, feature: 'request_inbox' },
-        { label: 'IT Tools & Analytics', path: '/it-tools', icon: BarChart3, feature: 'it_tools' }
-      ]
-    },
-    {
-      key: 'operation',
-      title: 'Operation',
-      icon: Cog,
-      items: [
-        { label: 'Overview', path: '/operation', icon: LayoutGrid, feature: 'fleet_management' },
-        { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records' },
-        { label: 'Fleet Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle' },
-        { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio' },
-        { label: 'Driver & Team Records', path: '/operation/drivers', icon: Users, feature: 'driver_records' },
-        { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster' },
-        { label: 'Team Allocation', path: '/operation/team-allocation', icon: Users, feature: 'operation_roster' },
-        { label: 'Breakdowns', path: '/operation/breakdowns', icon: AlertTriangle, feature: 'breakdowns' }
-      ]
-    },
-    {
-      key: 'asset_management',
-      title: 'Asset Management',
-      icon: Building,
-      items: [
-        { label: 'Assets', path: '/assets', icon: Building, feature: 'assets' },
-        { label: 'Sim Cards', path: '/simcards', icon: Database, feature: 'simcards' }
-      ]
-    },
-    {
-      key: 'financial',
-      title: 'Financial',
-      icon: BarChart3,
-      items: [
-        { label: 'Expense Tracker', path: '/expenses', icon: BarChart3, feature: 'expense_tracker' },
-        { label: 'Payment Calendar', path: '/payment-calendar', icon: Calendar, feature: 'payment_calendar' },
-        { label: 'Upcoming Payments', path: '/upcoming-payments', icon: Calendar, feature: 'upcoming_payments' },
-        { label: 'Vouchers', path: '/vouchers', icon: FileText, feature: 'vouchers' },
-        { label: 'Analytics', path: '/analytics', icon: BarChart3, feature: 'analytics' }
-      ]
-    },
-    {
-      key: 'todo_list',
-      title: 'To Do List',
-      icon: ClipboardList,
-      items: [
-        { label: 'Task Management', path: '/task-management', icon: ClipboardList, feature: 'task_management' },
-        { label: 'My Tasks', path: '/tasks', icon: CheckSquare, feature: 'my_tasks' },
-        { label: 'Reports', path: '/reports', icon: BarChart3, feature: 'reports' }
-      ]
-    },
-    {
-      key: 'subscribe_panel',
-      title: 'Subscribe Now',
-      icon: Bell,
-      items: [
-        { label: 'Subscribe Now', path: '/subscribe-now', icon: Bell, feature: 'subscribe_now' },
-        { label: 'LTR Reporting', path: '/subscribe-now#ltr-reporting', icon: BarChart3, feature: 'ltr_reporting' }
-      ]
-    },
-    {
-      key: 'collections_panel',
-      title: 'Collections',
-      icon: Folder,
-      items: [
-        { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections' }
-      ]
-    },
-    {
-      key: 'marketing_panel',
-      title: 'Marketing',
-      icon: Sparkles,
-      items: [
-        { label: 'Marketing Calendar', path: '/marketing-calendar', icon: Calendar, feature: 'marketing_calendar' },
-        { label: 'Marketing Dashboard', path: '/marketing-dashboard', icon: BarChart3, feature: 'marketing_dashboard' },
-        { label: 'Marketing Events', path: '/marketing-events', icon: Calendar, feature: 'marketing_events' },
-        { label: 'Marketing Analytics', path: '/marketing-analytics', icon: BarChart3, feature: 'marketing_analytics' }
-      ]
-    },
-    {
-      key: 'iot_panel',
-      title: 'IOT',
-      icon: Cpu,
-      items: [
-        { label: 'IOT Record', path: '/iot-record', icon: Database, feature: 'iot_record' }
-      ]
-    }
-  ];
-
-  // Filter panels based on user role (and the active app edition)
-  const filteredPanels = navigationPanels.filter(panel => {
-    if (!userRole) return false;
-    if (!isPanelVisibleInEdition(panel.key)) return false;
-    return canSeePanel(userRole, panel.key);
-  });
-
-  // Filter items within each panel based on user role
-  const getFilteredItems = (panel) => {
-    if (!userRole) return [];
-    return panel.items.filter(item => {
-      if (!item.feature) return true; // If no feature specified, show by default
-      return hasFeatureAccess(userRole, item.feature);
-    });
-  };
 
   // Enhanced animation variants with spring physics for smoother feel
   const panelVariants = {
@@ -503,9 +523,8 @@ const Sidebar = () => {
                   animate={{ opacity: 1, width: 'auto' }}
                   exit={{ opacity: 0, width: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="text-white font-semibold text-lg"
                 >
-                  UHub
+                  <Logo size="sm" variant="negative" showText={true} textClassName="text-white" />
                 </motion.div>
               )}
             </div>
@@ -579,11 +598,12 @@ const Sidebar = () => {
           </div>
 
           {/* Navigation Panels */}
-          <div 
-            className={`flex-1 overflow-y-auto ${isMobile ? 'p-2' : 'p-2'}`}
+          <div
+            className={`flex-1 overflow-y-auto ${isMobile ? 'p-2 pb-4' : 'p-2'}`}
             style={{
               WebkitOverflowScrolling: 'touch',
-              overscrollBehavior: 'contain'
+              overscrollBehavior: 'contain',
+              paddingBottom: isMobile ? 'max(1rem, env(safe-area-inset-bottom))' : undefined,
             }}
           >
             <div className="space-y-2">
@@ -841,70 +861,6 @@ const Sidebar = () => {
                 );
               })}
             </div>
-          </div>
-
-          {/* Footer */}
-          <div 
-            className={`${isMobile ? 'p-3' : 'p-4'} border-t transition-all duration-300`}
-            style={{
-              borderColor: 'var(--border-primary)',
-              background: 'var(--bg-secondary)',
-              paddingBottom: isMobile ? 'max(0.75rem, env(safe-area-inset-bottom))' : undefined
-            }}
-          >
-            <motion.button
-              onClick={handleSignOut}
-              className={`flex items-center ${isMobile ? 'space-x-3 px-3 py-3' : 'space-x-3 px-3 py-2'} rounded-lg text-sm font-medium w-full touch-manipulation relative overflow-hidden`}
-              style={{
-                color: 'var(--text-danger)',
-                background: 'transparent',
-                minHeight: isMobile ? '44px' : undefined,
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation'
-              }}
-              whileHover={!isMobile ? {
-                background: 'var(--accent-danger)',
-                color: 'white',
-                scale: 1.02,
-                transition: {
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 25
-                }
-              } : {}}
-              whileTap={{
-                scale: 0.98,
-                transition: {
-                  type: "spring",
-                  stiffness: 600,
-                  damping: 30
-                }
-              }}
-              onTouchStart={(e) => {
-                e.currentTarget.style.background = 'var(--accent-danger)';
-                e.currentTarget.style.color = 'white';
-              }}
-              onTouchEnd={(e) => {
-                setTimeout(() => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = 'var(--text-danger)';
-                }, 150);
-              }}
-            >
-              <Settings className="w-5 h-5" />
-              <AnimatePresence>
-                {(!isCollapsed || isMobile) && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    Sign Out
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
           </div>
         </div>
       </motion.div>

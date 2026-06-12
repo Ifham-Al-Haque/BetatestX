@@ -1,11 +1,14 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import {
   Users, User, ChevronDown, ChevronUp, GripVertical, Crown, Shield, Zap,
   UserCheck, TrendingUp, Search, X, Info, ZoomIn, ZoomOut, Maximize2,
-  RotateCcw, Plus, Minus
+  RotateCcw, Plus, Minus, GitBranch, ListTree, AlertTriangle, Presentation, Building2
 } from 'lucide-react';
 import { useUpdateReportingManager } from '../hooks/useEmployees';
 import { useToast } from '../context/ToastContext';
+import { buildOrgTree, getAncestorIds, nodeMatchesQuery } from '../utils/buildOrgTree';
+import { resolveEmployeePlacement } from '../config/departmentHierarchy';
+import DepartmentHierarchyView from './DepartmentHierarchyView';
 import './orgchart.css';
 
 const DEPARTMENT_COLORS = {
@@ -31,55 +34,55 @@ const getPositionIcon = (position) => {
   return User;
 };
 
-// Build a forest of nodes from the flat employee list using reporting_manager_id.
-const buildForest = (employees) => {
-  const map = new Map();
-  employees.forEach((emp) => {
-    map.set(String(emp.id), { ...emp, directReports: [] });
-  });
-
-  const roots = [];
-  employees.forEach((emp) => {
-    const node = map.get(String(emp.id));
-    const managerKey = emp.reporting_manager_id ? String(emp.reporting_manager_id) : null;
-    const manager = managerKey && managerKey !== String(emp.id) ? map.get(managerKey) : null;
-    if (manager) manager.directReports.push(node);
-    else roots.push(node);
-  });
-
-  const sortNodes = (nodes) => {
-    nodes.sort((a, b) => (b.directReports.length - a.directReports.length) || (a.full_name || '').localeCompare(b.full_name || ''));
-    nodes.forEach((n) => sortNodes(n.directReports));
-  };
-  sortNodes(roots);
-
-  // Count total (indirect) reports for the badge.
-  const countReports = (node) => {
-    let total = node.directReports.length;
-    node.directReports.forEach((c) => { total += countReports(c); });
-    node.totalReports = total;
-    return total;
-  };
-  roots.forEach(countReports);
-
-  const managerIds = [];
-  map.forEach((n, id) => { if (n.directReports.length) managerIds.push(id); });
-
-  return { map, roots, managerIds };
+const getLevelClass = (level, isRoot) => {
+  if (isRoot || level === 0) return 'oc-level-root';
+  if (level === 1) return 'oc-level-1';
+  if (level === 2) return 'oc-level-2';
+  if (level === 3) return 'oc-level-3';
+  return 'oc-level-deep';
 };
 
-const OrgChartPro = ({ employees = [], loading = false, onEmployeeClick }) => {
-  const [zoom, setZoom] = useState(1);
+const OrgChartPro = ({
+  employees = [],
+  loading = false,
+  onEmployeeClick,
+  externalSearch = '',
+}) => {
+  const [displayMode, setDisplayMode] = useState('chart'); // 'chart' | 'structure' | 'departments'
+  const [presentationMode, setPresentationMode] = useState(true);
+  const [zoom, setZoom] = useState(0.85);
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [rootDragOver, setRootDragOver] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [localSearch, setLocalSearch] = useState('');
+  const viewportRef = useRef(null);
+  const canvasRef = useRef(null);
 
   const { success, error: showError } = useToast();
   const updateManager = useUpdateReportingManager();
 
-  const { map, roots, managerIds } = useMemo(() => buildForest(employees), [employees]);
+  const searchTerm = (externalSearch || localSearch).trim();
+  const treeData = useMemo(() => buildOrgTree(employees), [employees]);
+  const { map, roots, managerIds, brokenLinks, flatByLevel, stats } = treeData;
+
+  // When searching, auto-expand every ancestor on the path to each match.
+  useEffect(() => {
+    if (!searchTerm) return;
+    const toExpand = new Set();
+    flatByLevel.forEach((node) => {
+      if (nodeMatchesQuery(node, searchTerm)) {
+        getAncestorIds(node).forEach((id) => toExpand.add(id));
+      }
+    });
+    if (toExpand.size) {
+      setCollapsed((prev) => {
+        const next = new Set(prev);
+        toExpand.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
+  }, [searchTerm, flatByLevel]);
 
   const forbiddenTargets = useMemo(() => {
     if (!draggedId) return new Set();
@@ -90,22 +93,23 @@ const OrgChartPro = ({ employees = [], loading = false, onEmployeeClick }) => {
     return blocked;
   }, [draggedId, map]);
 
-  const matchesSearch = useCallback((emp) => {
-    if (!searchTerm) return false;
-    const q = searchTerm.toLowerCase();
-    return (
-      emp.full_name?.toLowerCase().includes(q) ||
-      emp.position?.toLowerCase().includes(q) ||
-      emp.department?.toLowerCase().includes(q) ||
-      emp.employee_id?.toLowerCase?.().includes(q)
-    );
-  }, [searchTerm]);
+  const isMatch = useCallback((node) => nodeMatchesQuery(node, searchTerm), [searchTerm]);
+
+  const isOnMatchPath = useCallback(
+    (node) => {
+      if (!searchTerm) return false;
+      if (isMatch(node)) return true;
+      return node.directReports.some((c) => isOnMatchPath(c));
+    },
+    [searchTerm, isMatch]
+  );
 
   const toggleCollapse = (id) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(String(id))) next.delete(String(id));
-      else next.add(String(id));
+      const key = String(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -167,9 +171,28 @@ const OrgChartPro = ({ employees = [], loading = false, onEmployeeClick }) => {
     if (dragOverId !== String(targetId)) setDragOverId(String(targetId));
   };
 
-  const zoomIn = () => setZoom((z) => Math.min(1.4, +(z + 0.1).toFixed(2)));
-  const zoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)));
-  const resetZoom = () => setZoom(1);
+  const zoomIn = () => setZoom((z) => Math.min(1.25, +(z + 0.05).toFixed(2)));
+  const zoomOut = () => setZoom((z) => Math.max(0.55, +(z - 0.05).toFixed(2)));
+  const resetZoom = () => setZoom(presentationMode ? 0.85 : 1);
+
+  const fitToView = useCallback(() => {
+    const viewport = viewportRef.current;
+    const canvas = canvasRef.current;
+    if (!viewport || !canvas) return;
+    const pad = 64;
+    const scaleW = (viewport.clientWidth - pad) / canvas.scrollWidth;
+    const scaleH = (viewport.clientHeight - pad) / canvas.scrollHeight;
+    const scale = Math.min(scaleW, scaleH, 1);
+    // Keep cards readable — never shrink below 55% (scroll horizontally instead)
+    setZoom(Math.max(0.55, Math.min(1, +scale.toFixed(2))));
+  }, []);
+
+  // Auto-fit once the chart renders so HR sees a sensible first view
+  useEffect(() => {
+    if (loading || displayMode !== 'chart' || !roots.length) return;
+    const timer = setTimeout(fitToView, 120);
+    return () => clearTimeout(timer);
+  }, [loading, displayMode, roots.length, collapsed, presentationMode, fitToView]);
 
   const NodeCard = ({ node, isRoot }) => {
     const id = String(node.id);
@@ -178,9 +201,13 @@ const OrgChartPro = ({ employees = [], loading = false, onEmployeeClick }) => {
     const isDragging = draggedId === id;
     const isDropTarget = dragOverId === id && !forbiddenTargets.has(id);
     const isForbidden = draggedId && forbiddenTargets.has(id) && !isDragging;
-    const isMatch = matchesSearch(node);
-    const dimmedBySearch = searchTerm && !isMatch;
-    const PositionIcon = getPositionIcon(node.position);
+    const matched = isMatch(node);
+    const onPath = searchTerm && isOnMatchPath(node);
+    const dimmedBySearch = searchTerm && !onPath;
+    const PositionIcon = getPositionIcon(node.position || node.designation);
+    const roleLabel = node.position || node.designation || 'No position';
+    const levelClass = getLevelClass(node.level, isRoot);
+    const placement = resolveEmployeePlacement(node);
 
     return (
       <div
@@ -190,73 +217,91 @@ const OrgChartPro = ({ employees = [], loading = false, onEmployeeClick }) => {
         onDragOver={(e) => allowDrop(e, id)}
         onDragLeave={() => setDragOverId((prev) => (prev === id ? null : prev))}
         onDrop={(e) => handleDropOnNode(e, id)}
-        className={`relative w-60 select-none rounded-2xl bg-white dark:bg-gray-800 border-2 shadow-md transition-all duration-150 cursor-grab active:cursor-grabbing
-          ${isDropTarget ? 'border-blue-500 ring-4 ring-blue-500/25 -translate-y-0.5 shadow-xl' : 'border-gray-200 dark:border-gray-700'}
+        className={`oc-card relative select-none transition-all duration-150 cursor-grab active:cursor-grabbing ${levelClass}
+          ${isDropTarget ? 'oc-drop-target -translate-y-0.5' : ''}
           ${isDragging ? 'opacity-40' : ''}
           ${isForbidden ? 'opacity-30' : ''}
-          ${isMatch ? 'ring-2 ring-amber-400 border-amber-300' : ''}
-          ${dimmedBySearch ? 'opacity-45' : ''}
-          hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600`}
+          ${matched ? 'oc-match' : ''}
+          ${onPath && !matched ? 'ring-2 ring-blue-300/60 dark:ring-blue-600/60' : ''}
+          ${dimmedBySearch ? 'opacity-35' : ''}
+          hover:shadow-xl`}
       >
-        {/* Department accent bar */}
-        <div className={`h-1.5 w-full rounded-t-2xl bg-gradient-to-r ${getDepartmentColor(node.department)}`} />
+        <div className={`oc-card-accent bg-gradient-to-r ${getDepartmentColor(node.department)}`} />
 
         {isRoot && (
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] font-bold shadow">
-            <Crown className="w-3 h-3" /> TOP
+          <span className="absolute -top-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[11px] font-bold shadow-md border-2 border-white dark:border-gray-800">
+            <Crown className="w-3.5 h-3.5" /> TOP LEVEL
           </span>
         )}
 
-        <div className="p-3">
-          <div className="flex items-center gap-3">
-            <GripVertical className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center overflow-hidden ring-2 ring-white dark:ring-gray-800 shadow-sm flex-shrink-0">
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <GripVertical className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-4" />
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center overflow-hidden ring-[3px] ring-white dark:ring-gray-700 shadow-md flex-shrink-0">
               {node.profile_picture || node.photo_url ? (
                 <img src={node.profile_picture || node.photo_url} alt={node.full_name} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <User className="w-7 h-7 text-blue-600 dark:text-blue-400" />
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => onEmployeeClick?.(node)}
-              className="min-w-0 flex-1 text-left"
-              title="View details"
-            >
-              <div className="flex items-center gap-1.5">
-                <PositionIcon className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <span className="font-bold text-sm text-gray-900 dark:text-white truncate">{node.full_name}</span>
+            <button type="button" onClick={() => onEmployeeClick?.(node)} className="min-w-0 flex-1 text-left" title={node.full_name}>
+              <div className="flex items-start gap-1.5">
+                <PositionIcon className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <span className="oc-card-name text-gray-900 dark:text-white">{node.full_name}</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{node.position || 'No position'}</p>
+              <p className="oc-card-role text-gray-600 dark:text-gray-400 mt-1">{roleLabel}</p>
+              <span className="inline-flex mt-2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                Level {node.level + 1}
+              </span>
             </button>
           </div>
 
-          <div className="mt-2.5 flex items-center justify-between gap-2">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold text-white bg-gradient-to-r ${getDepartmentColor(node.department)}`}>
-              {node.department || 'Unassigned'}
-            </span>
+          <div className="mt-3 pt-3 border-t-2 border-gray-100 dark:border-gray-700">
+            {isRoot && !node.brokenManager ? (
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5" /> Top of company hierarchy
+              </p>
+            ) : (
+              <p className="text-xs text-gray-700 dark:text-gray-300 leading-snug">
+                <span className="font-medium text-gray-500 dark:text-gray-400">Reports to </span>
+                <span className="font-bold text-gray-900 dark:text-white">{node.managerName || 'Unknown'}</span>
+                {node.brokenManager && (
+                  <span className="text-amber-600 dark:text-amber-400 text-[11px]"> (inactive manager)</span>
+                )}
+              </p>
+            )}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-1.5">
+              <span className={`text-[11px] px-2.5 py-1 rounded-lg font-bold text-white bg-gradient-to-r ${getDepartmentColor(node.department)}`}>
+                {node.department || 'Unassigned'}
+              </span>
+              {placement.branchLabel && (
+                <span className="text-[10px] px-2 py-1 rounded-lg font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                  {placement.branchLabel}
+                </span>
+              )}
+            </div>
             {hasReports && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-                <Users className="w-3 h-3" />
-                {node.directReports.length}
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                <Users className="w-3.5 h-3.5" />
+                {node.directReports.length} direct
                 {node.totalReports > node.directReports.length && (
-                  <span className="text-gray-400">/{node.totalReports}</span>
+                  <span className="opacity-70"> · {node.totalReports} total</span>
                 )}
               </span>
             )}
           </div>
         </div>
 
-        {/* Collapse / expand handle */}
         {hasReports && (
           <button
             onClick={(e) => { e.stopPropagation(); toggleCollapse(id); }}
-            className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 shadow flex items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-400 transition-colors z-10"
-            title={isCollapsed ? `Show ${node.directReports.length} reports` : 'Hide reports'}
+            className="oc-expand-btn absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center text-gray-600 hover:text-indigo-600 hover:border-indigo-400 transition-colors z-10"
+            title={isCollapsed ? `Show ${node.directReports.length} direct reports` : 'Hide direct reports'}
           >
-            {isCollapsed
-              ? <Plus className="w-4 h-4" />
-              : <Minus className="w-4 h-4" />}
+            {isCollapsed ? <Plus className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
           </button>
         )}
       </div>
@@ -284,22 +329,96 @@ const OrgChartPro = ({ employees = [], loading = false, onEmployeeClick }) => {
     );
   };
 
+  const StructureRow = ({ node, depth = 0 }) => {
+    const id = String(node.id);
+    const hasReports = node.directReports.length > 0;
+    const isCollapsed = collapsed.has(id);
+    const matched = isMatch(node);
+    const onPath = searchTerm && isOnMatchPath(node);
+    const PositionIcon = getPositionIcon(node.position || node.designation);
+
+    return (
+      <div className="select-none">
+        <div
+          className={`flex items-center gap-3 py-2.5 px-3 rounded-xl border transition-colors
+            ${matched ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-800/60'}
+            ${onPath && !matched ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+          style={{ marginLeft: depth * 28 }}
+        >
+          {hasReports ? (
+            <button
+              onClick={() => toggleCollapse(id)}
+              className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-blue-600 flex-shrink-0"
+            >
+              {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            </button>
+          ) : (
+            <span className="w-6 h-6 flex items-center justify-center text-gray-300 dark:text-gray-600 flex-shrink-0">•</span>
+          )}
+
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {node.profile_picture || node.photo_url ? (
+              <img src={node.profile_picture || node.photo_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            )}
+          </div>
+
+          <button type="button" onClick={() => onEmployeeClick?.(node)} className="flex-1 min-w-0 text-left">
+            <div className="flex items-center gap-2 flex-wrap">
+              <PositionIcon className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span className="font-semibold text-sm text-gray-900 dark:text-white">{node.full_name}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{node.position || node.designation || '—'}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full text-white bg-gradient-to-r ${getDepartmentColor(node.department)}`}>
+                {node.department || 'Unassigned'}
+              </span>
+              <span className="text-[10px] text-gray-400">L{node.level + 1}</span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {node.level === 0 && !node.brokenManager ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">Top level — no manager</span>
+              ) : (
+                <>
+                  Reports to <span className="font-semibold text-gray-700 dark:text-gray-300">{node.managerName || 'Unknown'}</span>
+                  {node.reportingChainNames.length > 0 && (
+                    <span className="text-gray-400"> · via {node.reportingChainNames.join(' → ')}</span>
+                  )}
+                </>
+              )}
+              {hasReports && (
+                <span className="ml-2 text-blue-600 dark:text-blue-400">
+                  · {node.directReports.length} direct report{node.directReports.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </p>
+          </button>
+        </div>
+
+        {hasReports && !isCollapsed && (
+          <>
+            {node.directReports.map((child) => (
+              <StructureRow key={child.id} node={child} depth={depth + 1} />
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex flex-wrap justify-center gap-6 py-10">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="w-60 h-28 bg-gray-100 dark:bg-gray-700 rounded-2xl animate-pulse" />
+          <div key={i} className="w-64 h-32 bg-gray-100 dark:bg-gray-700 rounded-2xl animate-pulse" />
         ))}
       </div>
     );
   }
 
-  if (!employees || employees.length === 0) {
+  if (!employees?.length) {
     return (
       <div className="text-center py-12">
-        <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Users className="w-10 h-10 text-gray-400" />
-        </div>
+        <Users className="w-10 h-10 text-gray-400 mx-auto mb-3" />
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Employees Found</h3>
         <p className="text-gray-600 dark:text-gray-400">No active employees found in the system.</p>
       </div>
@@ -308,115 +427,212 @@ const OrgChartPro = ({ employees = [], loading = false, onEmployeeClick }) => {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      {/* Header + stats */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
-              <Users className="w-5 h-5 text-white" />
+              <GitBranch className="w-5 h-5 text-white" />
             </span>
-            Organizational Chart
+            Full Reporting Structure
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Drag any card onto another person to set who they report to.
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Complete hierarchy — who reports to whom, from top level down through every team.
           </p>
+          <div className="flex flex-wrap gap-3 mt-3">
+            {[
+              { label: 'Employees', value: stats.total },
+              { label: 'Levels', value: stats.maxDepth },
+              { label: 'Top level', value: stats.topLevel },
+              { label: 'Managers', value: stats.managers },
+            ].map(({ label, value }) => (
+              <span key={label} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                <span className="text-blue-600 dark:text-blue-400">{value}</span> {label}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Find a person..."
-              className="w-44 pl-9 pr-8 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          {/* View toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+            <button
+              onClick={() => setDisplayMode('chart')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                displayMode === 'chart'
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <GitBranch className="w-4 h-4" /> Org chart
+            </button>
+            <button
+              onClick={() => setDisplayMode('structure')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                displayMode === 'structure'
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <ListTree className="w-4 h-4" /> Reporting list
+            </button>
+            <button
+              onClick={() => setDisplayMode('departments')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                displayMode === 'departments'
+                  ? 'bg-white dark:bg-gray-600 text-violet-600 dark:text-violet-400 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <Building2 className="w-4 h-4" /> Dept & branches
+            </button>
           </div>
 
-          {/* Expand / collapse */}
+          {!externalSearch && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                placeholder="Find in hierarchy..."
+                className="w-44 pl-9 pr-8 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+              />
+              {localSearch && (
+                <button onClick={() => setLocalSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
-            <button onClick={expandAll} title="Expand all" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600 transition-colors">
+            <button onClick={expandAll} title="Expand all branches" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600">
               <ChevronDown className="w-4 h-4" />
             </button>
-            <button onClick={collapseAll} title="Collapse all" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600 transition-colors">
+            <button onClick={collapseAll} title="Collapse all branches" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600">
               <ChevronUp className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Zoom */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
-            <button onClick={zoomOut} title="Zoom out" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600 transition-colors">
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 w-10 text-center">{Math.round(zoom * 100)}%</span>
-            <button onClick={zoomIn} title="Zoom in" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600 transition-colors">
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button onClick={resetZoom} title="Reset zoom" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600 transition-colors">
-              <Maximize2 className="w-4 h-4" />
-            </button>
-          </div>
+          {displayMode === 'chart' && (
+            <>
+              <button
+                onClick={() => setPresentationMode((v) => !v)}
+                title="HR presentation mode — larger cards and thicker borders"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border-2 ${
+                  presentationMode
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-indigo-300'
+                }`}
+              >
+                <Presentation className="w-4 h-4" /> HR view
+              </button>
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+              <button onClick={zoomOut} className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600">
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 w-10 text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={zoomIn} className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600">
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button onClick={resetZoom} title="Reset zoom" className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600">
+                <Maximize2 className="w-4 h-4" />
+              </button>
+              <button onClick={fitToView} title="Fit entire structure" className="px-2 py-2 rounded-lg text-xs font-semibold text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600">
+                Fit all
+              </button>
+            </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Helper + top-level drop zone */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex items-start gap-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 px-3 py-2.5 flex-1">
-          <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-800 dark:text-blue-200">
-            Changes save automatically. You can't drop a manager onto one of their own reports.
+      {brokenLinks.length > 0 && (
+        <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-800 dark:text-amber-200">
+            <span className="font-semibold">{brokenLinks.length} employee{brokenLinks.length !== 1 ? 's' : ''}</span>{' '}
+            ha{brokenLinks.length !== 1 ? 've' : 's'} a manager who is not in the active employee list — shown at top level with a warning.
+            {brokenLinks.slice(0, 3).map((e) => e.full_name).join(', ')}
+            {brokenLinks.length > 3 && ` +${brokenLinks.length - 3} more`}
+          </div>
+        </div>
+      )}
+
+      {displayMode === 'chart' && (
+        <>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-start gap-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 px-3 py-2.5 flex-1">
+              <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-800 dark:text-blue-200">
+                Every card shows who that person reports to. Drag onto another card to change reporting lines, or drop on the zone below to make someone top level.
+              </p>
+            </div>
+            <div
+              onDragOver={(e) => { if (!draggedId) return; e.preventDefault(); setRootDragOver(true); }}
+              onDragLeave={() => setRootDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); if (draggedId) reassign(draggedId, null); }}
+              className={`flex items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-2.5 text-xs font-semibold transition-all sm:w-64
+                ${rootDragOver
+                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'}`}
+            >
+              <Crown className="w-4 h-4" /> Drop here = remove manager
+            </div>
+          </div>
+
+          <div className="h-5">
+            {updateManager.isPending && (
+              <span className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                <RotateCcw className="w-4 h-4 animate-spin" /> Saving...
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400 px-1">
+            <span>Scroll horizontally and vertically to explore the full org. Use <strong>HR view</strong> for onboarding presentations.</span>
+            {zoom <= 0.6 && (
+              <span className="text-amber-600 dark:text-amber-400 font-semibold shrink-0">Tip: zoom in for readable names</span>
+            )}
+          </div>
+
+          <div
+            ref={viewportRef}
+            className={`oc-viewport rounded-3xl border-2 border-gray-300 dark:border-gray-600 min-h-[480px] max-h-[75vh] ${presentationMode ? 'oc-presentation' : ''}`}
+          >
+            <div ref={canvasRef} className="oc-canvas" style={{ transform: `scale(${zoom})` }}>
+              <div className="oc-tree">
+                <ul>
+                  {roots.map((node) => (
+                    <NodeLi key={node.id} node={node} isRoot />
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {displayMode === 'structure' && (
+        <div className="rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 max-h-[75vh] overflow-y-auto">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 px-1">
+            Complete reporting tree — every employee with their manager and full chain from the top.
           </p>
+          {roots.map((root) => (
+            <StructureRow key={root.id} node={root} depth={0} />
+          ))}
         </div>
-        <div
-          onDragOver={(e) => { if (!draggedId) return; e.preventDefault(); setRootDragOver(true); }}
-          onDragLeave={() => setRootDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); if (draggedId) reassign(draggedId, null); }}
-          className={`flex items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-2.5 text-xs font-semibold transition-all sm:w-64
-            ${rootDragOver
-              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
-              : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'}`}
-        >
-          <Crown className="w-4 h-4" />
-          Drop here = remove manager
-        </div>
-      </div>
+      )}
 
-      {/* Saving indicator */}
-      <div className="h-5">
-        {updateManager.isPending && (
-          <span className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-            <RotateCcw className="w-4 h-4 animate-spin" /> Saving...
-          </span>
-        )}
-      </div>
-
-      {/* Chart viewport */}
-      <div className="oc-viewport rounded-3xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
-        <div className="oc-canvas" style={{ transform: `scale(${zoom})` }}>
-          <div className="oc-tree">
-            <ul>
-              {roots.map((node) => (
-                <NodeLi key={node.id} node={node} isRoot />
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
-        <span className="flex items-center gap-1.5"><GripVertical className="w-4 h-4" /> Drag a card to reassign</span>
-        <span className="flex items-center gap-1.5"><Crown className="w-4 h-4 text-yellow-500" /> Top level (no manager)</span>
-        <span className="flex items-center gap-1.5"><Users className="w-4 h-4" /> Direct / total reports</span>
-        <span className="flex items-center gap-1.5"><Plus className="w-4 h-4" /> Expand or collapse a branch</span>
-      </div>
+      {displayMode === 'departments' && (
+        <DepartmentHierarchyView
+          employees={employees}
+          loading={loading}
+          externalSearch={externalSearch}
+          onEmployeeClick={onEmployeeClick}
+        />
+      )}
     </div>
   );
 };

@@ -40,7 +40,7 @@ const SmartHomeRoute = () => {
   // DO NOT redirect - let the sidebar navigation handle routing
   if (user) {
     return (
-      <Layout>
+      <Layout hidePageHeader>
         <UserWelcome />
       </Layout>
     );

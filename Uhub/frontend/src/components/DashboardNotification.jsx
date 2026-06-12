@@ -41,38 +41,31 @@ const NotificationCard = ({ notification, onDismiss, onAction }) => {
 
   if (!isVisible) return null;
 
-  const bgColor = {
-    [NotificationTypes.SUCCESS]: 'bg-green-50 border-green-200',
-    [NotificationTypes.WARNING]: 'bg-yellow-50 border-yellow-200',
-    [NotificationTypes.ERROR]: 'bg-red-50 border-red-200',
-    [NotificationTypes.INFO]: 'bg-blue-50 border-blue-200'
-  }[notification.type] || 'bg-gray-50 border-gray-200';
-
-  const textColor = {
-    [NotificationTypes.SUCCESS]: 'text-green-800',
-    [NotificationTypes.WARNING]: 'text-yellow-800',
-    [NotificationTypes.ERROR]: 'text-red-800',
-    [NotificationTypes.INFO]: 'text-blue-800'
-  }[notification.type] || 'text-gray-800';
+  const typeClass = {
+    [NotificationTypes.SUCCESS]: 'notification-card-success',
+    [NotificationTypes.WARNING]: 'notification-card-warning',
+    [NotificationTypes.ERROR]: 'notification-card-error',
+    [NotificationTypes.INFO]: 'notification-card-info',
+  }[notification.type] || 'notification-card-neutral';
 
   return (
-    <div className={`notification-card ${bgColor} border rounded-lg p-4 mb-3 transition-all duration-300 transform translate-x-0 opacity-100`}>
+    <div className={`notification-card ${typeClass} border rounded-lg p-4 mb-3 transition-all duration-300 transform translate-x-0 opacity-100`}>
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3">
           <NotificationIcon type={notification.type} />
           <div className="flex-1 min-w-0">
-            <h4 className={`text-sm font-medium ${textColor}`}>
+            <h4 className="notification-card-title text-sm font-medium">
               {notification.title}
             </h4>
             {notification.message && (
-              <p className={`text-sm mt-1 ${textColor} opacity-90`}>
+              <p className="notification-card-message text-sm mt-1">
                 {notification.message}
               </p>
             )}
             {notification.action && (
               <button
                 onClick={handleAction}
-                className="mt-2 text-sm font-medium underline hover:no-underline transition-all duration-200"
+                className="notification-card-action mt-2 text-sm font-medium underline hover:no-underline transition-all duration-200"
               >
                 {notification.action.label}
               </button>
@@ -81,9 +74,10 @@ const NotificationCard = ({ notification, onDismiss, onAction }) => {
         </div>
         <button
           onClick={handleDismiss}
-          className="ml-3 p-1 rounded-full hover:bg-white/50 transition-colors duration-200"
+          className="notification-dismiss ml-3 p-1 rounded-full transition-colors duration-200"
+          aria-label="Dismiss notification"
         >
-          <X className="w-4 h-4 text-gray-500" />
+          <X className="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -104,8 +98,8 @@ const DashboardNotification = ({ notifications = [], onDismiss, onAction, maxNot
   return (
     <div className="dashboard-notifications">
       <div className="notifications-header mb-3">
-        <h3 className="text-lg font-semibold text-gray-900">Important Updates</h3>
-        <p className="text-sm text-gray-600">Stay informed about your organization</p>
+        <h3 className="notifications-header-title text-lg font-semibold">Payment Alerts</h3>
+        <p className="notifications-header-subtitle text-sm">Action required on upcoming or overdue payments</p>
       </div>
       <div className="notifications-list">
         {visibleNotifications.map((notification) => (

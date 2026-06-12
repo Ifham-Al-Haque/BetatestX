@@ -50,7 +50,7 @@ const downloadChartPng = async (containerId, fileName) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.scale(2, 2);
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#0f1419' : '#ffffff';
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
     URL.revokeObjectURL(blobUrl);
@@ -105,20 +105,20 @@ const FILTER_OPTIONS = {
   ]
 };
 
-// Enhanced Custom Tooltip Component
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-600 rounded-xl shadow-xl backdrop-blur-sm">
-        <p className="font-bold text-gray-800 dark:text-white text-lg mb-2">{label}</p>
+      <div className="uhub-card-glass p-4 shadow-uhub-lg">
+        <p className="font-bold text-content-primary text-lg mb-2">{label}</p>
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center space-x-2 mb-1">
-            <div 
-              className="w-3 h-3 rounded-full" 
+            <div
+              className="w-3 h-3 rounded-full"
               style={{ backgroundColor: entry.color }}
-            ></div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {entry.name}: <span className="font-bold text-blue-600 dark:text-blue-400">
+            />
+            <p className="text-sm font-medium text-content-secondary">
+              {entry.name}:{' '}
+              <span className="font-bold text-content-accent">
                 {entry.value?.toLocaleString('en-US', { style: 'currency', currency: 'AED' })}
               </span>
             </p>
@@ -658,7 +658,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                         <stop offset="100%" stopColor={COLORS[(serviceIndex + 1) % COLORS.length]} stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
                     <XAxis 
                       dataKey="month" 
                       tick={{ fontSize: 12, fill: '#6B7280' }}
@@ -1046,7 +1046,7 @@ const ServiceBreakdownChart = ({ expenses }) => {
               <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.15"/>
             </filter>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.3} horizontal={true} vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" opacity={0.3} horizontal={true} vertical={false} />
           <XAxis
             type="number"
             tickFormatter={(value) => `AED ${(value / 1000).toFixed(0)}K`}
@@ -1160,7 +1160,7 @@ const ServiceBreakdownChart = ({ expenses }) => {
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={selectedServiceMonthlyData} margin={{ top: 8, right: 18, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.25} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" opacity={0.25} />
                 <XAxis
                   dataKey="monthLabel"
                   tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 500 }}
@@ -1526,7 +1526,7 @@ const IndividualServiceCharts = ({ expenses, filters = { timeRange: 'all-time', 
                       <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" opacity={0.5} />
                   <XAxis 
                     dataKey="monthName" 
                     tick={{ fontSize: 11, fill: '#6B7280' }}
@@ -2178,7 +2178,7 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
                   <stop offset="100%" stopColor="#6366F1" stopOpacity={0.7} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" opacity={0.5} />
               <XAxis 
                 dataKey="month" 
                 tick={{ fontSize: 12, fill: '#6B7280' }}
@@ -2201,10 +2201,11 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
               />
               <Tooltip 
                 contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #E5E7EB',
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-primary)',
                   borderRadius: '12px',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                  color: 'var(--text-primary)',
+                  boxShadow: 'var(--shadow-lg)',
                 }}
                 formatter={(value) => [`AED ${value.toLocaleString()}`, 'Amount']}
                 labelFormatter={(label) => {
@@ -2475,7 +2476,7 @@ const DepartmentalExpensesLineChart = ({ data }) => {
 
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
           <XAxis 
             dataKey="period" 
             tick={{ fontSize: 12, fill: '#6B7280' }}
@@ -2493,10 +2494,11 @@ const DepartmentalExpensesLineChart = ({ data }) => {
           />
           <Tooltip 
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #E5E7EB',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-primary)',
               borderRadius: '8px',
-              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+              color: 'var(--text-primary)',
+              boxShadow: 'var(--shadow-lg)',
             }}
             formatter={(value, name) => [
               `${(value / 1000).toFixed(1)}k AED`,

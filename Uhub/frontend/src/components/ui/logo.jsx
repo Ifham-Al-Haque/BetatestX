@@ -1,14 +1,17 @@
 import React from 'react';
+import { useTheme } from '../../context/ThemeContext';
 
-const Logo = ({ 
-  size = 'md', 
-  variant = 'default', 
-  showText = true, 
+const Logo = ({
+  size = 'md',
+  variant,
+  showText = true,
   className = '',
   textClassName = '',
   centered = false,
   compact = false
 }) => {
+  const { isDark } = useTheme();
+
   const sizeClasses = {
     xs: 'h-6 w-auto',
     sm: 'h-8 w-auto',
@@ -17,6 +20,8 @@ const Logo = ({
     xl: 'h-16 w-auto',
     '2xl': 'h-20 w-auto'
   };
+
+  const resolvedVariant = variant || (isDark ? 'negative' : 'default');
 
   const logoSource = {
     default: '/uDriveLogo.png',
@@ -34,14 +39,14 @@ const Logo = ({
   };
 
   const containerClasses = `flex items-center ${centered ? 'justify-center' : ''} ${className}`;
-  const logoClasses = `${sizeClasses[size]} ${showText && !compact ? 'mr-3' : ''}`;
-  const textClasses = `font-bold text-gray-900 ${textSizes[size]} ${textClassName}`;
+  const logoClasses = `${sizeClasses[size]} ${showText && !compact ? 'mr-2' : ''}`;
+  const textClasses = `font-bold text-content-primary ${textSizes[size]} ${textClassName}`;
 
   return (
     <div className={containerClasses}>
-      <img 
-        src={logoSource[variant]} 
-        alt="U Drive Logo" 
+      <img
+        src={logoSource[resolvedVariant] || logoSource.default}
+        alt="U Drive Logo"
         className={logoClasses}
       />
       {showText && (

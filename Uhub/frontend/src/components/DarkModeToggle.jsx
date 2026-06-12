@@ -4,7 +4,7 @@ import { Sun, Moon, Monitor, Settings } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 export default function DarkModeToggle() {
-  const { theme, isDark, toggleTheme, setLightTheme, setDarkTheme, setSystemTheme, isSystem } = useTheme();
+  const { preference, isDark, toggleTheme, setLightTheme, setDarkTheme, setSystemTheme, isSystem } = useTheme();
   const [showOptions, setShowOptions] = useState(false);
 
   const handleToggle = () => {
@@ -34,7 +34,11 @@ export default function DarkModeToggle() {
       {/* Enhanced Main Toggle Button */}
       <motion.button
         onClick={handleToggle}
-        className="relative p-3 rounded-2xl bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 border border-gray-200/50 dark:border-gray-600/50 shadow-lg hover:shadow-xl transition-all duration-500 group overflow-hidden"
+        className="relative p-2.5 rounded-xl border transition-all duration-300 group overflow-hidden"
+        style={{
+          background: 'var(--surface-raised)',
+          borderColor: 'var(--border-primary)',
+        }}
         whileHover={{ 
           scale: 1.05,
           rotateY: 5,
@@ -184,21 +188,21 @@ export default function DarkModeToggle() {
                 <motion.button
                   onClick={() => handleOptionSelect('light')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 group ${
-                    theme === 'light' && !isSystem
+                    preference === 'light'
                       ? 'bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
                       : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300 border border-transparent hover:border-gray-200 dark:hover:border-gray-600'
                   }`}
                   whileHover={{ scale: 1.02, x: 5 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className={`p-2 rounded-lg ${theme === 'light' && !isSystem ? 'bg-blue-100 dark:bg-blue-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                    <Sun className={`w-4 h-4 ${theme === 'light' && !isSystem ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <div className={`p-2 rounded-lg ${preference === 'light' ? 'bg-blue-100 dark:bg-blue-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                    <Sun className={`w-4 h-4 ${preference === 'light' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
                   </div>
                   <div className="flex-1">
                     <span className="text-sm font-medium">Light Mode</span>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Clean and bright interface</p>
                   </div>
-                  {theme === 'light' && !isSystem && (
+                  {preference === 'light' && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -210,21 +214,21 @@ export default function DarkModeToggle() {
                 <motion.button
                   onClick={() => handleOptionSelect('dark')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-300 group ${
-                    theme === 'dark' && !isSystem
+                    preference === 'dark'
                       ? 'bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700'
                       : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300 border border-transparent hover:border-gray-200 dark:hover:border-gray-600'
                   }`}
                   whileHover={{ scale: 1.02, x: 5 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className={`p-2 rounded-lg ${theme === 'dark' && !isSystem ? 'bg-purple-100 dark:bg-purple-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                    <Moon className={`w-4 h-4 ${theme === 'dark' && !isSystem ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <div className={`p-2 rounded-lg ${preference === 'dark' ? 'bg-purple-100 dark:bg-purple-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                    <Moon className={`w-4 h-4 ${preference === 'dark' ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`} />
                   </div>
                   <div className="flex-1">
                     <span className="text-sm font-medium">Dark Mode</span>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Easy on the eyes</p>
                   </div>
-                  {theme === 'dark' && !isSystem && (
+                  {preference === 'dark' && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -267,7 +271,11 @@ export default function DarkModeToggle() {
       {/* Enhanced Options Toggle Button */}
       <motion.button
         onClick={() => setShowOptions(!showOptions)}
-        className="ml-3 p-2.5 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-600 dark:hover:to-gray-500 transition-all duration-300 border border-gray-200/50 dark:border-gray-600/50 shadow-md hover:shadow-lg"
+        className="ml-2 p-2 rounded-xl border transition-all duration-300"
+        style={{
+          background: 'var(--surface-raised)',
+          borderColor: 'var(--border-primary)',
+        }}
         whileHover={{ scale: 1.05, rotate: 5 }}
         whileTap={{ scale: 0.95 }}
         aria-label="Theme Options"

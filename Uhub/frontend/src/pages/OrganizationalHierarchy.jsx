@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Building, UserCheck, TrendingUp, Search, Filter, 
@@ -14,16 +15,13 @@ import { useEmployees } from '../hooks/useEmployees';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const OrganizationalHierarchy = () => {
+  const navigate = useNavigate();
   const { data: employees, isLoading: employeesLoading, isFetching: employeesFetching, refetch } = useEmployees();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [viewMode, setViewMode] = useState('chart'); // 'chart' (proper org chart), 'list', 'analytics', 'departments', 'tree', 'complete', 'builder'
-  const [showFilters, setShowFilters] = useState(false);
-  const [expandedCards, setExpandedCards] = useState({});
-  const [expandedDepartments, setExpandedDepartments] = useState({});
+  const [viewMode, setViewMode] = useState('chart'); // 'chart' | 'list' | 'analytics'
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState('pdf');
 
   // Professional color schemes
   const departmentColors = {
@@ -69,9 +67,10 @@ const OrganizationalHierarchy = () => {
     // Calculate additional professional metrics
     const totalEmployees = employees.length;
     const avgEmployeesPerDept = totalEmployees / Object.keys(departments).length;
-    const managementRatio = (positions['Manager'] || 0) + (positions['Director'] || 0) + (positions['CEO'] || 0);
-    const employeeRetention = Object.keys(hireDates).length > 0 ? 
-      Object.values(hireDates).reduce((a, b) => a + b, 0) / Object.keys(hireDates).length : 0;
+    const managerIds = new Set();
+    employees.forEach((emp) => {
+      if (emp.reporting_manager_id) managerIds.add(String(emp.reporting_manager_id));
+    });
 
     return {
       departments: Object.entries(departments).map(([name, value]) => ({ 
@@ -86,8 +85,7 @@ const OrganizationalHierarchy = () => {
       metrics: {
         totalEmployees,
         avgEmployeesPerDept: avgEmployeesPerDept.toFixed(1),
-        managementRatio: ((managementRatio / totalEmployees) * 100).toFixed(1),
-        employeeRetention: employeeRetention.toFixed(1),
+        managers: managerIds.size,
         departmentCount: Object.keys(departments).length,
         locationCount: Object.keys(locations).length
       }
@@ -111,39 +109,15 @@ const OrganizationalHierarchy = () => {
     });
   }, [employees, searchTerm, selectedDepartment]);
 
-  // Group employees by department
-  const employeesByDepartment = useMemo(() => {
-    if (!filteredEmployees) return {};
-    
-    return filteredEmployees.reduce((acc, employee) => {
-      const department = employee.department || 'Unassigned';
-      if (!acc[department]) {
-        acc[department] = [];
-      }
-      acc[department].push(employee);
-      return acc;
-    }, {});
-  }, [filteredEmployees]);
-
-  // Toggle department expansion
-  const toggleDepartment = (department) => {
-    setExpandedDepartments(prev => ({
-      ...prev,
-      [department]: !prev[department]
-    }));
-  };
-
   // Get unique departments for filter
   const departments = useMemo(() => {
     if (!employees) return [];
     return [...new Set(employees.map(emp => emp.department).filter(Boolean))];
   }, [employees]);
 
-  const toggleCardExpansion = (cardId) => {
-    setExpandedCards(prev => ({
-      ...prev,
-      [cardId]: !prev[cardId]
-    }));
+  const openEmployee = (employee) => {
+    setSelectedEmployee(employee);
+    setShowEmployeeModal(true);
   };
 
   if (employeesLoading) {
@@ -173,7 +147,7 @@ const OrganizationalHierarchy = () => {
                       Organizational Hierarchy
                     </h1>
                     <div className="px-3 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full">
-                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">Enterprise</span>
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">{employees?.length || 0} active</span>
                     </div>
                   </div>
                   <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
@@ -300,17 +274,6 @@ const OrganizationalHierarchy = () => {
                   >
                     <List className="w-5 h-5" />
                   </button>
-                  <button
-                    onClick={() => setViewMode('departments')}
-                    className={`p-3 rounded-lg transition-all duration-200 ${
-                      viewMode === 'departments' 
-                        ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-lg transform scale-105' 
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50'
-                    }`}
-                    title="Department View"
-                  >
-                    <Building className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
             </div>
@@ -394,25 +357,25 @@ const OrganizationalHierarchy = () => {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <Award className="w-7 h-7 text-white" />
+                  <Crown className="w-7 h-7 text-white" />
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-1">
-                    <Crown className="w-4 h-4 text-purple-500" />
-                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">{analytics?.metrics.managementRatio}%</span>
+                  <div className="flex items-center gap-1 justify-end">
+                    <Award className="w-4 h-4 text-purple-500" />
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">
+                      {new Set(employees?.map((emp) => emp.position).filter(Boolean)).size || 0}
+                    </span>
                   </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Management</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">job titles</span>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Positions</p>
+                <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Managers</p>
                 <p className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                  {new Set(employees?.map(emp => emp.position).filter(Boolean)).size || 0}
+                  {analytics?.metrics.managers || 0}
                 </p>
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Job roles</span>
-                  <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                  <span className="text-gray-500 dark:text-gray-400">Career paths</span>
+                  <span className="text-gray-500 dark:text-gray-400">Employees with direct reports</span>
                 </div>
               </div>
             </div>
@@ -520,11 +483,13 @@ const OrganizationalHierarchy = () => {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Employee Directory</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredEmployees.map((employee) => (
-                  <motion.div
+                  <motion.button
                     key={employee.id}
+                    type="button"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-all duration-200"
+                    onClick={() => openEmployee(employee)}
+                    className="w-full text-left bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200"
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center overflow-hidden">
@@ -564,8 +529,16 @@ const OrganizationalHierarchy = () => {
                           <span className="text-gray-700 dark:text-gray-300">{employee.phone}</span>
                         </div>
                       )}
+                      {employee.reporting_manager?.full_name && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Shield className="w-4 h-4 text-gray-500" />
+                          <span className="text-gray-700 dark:text-gray-300 truncate">
+                            Reports to {employee.reporting_manager.full_name}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </motion.div>
+                  </motion.button>
                 ))}
               </div>
             </motion.div>
@@ -583,163 +556,9 @@ const OrganizationalHierarchy = () => {
               <OrgChartPro
                 employees={employees || []}
                 loading={employeesLoading}
-                onEmployeeClick={(employee) => {
-                  setSelectedEmployee(employee);
-                  setShowEmployeeModal(true);
-                }}
+                externalSearch={searchTerm}
+                onEmployeeClick={openEmployee}
               />
-            </motion.div>
-          )}
-
-          {viewMode === 'departments' && (
-            <motion.div
-              key="departments"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Department Overview</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
-                    Click on any department to view all employees
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {Object.keys(employeesByDepartment).length} Departments
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.entries(employeesByDepartment).map(([department, deptEmployees]) => {
-                  const isExpanded = expandedDepartments[department];
-                  const colorScheme = departmentColors[department] || departmentColors['Unassigned'];
-                  
-                  return (
-                    <motion.div
-                      key={department}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      whileHover={{ scale: 1.02 }}
-                      className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden group cursor-pointer"
-                      onClick={() => toggleDepartment(department)}
-                    >
-                      {/* Department Header */}
-                      <div className={`p-6 bg-gradient-to-r ${colorScheme.bg} text-white relative overflow-hidden`}>
-                        <div className="absolute inset-0 bg-black/10"></div>
-                        <div className="relative z-10">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                                <Building className="w-6 h-6 text-white" />
-                              </div>
-                              <div>
-                                <h4 className="text-xl font-bold text-white">{department}</h4>
-                                <p className="text-white/80 text-sm">
-                                  {deptEmployees.length} {deptEmployees.length === 1 ? 'employee' : 'employees'}
-                                </p>
-                              </div>
-                            </div>
-                            <motion.div
-                              animate={{ rotate: isExpanded ? 180 : 0 }}
-                              transition={{ duration: 0.3 }}
-                              className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm"
-                            >
-                              <ChevronDown className="w-5 h-5 text-white" />
-                            </motion.div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Department Content */}
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.4, ease: 'easeInOut' }}
-                            className="overflow-hidden"
-                          >
-                            <div className="p-6 space-y-4">
-                              <div className="flex items-center justify-between mb-4">
-                                <h5 className="font-semibold text-gray-900 dark:text-white">
-                                  All Employees in {department}
-                                </h5>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">
-                                  {deptEmployees.length} total
-                                </span>
-                              </div>
-                              
-                              <div className="space-y-3 max-h-96 overflow-y-auto">
-                                {deptEmployees.map((employee, index) => (
-                                  <motion.div
-                                    key={employee.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 group"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedEmployee(employee);
-                                      setShowEmployeeModal(true);
-                                    }}
-                                  >
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                      {employee.profile_picture || employee.photo_url ? (
-                                        <img
-                                          src={employee.profile_picture || employee.photo_url}
-                                          alt={employee.full_name}
-                                          className="w-full h-full object-cover"
-                                        />
-                                      ) : (
-                                        <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                                      )}
-                                    </div>
-                                    
-                                    <div className="flex-1 min-w-0">
-                                      <h6 className="font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                        {employee.full_name}
-                                      </h6>
-                                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                                        {employee.position || 'Position not specified'}
-                                      </p>
-                                      <div className="flex items-center gap-4 mt-2">
-                                        {employee.email && (
-                                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                            <Mail className="w-3 h-3" />
-                                            <span className="truncate max-w-32">{employee.email}</span>
-                                          </div>
-                                        )}
-                                        {employee.phone && (
-                                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                            <Phone className="w-3 h-3" />
-                                            <span>{employee.phone}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="flex-shrink-0">
-                                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors">
-                                        <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                      </div>
-                                    </div>
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                })}
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -827,6 +646,17 @@ const OrganizationalHierarchy = () => {
                     </div>
                   )}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEmployeeModal(false);
+                    navigate(`/employee/${selectedEmployee.id}`);
+                  }}
+                  className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-colors"
+                >
+                  View full employee profile
+                </button>
               </div>
             </motion.div>
           </motion.div>

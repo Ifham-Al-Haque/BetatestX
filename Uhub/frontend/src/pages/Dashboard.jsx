@@ -1,27 +1,161 @@
 // src/pages/Dashboard.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useExpenseStats } from '../hooks/useExpenseStats';
 import { usePaymentEvents } from '../hooks/usePaymentEvents';
 import { useQueryClient } from '@tanstack/react-query';
 import GlobalFilter from '../components/GlobalFilter';
-
 import PaymentCalendar from '../components/PaymentCalendar';
-
 import ScrollableExpenseTable from '../components/ScrollableExpenseTable';
 import LoadingSpinner from '../components/LoadingSpinner';
-
-// Import components directly instead of lazy loading
 import TodaySpendingChart from '../components/TodaySpendingChart';
-import RoleDebug from '../components/RoleDebug';
+import { MonthlyTrendsChart, DepartmentSpendingChart } from '../components/TrendChart';
 import DashboardNotification, { NotificationTypes } from '../components/DashboardNotification';
 
-// Import dashboard styles
 import './Dashboard.css';
 
-// Enhanced color scheme for charts and UI elements
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899', '#14B8A6'];
+const getExpenseAmount = (expense) =>
+  parseFloat(expense.amount_aed || expense.amount || expense.value || expense.cost || 0);
+
+const getExpenseDate = (expense) =>
+  new Date(expense.date_paid || expense.date || expense.created_at);
+
+const filterExpenses = (expenses, filters) => {
+  if (!filters || !expenses?.length) return expenses || [];
+
+  let result = [...expenses];
+
+  if (filters.search?.trim()) {
+    const q = filters.search.trim().toLowerCase();
+    result = result.filter(
+      (e) =>
+        (e.service_name || '').toLowerCase().includes(q) ||
+        (e.department || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (filters.department && filters.department !== 'all') {
+    result = result.filter((e) => (e.department || '') === filters.department);
+  }
+
+  if (filters.status && filters.status !== 'all') {
+    result = result.filter((e) => (e.service_status || e.status || '') === filters.status);
+  }
+
+  if (filters.dateRange && filters.dateRange !== 'all') {
+    const now = new Date();
+    result = result.filter((e) => {
+      const date = getExpenseDate(e);
+      switch (filters.dateRange) {
+        case 'today':
+          return date.toDateString() === now.toDateString();
+        case 'week': {
+          const weekAgo = new Date(now);
+          weekAgo.setDate(now.getDate() - 7);
+          return date >= weekAgo;
+        }
+        case 'month':
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        case 'quarter': {
+          const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+          return date >= quarterStart;
+        }
+        case 'year':
+          return date.getFullYear() === now.getFullYear();
+        default:
+          return true;
+      }
+    });
+  }
+
+  if (filters.amountRange && filters.amountRange !== 'all') {
+    result = result.filter((e) => {
+      const amount = getExpenseAmount(e);
+      switch (filters.amountRange) {
+        case 'low':
+          return amount < 1000;
+        case 'medium':
+          return amount >= 1000 && amount <= 10000;
+        case 'high':
+          return amount > 10000;
+        default:
+          return true;
+      }
+    });
+  }
+
+  return result;
+};
+
+const PERIOD_OPTIONS = [
+  { value: 'month', label: 'This Month' },
+  { value: 'quarter', label: 'Last 3 Months' },
+  { value: 'ytd', label: 'YTD' },
+  { value: 'all', label: 'All Time' },
+];
+
+const applyPeriodFilter = (expenses, period) => {
+  if (!period || period === 'all' || !expenses?.length) return expenses || [];
+
+  const now = new Date();
+  return expenses.filter((expense) => {
+    const date = getExpenseDate(expense);
+    switch (period) {
+      case 'month':
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      case 'quarter': {
+        const threeMonthsAgo = new Date(now);
+        threeMonthsAgo.setMonth(now.getMonth() - 3);
+        return date >= threeMonthsAgo;
+      }
+      case 'ytd':
+        return date.getFullYear() === now.getFullYear();
+      default:
+        return true;
+    }
+  });
+};
+
+const COLLAPSED_STORAGE_KEY = 'uhub-dashboard-collapsed-sections';
+
+const loadCollapsedSections = () => {
+  try {
+    const saved = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    if (saved) {
+      return { paymentCalendar: true, expenseData: true, ...JSON.parse(saved) };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { paymentCalendar: true, expenseData: true };
+};
+
+const exportExpensesCsv = (expenses) => {
+  if (!expenses.length) return;
+
+  const headers = ['Service', 'Department', 'Amount (AED)', 'Date Paid', 'Status'];
+  const rows = expenses.map((e) => [
+    e.service_name || '',
+    e.department || '',
+    getExpenseAmount(e),
+    e.date_paid || e.date || '',
+    e.service_status || '',
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `expenses-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
 // Enhanced Summary Card Component
 const SummaryCard = ({ title, value, change, iconName, color = 'blue', onClick, loading = false }) => {
@@ -208,10 +342,27 @@ const SectionHeader = ({ title, iconName, action, subtitle, collapsible = false,
   );
 };
 
+const PeriodSelector = ({ value, onChange }) => (
+  <div className="period-selector" role="group" aria-label="Time period">
+    {PERIOD_OPTIONS.map((opt) => (
+      <button
+        key={opt.value}
+        type="button"
+        className={`period-selector-btn${value === opt.value ? ' active' : ''}`}
+        onClick={() => onChange(opt.value)}
+        aria-pressed={value === opt.value}
+      >
+        {opt.label}
+      </button>
+    ))}
+  </div>
+);
+
 // Enhanced Animated Card Component
-const AnimatedCard = ({ children, className = '', delay = 0, gradient = false, collapsible = false, isCollapsed = false }) => (
+const AnimatedCard = ({ children, className = '', gradient = false, id, compact = false }) => (
   <div 
-    className={`animated-card ${gradient ? 'gradient' : ''} ${className}`}
+    id={id}
+    className={`animated-card ${gradient ? 'gradient' : ''} ${compact ? 'animated-card-compact' : ''} ${className}`}
     style={{
       background: 'var(--card-bg)',
       borderColor: 'var(--card-border)',
@@ -228,114 +379,40 @@ const AnimatedCard = ({ children, className = '', delay = 0, gradient = false, c
     />
     
     {/* Content */}
-    <div className={`relative z-10 p-8 transition-all duration-300 ${isCollapsed ? 'max-h-0 overflow-hidden p-0' : ''}`}>
+    <div className="relative z-10 p-8 transition-all duration-300">
       {children}
     </div>
   </div>
 );
 
-// Trend Chart Component
-const TrendChart = ({ data, title, subtitle }) => {
-  if (!data || data.length === 0) {
-    return (
-      <div 
-        className="flex items-center justify-center h-64 rounded-lg"
-        style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-primary)'
-        }}
-      >
-        <div className="text-center">
-          <div 
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-            style={{
-              background: 'var(--bg-tertiary)'
-            }}
-          >
-            <span className="text-2xl">📊</span>
-          </div>
-          <p style={{ color: 'var(--text-muted)' }}>No data available for {title}</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full">
-      <div className="mb-4">
-        <h4 
-          className="text-lg font-semibold"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {title}
-        </h4>
-        {subtitle && (
-          <p 
-            className="text-sm"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {subtitle}
-          </p>
-        )}
-      </div>
-      <div 
-        className="h-64 rounded-lg flex items-center justify-center"
-        style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-primary)'
-        }}
-      >
-        <div className="text-center">
-          <div 
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-            style={{
-              background: 'var(--accent-primary)',
-              opacity: 0.1
-            }}
-          >
-            <span className="text-2xl">📈</span>
-          </div>
-          <p style={{ color: 'var(--text-muted)' }}>Chart visualization coming soon</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user, userProfile } = useAuth();
   const { data: expenseStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useExpenseStats();
   const { data: paymentEvents, refetch: refetchPayments } = usePaymentEvents();
   const safePaymentEvents = paymentEvents || [];
+  const [period, setPeriod] = useState('month');
   const [filters, setFilters] = useState({});
-  const [collapsedSections, setCollapsedSections] = useState({});
+  const [collapsedSections, setCollapsedSections] = useState(loadCollapsedSections);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: NotificationTypes.INFO,
-      title: 'Dashboard Updated',
-      message: 'New features and improvements have been added to your dashboard.',
-      action: { label: 'Learn More', url: '/updates' }
-    },
-    {
-      id: 2,
-      type: NotificationTypes.WARNING,
-      title: 'Payment Due Soon',
-      message: 'You have 3 payments due in the next 7 days.',
-      action: { label: 'View Payments', url: '/payments' }
-    },
-    {
-      id: 3,
-      type: NotificationTypes.SUCCESS,
-      title: 'Monthly Report Ready',
-      message: 'Your monthly expense report for November is now available.',
-      action: { label: 'Download Report', url: '/reports' }
-    }
-  ]);
   const queryClient = useQueryClient();
 
   const safeExpenseStats = expenseStats || [];
+  const filteredExpenseStats = useMemo(() => {
+    const periodFiltered = applyPeriodFilter(safeExpenseStats, period);
+    return filterExpenses(periodFiltered, filters);
+  }, [safeExpenseStats, period, filters]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(collapsedSections));
+    } catch {
+      /* ignore */
+    }
+  }, [collapsedSections]);
+
+  const periodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label || 'All Time';
 
   const displayName = userProfile?.full_name || user?.email?.split('@')?.[0] || 'User';
 
@@ -368,79 +445,123 @@ export default function Dashboard() {
     }));
   };
 
-  // Calculate summary statistics
+  // Calculate summary statistics from filtered data
   const summaryStats = useMemo(() => {
-    if (!safeExpenseStats.length) {
+    const expenses = filteredExpenseStats;
+
+    if (!expenses.length) {
       return {
-        totalExpenses: '0',
+        totalExpenses: 'AED 0',
+        currentMonthSpend: 'AED 0',
         totalDepartments: '0',
-        averagePerExpense: '0',
+        averagePerExpense: 'AED 0',
         monthlyGrowth: 0,
-        pendingPayments: '0',
-        overduePayments: '0'
+        pendingPayments: safePaymentEvents.filter((e) => e.status === 'pending').length.toString(),
+        overduePayments: safePaymentEvents.filter((e) => e.status === 'overdue').length.toString(),
       };
     }
 
-    const totalExpenses = safeExpenseStats.reduce((sum, expense) => {
-      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
-      return sum + parseFloat(amount);
-    }, 0);
-    
+    const totalExpenses = expenses.reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
+
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    
-    const currentMonthExpenses = safeExpenseStats.filter(expense => {
-      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
-      return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-    }).reduce((sum, expense) => {
-      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
-      return sum + parseFloat(amount);
-    }, 0);
 
-    const lastMonthExpenses = safeExpenseStats.filter(expense => {
-      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
-      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-      return expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
-    }).reduce((sum, expense) => {
-      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
-      return sum + parseFloat(amount);
-    }, 0);
+    const currentMonthExpenses = expenses
+      .filter((expense) => {
+        const expenseDate = getExpenseDate(expense);
+        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
 
-    const monthlyGrowth = lastMonthExpenses > 0 
-      ? ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 
-      : 0;
+    const lastMonthExpenses = expenses
+      .filter((expense) => {
+        const expenseDate = getExpenseDate(expense);
+        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        return expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
+      })
+      .reduce((sum, expense) => sum + getExpenseAmount(expense), 0);
 
-    const uniqueDepartments = new Set(safeExpenseStats.map(expense => 
-      expense.department || expense.dept || expense.division
-    ).filter(Boolean));
-    const averagePerExpense = totalExpenses / safeExpenseStats.length;
+    const monthlyGrowth =
+      lastMonthExpenses > 0
+        ? ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100
+        : 0;
 
-    // Calculate payment status counts
-    const pendingPayments = safePaymentEvents.filter(event => event.status === 'pending').length;
-    const overduePayments = safePaymentEvents.filter(event => event.status === 'overdue').length;
+    const uniqueDepartments = new Set(
+      expenses.map((expense) => expense.department || expense.dept || expense.division).filter(Boolean)
+    );
+
+    const pendingPayments = safePaymentEvents.filter((event) => event.status === 'pending').length;
+    const overduePayments = safePaymentEvents.filter((event) => event.status === 'overdue').length;
 
     return {
       totalExpenses: totalExpenses.toLocaleString('en-US', { style: 'currency', currency: 'AED' }),
+      currentMonthSpend: currentMonthExpenses.toLocaleString('en-US', { style: 'currency', currency: 'AED' }),
       totalDepartments: uniqueDepartments.size.toString(),
-      averagePerExpense: averagePerExpense.toLocaleString('en-US', { style: 'currency', currency: 'AED' }),
+      averagePerExpense: (totalExpenses / expenses.length).toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'AED',
+      }),
       monthlyGrowth: Math.round(monthlyGrowth),
       pendingPayments: pendingPayments.toString(),
-      overduePayments: overduePayments.toString()
+      overduePayments: overduePayments.toString(),
     };
-  }, [safeExpenseStats, safePaymentEvents]);
+  }, [filteredExpenseStats, safePaymentEvents]);
+
+  const paymentAlerts = useMemo(() => {
+    const alerts = [];
+    const overdue = safePaymentEvents.filter((e) => e.status === 'overdue');
+    const now = new Date();
+    const weekFromNow = new Date(now);
+    weekFromNow.setDate(now.getDate() + 7);
+
+    const dueSoon = safePaymentEvents.filter((e) => {
+      if (e.status !== 'pending' || !e.due_date) return false;
+      const due = new Date(e.due_date);
+      return due >= now && due <= weekFromNow;
+    });
+
+    if (overdue.length > 0) {
+      alerts.push({
+        id: 'overdue',
+        type: NotificationTypes.ERROR,
+        title: `${overdue.length} overdue payment${overdue.length === 1 ? '' : 's'}`,
+        message: 'These payments are past due. Review and action them first.',
+        action: { label: 'View payments', url: '/upcoming-payments' },
+      });
+    }
+
+    if (dueSoon.length > 0) {
+      alerts.push({
+        id: 'due-soon',
+        type: NotificationTypes.WARNING,
+        title: `${dueSoon.length} payment${dueSoon.length === 1 ? '' : 's'} due within 7 days`,
+        message: 'Upcoming payments need your attention.',
+        action: { label: 'View calendar', url: '/payment-calendar' },
+      });
+    }
+
+    return alerts;
+  }, [safePaymentEvents]);
+
+  const visibleNotifications = paymentAlerts.filter((n) => !dismissedAlertIds.includes(n.id));
+
+  const hasActiveFilters = useMemo(
+    () => period !== 'all' || Object.values(filters).some((value) => value && value !== 'all'),
+    [filters, period]
+  );
 
   const dashboardInsights = useMemo(() => {
     const pending = Number(summaryStats.pendingPayments || 0);
     const overdue = Number(summaryStats.overduePayments || 0);
     const growth = Number(summaryStats.monthlyGrowth || 0);
-    const hasData = safeExpenseStats.length > 0;
+    const hasData = filteredExpenseStats.length > 0;
 
     if (!hasData) {
       return [
         { icon: 'Sparkles', title: 'Get started', message: 'Add your first expense to unlock trends and insights.', tone: 'neutral' },
         { icon: 'Calendar', title: 'Plan ahead', message: 'Add upcoming payments to see them on your calendar.', tone: 'neutral' },
-        { icon: 'ShieldCheck', title: 'Stay in control', message: 'Track spend by department and keep approvals tight.', tone: 'neutral' }
+        { icon: 'ShieldCheck', title: 'Stay in control', message: 'Track spend by department and keep approvals tight.', tone: 'neutral' },
       ];
     }
 
@@ -453,54 +574,54 @@ export default function Dashboard() {
         : { icon: 'CalendarCheck2', title: 'Clear calendar', message: 'No pending payments scheduled yet.', tone: 'neutral' },
       growth >= 0
         ? { icon: 'TrendingUp', title: 'MoM change', message: `Spending is up ${Math.abs(growth)}% vs last month.`, tone: growth >= 15 ? 'warning' : 'neutral' }
-        : { icon: 'TrendingDown', title: 'MoM change', message: `Spending is down ${Math.abs(growth)}% vs last month.`, tone: 'success' }
+        : { icon: 'TrendingDown', title: 'MoM change', message: `Spending is down ${Math.abs(growth)}% vs last month.`, tone: 'success' },
     ];
-  }, [summaryStats, safeExpenseStats.length]);
+  }, [summaryStats, filteredExpenseStats.length]);
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
-    // You can add a modal or navigation here
   };
 
   const handleDateClick = (date) => {
-    // Handle date click from calendar
-    console.log('Date clicked:', date);
+    navigate('/payment-calendar', { state: { selectedDate: date } });
   };
 
-  // Quick action handlers
   const handleQuickAction = (action) => {
     switch (action) {
       case 'addExpense':
-        // Navigate to add expense page
-        console.log('Navigate to add expense');
+        navigate('/expenses');
         break;
-      case 'viewReports':
-        // Navigate to reports page
-        console.log('Navigate to reports');
+      case 'analytics':
+        navigate('/analytics');
         break;
       case 'exportData':
-        // Export dashboard data
-        console.log('Export data');
+        exportExpensesCsv(filteredExpenseStats);
         break;
-      case 'settings':
-        // Navigate to settings
-        console.log('Navigate to settings');
+      case 'paymentCalendar':
+        navigate('/payment-calendar');
         break;
       default:
         break;
     }
   };
 
-  // Notification handlers
   const handleNotificationDismiss = (notificationId) => {
-    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    setDismissedAlertIds((prev) => [...prev, notificationId]);
   };
 
   const handleNotificationAction = (notification) => {
     if (notification.action?.url) {
-      // Navigate to the specified URL
-      console.log('Navigate to:', notification.action.url);
+      navigate(notification.action.url);
     }
+  };
+
+  const scrollToSection = (sectionId, expandSectionKey) => {
+    if (expandSectionKey) {
+      setCollapsedSections((prev) => ({ ...prev, [expandSectionKey]: false }));
+    }
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, expandSectionKey ? 80 : 0);
   };
 
   // Show loading state only if both queries are loading and we have no cached data
@@ -531,37 +652,38 @@ export default function Dashboard() {
       }}
     >
       <div className="page-content">
-        {/* Enhanced Welcome Section */}
+        {/* Header */}
         <div className="welcome-section">
           <div className="welcome-hero">
             <div className="welcome-hero-top">
               <div className="welcome-hero-left">
-                <div className="welcome-icon">
-                  <span className="text-2xl">👋</span>
+                <div className="welcome-icon flex items-center justify-center">
+                  <LucideIcons.BarChart3 className="w-6 h-6 text-white" />
                 </div>
                 <div className="welcome-hero-text">
-                  <h1 className="welcome-title">Welcome back, {displayName}!</h1>
+                  <h1 className="welcome-title">Financial Dashboard</h1>
                   <p className="welcome-subtitle">
-                    Track expenses, monitor trends, and stay on top of upcoming payments—at a glance.
+                    {displayName} — {periodLabel} overview
+                    {hasActiveFilters && (
+                      <span className="block mt-1 text-sm opacity-80">
+                        Showing {filteredExpenseStats.length} of {safeExpenseStats.length} expenses
+                        {period !== 'all' ? ` (${periodLabel.toLowerCase()})` : ''}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
-              <div className="welcome-hero-kpis">
-                <div className="kpi-chip">
-                  <LucideIcons.Clock className="w-4 h-4" />
-                  <span className="kpi-chip-label">Pending</span>
-                  <span className="kpi-chip-value">{summaryStats.pendingPayments}</span>
-                </div>
-                <div className="kpi-chip danger">
-                  <LucideIcons.AlertTriangle className="w-4 h-4" />
-                  <span className="kpi-chip-label">Overdue</span>
-                  <span className="kpi-chip-value">{summaryStats.overduePayments}</span>
-                </div>
-                <div className="kpi-chip">
-                  <LucideIcons.Users className="w-4 h-4" />
-                  <span className="kpi-chip-label">Depts</span>
-                  <span className="kpi-chip-value">{summaryStats.totalDepartments}</span>
-                </div>
+              <div className="welcome-hero-actions">
+                <PeriodSelector value={period} onChange={setPeriod} />
+                <button
+                onClick={handleRefreshDashboard}
+                disabled={isRefreshing}
+                className="refresh-button"
+                type="button"
+              >
+                <LucideIcons.RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
               </div>
             </div>
             <div className="welcome-hero-insights">
@@ -583,18 +705,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions Bar */}
+        {/* Quick Actions */}
         <div className="quick-actions-bar">
           <div className="quick-actions-header">
             <h3 className="quick-actions-title">Quick Actions</h3>
-            <button
-              onClick={handleRefreshDashboard}
-              disabled={isRefreshing}
-              className="refresh-button"
-            >
-              <LucideIcons.RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
           </div>
           <div className="quick-actions-grid">
             <QuickActionButton
@@ -604,46 +718,48 @@ export default function Dashboard() {
               color="blue"
             />
             <QuickActionButton
-              icon="FileText"
-              label="View Reports"
-              onClick={() => handleQuickAction('viewReports')}
+              icon="BarChart3"
+              label="Analytics"
+              onClick={() => handleQuickAction('analytics')}
               color="green"
               variant="outline"
             />
             <QuickActionButton
               icon="Download"
-              label="Export Data"
+              label="Export CSV"
               onClick={() => handleQuickAction('exportData')}
               color="purple"
               variant="outline"
             />
             <QuickActionButton
-              icon="Settings"
-              label="Settings"
-              onClick={() => handleQuickAction('settings')}
+              icon="Calendar"
+              label="Payment Calendar"
+              onClick={() => handleQuickAction('paymentCalendar')}
               color="indigo"
               variant="outline"
             />
           </div>
         </div>
 
-        {/* Global Filter */}
+        {/* Filters */}
         <div className="global-filter-container">
           <GlobalFilter onFilterChange={handleFilterChange} filters={filters} />
         </div>
 
-        {/* Dashboard Notifications */}
-        <div className="dashboard-grid cols-1">
-          <DashboardNotification
-            notifications={notifications}
-            onDismiss={handleNotificationDismiss}
-            onAction={handleNotificationAction}
-            maxNotifications={3}
-          />
-        </div>
+        {/* Payment alerts (derived from real data) */}
+        {visibleNotifications.length > 0 && (
+          <div className="dashboard-grid cols-1">
+            <DashboardNotification
+              notifications={visibleNotifications}
+              onDismiss={handleNotificationDismiss}
+              onAction={handleNotificationAction}
+              maxNotifications={3}
+            />
+          </div>
+        )}
 
-        {/* Enhanced Summary Cards */}
-        <div className="dashboard-grid cols-3">
+        {/* KPI summary — single row */}
+        <div className="dashboard-grid cols-4">
           <SummaryCard
             title="Total Expenses"
             value={summaryStats.totalExpenses}
@@ -651,31 +767,23 @@ export default function Dashboard() {
             iconName="DollarSign"
             color="blue"
             loading={statsLoading}
+            onClick={() => scrollToSection('charts-section', 'monthlyTrends')}
           />
           <SummaryCard
-            title="Active Departments"
-            value={summaryStats.totalDepartments}
-            iconName="Users"
+            title="This Month"
+            value={summaryStats.currentMonthSpend}
+            iconName="Calendar"
             color="green"
             loading={statsLoading}
+            onClick={() => scrollToSection('today-spending-section', 'todaySpending')}
           />
-          <SummaryCard
-            title="Average per Expense"
-            value={summaryStats.averagePerExpense}
-            iconName="TrendingUp"
-            color="purple"
-            loading={statsLoading}
-          />
-        </div>
-
-        {/* Additional Summary Cards */}
-        <div className="dashboard-grid cols-2">
           <SummaryCard
             title="Pending Payments"
             value={summaryStats.pendingPayments}
             iconName="Clock"
             color="orange"
             loading={statsLoading}
+            onClick={() => scrollToSection('payment-calendar-section', 'paymentCalendar')}
           />
           <SummaryCard
             title="Overdue Payments"
@@ -683,147 +791,109 @@ export default function Dashboard() {
             iconName="AlertTriangle"
             color="red"
             loading={statsLoading}
+            onClick={() => scrollToSection('payment-calendar-section', 'paymentCalendar')}
           />
         </div>
 
-        {/* Enhanced Charts Section */}
-        <div className="dashboard-grid cols-1">
-          {/* Today's Spending Chart */}
-          <AnimatedCard delay={0.5} gradient={true}>
-            <SectionHeader 
-              title="Today's Spending Breakdown" 
+        {/* Today's spending */}
+        <div id="today-spending-section" className="dashboard-grid cols-1">
+          <AnimatedCard gradient={true}>
+            <SectionHeader
+              title="Today's Spending"
               iconName="Activity"
-              subtitle="Real-time spending analysis for today"
+              subtitle="Spending breakdown by department for today"
               collapsible={true}
               isCollapsed={collapsedSections.todaySpending}
               onToggle={() => toggleSection('todaySpending')}
             />
-            <div className="mt-6">
-              <div className="today-spending">
-                <div className="today-spending-header">
-                  <span className="today-spending-title">Today's Spending</span>
-                  <span className="today-spending-date">
-                    {new Date().toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </span>
-                </div>
-                <div className="today-spending-amount">
-                  {(() => {
-                    const today = new Date();
-                    const todayExpenses = safeExpenseStats.filter(expense => {
-                      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
-                      return expenseDate.toDateString() === today.toDateString();
-                    });
-                    const totalToday = todayExpenses.reduce((sum, expense) => {
-                      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
-                      return sum + parseFloat(amount);
-                    }, 0);
-                    return totalToday.toLocaleString('en-US', { style: 'currency', currency: 'AED' });
-                  })()}
-                </div>
-                <div className="today-spending-stats">
-                  <span className="mr-2">📊</span>
-                  {(() => {
-                    const today = new Date();
-                    const todayExpenses = safeExpenseStats.filter(expense => {
-                      const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
-                      return expenseDate.toDateString() === today.toDateString();
-                    });
-                    return `${todayExpenses.length} transactions today`;
-                  })()}
-                </div>
+            {!collapsedSections.todaySpending && (
+              <div className="mt-6">
+                <TodaySpendingChart data={filteredExpenseStats} />
               </div>
-              <TodaySpendingChart data={safeExpenseStats} />
-            </div>
+            )}
           </AnimatedCard>
         </div>
 
-        {/* Trend Analysis Section */}
-        <div className="dashboard-grid cols-2">
-          <AnimatedCard delay={0.6}>
-            <SectionHeader 
-              title="Monthly Spending Trends" 
+        {/* Trend charts */}
+        <div id="charts-section" className="dashboard-grid cols-2">
+          <AnimatedCard>
+            <SectionHeader
+              title="Monthly Spending Trends"
               iconName="TrendingUp"
-              subtitle="Track spending patterns over time"
+              subtitle="Last 6 months"
               collapsible={true}
               isCollapsed={collapsedSections.monthlyTrends}
               onToggle={() => toggleSection('monthlyTrends')}
             />
-            <div className="mt-6">
-              <TrendChart 
-                data={safeExpenseStats} 
-                title="Monthly Spending Trends"
-                subtitle="Compare spending across months"
-                type="monthly"
-              />
-            </div>
+            {!collapsedSections.monthlyTrends && (
+              <div className="mt-6">
+                <MonthlyTrendsChart data={filteredExpenseStats} />
+              </div>
+            )}
           </AnimatedCard>
 
-          <AnimatedCard delay={0.7}>
-            <SectionHeader 
-              title="Department Analysis" 
+          <AnimatedCard>
+            <SectionHeader
+              title="Department Analysis"
               iconName="PieChart"
-              subtitle="Spending breakdown by department"
+              subtitle="Top departments by spend"
               collapsible={true}
               isCollapsed={collapsedSections.departmentAnalysis}
               onToggle={() => toggleSection('departmentAnalysis')}
             />
-            <div className="mt-6">
-              <TrendChart 
-                data={safeExpenseStats} 
-                title="Department Spending"
-                subtitle="Visualize spending by department"
-              />
-            </div>
+            {!collapsedSections.departmentAnalysis && (
+              <div className="mt-6">
+                <DepartmentSpendingChart data={filteredExpenseStats} />
+              </div>
+            )}
           </AnimatedCard>
         </div>
 
-        {/* Enhanced Payment Calendar */}
-        <AnimatedCard delay={0.8}>
-          <SectionHeader 
-            title="Payment Calendar" 
+        {/* Payment calendar — collapsed by default */}
+        <AnimatedCard id="payment-calendar-section" compact={collapsedSections.paymentCalendar}>
+          <SectionHeader
+            title="Payment Calendar"
             iconName="Calendar"
             subtitle="Schedule and track upcoming payments"
             collapsible={true}
             isCollapsed={collapsedSections.paymentCalendar}
             onToggle={() => toggleSection('paymentCalendar')}
           />
-          <div className="mt-6">
-            <PaymentCalendar 
-              events={safePaymentEvents} 
-              onDateClick={handleDateClick}
-              onEventsUpdate={handleEventsUpdate}
-            />
-          </div>
+          {!collapsedSections.paymentCalendar && (
+            <div className="mt-6">
+              <PaymentCalendar
+                events={safePaymentEvents}
+                onDateClick={handleDateClick}
+                onEventsUpdate={handleEventsUpdate}
+              />
+            </div>
+          )}
         </AnimatedCard>
 
-
-        {/* Enhanced Detailed Expense Data */}
-        <AnimatedCard className="mb-12" delay={0.9}>
-          <SectionHeader 
-            title="Detailed Expense Data" 
+        {/* Expense table — collapsed by default */}
+        <AnimatedCard className="mb-12" compact={collapsedSections.expenseData}>
+          <SectionHeader
+            title="Detailed Expense Data"
             iconName="LineChart"
-            subtitle="Comprehensive view of all expense transactions"
+            subtitle={`${filteredExpenseStats.length} transaction${filteredExpenseStats.length === 1 ? '' : 's'}`}
             collapsible={true}
             isCollapsed={collapsedSections.expenseData}
             onToggle={() => toggleSection('expenseData')}
           />
-          {statsError ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">⚠️</span>
+          {!collapsedSections.expenseData && (
+            statsError ? (
+              <div className="dashboard-error">
+                <div className="error-icon">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <p className="error-title">Failed to load expense data</p>
+                <p className="error-message">{statsError.message}</p>
               </div>
-              <p className="text-red-600 mb-2 font-medium">Failed to load expense data</p>
-              <p className="text-sm text-gray-500">{statsError.message}</p>
-            </div>
-          ) : (
-            <div className="mt-6">
-              <ScrollableExpenseTable data={safeExpenseStats} />
-            </div>
+            ) : (
+              <div className="mt-6">
+                <ScrollableExpenseTable data={filteredExpenseStats} />
+              </div>
+            )
           )}
         </AnimatedCard>
       </div>

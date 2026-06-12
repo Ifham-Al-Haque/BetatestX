@@ -1,9 +1,9 @@
 import React from 'react';
 
-export function Card({ children, className = "", ...props }) {
+export function Card({ children, className = '', glass = false, ...props }) {
   return (
     <div
-      className={`bg-white shadow-md rounded-lg p-6 ${className}`}
+      className={`${glass ? 'uhub-card-glass' : 'uhub-card'} p-6 ${className}`}
       {...props}
     >
       {children}
@@ -11,10 +11,16 @@ export function Card({ children, className = "", ...props }) {
   );
 }
 
-export function CardHeader({ children, className = "" }) {
-  return <div className={`font-bold text-xl mb-4 ${className}`}>{children}</div>;
+export function CardHeader({ children, className = '' }) {
+  return (
+    <div
+      className={`font-bold text-xl mb-4 text-content-primary border-b border-border pb-3 ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
-export function CardContent({ children, className = "" }) {
+export function CardContent({ children, className = '' }) {
   return <div className={className}>{children}</div>;
 }

@@ -10,38 +10,94 @@
 /* Import Enhanced Dark Mode Styles */
 @import './styles/enhanced-dark-mode.css';
 
-/* Enhanced Dark Mode CSS Custom Properties */
+/* Unified design tokens — single source of truth */
 :root {
-  /* Light mode colors */
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f8fafc;
-  --color-bg-tertiary: #f1f5f9;
-  --color-bg-quaternary: #e2e8f0;
-  --color-text-primary: #1e293b;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-border: #e2e8f0;
-  --color-border-secondary: #cbd5e1;
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-  --color-accent-secondary: #8b5cf6;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #06b6d4;
-  
-  /* Light mode shadows */
+  /* Surfaces */
+  --surface-base: #ffffff;
+  --surface-raised: #f8fafc;
+  --surface-overlay: #f1f5f9;
+  --surface-elevated: #e2e8f0;
+
+  /* Typography */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-accent: #2562cf;
+
+  /* Borders */
+  --border-primary: #e2e8f0;
+  --border-secondary: #cbd5e1;
+  --border-accent: #2ff9b5;
+  --border-focus: #2562cf;
+
+  /* Accents — UDrive brand */
+  --accent-primary: #2562cf;
+  --accent-secondary: #2ff9b5;
+  --brand-mint: #2ff9b5;
+  --brand-blue: #2562cf;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+  --accent-info: #06b6d4;
+
+  /* Sidebar */
+  --bg-sidebar: #f8fafc;
+  --bg-sidebar-hover: #f1f5f9;
+  --bg-sidebar-active: #e2e8f0;
+
+  /* Cards & inputs */
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-hover: #f8fafc;
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --input-focus: #2562cf;
+
+  /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  
-  /* Light mode gradients */
-  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  --gradient-secondary: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-  --gradient-accent: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-  
-  /* Theme switch transition (JS can override duration for reduced-motion) */
+
+  /* Gradients — UDrive mint → blue */
+  --gradient-primary: linear-gradient(135deg, #2ff9b5 0%, #2562cf 100%);
+  --gradient-secondary: linear-gradient(135deg, #2ff9b5 0%, #2562cf 100%);
+  --gradient-accent: linear-gradient(135deg, #2ff9b5 0%, #2562cf 100%);
+  --canvas-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+
+  /* Glow */
+  --glow-accent: 0 0 20px rgba(47, 249, 181, 0.3);
+  --glow-success: 0 0 20px rgba(16, 185, 129, 0.25);
+  --glow-danger: 0 0 20px rgba(239, 68, 68, 0.25);
+
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --glass-backdrop: blur(16px);
+
+  /* Legacy aliases (backward compat) */
+  --color-bg-primary: var(--surface-base);
+  --color-bg-secondary: var(--surface-raised);
+  --color-bg-tertiary: var(--surface-overlay);
+  --color-bg-quaternary: var(--surface-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-accent: var(--accent-primary);
+  --color-accent-hover: #2563eb;
+  --color-accent-secondary: var(--accent-secondary);
+  --color-success: var(--accent-success);
+  --color-warning: var(--accent-warning);
+  --color-danger: var(--accent-danger);
+  --color-info: var(--accent-info);
+  --bg-primary: var(--surface-base);
+  --bg-secondary: var(--surface-raised);
+  --bg-tertiary: var(--surface-overlay);
+  --bg-quaternary: var(--surface-elevated);
+
   --theme-transition-duration: 450ms;
   --theme-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -58,41 +114,80 @@ html {
 }
 
 .dark {
-  /* Dark blue theme matching the dashboard screenshot */
-  --color-bg-primary: #0f1419;
-  --color-bg-secondary: #1a1f2e;
-  --color-bg-tertiary: #242938;
-  --color-bg-quaternary: #2e3442;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #e2e8f0;
-  --color-text-muted: #94a3b8;
-  --color-border: rgba(255, 255, 255, 0.2);
-  --color-border-secondary: rgba(255, 255, 255, 0.1);
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-  --color-accent-secondary: #6366f1;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #06b6d4;
-  
-  /* Enhanced dark mode shadows with better depth */
+  --surface-base: #0f1419;
+  --surface-raised: #1a1f2e;
+  --surface-overlay: #242938;
+  --surface-elevated: #2e3442;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-accent: #2ff9b5;
+
+  --border-primary: rgba(255, 255, 255, 0.12);
+  --border-secondary: rgba(255, 255, 255, 0.08);
+  --border-accent: #2ff9b5;
+  --border-focus: #2562cf;
+
+  --accent-primary: #2562cf;
+  --accent-secondary: #2ff9b5;
+  --brand-mint: #2ff9b5;
+  --brand-blue: #2562cf;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+  --accent-info: #06b6d4;
+
+  --bg-sidebar: #0c1018;
+  --bg-sidebar-hover: #1a1f2e;
+  --bg-sidebar-active: #242938;
+
+  --card-bg: rgba(26, 31, 46, 0.85);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --card-hover: rgba(36, 41, 56, 0.9);
+  --input-bg: #1a1f2e;
+  --input-border: rgba(255, 255, 255, 0.12);
+  --input-focus: #2562cf;
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-  
-  /* Dark blue theme gradients */
-  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-  --gradient-secondary: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-  --gradient-accent: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.45), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.25);
+
+  --gradient-primary: linear-gradient(135deg, #2ff9b5 0%, #2562cf 100%);
+  --gradient-secondary: linear-gradient(135deg, #2ff9b5 0%, #2562cf 100%);
+  --gradient-accent: linear-gradient(135deg, #2ff9b5 0%, #2562cf 100%);
+  --canvas-gradient: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 50% at 100% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+    var(--surface-base);
+
+  --glow-accent: 0 0 24px rgba(47, 249, 181, 0.25);
+  --glow-success: 0 0 20px rgba(16, 185, 129, 0.3);
+  --glow-danger: 0 0 20px rgba(239, 68, 68, 0.3);
+
+  --glass-bg: rgba(26, 31, 46, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  --color-bg-primary: var(--surface-base);
+  --color-bg-secondary: var(--surface-raised);
+  --color-bg-tertiary: var(--surface-overlay);
+  --color-bg-quaternary: var(--surface-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+  --color-accent: var(--accent-primary);
+  --bg-primary: var(--surface-base);
+  --bg-secondary: var(--surface-raised);
+  --bg-tertiary: var(--surface-overlay);
+  --bg-quaternary: var(--surface-elevated);
 }
 
-/* Subtle dark canvas (soft gradient so it’s not flat) */
 .dark body {
-  background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-              radial-gradient(ellipse 80% 50% at 100% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
-              var(--color-bg-primary);
+  background: var(--canvas-gradient);
+  color: var(--text-primary);
 }
 
 /* Smooth theme transitions – only when switching (avoids global jank) */
@@ -123,49 +218,151 @@ html {
 
 /* Focus styles for better accessibility */
 .focus-visible:focus {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
+}
+
+@layer components {
+  .uhub-card {
+    @apply rounded-xl border transition-all duration-300;
+    background: var(--card-bg);
+    border-color: var(--card-border);
+    box-shadow: var(--shadow-md);
+    color: var(--text-primary);
+  }
+
+  .uhub-card:hover {
+    background: var(--card-hover);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .uhub-card-glass {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-backdrop);
+    -webkit-backdrop-filter: var(--glass-backdrop);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 12px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .uhub-card-glass:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg), var(--glow-accent);
+    border-color: var(--border-accent);
+  }
+
+  .uhub-input {
+    @apply w-full rounded-lg px-3 py-2 transition-all duration-200 focus:outline-none focus:ring-2;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text-primary);
+    --tw-ring-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  }
+
+  .uhub-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .uhub-input:focus {
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  }
+
+  .uhub-btn-primary {
+    @apply font-semibold rounded-lg px-4 py-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    background: var(--gradient-primary);
+    color: #ffffff;
+    box-shadow: var(--shadow-md);
+    --tw-ring-color: var(--accent-primary);
+  }
+
+  .dark .uhub-btn-primary {
+    --tw-ring-offset-color: var(--surface-base);
+  }
+
+  .uhub-btn-primary:hover {
+    box-shadow: var(--shadow-lg), var(--glow-accent);
+    transform: translateY(-1px);
+  }
+
+  .uhub-btn-secondary {
+    @apply font-medium rounded-lg px-4 py-2 border transition-all duration-200 focus:outline-none focus:ring-2;
+    background: var(--surface-overlay);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+  }
+
+  .uhub-btn-secondary:hover {
+    background: var(--surface-elevated);
+    border-color: var(--border-accent);
+  }
+
+  .uhub-badge-success {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background: color-mix(in srgb, var(--accent-success) 15%, transparent);
+    color: var(--accent-success);
+    border: 1px solid color-mix(in srgb, var(--accent-success) 35%, transparent);
+  }
+
+  .uhub-badge-warning {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background: color-mix(in srgb, var(--accent-warning) 15%, transparent);
+    color: var(--accent-warning);
+    border: 1px solid color-mix(in srgb, var(--accent-warning) 35%, transparent);
+  }
+
+  .uhub-badge-danger {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background: color-mix(in srgb, var(--accent-danger) 15%, transparent);
+    color: var(--accent-danger);
+    border: 1px solid color-mix(in srgb, var(--accent-danger) 35%, transparent);
+  }
+
+  .uhub-badge-info {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    color: var(--text-accent);
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  }
 }
 
 /* Enhanced Dark Mode Component Styles */
 
-/* Dark mode backgrounds */
+/* Semantic surface fallbacks for legacy Tailwind classes */
 .dark .bg-white {
-  background-color: var(--color-bg-secondary) !important;
+  background-color: var(--surface-raised);
 }
 
 .dark .bg-gray-50 {
-  background-color: var(--color-bg-tertiary) !important;
+  background-color: var(--surface-overlay);
 }
 
 .dark .bg-gray-100 {
-  background-color: var(--color-bg-quaternary) !important;
+  background-color: var(--surface-elevated);
 }
 
-/* Dark mode text colors */
-.dark .text-gray-900 {
-  color: var(--color-text-primary) !important;
+.dark .text-gray-900,
+.dark .text-gray-800 {
+  color: var(--text-primary);
 }
 
 .dark .text-gray-700 {
-  color: var(--color-text-secondary) !important;
+  color: var(--text-secondary);
 }
 
-.dark .text-gray-600 {
-  color: var(--color-text-muted) !important;
-}
-
+.dark .text-gray-600,
 .dark .text-gray-500 {
-  color: var(--color-text-muted) !important;
+  color: var(--text-muted);
 }
 
-/* Dark mode borders */
-.dark .border-gray-200 {
-  border-color: var(--color-border) !important;
+.dark .border-gray-200,
+.dark .border-gray-100 {
+  border-color: var(--border-primary);
 }
 
 .dark .border-gray-300 {
-  border-color: var(--color-border-secondary) !important;
+  border-color: var(--border-secondary);
 }
 
 /* Dark mode shadows */
@@ -183,15 +380,6 @@ html {
 
 .dark .shadow-xl {
   box-shadow: var(--shadow-xl) !important;
-}
-
-/* Dark mode gradients */
-.dark .bg-gradient-to-r {
-  background-image: linear-gradient(to right, var(--color-bg-secondary), var(--color-bg-tertiary));
-}
-
-.dark .bg-gradient-to-br {
-  background-image: var(--gradient-primary);
 }
 
 /* Dark mode form elements */
@@ -599,12 +787,16 @@ html {
   @apply hover:shadow-md;
 }
 
-/* Enhanced metadata tags */
 .metadata-tag {
-  @apply inline-flex items-center space-x-2 px-3 py-2 rounded-lg text-sm;
-  @apply bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-gray-400;
-  @apply transition-all duration-200 ease-in-out;
-  @apply hover:bg-gray-100 dark:hover:bg-slate-600;
+  @apply inline-flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 ease-in-out;
+  background: var(--surface-overlay);
+  color: var(--text-muted);
+  border: 1px solid var(--border-primary);
+}
+
+.metadata-tag:hover {
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
 }
 
 /* Enhanced action buttons */
@@ -620,11 +812,11 @@ html {
   @apply flex items-center justify-center p-4 z-50;
 }
 
-/* Enhanced modal content */
 .modal-content {
-  @apply bg-white dark:bg-slate-800 rounded-2xl shadow-2xl;
-  @apply max-w-2xl w-full max-h-[90vh] overflow-y-auto;
-  @apply border border-gray-200 dark:border-slate-700;
+  @apply rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
 }
 
 /* Enhanced empty state */
@@ -759,8 +951,9 @@ html {
   z-index: 10;
 }
 
-/* Smooth transitions for all layout changes */
-* {
+.main-content,
+.sidebar,
+.dashboard-main {
   transition-property: margin-left, width, transform;
   transition-duration: 0.3s;
   transition-timing-function: ease-in-out;
@@ -777,11 +970,11 @@ html {
   z-index: 20;
 }
 
-/* Ensure proper background coverage */
 .page-background {
   min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: var(--canvas-gradient);
+  color: var(--text-primary);
 }
 
 /* Fix for any sticky elements */
@@ -1111,20 +1304,26 @@ html {
   }
 }
 
-/* Dark mode mobile optimizations */
 @media (max-width: 767px) {
   .dark {
-    /* Better contrast on mobile dark mode */
-    --color-bg-primary: #0a0e14;
-    --color-bg-secondary: #151a23;
+    --surface-base: #0a0e14;
+    --surface-raised: #151a23;
   }
-  
-  /* Softer shadows on mobile dark mode */
+
   .dark .shadow-md {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
-  
+
   .dark .shadow-lg {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
+}
+
+/* Firefox scrollbar */
+.dark {
+  scrollbar-color: var(--border-secondary) var(--surface-overlay);
+}
+
+html {
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }

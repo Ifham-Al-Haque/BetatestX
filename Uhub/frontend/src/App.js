@@ -15,6 +15,7 @@ import PayrollProtectedRoute from './components/PayrollProtectedRoute';
 import Layout from './components/Layout';
 import SmartHomeRoute from './components/SmartHomeRoute';
 import RoutePrefetcher from './components/RoutePrefetcher';
+import RouteVisitTracker from './components/RouteVisitTracker';
 import EditionGuard from './components/EditionGuard';
 import PushIdentity from './components/PushIdentity';
 const isDev = process.env.NODE_ENV === 'development';
@@ -136,6 +137,7 @@ function App() {
                 <ThemeProvider>
                   <Router>
                     <RoutePrefetcher />
+                    <RouteVisitTracker />
                     <EditionGuard />
                     <PushIdentity />
                     <Suspense fallback={<RouteSkeleton title="Loading route and preparing data..." />}>
@@ -835,7 +837,7 @@ function App() {
                         {/* Catch all route - redirect to home for authenticated users */}
                         <Route path="*" element={
                           <ProtectedRoute>
-                            <Layout>
+                            <Layout hidePageHeader>
                               <UserWelcome />
                             </Layout>
                           </ProtectedRoute>

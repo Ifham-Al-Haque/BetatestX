@@ -1,28 +1,25 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const EnhancedCard = ({ 
-  children, 
-  className = '', 
-  hover = true, 
+const EnhancedCard = ({
+  children,
+  className = '',
+  hover = true,
   glow = false,
   glass = false,
   animated = false,
-  ...props 
+  ...props
 }) => {
-  const baseClasses = 'enhanced-card';
-  const glassClasses = glass ? 'glass-card' : '';
-  const glowClasses = glow ? 'hover-glow' : '';
-  const animatedClasses = animated ? 'animated-bg' : '';
-  
   const cardClasses = [
-    baseClasses,
-    glassClasses,
-    glowClasses,
-    animatedClasses,
+    glass ? 'uhub-card-glass' : 'uhub-card',
+    glow ? 'hover-glow' : '',
+    animated ? 'animated-bg' : '',
     hover ? 'cursor-pointer' : '',
-    className
-  ].filter(Boolean).join(' ');
+    'p-6',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <motion.div

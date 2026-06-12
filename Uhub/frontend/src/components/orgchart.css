@@ -1,58 +1,60 @@
-/* Proper top-down organizational chart connectors.
-   Pure-CSS tree connectors that adapt to single / multiple children.
-   Connector color is driven by --oc-line so dark mode can override it.
-
-   Expected markup:
-   <div class="oc-tree">
-     <ul>                      // root wrapper
-       <li>                    // a root person
-         <div class="oc-node-wrap">...card...</div>
-         <ul>                  // that person's reports
-           <li>...</li>
-         </ul>
-       </li>
-     </ul>
-   </div>
-*/
+/* Top-down org chart — HR-friendly presentation layout */
 
 .oc-viewport {
-  --oc-line: #cbd5e1; /* slate-300 */
+  --oc-line: #94a3b8;
+  --oc-line-width: 3px;
+  --oc-card-gap: 20px;
+  --oc-level-gap: 40px;
   overflow: auto;
   width: 100%;
+  background-color: #f8fafc;
+  background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .dark .oc-viewport {
-  --oc-line: #475569; /* slate-600 */
+  --oc-line: #64748b;
+  background-color: #0f172a;
+  background-image: radial-gradient(circle, #1e293b 1px, transparent 1px);
+}
+
+.oc-viewport.oc-presentation {
+  --oc-line: #6366f1;
+  --oc-line-width: 3px;
+  --oc-card-gap: 24px;
+  --oc-level-gap: 48px;
 }
 
 .oc-canvas {
   transform-origin: top center;
-  transition: transform 0.15s ease-out;
+  transition: transform 0.2s ease-out;
   display: inline-block;
   min-width: 100%;
-  padding: 8px 24px 32px;
+  padding: 24px 32px 48px;
 }
 
 .oc-tree ul {
   display: flex;
   justify-content: center;
+  flex-wrap: nowrap;
   padding: 0;
   margin: 0;
   list-style: none;
-  padding-top: 28px;
+  padding-top: var(--oc-level-gap);
   position: relative;
+  gap: var(--oc-card-gap);
 }
 
 .oc-tree li {
   position: relative;
   list-style: none;
-  padding: 28px 16px 0 16px;
+  padding: var(--oc-level-gap) calc(var(--oc-card-gap) / 2) 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-shrink: 0;
 }
 
-/* Horizontal lines joining siblings to the parent's vertical stub */
 .oc-tree li::before,
 .oc-tree li::after {
   content: '';
@@ -60,49 +62,45 @@
   top: 0;
   right: 50%;
   width: 50%;
-  height: 28px;
-  border-top: 2px solid var(--oc-line);
+  height: var(--oc-level-gap);
+  border-top: var(--oc-line-width) solid var(--oc-line);
 }
 
 .oc-tree li::after {
   right: auto;
   left: 50%;
-  border-left: 2px solid var(--oc-line);
+  border-left: var(--oc-line-width) solid var(--oc-line);
 }
 
-/* A lone child only needs the vertical line, no horizontal */
 .oc-tree li:only-child::before,
 .oc-tree li:only-child::after {
   display: none;
 }
 
-/* Trim the outer corners of the first / last siblings */
 .oc-tree li:first-child::before,
 .oc-tree li:last-child::after {
   border: 0 none;
 }
 
 .oc-tree li:last-child::before {
-  border-right: 2px solid var(--oc-line);
-  border-radius: 0 6px 0 0;
+  border-right: var(--oc-line-width) solid var(--oc-line);
+  border-radius: 0 8px 0 0;
 }
 
 .oc-tree li:first-child::after {
-  border-radius: 6px 0 0 0;
+  border-radius: 8px 0 0 0;
 }
 
-/* Vertical line dropping from a parent down to its children's row */
 .oc-tree ul ul::before {
   content: '';
   position: absolute;
   top: 0;
   left: 50%;
   width: 0;
-  height: 28px;
-  border-left: 2px solid var(--oc-line);
+  height: var(--oc-level-gap);
+  border-left: var(--oc-line-width) solid var(--oc-line);
 }
 
-/* The root wrapper has no incoming connectors */
 .oc-tree > ul {
   padding-top: 0;
 }
@@ -119,4 +117,99 @@
 .oc-node-wrap {
   position: relative;
   z-index: 1;
+}
+
+.oc-card {
+  width: 280px;
+  min-height: 168px;
+  border-radius: 16px;
+  border: 3px solid #cbd5e1;
+  background: #ffffff;
+  box-shadow:
+    0 4px 6px -1px rgba(15, 23, 42, 0.08),
+    0 2px 4px -2px rgba(15, 23, 42, 0.06);
+}
+
+.dark .oc-card {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+.oc-presentation .oc-card {
+  width: 300px;
+  min-height: 180px;
+  border-width: 4px;
+}
+
+.oc-card.oc-level-root {
+  border-color: #f59e0b;
+  box-shadow: 0 8px 24px -4px rgba(245, 158, 11, 0.25);
+}
+
+.oc-card.oc-level-1 { border-color: #6366f1; }
+.oc-card.oc-level-2 { border-color: #3b82f6; }
+.oc-card.oc-level-3 { border-color: #0ea5e9; }
+.oc-card.oc-level-deep { border-color: #94a3b8; }
+
+.dark .oc-card.oc-level-root { border-color: #fbbf24; }
+.dark .oc-card.oc-level-1 { border-color: #818cf8; }
+.dark .oc-card.oc-level-2 { border-color: #60a5fa; }
+.dark .oc-card.oc-level-3 { border-color: #38bdf8; }
+
+.oc-card.oc-drop-target {
+  border-color: #2563eb !important;
+  border-width: 4px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.oc-card.oc-match {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25);
+}
+
+.oc-card-accent {
+  height: 6px;
+  border-radius: 13px 13px 0 0;
+}
+
+.oc-presentation .oc-card-accent {
+  height: 8px;
+}
+
+.oc-card-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.oc-presentation .oc-card-name {
+  font-size: 1rem;
+}
+
+.oc-card-role {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.oc-expand-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--oc-line);
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.dark .oc-expand-btn {
+  background: #334155;
+  border-color: #64748b;
 }
