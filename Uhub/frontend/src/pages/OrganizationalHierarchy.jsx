@@ -9,10 +9,7 @@ import {
   Settings, MoreVertical, ExternalLink, Copy, Share2, X, Network
 } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, Area, AreaChart } from 'recharts';
-import OrgChart from '../components/OrgChart';
-import AnimatedOrgChart from '../components/AnimatedOrgChart';
-import CompleteOrgChart from '../components/CompleteOrgChart';
-import OrgChartBuilder from '../components/OrgChartBuilder';
+import OrgChartPro from '../components/OrgChartPro';
 import { useEmployees } from '../hooks/useEmployees';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -20,7 +17,7 @@ const OrganizationalHierarchy = () => {
   const { data: employees, isLoading: employeesLoading, isFetching: employeesFetching, refetch } = useEmployees();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [viewMode, setViewMode] = useState('departments'); // 'chart', 'list', 'analytics', 'departments', 'tree', 'complete', 'builder'
+  const [viewMode, setViewMode] = useState('chart'); // 'chart' (proper org chart), 'list', 'analytics', 'departments', 'tree', 'complete', 'builder'
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCards, setExpandedCards] = useState({});
   const [expandedDepartments, setExpandedDepartments] = useState({});
@@ -314,39 +311,6 @@ const OrganizationalHierarchy = () => {
                   >
                     <Building className="w-5 h-5" />
                   </button>
-                  <button
-                    onClick={() => setViewMode('tree')}
-                    className={`p-3 rounded-lg transition-all duration-200 ${
-                      viewMode === 'tree' 
-                        ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-lg transform scale-105' 
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50'
-                    }`}
-                    title="Tree Chart"
-                  >
-                    <UserCheck className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('complete')}
-                    className={`p-3 rounded-lg transition-all duration-200 ${
-                      viewMode === 'complete' 
-                        ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-lg transform scale-105' 
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50'
-                    }`}
-                    title="Complete Org Chart"
-                  >
-                    <Users className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('builder')}
-                    className={`p-3 rounded-lg transition-all duration-200 ${
-                      viewMode === 'builder'
-                        ? 'bg-white dark:bg-gray-600 text-violet-600 dark:text-violet-400 shadow-lg transform scale-105'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50'
-                    }`}
-                    title="Hierarchy Builder (drag & drop)"
-                  >
-                    <Network className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
             </div>
@@ -614,23 +578,16 @@ const OrganizationalHierarchy = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-8"
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 sm:p-8"
             >
-              <div className="flex items-center justify-center mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <UserCheck className="w-8 h-8 text-white" />
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-4">
-                Udrive Company Organizational Chart
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 text-center mb-8">
-                Interactive organizational structure showing reporting relationships and team hierarchy
-              </p>
-              
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
-                <OrgChart employees={filteredEmployees} loading={employeesLoading} />
-              </div>
+              <OrgChartPro
+                employees={employees || []}
+                loading={employeesLoading}
+                onEmployeeClick={(employee) => {
+                  setSelectedEmployee(employee);
+                  setShowEmployeeModal(true);
+                }}
+              />
             </motion.div>
           )}
 
@@ -783,98 +740,6 @@ const OrganizationalHierarchy = () => {
                   );
                 })}
               </div>
-
-              {/* Tree Chart Section */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                className="mt-8"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Organizational Tree</h3>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">
-                      Interactive reporting structure showing who reports to whom
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {filteredEmployees.length} Employees
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-8">
-                  <AnimatedOrgChart 
-                    employees={filteredEmployees} 
-                    loading={employeesLoading}
-                    onEmployeeClick={(employee) => {
-                      setSelectedEmployee(employee);
-                      setShowEmployeeModal(true);
-                    }}
-                  />
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {viewMode === 'tree' && (
-            <motion.div
-              key="tree"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-8"
-            >
-              <AnimatedOrgChart 
-                employees={filteredEmployees} 
-                loading={employeesLoading}
-                onEmployeeClick={(employee) => {
-                  setSelectedEmployee(employee);
-                  setShowEmployeeModal(true);
-                }}
-              />
-            </motion.div>
-          )}
-
-          {viewMode === 'complete' && (
-            <motion.div
-              key="complete"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-            >
-              <CompleteOrgChart 
-                employees={filteredEmployees} 
-                loading={employeesLoading}
-                onEmployeeClick={(employee) => {
-                  setSelectedEmployee(employee);
-                  setShowEmployeeModal(true);
-                }}
-              />
-            </motion.div>
-          )}
-
-          {viewMode === 'builder' && (
-            <motion.div
-              key="builder"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 sm:p-8"
-            >
-              <OrgChartBuilder
-                employees={employees || []}
-                loading={employeesLoading}
-                onEmployeeClick={(employee) => {
-                  setSelectedEmployee(employee);
-                  setShowEmployeeModal(true);
-                }}
-              />
             </motion.div>
           )}
         </AnimatePresence>

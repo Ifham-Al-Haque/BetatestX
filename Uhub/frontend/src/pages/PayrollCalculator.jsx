@@ -1,10 +1,21 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calculator, Download, FileUp, Plus, Save, Trash2 } from "lucide-react";
+import {
+  AlertTriangle, Calculator, Download, FileUp, Lock,
+  PencilLine, Plus, Save, Trash2, X
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import { useToast } from "../context/ToastContext";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import {
+  BASE_VARIABLES,
+  DEFAULT_FORMULAS,
+  FORMULA_FUNCTIONS,
+  STAGE_VARIABLES,
+  calcRowWithFormulas,
+  validateFormulas,
+} from "../utils/payrollFormula";
 
 const FIELD_DEFS = [
   { key: "employee_id", label: "Employee ID", type: "text" },
@@ -57,18 +68,22 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function calcRow(row) {
-  const basic = toNumber(row.basic_salary);
-  const allowances = toNumber(row.allowances);
-  const bonus = toNumber(row.bonus);
-  const deductions = toNumber(row.deductions);
-  const ot = toNumber(row.overtime_hours) * toNumber(row.overtime_rate);
-  const gross = basic + allowances + bonus + ot;
-  const taxRate = toNumber(row.tax_rate);
-  const tax = gross * (taxRate / 100);
-  const net = gross - deductions - tax;
-  return { ot, gross, tax, net };
-}
+// Sample values used to validate/preview formulas when the table is empty
+const SAMPLE_ROW = {
+  basic_salary: 5000,
+  allowances: 500,
+  deductions: 200,
+  overtime_hours: 10,
+  overtime_rate: 25,
+  bonus: 300,
+  tax_rate: 5,
+};
+
+const FORMULA_FIELDS = [
+  { key: "gross_formula", label: "Gross Salary" },
+  { key: "tax_formula", label: "Tax" },
+  { key: "net_formula", label: "Net Salary" },
+];
 
 function makeEmptyRow() {
   return {
@@ -107,6 +122,119 @@ export default function PayrollCalculator() {
   const [lockOnSave, setLockOnSave] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Formula state: activeFormulas drive all calculations; the draft is
+  // only used while editing, until "Lock & Apply".
+  const [activeFormulas, setActiveFormulas] = useState(DEFAULT_FORMULAS);
+  const [formulaDraft, setFormulaDraft] = useState(DEFAULT_FORMULAS);
+  const [formulaEditing, setFormulaEditing] = useState(false);
+  const [formulaMeta, setFormulaMeta] = useState(null);
+  const [formulaSaving, setFormulaSaving] = useState(false);
+
+  const canEditFormula = ["admin", "hr_manager"].includes(userProfile?.role);
+
+  useEffect(() => {
+    const loadFormulas = async () => {
+      const { data, error } = await supabase
+        .from("payroll_formulas")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Table missing or empty: silently keep the built-in defaults
+      if (!error && data) {
+        setActiveFormulas({
+          gross_formula: data.gross_formula,
+          tax_formula: data.tax_formula,
+          net_formula: data.net_formula,
+        });
+        setFormulaMeta({ locked_by_name: data.locked_by_name, locked_at: data.locked_at });
+      }
+    };
+    loadFormulas();
+  }, []);
+
+  const calcRow = useCallback(
+    (row) => calcRowWithFormulas(row, activeFormulas),
+    [activeFormulas]
+  );
+
+  const sampleRow = rows[0] || SAMPLE_ROW;
+
+  const formulaDraftErrors = useMemo(
+    () => (formulaEditing ? validateFormulas(formulaDraft, sampleRow) : {}),
+    [formulaEditing, formulaDraft, sampleRow]
+  );
+
+  const formulaDraftPreview = useMemo(
+    () => calcRowWithFormulas(sampleRow, formulaDraft),
+    [formulaDraft, sampleRow]
+  );
+
+  const startFormulaEdit = () => {
+    setFormulaDraft(activeFormulas);
+    setFormulaEditing(true);
+  };
+
+  const cancelFormulaEdit = () => {
+    setFormulaDraft(activeFormulas);
+    setFormulaEditing(false);
+  };
+
+  const lockAndApplyFormulas = async () => {
+    if (formulaSaving) return;
+
+    const errors = validateFormulas(formulaDraft, sampleRow);
+    if (Object.keys(errors).length > 0) {
+      showError("Invalid formula", "Fix the highlighted formula errors before locking.");
+      return;
+    }
+
+    setFormulaSaving(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const authUserId = authData?.user?.id || null;
+      const lockedByName = userProfile?.full_name || userProfile?.email || null;
+      const lockedAt = new Date().toISOString();
+
+      const { error } = await supabase.from("payroll_formulas").insert({
+        gross_formula: formulaDraft.gross_formula.trim(),
+        tax_formula: formulaDraft.tax_formula.trim(),
+        net_formula: formulaDraft.net_formula.trim(),
+        is_locked: true,
+        locked_at: lockedAt,
+        locked_by: authUserId,
+        locked_by_name: lockedByName,
+      });
+
+      if (error) {
+        const msg = (error.message || "").toLowerCase();
+        if (msg.includes("relation") || msg.includes("does not exist")) {
+          showError(
+            "Formula not persisted",
+            "Run `create_payroll_formulas_schema.sql` in Supabase to save formulas permanently. The formula is applied for this session only."
+          );
+        } else {
+          throw error;
+        }
+      } else {
+        success("Formula locked", "Payroll is now calculated using the locked formula.");
+      }
+
+      setActiveFormulas({
+        gross_formula: formulaDraft.gross_formula.trim(),
+        tax_formula: formulaDraft.tax_formula.trim(),
+        net_formula: formulaDraft.net_formula.trim(),
+      });
+      setFormulaMeta({ locked_by_name: lockedByName, locked_at: lockedAt });
+      setFormulaEditing(false);
+    } catch (err) {
+      showError("Lock failed", err.message || "Failed to save the formula.");
+    } finally {
+      setFormulaSaving(false);
+    }
+  };
+
   const totals = useMemo(() => {
     const acc = { gross: 0, tax: 0, deductions: 0, net: 0 };
     for (const r of rows) {
@@ -117,7 +245,7 @@ export default function PayrollCalculator() {
       acc.net += net;
     }
     return acc;
-  }, [rows]);
+  }, [rows, calcRow]);
 
   const handleManualAdd = () => {
     if (isLocked) return;
@@ -271,7 +399,7 @@ export default function PayrollCalculator() {
         net_salary: net,
       };
     });
-  }, [rows]);
+  }, [rows, calcRow]);
 
   const exportXlsx = () => {
     if (rows.length === 0) {
@@ -305,6 +433,10 @@ export default function PayrollCalculator() {
   };
 
   const openSave = () => {
+    if (formulaEditing) {
+      showError("Formula unlocked", "Lock the calculation formula before saving a batch.");
+      return;
+    }
     if (rows.length === 0) {
       showError("Nothing to save", "Add or import rows first.");
       return;
@@ -347,6 +479,9 @@ export default function PayrollCalculator() {
           tax: totals.tax,
           deductions: totals.deductions,
           net: totals.net,
+          // Snapshot of the formulas this batch was calculated with,
+          // so historical batches stay auditable if formulas change later.
+          formulas: { ...activeFormulas },
         },
         is_locked: false,
       };
@@ -490,12 +625,151 @@ export default function PayrollCalculator() {
             type="button"
             onClick={openSave}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all disabled:opacity-60 disabled:hover:bg-emerald-600"
-            disabled={rows.length === 0 || saving}
+            disabled={rows.length === 0 || saving || formulaEditing}
+            title={formulaEditing ? "Lock the formula before saving a batch" : undefined}
           >
             <Save className="w-4 h-4" />
             Save batch
           </button>
         </div>
+      </div>
+
+      {/* Calculation formulas (lockable) */}
+      <div
+        className={`mb-6 rounded-3xl border shadow-xl overflow-hidden backdrop-blur-md ${
+          formulaEditing
+            ? "border-amber-300/80 dark:border-amber-600/50 bg-amber-50/60 dark:bg-amber-900/10"
+            : "border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60"
+        }`}
+      >
+        <div className="px-6 py-4 border-b border-slate-200/70 dark:border-gray-700/60 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${formulaEditing ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+              {formulaEditing ? <PencilLine className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Calculation Formulas</h2>
+                <span
+                  className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                    formulaEditing
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}
+                >
+                  {formulaEditing ? "EDITING — NOT LOCKED" : "LOCKED"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {formulaEditing
+                  ? "Batches cannot be saved until the formula is locked again."
+                  : formulaMeta?.locked_by_name
+                    ? `Locked by ${formulaMeta.locked_by_name}${formulaMeta.locked_at ? ` on ${new Date(formulaMeta.locked_at).toLocaleString()}` : ""}`
+                    : "All payroll rows are calculated with these formulas."}
+              </p>
+            </div>
+          </div>
+
+          {!formulaEditing && canEditFormula && (
+            <button
+              type="button"
+              onClick={startFormulaEdit}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-gray-800/60 transition text-sm"
+            >
+              <PencilLine className="w-4 h-4" />
+              Edit formulas
+            </button>
+          )}
+        </div>
+
+        {!formulaEditing ? (
+          <div className="px-6 py-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {FORMULA_FIELDS.map((f) => (
+              <div key={f.key}>
+                <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">{f.label}</div>
+                <code className="block px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-gray-800/60 text-sm text-slate-800 dark:text-slate-200 font-mono break-words">
+                  {activeFormulas[f.key]}
+                </code>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-6 py-5 space-y-4">
+            {FORMULA_FIELDS.map((f) => (
+              <div key={f.key}>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-200">{f.label}</label>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Variables: {[...BASE_VARIABLES, ...STAGE_VARIABLES[f.key]].join(", ")}
+                  </span>
+                </div>
+                <input
+                  value={formulaDraft[f.key]}
+                  onChange={(e) => setFormulaDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  spellCheck={false}
+                  className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-gray-950 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:ring-2 ${
+                    formulaDraftErrors[f.key]
+                      ? "border-red-400 focus:ring-red-500"
+                      : "border-slate-200 dark:border-gray-700 focus:ring-emerald-500"
+                  }`}
+                />
+                {formulaDraftErrors[f.key] && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    {formulaDraftErrors[f.key]}
+                  </p>
+                )}
+              </div>
+            ))}
+
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Functions: {FORMULA_FUNCTIONS.join(", ")} · Operators: + − × ÷ % ^ ( ) ·{" "}
+              <code className="font-mono">overtime</code> = overtime_hours × overtime_rate
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/70 dark:border-gray-700/60 bg-white/70 dark:bg-gray-900/40 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+              <span className="font-medium text-slate-700 dark:text-slate-200">
+                Preview ({rows.length > 0 ? "first row" : "sample data"}):
+              </span>
+              {formulaDraftPreview.error ? (
+                <span className="text-red-600 dark:text-red-400">{formulaDraftPreview.error}</span>
+              ) : (
+                <>
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Gross: <span className="font-semibold text-slate-900 dark:text-white">{formulaDraftPreview.gross.toFixed(2)}</span>
+                  </span>
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Tax: <span className="font-semibold text-slate-900 dark:text-white">{formulaDraftPreview.tax.toFixed(2)}</span>
+                  </span>
+                  <span className="text-slate-600 dark:text-slate-400">
+                    Net: <span className="font-semibold text-slate-900 dark:text-white">{formulaDraftPreview.net.toFixed(2)}</span>
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button
+                type="button"
+                onClick={cancelFormulaEdit}
+                disabled={formulaSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white dark:bg-gray-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-gray-800/60 transition text-sm"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={lockAndApplyFormulas}
+                disabled={formulaSaving || Object.keys(formulaDraftErrors).length > 0}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-60 text-sm"
+              >
+                <Lock className="w-4 h-4" />
+                {formulaSaving ? "Locking…" : "Lock & Apply"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <AnimatePresence>

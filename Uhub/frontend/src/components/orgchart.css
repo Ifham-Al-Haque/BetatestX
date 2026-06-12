@@ -1,0 +1,122 @@
+/* Proper top-down organizational chart connectors.
+   Pure-CSS tree connectors that adapt to single / multiple children.
+   Connector color is driven by --oc-line so dark mode can override it.
+
+   Expected markup:
+   <div class="oc-tree">
+     <ul>                      // root wrapper
+       <li>                    // a root person
+         <div class="oc-node-wrap">...card...</div>
+         <ul>                  // that person's reports
+           <li>...</li>
+         </ul>
+       </li>
+     </ul>
+   </div>
+*/
+
+.oc-viewport {
+  --oc-line: #cbd5e1; /* slate-300 */
+  overflow: auto;
+  width: 100%;
+}
+
+.dark .oc-viewport {
+  --oc-line: #475569; /* slate-600 */
+}
+
+.oc-canvas {
+  transform-origin: top center;
+  transition: transform 0.15s ease-out;
+  display: inline-block;
+  min-width: 100%;
+  padding: 8px 24px 32px;
+}
+
+.oc-tree ul {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  padding-top: 28px;
+  position: relative;
+}
+
+.oc-tree li {
+  position: relative;
+  list-style: none;
+  padding: 28px 16px 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Horizontal lines joining siblings to the parent's vertical stub */
+.oc-tree li::before,
+.oc-tree li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 28px;
+  border-top: 2px solid var(--oc-line);
+}
+
+.oc-tree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid var(--oc-line);
+}
+
+/* A lone child only needs the vertical line, no horizontal */
+.oc-tree li:only-child::before,
+.oc-tree li:only-child::after {
+  display: none;
+}
+
+/* Trim the outer corners of the first / last siblings */
+.oc-tree li:first-child::before,
+.oc-tree li:last-child::after {
+  border: 0 none;
+}
+
+.oc-tree li:last-child::before {
+  border-right: 2px solid var(--oc-line);
+  border-radius: 0 6px 0 0;
+}
+
+.oc-tree li:first-child::after {
+  border-radius: 6px 0 0 0;
+}
+
+/* Vertical line dropping from a parent down to its children's row */
+.oc-tree ul ul::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 28px;
+  border-left: 2px solid var(--oc-line);
+}
+
+/* The root wrapper has no incoming connectors */
+.oc-tree > ul {
+  padding-top: 0;
+}
+
+.oc-tree > ul > li {
+  padding-top: 0;
+}
+
+.oc-tree > ul > li::before,
+.oc-tree > ul > li::after {
+  display: none;
+}
+
+.oc-node-wrap {
+  position: relative;
+  z-index: 1;
+}

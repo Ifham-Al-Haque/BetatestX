@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Plus, Search, Filter, FileText, Clock, User, 
-  AlertTriangle, CheckCircle, XCircle, MoreHorizontal,
-  Edit, Trash2, Eye, Calendar, Tag, Building, 
-  DollarSign, CreditCard, Download, Upload, Calculator
+import {
+  Plus, Search, Clock, User,
+  CheckCircle, XCircle,
+  Edit, Trash2, Calendar, Building,
+  DollarSign, Download, Calculator, Users, X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { supabase } from '../supabaseClient';
 
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import Button from '../components/ui/button';
@@ -18,10 +20,12 @@ import Textarea from '../components/ui/textarea';
 const Payroll = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
-  
+  const navigate = useNavigate();
+
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState(null);
   const [filters, setFilters] = useState({
@@ -53,70 +57,50 @@ const Payroll = () => {
 
   useEffect(() => {
     fetchData();
-  }, [filters]);
+    // Search is applied client-side, so only refetch when server-side filters change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.month, filters.year, filters.status]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Mock data for now - replace with actual API calls
-      const mockEmployees = [
-        { id: '1', name: 'John Doe', department: 'IT', position: 'Developer' },
-        { id: '2', name: 'Jane Smith', department: 'HR', position: 'Manager' },
-        { id: '3', name: 'Mike Johnson', department: 'Finance', position: 'Analyst' }
-      ];
 
-      const mockPayrolls = [
-        {
-          id: '1',
-          employee_id: '1',
-          employee_name: 'John Doe',
-          department: 'IT',
-          month: 'January',
-          year: '2024',
-          basic_salary: 5000,
-          allowances: 500,
-          deductions: 200,
-          overtime_hours: 10,
-          overtime_rate: 25,
-          bonus: 300,
-          gross_salary: 5800,
-          net_salary: 5600,
-          status: 'processed',
-          processed_date: '2024-01-31T10:00:00Z',
-          processed_by: 'HR Manager',
-          notes: 'Regular monthly payroll'
-        },
-        {
-          id: '2',
-          employee_id: '2',
-          employee_name: 'Jane Smith',
-          department: 'HR',
-          month: 'January',
-          year: '2024',
-          basic_salary: 6000,
-          allowances: 600,
-          deductions: 250,
-          overtime_hours: 5,
-          overtime_rate: 30,
-          bonus: 400,
-          gross_salary: 7000,
-          net_salary: 6750,
-          status: 'pending',
-          processed_date: null,
-          processed_by: null,
-          notes: 'Pending approval'
-        }
-      ];
+      let payrollQuery = supabase
+        .from('payrolls')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      setEmployees(mockEmployees);
-      setPayrolls(mockPayrolls);
+      if (filters.month) payrollQuery = payrollQuery.eq('month', filters.month);
+      if (filters.year) payrollQuery = payrollQuery.eq('year', parseInt(filters.year, 10));
+      if (filters.status) payrollQuery = payrollQuery.eq('status', filters.status);
+
+      const [employeesRes, payrollsRes] = await Promise.all([
+        supabase
+          .from('employees')
+          .select('id, full_name, employee_id, department, position, designation')
+          .eq('status', 'active')
+          .order('full_name'),
+        payrollQuery
+      ]);
+
+      if (employeesRes.error) throw employeesRes.error;
+      if (payrollsRes.error) throw payrollsRes.error;
+
+      setEmployees(employeesRes.data || []);
+      setPayrolls(payrollsRes.data || []);
     } catch (err) {
       console.error('Error fetching data:', err);
-      showError('Error', 'Failed to fetch data. Please try again.');
+      showError('Error', err.message || 'Failed to fetch data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  const formatCurrency = (value) =>
+    `AED ${(Number(value) || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
 
   const calculateSalary = (data) => {
     const basic = parseFloat(data.basic_salary) || 0;
@@ -135,34 +119,51 @@ const Payroll = () => {
     e.preventDefault();
     
     try {
+      setSaving(true);
       const salaryCalculations = calculateSalary(formData);
-      const employee = employees.find(emp => emp.id === formData.employee_id);
-      
+      const employee = employees.find(emp => String(emp.id) === String(formData.employee_id));
+
       const payrollData = {
-        ...formData,
-        employee_name: employee?.name || 'Unknown',
+        employee_id: String(formData.employee_id),
+        employee_name: employee?.full_name || 'Unknown',
         department: employee?.department || 'Unknown',
+        month: formData.month,
+        year: parseInt(formData.year, 10),
+        basic_salary: parseFloat(formData.basic_salary) || 0,
+        allowances: parseFloat(formData.allowances) || 0,
+        deductions: parseFloat(formData.deductions) || 0,
+        overtime_hours: parseFloat(formData.overtime_hours) || 0,
+        overtime_rate: parseFloat(formData.overtime_rate) || 0,
+        bonus: parseFloat(formData.bonus) || 0,
         gross_salary: salaryCalculations.gross,
         net_salary: salaryCalculations.net,
-        status: 'pending',
-        created_by: user.id,
-        created_at: new Date().toISOString()
+        notes: formData.notes || null
       };
 
       if (editingPayroll) {
-        // Update existing payroll
-        const updatedPayrolls = payrolls.map(payroll => 
-          payroll.id === editingPayroll.id ? { ...payroll, ...payrollData } : payroll
-        );
-        setPayrolls(updatedPayrolls);
+        const { data, error } = await supabase
+          .from('payrolls')
+          .update({ ...payrollData, updated_at: new Date().toISOString() })
+          .eq('id', editingPayroll.id)
+          .select()
+          .single();
+        if (error) throw error;
+
+        setPayrolls(payrolls.map(payroll => (payroll.id === data.id ? data : payroll)));
         success('Success', 'Payroll updated successfully!');
       } else {
-        // Create new payroll
-        const newPayroll = {
-          ...payrollData,
-          id: Date.now().toString()
-        };
-        setPayrolls([...payrolls, newPayroll]);
+        const { data, error } = await supabase
+          .from('payrolls')
+          .insert({
+            ...payrollData,
+            status: 'pending',
+            created_by: user?.id || null
+          })
+          .select()
+          .single();
+        if (error) throw error;
+
+        setPayrolls([data, ...payrolls]);
         success('Success', 'Payroll created successfully!');
       }
 
@@ -171,23 +172,28 @@ const Payroll = () => {
       resetForm();
     } catch (err) {
       console.error('Error submitting payroll:', err);
-      showError('Error', 'Failed to submit payroll. Please try again.');
+      const message = err?.code === '23505'
+        ? 'A payroll record already exists for this employee in the selected month and year.'
+        : err.message || 'Failed to submit payroll. Please try again.';
+      showError('Error', message);
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleEdit = (payroll) => {
     setEditingPayroll(payroll);
     setFormData({
-      employee_id: payroll.employee_id,
+      employee_id: String(payroll.employee_id || ''),
       month: payroll.month,
-      year: payroll.year,
-      basic_salary: payroll.basic_salary.toString(),
-      allowances: payroll.allowances.toString(),
-      deductions: payroll.deductions.toString(),
-      overtime_hours: payroll.overtime_hours.toString(),
-      overtime_rate: payroll.overtime_rate.toString(),
-      bonus: payroll.bonus.toString(),
-      notes: payroll.notes
+      year: String(payroll.year || ''),
+      basic_salary: String(payroll.basic_salary ?? ''),
+      allowances: String(payroll.allowances ?? ''),
+      deductions: String(payroll.deductions ?? ''),
+      overtime_hours: String(payroll.overtime_hours ?? ''),
+      overtime_rate: String(payroll.overtime_rate ?? ''),
+      bonus: String(payroll.bonus ?? ''),
+      notes: payroll.notes || ''
     });
     setShowForm(true);
   };
@@ -195,31 +201,40 @@ const Payroll = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this payroll record?')) {
       try {
-        const updatedPayrolls = payrolls.filter(payroll => payroll.id !== id);
-        setPayrolls(updatedPayrolls);
+        const { error } = await supabase.from('payrolls').delete().eq('id', id);
+        if (error) throw error;
+
+        setPayrolls(payrolls.filter(payroll => payroll.id !== id));
         success('Success', 'Payroll deleted successfully!');
       } catch (err) {
         console.error('Error deleting payroll:', err);
-        showError('Error', 'Failed to delete payroll. Please try again.');
+        showError('Error', err.message || 'Failed to delete payroll. Please try again.');
       }
     }
   };
 
   const handleStatusChange = async (payrollId, newStatus) => {
     try {
-      const updatedPayrolls = payrolls.map(payroll => 
-        payroll.id === payrollId ? { 
-          ...payroll, 
-          status: newStatus,
-          processed_date: newStatus === 'processed' ? new Date().toISOString() : null,
-          processed_by: newStatus === 'processed' ? userProfile?.full_name || 'Unknown' : null
-        } : payroll
-      );
-      setPayrolls(updatedPayrolls);
+      const statusUpdate = {
+        status: newStatus,
+        processed_date: newStatus === 'processed' ? new Date().toISOString() : null,
+        processed_by: newStatus === 'processed' ? userProfile?.full_name || 'Unknown' : null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('payrolls')
+        .update(statusUpdate)
+        .eq('id', payrollId)
+        .select()
+        .single();
+      if (error) throw error;
+
+      setPayrolls(payrolls.map(payroll => (payroll.id === payrollId ? data : payroll)));
       success('Success', `Payroll status updated to ${newStatus}`);
     } catch (err) {
       console.error('Error updating payroll status:', err);
-      showError('Error', 'Failed to update payroll status. Please try again.');
+      showError('Error', err.message || 'Failed to update payroll status. Please try again.');
     }
   };
 
@@ -247,17 +262,72 @@ const Payroll = () => {
     }
   };
 
-  const canEdit = (payroll) => {
-    return userProfile?.role === 'admin' || userProfile?.role === 'hr';
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pending': return <Clock className="w-3 h-3" />;
+      case 'processed': return <CheckCircle className="w-3 h-3" />;
+      case 'cancelled': return <XCircle className="w-3 h-3" />;
+      default: return null;
+    }
   };
+
+  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'hr';
+
+  const canEdit = (payroll) => canManage;
 
   const canDelete = (payroll) => {
     return userProfile?.role === 'admin';
   };
 
-  const canChangeStatus = (payroll) => {
-    return userProfile?.role === 'admin' || userProfile?.role === 'hr';
+  const canChangeStatus = (payroll) => canManage;
+
+  const hasActiveFilters = filters.month || filters.year || filters.status || filters.search;
+
+  const clearFilters = () => {
+    setFilters({ month: '', year: '', status: '', search: '' });
   };
+
+  const handleExport = () => {
+    if (visiblePayrolls.length === 0) {
+      showError('Nothing to export', 'There are no payroll records matching the current filters.');
+      return;
+    }
+
+    const headers = [
+      'Employee', 'Department', 'Month', 'Year', 'Basic Salary', 'Allowances',
+      'Overtime Hours', 'Overtime Rate', 'Bonus', 'Gross Salary', 'Deductions',
+      'Net Salary', 'Status', 'Processed Date', 'Processed By', 'Notes'
+    ];
+
+    const escapeCsv = (value) => {
+      const str = String(value ?? '');
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+
+    const rows = visiblePayrolls.map(p => [
+      p.employee_name, p.department, p.month, p.year, p.basic_salary, p.allowances,
+      p.overtime_hours, p.overtime_rate, p.bonus, p.gross_salary, p.deductions,
+      p.net_salary, p.status,
+      p.processed_date ? new Date(p.processed_date).toLocaleDateString() : '',
+      p.processed_by || '', p.notes || ''
+    ].map(escapeCsv).join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payroll-${filters.month || 'all'}-${filters.year || 'all'}-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    success('Exported', `${visiblePayrolls.length} payroll record(s) exported to CSV.`);
+  };
+
+  const visiblePayrolls = payrolls.filter(payroll =>
+    !filters.search ||
+    (payroll.employee_name || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+    (payroll.department || '').toLowerCase().includes(filters.search.toLowerCase())
+  );
 
   const getTotalPayroll = () => {
     return payrolls.reduce((total, payroll) => total + payroll.net_salary, 0);
@@ -294,6 +364,14 @@ const Payroll = () => {
             <h1 className="text-3xl font-bold text-gray-900">Payroll Management</h1>
             <p className="text-gray-600">Manage employee payroll processing and calculations</p>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/payroll-calculator')}
+            className="border-blue-600 text-blue-600 hover:bg-blue-50"
+          >
+            <Calculator className="w-4 h-4 mr-2" />
+            Payroll Calculator
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -305,8 +383,8 @@ const Payroll = () => {
                   <DollarSign className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Payroll</p>
-                  <p className="text-2xl font-bold text-gray-900">${getTotalPayroll().toLocaleString()}</p>
+                  <p className="text-sm text-gray-600">Total Net Payroll</p>
+                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(getTotalPayroll())}</p>
                 </div>
               </div>
             </CardContent>
@@ -344,10 +422,10 @@ const Payroll = () => {
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-purple-100 rounded-lg">
-                  <User className="w-5 h-5 text-purple-600" />
+                  <Users className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Employees</p>
+                  <p className="text-sm text-gray-600">Active Employees</p>
                   <p className="text-2xl font-bold text-gray-900">{employees.length}</p>
                 </div>
               </div>
@@ -402,23 +480,37 @@ const Payroll = () => {
                   <option value="processed">Processed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
+
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    onClick={clearFilters}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Clear
+                  </Button>
+                )}
               </div>
 
               <div className="flex space-x-3">
                 <Button
                   variant="outline"
+                  onClick={handleExport}
                   className="border-green-600 text-green-600 hover:bg-green-50"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Export
+                  Export CSV
                 </Button>
-                <Button
-                  onClick={() => setShowForm(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Payroll
-                </Button>
+                {canManage && (
+                  <Button
+                    onClick={() => setShowForm(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Payroll
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -463,7 +555,7 @@ const Payroll = () => {
                       <option value="">Select Employee</option>
                       {employees.map(employee => (
                         <option key={employee.id} value={employee.id}>
-                          {employee.name} - {employee.department}
+                          {employee.full_name}{employee.department ? ` - ${employee.department}` : ''}
                         </option>
                       ))}
                     </select>
@@ -599,31 +691,31 @@ const Payroll = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div className="flex justify-between">
                         <span>Basic Salary:</span>
-                        <span>${parseFloat(formData.basic_salary) || 0}</span>
+                        <span>{formatCurrency(formData.basic_salary)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Allowances:</span>
-                        <span>${parseFloat(formData.allowances) || 0}</span>
+                        <span>{formatCurrency(formData.allowances)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Overtime:</span>
-                        <span>${(parseFloat(formData.overtime_hours) || 0) * (parseFloat(formData.overtime_rate) || 0)}</span>
+                        <span>{formatCurrency((parseFloat(formData.overtime_hours) || 0) * (parseFloat(formData.overtime_rate) || 0))}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Bonus:</span>
-                        <span>${parseFloat(formData.bonus) || 0}</span>
+                        <span>{formatCurrency(formData.bonus)}</span>
                       </div>
                       <div className="flex justify-between font-medium">
                         <span>Gross Salary:</span>
-                        <span>${calculateSalary(formData).gross}</span>
+                        <span>{formatCurrency(calculateSalary(formData).gross)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Deductions:</span>
-                        <span>-${parseFloat(formData.deductions) || 0}</span>
+                        <span className="text-red-600">-{formatCurrency(formData.deductions)}</span>
                       </div>
                       <div className="flex justify-between font-bold text-lg">
                         <span>Net Salary:</span>
-                        <span>${calculateSalary(formData).net}</span>
+                        <span className="text-blue-600">{formatCurrency(calculateSalary(formData).net)}</span>
                       </div>
                     </div>
                   </div>
@@ -641,8 +733,8 @@ const Payroll = () => {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                    {editingPayroll ? 'Update Payroll' : 'Create Payroll'}
+                  <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60">
+                    {saving ? 'Saving...' : editingPayroll ? 'Update Payroll' : 'Create Payroll'}
                   </Button>
                 </div>
               </form>
@@ -653,17 +745,46 @@ const Payroll = () => {
         {/* Payroll List */}
         <Card>
           <CardHeader>
-            <CardHeader>Payroll Records</CardHeader>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Payroll Records</h2>
+              <span className="text-sm text-gray-500">
+                {visiblePayrolls.length} record{visiblePayrolls.length === 1 ? '' : 's'}
+              </span>
+            </div>
           </CardHeader>
           <CardContent>
-            {payrolls.length === 0 ? (
-              <div className="text-center py-8">
+            {visiblePayrolls.length === 0 ? (
+              <div className="text-center py-12">
                 <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No payroll records found</p>
+                {hasActiveFilters ? (
+                  <>
+                    <p className="text-gray-600 font-medium mb-1">No payroll records match your filters</p>
+                    <p className="text-gray-500 text-sm mb-4">Try adjusting or clearing the filters above.</p>
+                    <Button variant="outline" onClick={clearFilters}>
+                      <X className="w-4 h-4 mr-2" />
+                      Clear Filters
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-600 font-medium mb-1">No payroll records yet</p>
+                    <p className="text-gray-500 text-sm mb-4">
+                      {canManage
+                        ? 'Create your first payroll record to get started.'
+                        : 'Payroll records will appear here once HR creates them.'}
+                    </p>
+                    {canManage && (
+                      <Button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Payroll
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
-                {payrolls.map((payroll) => (
+                {visiblePayrolls.map((payroll) => (
                   <motion.div
                     key={payroll.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -676,7 +797,8 @@ const Payroll = () => {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {payroll.employee_name}
                           </h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(payroll.status)}`}>
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(payroll.status)}`}>
+                            {getStatusIcon(payroll.status)}
                             {payroll.status.toUpperCase()}
                           </span>
                         </div>
@@ -693,41 +815,43 @@ const Payroll = () => {
                             </div>
                             <div className="flex items-center space-x-1 text-sm text-gray-500">
                               <User className="w-4 h-4" />
-                              <span>ID: {payroll.employee_id}</span>
+                              <span>
+                                ID: {employees.find(e => String(e.id) === String(payroll.employee_id))?.employee_id || payroll.employee_id}
+                              </span>
                             </div>
                           </div>
 
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Basic Salary:</span>
-                              <span className="font-medium">${payroll.basic_salary}</span>
+                              <span className="font-medium">{formatCurrency(payroll.basic_salary)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Allowances:</span>
-                              <span className="font-medium">${payroll.allowances}</span>
+                              <span className="font-medium">{formatCurrency(payroll.allowances)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Overtime:</span>
-                              <span className="font-medium">${payroll.overtime_hours * payroll.overtime_rate}</span>
+                              <span className="font-medium">{formatCurrency((payroll.overtime_hours || 0) * (payroll.overtime_rate || 0))}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Bonus:</span>
-                              <span className="font-medium">${payroll.bonus}</span>
+                              <span className="font-medium">{formatCurrency(payroll.bonus)}</span>
                             </div>
                           </div>
 
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Gross Salary:</span>
-                              <span className="font-medium text-green-600">${payroll.gross_salary}</span>
+                              <span className="font-medium text-green-600">{formatCurrency(payroll.gross_salary)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Deductions:</span>
-                              <span className="font-medium text-red-600">-${payroll.deductions}</span>
+                              <span className="font-medium text-red-600">-{formatCurrency(payroll.deductions)}</span>
                             </div>
-                            <div className="flex justify-between text-sm font-bold text-lg">
+                            <div className="flex justify-between text-base font-bold border-t border-gray-100 pt-2">
                               <span className="text-gray-700">Net Salary:</span>
-                              <span className="text-blue-600">${payroll.net_salary}</span>
+                              <span className="text-blue-600">{formatCurrency(payroll.net_salary)}</span>
                             </div>
                           </div>
                         </div>
