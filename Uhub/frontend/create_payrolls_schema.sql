@@ -21,6 +21,10 @@ create table if not exists public.payrolls (
   bonus numeric not null default 0,
   gross_salary numeric not null default 0,
   net_salary numeric not null default 0,
+  tax_rate numeric not null default 0,
+  tax_amount numeric not null default 0,
+
+  batch_id uuid,
 
   status text not null default 'pending', -- pending | processed | cancelled
   processed_date timestamptz,
@@ -36,6 +40,8 @@ create table if not exists public.payrolls (
 -- One payroll record per employee per month/year
 create unique index if not exists payrolls_employee_month_year_unique
   on public.payrolls (employee_id, month, year);
+
+create index if not exists payrolls_batch_id_idx on public.payrolls (batch_id);
 
 create index if not exists payrolls_month_year_idx
   on public.payrolls (year, month);

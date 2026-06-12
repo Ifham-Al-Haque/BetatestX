@@ -11,6 +11,7 @@ import { ChatProvider } from './context/ChatContext';
 import { NotificationProvider } from './context/NotificationContext';
 import RouteSkeleton from './components/ui/RouteSkeleton';
 import ProtectedRoute from './components/ProtectedRoute';
+import PayrollProtectedRoute from './components/PayrollProtectedRoute';
 import Layout from './components/Layout';
 import SmartHomeRoute from './components/SmartHomeRoute';
 import RoutePrefetcher from './components/RoutePrefetcher';
@@ -297,22 +298,20 @@ function App() {
                           </ProtectedRoute>
                         } />
 
-                        {/* Payroll Calculator */}
+                        {/* Payroll (merged: records + calculator + batch history) */}
                         <Route path="/payroll-calculator" element={
-                          <ProtectedRoute requiredFeature="payroll_calculator">
+                          <PayrollProtectedRoute>
                             <Layout>
                               <PayrollCalculator />
                             </Layout>
-                          </ProtectedRoute>
+                          </PayrollProtectedRoute>
                         } />
-
-                        {/* Payroll */}
                         <Route path="/payroll" element={
-                          <ProtectedRoute requiredFeature="payroll">
+                          <PayrollProtectedRoute>
                             <Layout>
                               <Payroll />
                             </Layout>
-                          </ProtectedRoute>
+                          </PayrollProtectedRoute>
                         } />
 
                         {/* Slice of Life Routes */}

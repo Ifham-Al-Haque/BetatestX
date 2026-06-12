@@ -225,8 +225,7 @@ const Sidebar = () => {
       icon: UserCheck,
       items: [
         { label: 'Employees', path: '/employees', icon: Users, feature: 'employees' },
-        { label: 'Payroll', path: '/payroll', icon: BarChart3, feature: 'payroll' },
-        { label: 'Payroll Calculator', path: '/payroll-calculator', icon: Calculator, feature: 'payroll_calculator' },
+        { label: 'Payroll', path: '/payroll', icon: Calculator, feature: 'payroll' },
         { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
         { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },
         { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
