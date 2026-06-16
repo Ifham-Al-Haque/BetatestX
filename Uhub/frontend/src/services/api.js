@@ -86,6 +86,62 @@ export const apiService = {
       return { data, count: totalCount };
     },
 
+    getDistinctFieldValues: async (field, includeArchived = false) => {
+      let query = supabase
+        .from('employees')
+        .select(field)
+        .not(field, 'is', null);
+
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return [...new Set((data || []).map((row) => row[field]).filter(Boolean))].sort((a, b) =>
+        String(a).localeCompare(String(b))
+      );
+    },
+
+    exportData: async (search = '', filters = {}) => {
+      const resolvedFilters = filters || {};
+      let query = supabase
+        .from('employees')
+        .select(`
+          full_name,
+          employee_id,
+          email,
+          phone,
+          department,
+          position,
+          designation,
+          location,
+          hire_date,
+          status,
+          performance_rating,
+          termination_date
+        `)
+        .eq('is_archived', false)
+        .order('full_name', { ascending: true });
+
+      if (search) {
+        query = query.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
+      }
+
+      if (resolvedFilters.department) {
+        query = query.eq('department', resolvedFilters.department);
+      }
+
+      if (resolvedFilters.location) {
+        query = query.eq('location', resolvedFilters.location);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+
     // Get only archived employees
     getArchived: async (page = 1, limit = 50, search = '') => {
       let query = supabase

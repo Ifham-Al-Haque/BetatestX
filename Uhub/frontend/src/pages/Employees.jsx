@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { useEmployees, useDeleteEmployee, useArchiveEmployee } from "../hooks/useApi";
+import { apiService } from "../services/api";
+import { exportToCSV } from "../services/enhancedEmployeeApi";
+import { DEPARTMENTS } from "../config/departments";
 import { 
   Plus, Search, Filter, 
   Users, Building, Star, Activity, Eye, Edit, Trash,
@@ -25,6 +28,9 @@ function Employees() {
     status: "",
     location: ""
   });
+  const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [exporting, setExporting] = useState(false);
   
   // Track which employee images have failed to load
   const imageErrorsRef = useRef(new Set());
@@ -105,6 +111,47 @@ function Employees() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters.department, filters.location, filters.status]);
+
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        const [departmentsFromDb, locationsFromDb] = await Promise.all([
+          apiService.employees.getDistinctFieldValues('department'),
+          apiService.employees.getDistinctFieldValues('location'),
+        ]);
+        const configDepartments = DEPARTMENTS.flatMap((dept) => [dept.value, dept.label]);
+        setDepartmentOptions(
+          [...new Set([...departmentsFromDb, ...configDepartments])].sort((a, b) =>
+            String(a).localeCompare(String(b))
+          )
+        );
+        setLocationOptions(locationsFromDb);
+      } catch (err) {
+        console.error('Failed to load employee filter options:', err);
+        setDepartmentOptions(DEPARTMENTS.map((dept) => dept.label));
+        setLocationOptions([]);
+      }
+    };
+
+    loadFilterOptions();
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    try {
+      setExporting(true);
+      const rows = await apiService.employees.exportData(search, queryFilters);
+      if (!rows.length) {
+        showError('Export Failed', 'No employee records match the current filters.');
+        return;
+      }
+      exportToCSV(rows, `employees_${new Date().toISOString().split('T')[0]}`);
+      success('Exported', `${rows.length} employee record(s) exported to CSV.`);
+    } catch (err) {
+      showError('Export Failed', err.message || 'Failed to export employee data.');
+    } finally {
+      setExporting(false);
+    }
+  }, [search, queryFilters, success, showError]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -324,7 +371,7 @@ function Employees() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Departments</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {new Set(employees.map(emp => emp.department).filter(Boolean)).size}
+                  {departmentOptions.length || new Set(employees.map(emp => emp.department).filter(Boolean)).size}
                 </p>
               </div>
             </div>
@@ -384,11 +431,12 @@ function Employees() {
                   {showFilters ? 'Hide' : 'Show'} Filters
                 </button>
                 <button
-                  onClick={() => {/* Export functionality */}}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                  onClick={handleExport}
+                  disabled={exporting}
+                  className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl font-medium flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   <Download className="w-5 h-5" />
-                  Export
+                  {exporting ? 'Exporting...' : 'Export'}
                 </button>
               </div>
             </div>
@@ -411,7 +459,7 @@ function Employees() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       >
                         <option value="">All Departments</option>
-                        {Array.from(new Set(employees.map(emp => emp.department).filter(Boolean))).map(dept => (
+                        {departmentOptions.map(dept => (
                           <option key={dept} value={dept}>{dept}</option>
                         ))}
                       </select>
@@ -440,7 +488,7 @@ function Employees() {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       >
                         <option value="">All Locations</option>
-                        {Array.from(new Set(employees.map(emp => emp.location).filter(Boolean))).map(location => (
+                        {locationOptions.map(location => (
                           <option key={location} value={location}>{location}</option>
                         ))}
                       </select>
