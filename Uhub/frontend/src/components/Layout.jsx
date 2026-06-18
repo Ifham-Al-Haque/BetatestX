@@ -73,8 +73,8 @@ const Layout = ({ children, pageTitle = "Uhub Dashboard", pageDescription = "Uni
             paddingRight: '0.75rem',
           }}
         >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto min-w-0">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 min-h-[52px]">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto min-w-0 self-center">
               {isMobile && (
                 <button
                   onClick={toggleSidebar}
@@ -110,7 +110,7 @@ const Layout = ({ children, pageTitle = "Uhub Dashboard", pageDescription = "Uni
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end flex-shrink-0 self-center">
               <NotificationContainer />
               <DarkModeToggle />
               <UserDropdown />

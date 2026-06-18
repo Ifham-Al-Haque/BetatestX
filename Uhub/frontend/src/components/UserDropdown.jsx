@@ -43,12 +43,11 @@ export default function UserDropdown() {
     <div className="relative user-dropdown-container">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 sm:gap-2.5 px-2 sm:px-3 py-2 rounded-xl border transition-all duration-200 touch-manipulation"
+        className="inline-flex items-center gap-2 sm:gap-2.5 px-2 sm:px-3 h-11 rounded-xl border transition-all duration-200 touch-manipulation flex-shrink-0"
         style={{
           background: 'var(--surface-raised)',
           borderColor: 'var(--border-primary)',
           minWidth: isMobile ? '44px' : undefined,
-          minHeight: isMobile ? '44px' : undefined,
           WebkitTapHighlightColor: 'transparent'
         }}
         aria-label="User menu"

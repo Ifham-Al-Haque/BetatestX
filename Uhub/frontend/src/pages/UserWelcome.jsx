@@ -54,7 +54,7 @@ const UserWelcome = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden -m-3 sm:-m-4 md:-m-6 lg:-m-8 xl:-m-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden -m-3 sm:-m-6 md:-m-8">
       <div
         aria-hidden
         className="absolute inset-0 opacity-[0.04] pointer-events-none"

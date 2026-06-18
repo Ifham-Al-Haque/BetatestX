@@ -30,11 +30,11 @@ export default function DarkModeToggle() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-1.5 sm:gap-2">
       {/* Enhanced Main Toggle Button */}
       <motion.button
         onClick={handleToggle}
-        className="relative p-2.5 rounded-xl border transition-all duration-300 group overflow-hidden"
+        className="relative inline-flex items-center justify-center h-11 w-11 rounded-xl border transition-all duration-300 group overflow-hidden flex-shrink-0"
         style={{
           background: 'var(--surface-raised)',
           borderColor: 'var(--border-primary)',
@@ -271,7 +271,7 @@ export default function DarkModeToggle() {
       {/* Enhanced Options Toggle Button */}
       <motion.button
         onClick={() => setShowOptions(!showOptions)}
-        className="ml-2 p-2 rounded-xl border transition-all duration-300"
+        className="inline-flex items-center justify-center h-11 w-11 rounded-xl border transition-all duration-300 flex-shrink-0"
         style={{
           background: 'var(--surface-raised)',
           borderColor: 'var(--border-primary)',

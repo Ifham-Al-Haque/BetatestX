@@ -120,7 +120,7 @@ const NotificationBell = () => {
       {/* Notification Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 rounded-xl border transition-all duration-200"
+        className="relative inline-flex items-center justify-center h-11 w-11 rounded-xl border transition-all duration-200 flex-shrink-0"
         style={{
           background: 'var(--surface-raised)',
           borderColor: 'var(--border-primary)',
