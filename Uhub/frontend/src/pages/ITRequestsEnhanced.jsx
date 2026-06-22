@@ -354,17 +354,15 @@ const ITRequestsEnhanced = () => {
     e.preventDefault();
     setFormSubmitting(true);
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const requesterId = editingRequest?.requester_id || authUser?.id || user?.id || null;
-      if (!requesterId && !editingRequest) {
-        showError('Cannot create request', 'You must be logged in to raise a ticket. Please sign in and try again.');
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser?.id) {
+        showError('Cannot create request', 'Your session expired. Please sign out, sign in again, then try submitting.');
         setFormSubmitting(false);
         return;
       }
       const requestData = {
         ...formData,
         description: formatDescriptionWithSubcategory(formData.subcategory, formData.description),
-        requester_id: requesterId
       };
       delete requestData.subcategory;
 

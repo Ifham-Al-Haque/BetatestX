@@ -27,12 +27,54 @@ export function getAppOrigin() {
  * Do NOT use public.users.id or employees.id here.
  */
 export async function resolveItRequestRequesterId() {
+  try {
+    // Refresh so other users with a stale tab still get a valid auth uid
+    await supabase.auth.refreshSession();
+  } catch (e) {
+    console.warn('resolveItRequestRequesterId: session refresh skipped', e?.message);
+  }
+
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error) {
     console.warn('resolveItRequestRequesterId:', error.message);
     return null;
   }
-  return user?.id ?? null;
+  if (!user?.id) {
+    console.warn('resolveItRequestRequesterId: no auth user id');
+    return null;
+  }
+
+  // Sanity check: UHub users row should exist for display/notifications (not for FK if DB uses auth.users)
+  const { data: uhubRow } = await supabase
+    .from('users')
+    .select('id, auth_user_id, email')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!uhubRow) {
+    console.warn(
+      'resolveItRequestRequesterId: no public.users row for auth_user_id',
+      user.id,
+      user.email
+    );
+  }
+
+  return user.id;
+}
+
+/** Map DB FK errors to a message requesters can act on. */
+export function formatItRequestSubmitError(error) {
+  const msg = error?.message || '';
+  if (msg.includes('it_requests_requester_id_fkey')) {
+    return (
+      'Your login could not be linked to IT Requests (requester account mismatch). ' +
+      'Try signing out and back in. If it still fails, ask IT to run fix_it_requests_requester_fk.sql in Supabase.'
+    );
+  }
+  if (msg.includes('JWT') || msg.includes('session') || msg.includes('not authenticated')) {
+    return 'Your session expired. Please sign out, sign in again, then submit the request.';
+  }
+  return msg || 'Failed to submit IT request';
 }
 
 /** @deprecated alias */

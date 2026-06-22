@@ -1,7 +1,7 @@
 import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
 import { emailService } from './emailService';
-import { resolveItRequestRequesterId } from './unifiedNotify';
+import { resolveItRequestRequesterId, formatItRequestSubmitError } from './unifiedNotify';
 import { canManageItRequestQueue, IT_STAFF_ROLES } from '../utils/notificationRoles';
 import {
   normalizeItRequestList,
@@ -552,9 +552,9 @@ export const itServicesApi = {
 
     create: async (requestData) => {
       try {
-        const requesterId = (await resolveItRequestRequesterId()) || requestData.requester_id || null;
+        const requesterId = await resolveItRequestRequesterId();
         if (!requesterId) {
-          throw new Error('You must be logged in to submit an IT request.');
+          throw new Error('You must be logged in to submit an IT request. Please sign out and sign in again.');
         }
         const { data, error } = await supabase
           .from('it_requests')
@@ -571,7 +571,7 @@ export const itServicesApi = {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) throw new Error(formatItRequestSubmitError(error));
 
         // Notify the requester (the person who raised the ticket)
         // - In-app: broadcast to the user's notification channel (works without DB RPCs)

@@ -1,7 +1,7 @@
 import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
 import { emailService } from './emailService';
-import { resolveItRequestRequesterId } from './unifiedNotify';
+import { resolveItRequestRequesterId, formatItRequestSubmitError } from './unifiedNotify';
 import { canManageItRequestQueue } from '../utils/notificationRoles';
 import {
   normalizeItRequestList,
@@ -273,9 +273,9 @@ export const itServicesApi = {
     create: async (requestData) => {
       try {
         console.log('Creating request with data:', requestData);
-        const requesterId = (await resolveItRequestRequesterId()) || requestData.requester_id || null;
+        const requesterId = await resolveItRequestRequesterId();
         if (!requesterId) {
-          throw new Error('You must be logged in to submit an IT request.');
+          throw new Error('You must be logged in to submit an IT request. Please sign out and sign in again.');
         }
         const { data, error } = await supabase
           .from('it_requests')
@@ -293,7 +293,7 @@ export const itServicesApi = {
 
         if (error) {
           console.error('Request creation error:', error);
-          throw new Error(error.message || 'Failed to create IT request');
+          throw new Error(formatItRequestSubmitError(error));
         }
 
         console.log('Request created successfully:', data);

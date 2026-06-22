@@ -307,7 +307,7 @@ export default function EmployeeProfile() {
       .from("employees")
       .select(`
         *,
-        reporting_manager:reporting_manager_id ( full_name, name, employee_id )
+        reporting_manager:reporting_manager_id ( id, full_name, name, employee_id )
       `)
       .eq("id", id)
       .single();
@@ -560,6 +560,32 @@ export default function EmployeeProfile() {
     }
   };
 
+  const getHeaderStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'active': return 'bg-emerald-400/20 text-emerald-100 border-emerald-300/40';
+      case 'inactive': return 'bg-red-400/20 text-red-100 border-red-300/40';
+      case 'pending': return 'bg-amber-400/20 text-amber-100 border-amber-300/40';
+      default: return 'bg-white/15 text-white border-white/25';
+    }
+  };
+
+  const getTenureLabel = (hireDate) => {
+    if (!hireDate) return null;
+    const start = new Date(hireDate);
+    if (Number.isNaN(start.getTime())) return null;
+    const now = new Date();
+    let years = now.getFullYear() - start.getFullYear();
+    let months = now.getMonth() - start.getMonth();
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+    if (years > 0 && months > 0) return `${years}y ${months}m tenure`;
+    if (years > 0) return `${years} year${years === 1 ? '' : 's'} tenure`;
+    if (months > 0) return `${months} month${months === 1 ? '' : 's'} tenure`;
+    return 'New joiner';
+  };
+
   // Helper function to safely handle JSONB arrays
   const getArrayData = (data) => {
     if (Array.isArray(data)) {
@@ -665,7 +691,7 @@ export default function EmployeeProfile() {
   const CardHeaderRow = ({ icon: Icon, title, subtitle, iconBg = 'bg-blue-100 dark:bg-blue-900/30', iconColor = 'text-blue-600 dark:text-blue-400' }) => (
     <div className="flex items-start justify-between gap-4 mb-4">
       <div className="flex items-center gap-3 min-w-0">
-        <div className={`p-2.5 rounded-xl ${iconBg} flex-shrink-0`}>
+        <div className={`p-2.5 rounded-xl ${iconBg} flex-shrink-0 shadow-sm ring-1 ring-black/5 dark:ring-white/10`}>
           <Icon className={`w-5 h-5 ${iconColor}`} />
         </div>
         <div className="min-w-0">
@@ -676,8 +702,127 @@ export default function EmployeeProfile() {
     </div>
   );
 
+  const DetailRow = ({ label, value, valueClassName = '', href = null }) => {
+    const content = (
+      <span
+        className={`text-sm font-semibold text-gray-900 dark:text-white text-right truncate max-w-[58%] ${valueClassName} ${
+          href ? 'hover:text-blue-600 dark:hover:text-blue-400 transition-colors' : ''
+        }`}
+        title={typeof value === 'string' ? value : undefined}
+      >
+        {value}
+      </span>
+    );
+
+    return (
+      <div className="group flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-white/70 dark:hover:bg-gray-800/50">
+        <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+        {href ? (
+          <Link to={href} className="min-w-0 max-w-[58%]">
+            {content}
+          </Link>
+        ) : (
+          content
+        )}
+      </div>
+    );
+  };
+
+  const DetailList = ({ rows }) => (
+    <div className="rounded-xl border border-gray-100 dark:border-gray-700/80 bg-gray-50/60 dark:bg-gray-900/25 divide-y divide-gray-200/70 dark:divide-gray-700/70 overflow-hidden">
+      {rows.map((row) => (
+        <DetailRow key={row.label} {...row} />
+      ))}
+    </div>
+  );
+
+  const TabBanner = ({ icon: Icon, title, subtitle, gradient, borderClass = 'border-white/20', children }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-6 text-white shadow-lg border ${borderClass}`}
+    >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+      <div className="relative flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="p-3 rounded-xl bg-white/15 backdrop-blur-sm flex-shrink-0">
+            <Icon className="w-8 h-8 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-xl font-semibold">{title}</h3>
+            {subtitle ? <p className="text-sm text-white/80 mt-0.5">{subtitle}</p> : null}
+          </div>
+        </div>
+        {children}
+      </div>
+    </motion.div>
+  );
+
+  const EmptyState = ({ icon: Icon, title, description, iconWrap = 'bg-gray-100 dark:bg-gray-700/60', iconColor = 'text-gray-400 dark:text-gray-500' }) => (
+    <div className="text-center py-12 px-6 rounded-2xl border border-dashed border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-900/20">
+      <div className={`inline-flex p-4 rounded-2xl ${iconWrap} mb-4`}>
+        <Icon className={`w-10 h-10 ${iconColor}`} />
+      </div>
+      <p className="text-base font-semibold text-gray-700 dark:text-gray-300">{title}</p>
+      {description ? <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md mx-auto">{description}</p> : null}
+    </div>
+  );
+
+  const MetricTile = ({ label, value, icon: Icon, iconCls, valueCls, delay = 0 }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      whileHover={{ y: -3 }}
+      className="text-center p-5 rounded-2xl border border-gray-200/70 dark:border-gray-600/70 bg-gradient-to-br from-white to-gray-50/80 dark:from-gray-800 dark:to-gray-800/60 hover:shadow-md transition-all duration-300"
+    >
+      <Icon className={`w-6 h-6 mx-auto mb-2 ${iconCls}`} />
+      <div className={`text-2xl font-bold mb-1 ${valueCls}`}>{value}</div>
+      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</div>
+    </motion.div>
+  );
+
+  const TagChip = ({ children, tone = 'amber' }) => {
+    const tones = {
+      amber: 'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-200/80 dark:border-amber-700/50',
+      blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 border-blue-200/80 dark:border-blue-700/50',
+      emerald: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 border-emerald-200/80 dark:border-emerald-700/50',
+      purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-800 dark:text-purple-200 border-purple-200/80 dark:border-purple-700/50',
+    };
+    return (
+      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border ${tones[tone]}`}>
+        {children}
+      </span>
+    );
+  };
+
+  const tenureLabel = getTenureLabel(employee.hire_date);
+  const hasEmergencyContact =
+    employee.emergency_contact_name || employee.emergency_contact_phone || employee.emergency_contact_relationship;
+  const hasNextOfKin =
+    employee.next_of_kin_name || employee.next_of_kin_phone || employee.next_of_kin_relationship;
+  const skillPreview = getArrayData(employee.skills);
+  const goalsPreview = getArrayData(employee.goals);
+  const certificationsPreview = getArrayData(employee.certifications);
+  const trainingPreview = getArrayData(employee.training_records);
+
   const renderOverview = () => (
     <div className="space-y-6">
+      {employee.summary ? (
+        <SurfaceCard delay={0} className="p-6">
+          <CardHeaderRow
+            icon={FileText}
+            title="Employee Summary"
+            subtitle="Professional overview"
+            iconBg="bg-indigo-100 dark:bg-indigo-900/30"
+            iconColor="text-indigo-600 dark:text-indigo-400"
+          />
+          <p className="text-sm sm:text-base leading-relaxed text-gray-700 dark:text-gray-300 whitespace-pre-line">
+            {employee.summary}
+          </p>
+        </SurfaceCard>
+      ) : null}
+
       {/* Contact Information Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -727,9 +872,27 @@ export default function EmployeeProfile() {
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider">
                   {item.label}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 truncate" title={item.value}>
-                  {item.value}
-                </p>
+                {item.key === 'email' && employee.email ? (
+                  <a
+                    href={`mailto:${employee.email}`}
+                    className="mt-1 block text-sm font-semibold text-gray-900 dark:text-gray-100 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    title={employee.email}
+                  >
+                    {employee.email}
+                  </a>
+                ) : item.key === 'phone' && employee.phone ? (
+                  <a
+                    href={`tel:${employee.phone}`}
+                    className="mt-1 block text-sm font-semibold text-gray-900 dark:text-gray-100 truncate hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                    title={employee.phone}
+                  >
+                    {employee.phone}
+                  </a>
+                ) : (
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 truncate" title={item.value}>
+                    {item.value}
+                  </p>
+                )}
               </div>
             </div>
           </SurfaceCard>
@@ -741,59 +904,115 @@ export default function EmployeeProfile() {
         {/* Personal Details */}
         <SurfaceCard delay={0.2} className="p-6">
           <CardHeaderRow icon={User} title="Personal Details" subtitle="Core employee information" />
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Full Name</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.full_name || employee.name}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Position</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.position || employee.designation || 'Not specified'}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Employee ID</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.employee_id}</span>
-            </div>
-            {employee.salary && (
-              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Salary</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">${employee.salary.toLocaleString()}</span>
-              </div>
-            )}
-          </div>
+          <DetailList
+            rows={[
+              { label: 'Full Name', value: employee.full_name || employee.name || '—' },
+              { label: 'Position', value: employee.position || employee.designation || 'Not specified' },
+              { label: 'Employee ID', value: employee.employee_id || '—' },
+              ...(employee.salary
+                ? [{ label: 'Salary', value: `$${employee.salary.toLocaleString()}` }]
+                : []),
+            ]}
+          />
         </SurfaceCard>
 
         {/* Work Information */}
         <SurfaceCard delay={0.25} className="p-6">
           <CardHeaderRow icon={Briefcase} title="Work Information" subtitle="Department, manager and role" iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400" />
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Department</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.department || 'Not assigned'}</span>
-            </div>
-            {employee.reporting_manager && (
-              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Manager</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {employee.reporting_manager.full_name || employee.reporting_manager.name}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Experience Level</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">{employee.experience_level || 'Not specified'}</span>
-            </div>
-            {employee.termination_date && (
-              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-600">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Termination Date</span>
-                <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                  {new Date(employee.termination_date).toLocaleDateString()}
-                </span>
-              </div>
-            )}
-          </div>
+          <DetailList
+            rows={[
+              { label: 'Department', value: employee.department || 'Not assigned' },
+              ...(employee.reporting_manager
+                ? [{
+                    label: 'Manager',
+                    value: employee.reporting_manager.full_name || employee.reporting_manager.name || '—',
+                    href: employee.reporting_manager.id ? `/employee/${employee.reporting_manager.id}` : null,
+                  }]
+                : []),
+              { label: 'Experience Level', value: employee.experience_level || 'Not specified' },
+              ...(tenureLabel ? [{ label: 'Tenure', value: tenureLabel }] : []),
+              ...(employee.termination_date
+                ? [{
+                    label: 'Termination Date',
+                    value: new Date(employee.termination_date).toLocaleDateString(),
+                    valueClassName: 'text-red-600 dark:text-red-400',
+                  }]
+                : []),
+            ]}
+          />
         </SurfaceCard>
       </div>
+
+      {(hasEmergencyContact || hasNextOfKin) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {hasEmergencyContact ? (
+            <SurfaceCard delay={0.28} className="p-6">
+              <CardHeaderRow
+                icon={Heart}
+                title="Emergency Contact"
+                subtitle="Primary contact in case of emergency"
+                iconBg="bg-rose-100 dark:bg-rose-900/30"
+                iconColor="text-rose-600 dark:text-rose-400"
+              />
+              <DetailList
+                rows={[
+                  ...(employee.emergency_contact_name
+                    ? [{ label: 'Name', value: employee.emergency_contact_name }]
+                    : []),
+                  ...(employee.emergency_contact_relationship
+                    ? [{ label: 'Relationship', value: employee.emergency_contact_relationship }]
+                    : []),
+                  ...(employee.emergency_contact_phone
+                    ? [{ label: 'Phone', value: employee.emergency_contact_phone }]
+                    : []),
+                ]}
+              />
+            </SurfaceCard>
+          ) : null}
+          {hasNextOfKin ? (
+            <SurfaceCard delay={0.3} className="p-6">
+              <CardHeaderRow
+                icon={Users}
+                title="Next of Kin"
+                subtitle="Family or kin contact details"
+                iconBg="bg-sky-100 dark:bg-sky-900/30"
+                iconColor="text-sky-600 dark:text-sky-400"
+              />
+              <DetailList
+                rows={[
+                  ...(employee.next_of_kin_name ? [{ label: 'Name', value: employee.next_of_kin_name }] : []),
+                  ...(employee.next_of_kin_relationship
+                    ? [{ label: 'Relationship', value: employee.next_of_kin_relationship }]
+                    : []),
+                  ...(employee.next_of_kin_phone ? [{ label: 'Phone', value: employee.next_of_kin_phone }] : []),
+                ]}
+              />
+            </SurfaceCard>
+          ) : null}
+        </div>
+      )}
+
+      {skillPreview.length > 0 ? (
+        <SurfaceCard delay={0.32} className="p-6">
+          <CardHeaderRow
+            icon={Award}
+            title="Skills Snapshot"
+            subtitle="Recorded competencies"
+            iconBg="bg-amber-100 dark:bg-amber-900/30"
+            iconColor="text-amber-600 dark:text-amber-400"
+          />
+          <div className="flex flex-wrap gap-2">
+            {skillPreview.map((skill, i) => (
+              <span
+                key={`${skill}-${i}`}
+                className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200/80 dark:border-amber-700/50"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        </SurfaceCard>
+      ) : null}
 
       {/* Key Responsibilities */}
       {employee.key_roles && (
@@ -801,10 +1020,17 @@ export default function EmployeeProfile() {
           <CardHeaderRow icon={Target} title="Key Responsibilities" subtitle="Highlights and scope" iconBg="bg-purple-100 dark:bg-purple-900/30" iconColor="text-purple-600 dark:text-purple-400" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {getArrayData(employee.key_roles).map((role, i) => (
-              <div key={i} className="flex items-center gap-2 p-3 rounded-xl border border-gray-200/70 dark:border-gray-700/70 bg-gray-50/70 dark:bg-gray-900/20">
-                <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0"></div>
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.04 * i }}
+                whileHover={{ y: -2 }}
+                className="flex items-center gap-3 p-3.5 rounded-xl border border-purple-200/70 dark:border-purple-700/50 bg-gradient-to-r from-purple-50/80 to-indigo-50/50 dark:from-purple-900/15 dark:to-indigo-900/10 hover:border-purple-300 dark:hover:border-purple-600/60 hover:shadow-sm transition-all duration-200"
+              >
+                <div className="w-2 h-2 bg-purple-500 rounded-full flex-shrink-0 ring-4 ring-purple-500/15"></div>
                 <span className="text-sm text-gray-700 dark:text-gray-300">{role}</span>
-              </div>
+              </motion.div>
             ))}
           </div>
         </SurfaceCard>
@@ -812,27 +1038,112 @@ export default function EmployeeProfile() {
     </div>
   );
 
-  const renderPerformance = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Performance Metrics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">4.8</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Performance Rating</div>
+  const renderPerformance = () => {
+    const hasPerformanceData =
+      employee.performance_rating || goalsPreview.length > 0 || certificationsPreview.length > 0 || trainingPreview.length > 0;
+
+    return (
+      <div className="space-y-6">
+        <TabBanner
+          icon={TrendingUp}
+          title="Performance & Growth"
+          subtitle="Ratings, goals, and development progress"
+          gradient="from-blue-700 via-indigo-700 to-violet-700 dark:from-blue-800 dark:via-indigo-800 dark:to-violet-800"
+          borderClass="border-blue-600/30"
+        >
+          {employee.performance_rating ? (
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white/15 border border-white/25">
+              <Star className="w-4 h-4" />
+              Rating: {employee.performance_rating}
+            </span>
+          ) : null}
+        </TabBanner>
+
+        <SurfaceCard delay={0.05} className="p-6">
+          <CardHeaderRow
+            icon={Activity}
+            title="Performance Snapshot"
+            subtitle="Key indicators from the employee record"
+            iconBg="bg-blue-100 dark:bg-blue-900/30"
+            iconColor="text-blue-600 dark:text-blue-400"
+          />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricTile
+              label="Performance Rating"
+              value={employee.performance_rating || '—'}
+              icon={Star}
+              iconCls="text-amber-500 dark:text-amber-400"
+              valueCls="text-amber-600 dark:text-amber-400"
+              delay={0.05}
+            />
+            <MetricTile
+              label="Active Goals"
+              value={goalsPreview.length}
+              icon={Target}
+              iconCls="text-blue-600 dark:text-blue-400"
+              valueCls="text-blue-600 dark:text-blue-400"
+              delay={0.1}
+            />
+            <MetricTile
+              label="Certifications"
+              value={certificationsPreview.length}
+              icon={Award}
+              iconCls="text-emerald-600 dark:text-emerald-400"
+              valueCls="text-emerald-600 dark:text-emerald-400"
+              delay={0.15}
+            />
+            <MetricTile
+              label="Training Records"
+              value={trainingPreview.length}
+              icon={GraduationCap}
+              iconCls="text-purple-600 dark:text-purple-400"
+              valueCls="text-purple-600 dark:text-purple-400"
+              delay={0.2}
+            />
           </div>
-          <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">95%</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Task Completion</div>
-          </div>
-          <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">12</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Projects Completed</div>
-          </div>
-        </div>
+        </SurfaceCard>
+
+        {goalsPreview.length > 0 ? (
+          <SurfaceCard delay={0.1} className="p-6">
+            <CardHeaderRow
+              icon={Target}
+              title="Career Goals"
+              subtitle="Objectives tracked for this employee"
+              iconBg="bg-indigo-100 dark:bg-indigo-900/30"
+              iconColor="text-indigo-600 dark:text-indigo-400"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {goalsPreview.map((goal, i) => (
+                <motion.div
+                  key={`${goal}-${i}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.04 * i }}
+                  whileHover={{ y: -2 }}
+                  className="flex items-start gap-3 p-4 rounded-xl border border-indigo-200/70 dark:border-indigo-700/50 bg-gradient-to-r from-indigo-50/80 to-blue-50/50 dark:from-indigo-900/15 dark:to-blue-900/10"
+                >
+                  <CheckCircle className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{goal}</span>
+                </motion.div>
+              ))}
+            </div>
+          </SurfaceCard>
+        ) : null}
+
+        {!hasPerformanceData ? (
+          <SurfaceCard delay={0.15} className="p-6">
+            <EmptyState
+              icon={TrendingUp}
+              title="No performance data recorded"
+              description="Add a performance rating, goals, or training details from Edit Profile to populate this section."
+              iconWrap="bg-blue-100 dark:bg-blue-900/30"
+              iconColor="text-blue-500 dark:text-blue-400"
+            />
+          </SurfaceCard>
+        ) : null}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderSystemAccess = () => {
     const isVerified = employee.auth_user?.is_verified;
@@ -1502,51 +1813,350 @@ export default function EmployeeProfile() {
 
   const renderDocuments = () => (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Documents</h3>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No documents uploaded yet</p>
-        </div>
-      </div>
+      <TabBanner
+        icon={FileText}
+        title="Documents"
+        subtitle="Contracts, IDs, and employee files"
+        gradient="from-slate-700 via-gray-700 to-zinc-700 dark:from-slate-800 dark:via-gray-800 dark:to-zinc-800"
+        borderClass="border-slate-600/40"
+      />
+      <SurfaceCard delay={0.05} className="p-6">
+        <CardHeaderRow
+          icon={FileText}
+          title="Employee Documents"
+          subtitle="Uploaded files and records"
+          iconBg="bg-slate-100 dark:bg-slate-900/30"
+          iconColor="text-slate-600 dark:text-slate-400"
+        />
+        <EmptyState
+          icon={Upload}
+          title="No documents uploaded yet"
+          description="Document management for employee files will appear here once uploads are added to this profile."
+          iconWrap="bg-slate-100 dark:bg-slate-900/30"
+          iconColor="text-slate-500 dark:text-slate-400"
+        />
+      </SurfaceCard>
     </div>
   );
 
-  const renderSkills = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Skills & Competencies</h3>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No skills recorded yet</p>
+  const renderSkills = () => {
+    const hasSkillsData =
+      skillPreview.length > 0 || certificationsPreview.length > 0 || trainingPreview.length > 0 || goalsPreview.length > 0;
+
+    return (
+      <div className="space-y-6">
+        <TabBanner
+          icon={Award}
+          title="Skills & Competencies"
+          subtitle="Capabilities, certifications, and development"
+          gradient="from-amber-600 via-orange-600 to-rose-600 dark:from-amber-700 dark:via-orange-700 dark:to-rose-700"
+          borderClass="border-amber-500/30"
+        >
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white/15 border border-white/25">
+            <Award className="w-4 h-4" />
+            {skillPreview.length} skill{skillPreview.length === 1 ? '' : 's'}
+          </span>
+        </TabBanner>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SurfaceCard delay={0.05} className="p-6">
+            <CardHeaderRow
+              icon={Award}
+              title="Skills"
+              subtitle="Core competencies"
+              iconBg="bg-amber-100 dark:bg-amber-900/30"
+              iconColor="text-amber-600 dark:text-amber-400"
+            />
+            {skillPreview.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {skillPreview.map((skill, i) => (
+                  <TagChip key={`${skill}-${i}`} tone="amber">{skill}</TagChip>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Award}
+                title="No skills recorded"
+                description="Add skills from Edit Profile under Skills & Goals."
+                iconWrap="bg-amber-100 dark:bg-amber-900/30"
+                iconColor="text-amber-500 dark:text-amber-400"
+              />
+            )}
+          </SurfaceCard>
+
+          <SurfaceCard delay={0.1} className="p-6">
+            <CardHeaderRow
+              icon={GraduationCap}
+              title="Certifications"
+              subtitle="Professional credentials"
+              iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+              iconColor="text-emerald-600 dark:text-emerald-400"
+            />
+            {certificationsPreview.length > 0 ? (
+              <div className="space-y-2">
+                {certificationsPreview.map((item, i) => (
+                  <motion.div
+                    key={`${item}-${i}`}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.04 * i }}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200/70 dark:border-emerald-700/50 bg-emerald-50/50 dark:bg-emerald-900/10"
+                  >
+                    <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={GraduationCap}
+                title="No certifications listed"
+                description="Certifications added in the employee form will show here."
+                iconWrap="bg-emerald-100 dark:bg-emerald-900/30"
+                iconColor="text-emerald-500 dark:text-emerald-400"
+              />
+            )}
+          </SurfaceCard>
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SurfaceCard delay={0.15} className="p-6">
+            <CardHeaderRow
+              icon={BookOpen}
+              title="Training Records"
+              subtitle="Completed training and courses"
+              iconBg="bg-purple-100 dark:bg-purple-900/30"
+              iconColor="text-purple-600 dark:text-purple-400"
+            />
+            {trainingPreview.length > 0 ? (
+              <div className="space-y-2">
+                {trainingPreview.map((item, i) => (
+                  <motion.div
+                    key={`${item}-${i}`}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.04 * i }}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-purple-200/70 dark:border-purple-700/50 bg-purple-50/50 dark:bg-purple-900/10"
+                  >
+                    <BookOpen className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={BookOpen}
+                title="No training records"
+                description="Training history will appear here once recorded."
+                iconWrap="bg-purple-100 dark:bg-purple-900/30"
+                iconColor="text-purple-500 dark:text-purple-400"
+              />
+            )}
+          </SurfaceCard>
+
+          <SurfaceCard delay={0.2} className="p-6">
+            <CardHeaderRow
+              icon={Target}
+              title="Goals"
+              subtitle="Development objectives"
+              iconBg="bg-blue-100 dark:bg-blue-900/30"
+              iconColor="text-blue-600 dark:text-blue-400"
+            />
+            {goalsPreview.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {goalsPreview.map((goal, i) => (
+                  <TagChip key={`${goal}-${i}`} tone="blue">{goal}</TagChip>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Target}
+                title="No goals set"
+                description="Career goals can be added from Edit Profile."
+                iconWrap="bg-blue-100 dark:bg-blue-900/30"
+                iconColor="text-blue-500 dark:text-blue-400"
+              />
+            )}
+          </SurfaceCard>
+        </div>
+
+        {!hasSkillsData ? (
+          <SurfaceCard delay={0.25} className="p-6">
+            <EmptyState
+              icon={Award}
+              title="Build out this employee's profile"
+              description="Use Edit Profile to add skills, certifications, training, and goals for a complete competency view."
+              iconWrap="bg-amber-100 dark:bg-amber-900/30"
+              iconColor="text-amber-500 dark:text-amber-400"
+            />
+          </SurfaceCard>
+        ) : null}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderLeave = () => (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Leave Management</h3>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No leave records available</p>
-        </div>
+      <TabBanner
+        icon={CalendarDays}
+        title="Leave Management"
+        subtitle="Time off, balances, and leave history"
+        gradient="from-teal-700 via-cyan-700 to-blue-700 dark:from-teal-800 dark:via-cyan-800 dark:to-blue-800"
+        borderClass="border-teal-600/30"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Annual Leave', value: '—', icon: Calendar, iconCls: 'text-teal-600 dark:text-teal-400', valueCls: 'text-teal-600 dark:text-teal-400' },
+          { label: 'Sick Leave', value: '—', icon: Heart, iconCls: 'text-rose-600 dark:text-rose-400', valueCls: 'text-rose-600 dark:text-rose-400' },
+          { label: 'Pending Requests', value: '0', icon: Clock3, iconCls: 'text-blue-600 dark:text-blue-400', valueCls: 'text-blue-600 dark:text-blue-400' },
+        ].map((stat, i) => (
+          <MetricTile key={stat.label} {...stat} delay={0.05 * i} />
+        ))}
       </div>
+      <SurfaceCard delay={0.15} className="p-6">
+        <CardHeaderRow
+          icon={CalendarDays}
+          title="Leave History"
+          subtitle="Requests and approvals"
+          iconBg="bg-teal-100 dark:bg-teal-900/30"
+          iconColor="text-teal-600 dark:text-teal-400"
+        />
+        <EmptyState
+          icon={CalendarDays}
+          title="No leave records available"
+          description="Leave balances and request history will appear here when leave management is connected."
+          iconWrap="bg-teal-100 dark:bg-teal-900/30"
+          iconColor="text-teal-500 dark:text-teal-400"
+        />
+      </SurfaceCard>
     </div>
   );
 
-  const renderAnalytics = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Analytics Dashboard</h3>
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>Analytics data not available yet</p>
+  const renderAnalytics = () => {
+    const insightCards = [
+      {
+        label: 'Profile Completeness',
+        value: employee.data_completeness_score ? `${employee.data_completeness_score}%` : '—',
+        icon: PieChart,
+        iconCls: 'text-indigo-600 dark:text-indigo-400',
+        valueCls: 'text-indigo-600 dark:text-indigo-400',
+      },
+      {
+        label: 'Assigned Assets',
+        value: assetsLoading ? '…' : String(assignedAssets?.length ?? 0),
+        icon: Package,
+        iconCls: 'text-emerald-600 dark:text-emerald-400',
+        valueCls: 'text-emerald-600 dark:text-emerald-400',
+      },
+      {
+        label: 'System Access',
+        value: String(accessEntries.length),
+        icon: Shield,
+        iconCls: 'text-slate-600 dark:text-slate-400',
+        valueCls: 'text-slate-700 dark:text-slate-300',
+      },
+      {
+        label: 'Skills Recorded',
+        value: String(skillPreview.length),
+        icon: Award,
+        iconCls: 'text-amber-600 dark:text-amber-400',
+        valueCls: 'text-amber-600 dark:text-amber-400',
+      },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <TabBanner
+          icon={BarChart3}
+          title="Profile Analytics"
+          subtitle="Insights derived from this employee record"
+          gradient="from-indigo-700 via-violet-700 to-fuchsia-700 dark:from-indigo-800 dark:via-violet-800 dark:to-fuchsia-800"
+          borderClass="border-indigo-600/30"
+        >
+          {tenureLabel ? (
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white/15 border border-white/25">
+              <Clock className="w-4 h-4" />
+              {tenureLabel}
+            </span>
+          ) : null}
+        </TabBanner>
+
+        <SurfaceCard delay={0.05} className="p-6">
+          <CardHeaderRow
+            icon={Activity}
+            title="Record Insights"
+            subtitle="Live metrics from profile data"
+            iconBg="bg-indigo-100 dark:bg-indigo-900/30"
+            iconColor="text-indigo-600 dark:text-indigo-400"
+          />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {insightCards.map((card, i) => (
+              <MetricTile key={card.label} {...card} delay={0.05 * i} />
+            ))}
+          </div>
+        </SurfaceCard>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SurfaceCard delay={0.1} className="p-6">
+            <CardHeaderRow
+              icon={Users}
+              title="Work Context"
+              subtitle="Organizational placement"
+              iconBg="bg-blue-100 dark:bg-blue-900/30"
+              iconColor="text-blue-600 dark:text-blue-400"
+            />
+            <DetailList
+              rows={[
+                { label: 'Department', value: employee.department || 'Not assigned' },
+                { label: 'Position', value: employee.position || employee.designation || '—' },
+                {
+                  label: 'Manager',
+                  value: employee.reporting_manager?.full_name || employee.reporting_manager?.name || 'Not assigned',
+                  href: employee.reporting_manager?.id ? `/employee/${employee.reporting_manager.id}` : null,
+                },
+                { label: 'Status', value: employee.status || 'active' },
+              ]}
+            />
+          </SurfaceCard>
+
+          <SurfaceCard delay={0.15} className="p-6">
+            <CardHeaderRow
+              icon={Monitor}
+              title="Resource Summary"
+              subtitle="Assets and access footprint"
+              iconBg="bg-emerald-100 dark:bg-emerald-900/30"
+              iconColor="text-emerald-600 dark:text-emerald-400"
+            />
+            <DetailList
+              rows={[
+                { label: 'IT Assets', value: assetsLoading ? 'Loading…' : String(assignedAssets?.length ?? 0) },
+                { label: 'SIM Cards', value: simCardsLoading ? 'Loading…' : String(assignedSimCards?.length ?? 0) },
+                { label: 'Access Systems', value: String(accessEntries.length) },
+                { label: 'Account Role', value: employee.auth_user?.role || '—' },
+              ]}
+            />
+          </SurfaceCard>
         </div>
+
+        <SurfaceCard delay={0.2} className="p-6">
+          <CardHeaderRow
+            icon={BarChart3}
+            title="Advanced Analytics"
+            subtitle="Trends and historical charts"
+            iconBg="bg-violet-100 dark:bg-violet-900/30"
+            iconColor="text-violet-600 dark:text-violet-400"
+          />
+          <EmptyState
+            icon={BarChart3}
+            title="Analytics charts coming soon"
+            description="Deeper performance trends and attendance analytics will be available in a future update."
+            iconWrap="bg-violet-100 dark:bg-violet-900/30"
+            iconColor="text-violet-500 dark:text-violet-400"
+          />
+        </SurfaceCard>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -1579,9 +2189,12 @@ export default function EmployeeProfile() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-3xl p-6 text-white shadow-2xl mb-6"
+            className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-3xl p-6 sm:p-8 text-white shadow-2xl mb-6"
           >
-            <div className="flex justify-between items-start mb-6">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+            <div className="pointer-events-none absolute -left-10 bottom-0 h-36 w-36 rounded-full bg-indigo-400/20 blur-2xl" />
+            <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
               <div className="flex items-center gap-4">
                 <Link
                   to="/employees"
@@ -1606,8 +2219,10 @@ export default function EmployeeProfile() {
             </div>
 
             {/* Profile Header */}
-            <div className="flex items-center gap-6">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+              <div className="relative flex-shrink-0 mx-auto sm:mx-0">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/60 via-white/20 to-transparent blur-sm scale-110" />
+                <div className="relative p-1 rounded-full bg-gradient-to-br from-white/80 to-white/30">
                 {(employee.profile_picture || employee.photo_url) &&
                 !avatarFailed &&
                 !isBlobUrlUnsafeForCurrentPage(employee.profile_picture || employee.photo_url) ? (
@@ -1615,39 +2230,75 @@ export default function EmployeeProfile() {
                     key={`${employee.id}-${employee.profile_picture || employee.photo_url || 'no-pic'}`}
                     src={employee.profile_picture || employee.photo_url}
                     alt={employee.full_name || employee.name}
-                    className="w-20 h-20 rounded-full border-4 border-white shadow-lg object-cover"
+                    className="w-24 h-24 rounded-full border-4 border-white/90 shadow-xl object-cover"
                     data-employee-id={employee.id}
                     onError={(e) => {
                       setAvatarFailed(true);
                     }}
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full border-4 border-white shadow-lg bg-white/20 flex items-center justify-center">
-                    <span className="text-white text-xl font-bold">
+                  <div className="w-24 h-24 rounded-full border-4 border-white/90 shadow-xl bg-white/20 flex items-center justify-center">
+                    <span className="text-white text-2xl font-bold">
                       {(employee.full_name || employee.name || 'U').charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
-                  <CheckCircle className="w-3 h-3 text-white" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center shadow-md">
+                  <CheckCircle className="w-3.5 h-3.5 text-white" />
                 </div>
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">{employee.full_name || employee.name}</h2>
-                <p className="text-lg text-blue-100 mb-2">
-                  {employee.position || employee.designation} — {employee.department}
+              <div className="flex-1 text-center sm:text-left min-w-0">
+                <h2 className="text-2xl sm:text-3xl font-bold mb-2 truncate">{employee.full_name || employee.name}</h2>
+                <p className="text-base sm:text-lg text-blue-100 mb-3">
+                  {employee.position || employee.designation || '—'}
+                  {employee.department ? ` · ${employee.department}` : ''}
                 </p>
-                <div className="flex items-center gap-4 text-blue-100 text-sm">
-                  <span className="flex items-center gap-1">
-                    <Building className="w-4 h-4" />
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-sm">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-blue-50">
+                    <Building className="w-3.5 h-3.5" />
                     {employee.employee_id}
                   </span>
-                  {employee.status && (
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(employee.status)}`}>
+                  {employee.status ? (
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border capitalize ${getHeaderStatusColor(employee.status)}`}>
                       {employee.status}
                     </span>
-                  )}
+                  ) : null}
+                  {tenureLabel ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-blue-50 text-xs font-medium">
+                      <Clock className="w-3.5 h-3.5" />
+                      {tenureLabel}
+                    </span>
+                  ) : null}
+                  {employee.location ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-blue-50 text-xs font-medium max-w-full">
+                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{employee.location}</span>
+                    </span>
+                  ) : null}
                 </div>
+                {(employee.email || employee.phone) && (
+                  <div className="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    {employee.email ? (
+                      <a
+                        href={`mailto:${employee.email}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-sm transition-colors"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span className="truncate max-w-[14rem]">{employee.email}</span>
+                      </a>
+                    ) : null}
+                    {employee.phone ? (
+                      <a
+                        href={`tel:${employee.phone}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-sm transition-colors"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        {employee.phone}
+                      </a>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1700,6 +2351,7 @@ export default function EmployeeProfile() {
                   </div>
                 </motion.div>
               ))}
+            </div>
             </div>
           </motion.div>
 
