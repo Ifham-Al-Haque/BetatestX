@@ -34,7 +34,7 @@ import ITRequestFormModal from '../components/it-services/ITRequestFormModal';
 import ITRequestDetailModal from '../components/it-services/ITRequestDetailModal';
 import ITRequestTicketCard from '../components/it-services/ITRequestTicketCard';
 import { getCategoryIcon, formatDescriptionWithSubcategory, parseSubcategoryFromDescription, stripSubcategoryPrefix } from '../constants/itServiceCategories';
-import { isAdminRole } from '../utils/notificationRoles';
+import { isAdminRole, shouldScopeItRequestsToOwn } from '../utils/notificationRoles';
 
 // Priority colors and icons
 const priorityConfig = {
@@ -189,7 +189,7 @@ const ITRequestsEnhanced = () => {
 
   // Memoize query function to prevent recreation on every render
   const fetchRequests = useCallback(async () => {
-    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole);
+    const data = await itServicesApi.requests.getAll(memoizedFilters, userId, userRole, { scope: 'mine' });
     return data || [];
   }, [memoizedFilters, userId, userRole]);
 
@@ -609,6 +609,11 @@ const ITRequestsEnhanced = () => {
       return r?.status !== 'resolved' && r?.status !== 'closed';
     });
 
+    // Defense in depth: non-admin users only see tickets they raised
+    if (shouldScopeItRequestsToOwn('mine', userRole) && userId) {
+      filtered = filtered.filter((r) => r?.requester_id === userId);
+    }
+
     if (filters.search) {
       filtered = filtered.filter(request =>
         request?.title?.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -645,7 +650,7 @@ const ITRequestsEnhanced = () => {
     });
 
     return filtered;
-  }, [requests, filters, activeSection]);
+  }, [requests, filters, activeSection, userId, userRole]);
 
   useEffect(() => {
     setRequestPage(1);
@@ -699,10 +704,14 @@ const ITRequestsEnhanced = () => {
               </motion.div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  IT Services Panel
+                  {isAdminRole(userRole) ? 'IT Services Panel' : 'My IT Requests'}
                 </h1>
                 <p className="text-sm md:text-base mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {activeSection === 'requests' && 'Manage and track your IT service requests'}
+                  {activeSection === 'requests' && (
+                    isAdminRole(userRole)
+                      ? 'View all IT service requests (admin) or raise a new ticket'
+                      : 'Raise and track your own IT service requests'
+                  )}
                   {activeSection === 'resolved' && 'Resolved tickets awaiting your confirmation'}
                   {activeSection === 'archive' && 'Closed tickets — Request Archive'}
                   {activeSection === 'udrive-access' && 'UDRIVE ACCESS — platforms, departments, amounts'}

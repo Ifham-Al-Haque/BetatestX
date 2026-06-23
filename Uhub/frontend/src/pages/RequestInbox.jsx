@@ -101,7 +101,7 @@ const RequestInbox = () => {
       const [categoriesData, prioritiesData, requestsResult, usersData, itStaffData] = await Promise.all([
         itServicesApi.categories.getAll(),
         itServicesApi.priorities.getAll(),
-        itServicesApi.requests.getAll({}, user?.id, userProfile?.role),
+        itServicesApi.requests.getAll({}, user?.id, userProfile?.role, { scope: 'queue' }),
         fetchUsers(),
         itServicesApi.users.getITStaff()
       ]);

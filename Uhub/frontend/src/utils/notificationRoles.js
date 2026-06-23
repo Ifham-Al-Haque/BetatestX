@@ -53,8 +53,35 @@ export function canManageItRequestQueue(role) {
   return isAdminRole(role) || isItResolverRole(role);
 }
 
-/** @alias canManageItRequestQueue */
+/**
+ * Full queue visibility on Request Inbox (assign, resolve, all tickets).
+ * @alias canManageItRequestQueue
+ */
 export const canViewAllItRequests = canManageItRequestQueue;
+
+/**
+ * Global visibility everywhere (including IT Requests page) — admin only.
+ * @param {string | null | undefined} role
+ * @returns {boolean}
+ */
+export function canViewAllItRequestsAsAdmin(role) {
+  return isAdminRole(role);
+}
+
+/**
+ * Whether list queries should be scoped to the logged-in requester.
+ * - scope 'mine' (IT Requests page): own tickets only; admin sees all.
+ * - scope 'queue' (Request Inbox): IT staff + admin see all; others own only.
+ * @param {'mine' | 'queue'} scope
+ * @param {string | null | undefined} role
+ * @returns {boolean}
+ */
+export function shouldScopeItRequestsToOwn(scope, role) {
+  if (scope === 'queue') {
+    return !canManageItRequestQueue(role);
+  }
+  return !canViewAllItRequestsAsAdmin(role);
+}
 
 /**
  * @param {string | null | undefined} role

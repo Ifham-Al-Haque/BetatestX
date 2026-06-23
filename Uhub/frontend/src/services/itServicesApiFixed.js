@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
 import { emailService } from './emailService';
 import { resolveItRequestRequesterId, formatItRequestSubmitError } from './unifiedNotify';
-import { canManageItRequestQueue } from '../utils/notificationRoles';
+import { shouldScopeItRequestsToOwn } from '../utils/notificationRoles';
 import {
   normalizeItRequestList,
   enrichItRequestsWithAssignees,
@@ -193,10 +193,16 @@ export const itServicesApi = {
   // IT Requests - SIMPLIFIED AND FIXED
   requests: {
     // Get all requests - SIMPLIFIED VERSION
-    getAll: async (filters = {}, userId = null, userRole = null) => {
+    /**
+     * @param {object} filters
+     * @param {string | null} userId — auth uid of logged-in UHub user
+     * @param {string | null} userRole
+     * @param {{ scope?: 'mine' | 'queue' }} [options] — 'mine' = IT Requests page (own tickets; admin sees all)
+     */
+    getAll: async (filters = {}, userId = null, userRole = null, options = {}) => {
       try {
-        console.log('Fetching requests with filters:', filters, 'userId:', userId, 'userRole:', userRole);
-        const isITStaff = canManageItRequestQueue(userRole);
+        const scope = options.scope || 'mine';
+        console.log('Fetching requests with filters:', filters, 'userId:', userId, 'userRole:', userRole, 'scope:', scope);
 
         // Fetch requests with requester and category/priority for display; exclude soft-deleted (cancelled)
         let query = supabase
@@ -211,8 +217,8 @@ export const itServicesApi = {
           .neq('status', 'cancelled')
           .order('created_at', { ascending: false });
 
-        // Role-based: non-IT users see only their own requests (requester_id = auth uid)
-        if (!isITStaff && userId) {
+        // Requester portal: own tickets only (admin sees all). Queue scope is for Request Inbox via itServicesApi.js.
+        if (shouldScopeItRequestsToOwn(scope, userRole) && userId) {
           query = query.eq('requester_id', userId);
         }
 

@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 import notificationService from './notificationService';
 import { emailService } from './emailService';
 import { resolveItRequestRequesterId, formatItRequestSubmitError } from './unifiedNotify';
-import { canManageItRequestQueue, IT_STAFF_ROLES } from '../utils/notificationRoles';
+import { canManageItRequestQueue, IT_STAFF_ROLES, shouldScopeItRequestsToOwn } from '../utils/notificationRoles';
 import {
   normalizeItRequestList,
   enrichItRequestsWithAssignees,
@@ -193,14 +193,21 @@ export const itServicesApi = {
   // IT Requests
   requests: {
     // Get all requests with role-based filtering (User-based architecture)
-    getAll: async (filters = {}, userId = null, userRole = null) => {
+    getAll: async (filters = {}, userId = null, userRole = null, options = {}) => {
       try {
+        const scope = options.scope || 'queue';
+        const scopeToOwn = shouldScopeItRequestsToOwn(scope, userRole);
+
         // Try to use the enhanced view first, fallback to base table if view doesn't exist
         let query = supabase
           .from('it_requests_with_details')
           .select('*')
           .neq('status', 'cancelled') // Exclude soft-deleted items
           .order('created_at', { ascending: false });
+
+        if (scopeToOwn && userId) {
+          query = query.eq('requester_id', userId);
+        }
 
         const { data, error } = await query;
         
@@ -224,8 +231,7 @@ export const itServicesApi = {
             .neq('status', 'cancelled') // Exclude soft-deleted items
             .order('created_at', { ascending: false });
 
-          // Apply role-based filtering - non-IT users see only their own requests
-          if (!canManageItRequestQueue(userRole)) {
+          if (scopeToOwn && userId) {
             query = query.eq('requester_id', userId);
           }
 
@@ -415,8 +421,8 @@ export const itServicesApi = {
 
         // Exclude soft-deleted (cancelled) - in case view didn't filter
         let filteredData = (data || []).filter(request => request.status !== 'cancelled');
-        // Apply role-based filtering for view data - non-IT users see only their own requests
-        if (!canManageItRequestQueue(userRole)) {
+        // Defense in depth: enforce requester scope on view results
+        if (scopeToOwn && userId) {
           filteredData = filteredData.filter(request => request.requester_id === userId);
         }
 
@@ -871,7 +877,9 @@ export const itServicesApi = {
     },
 
     // Get request statistics
-    getStats: async (userId = null, userRole = null) => {
+    getStats: async (userId = null, userRole = null, options = {}) => {
+      const scope = options.scope || (canManageItRequestQueue(userRole) ? 'queue' : 'mine');
+      const scopeToOwn = shouldScopeItRequestsToOwn(scope, userRole);
       try {
         // Try to use the database function first
         const { data, error } = await supabase
@@ -891,11 +899,8 @@ export const itServicesApi = {
             .select('*')
             .neq('status', 'cancelled'); // Exclude soft-deleted items
 
-          // Apply role-based filtering for statistics - non-IT users see only their own requests
-          if (!canManageItRequestQueue(userRole)) {
-            if (userId) {
-              query = query.eq('requester_id', userId);
-            }
+          if (scopeToOwn && userId) {
+            query = query.eq('requester_id', userId);
           }
 
           const { data, error } = await query;

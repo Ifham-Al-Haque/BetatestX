@@ -41,20 +41,24 @@ export const getHomeStats = async ({ userId, role }) => {
 
   if (hasFeatureAccess(role, 'it_requests') || hasFeatureAccess(role, 'request_inbox')) {
     tasks.push(
-      itServicesApi.requests.getStats(userId, role).then((stats) => {
+      itServicesApi.requests.getStats(userId, role, {
+        scope: hasFeatureAccess(role, 'request_inbox') ? 'queue' : 'mine',
+      }).then((stats) => {
         if (!stats) return;
-        const open =
-          (stats.open_requests ?? 0) +
-          (stats.in_progress_requests ?? 0) +
-          (stats.assigned_requests ?? 0);
-        const unassigned = stats.unassigned_requests ?? 0;
+        const isQueueView = hasFeatureAccess(role, 'request_inbox');
+        const open = isQueueView
+          ? (stats.open_requests ?? 0) + (stats.in_progress_requests ?? 0) + (stats.assigned_requests ?? 0)
+          : (stats.my_requests ?? stats.open_requests ?? 0);
+        const unassigned = isQueueView ? (stats.unassigned_requests ?? 0) : 0;
         cards.push({
           key: 'it',
-          label: 'IT requests',
+          label: isQueueView ? 'IT request queue' : 'My IT requests',
           value: open,
-          sub: unassigned > 0 ? `${unassigned} unassigned` : 'Queue clear',
+          sub: isQueueView
+            ? (unassigned > 0 ? `${unassigned} unassigned` : 'Queue clear')
+            : 'Your tickets',
           subTone: unassigned > 0 ? 'info' : 'neutral',
-          path: hasFeatureAccess(role, 'request_inbox') ? '/request-inbox' : '/it-requests',
+          path: isQueueView ? '/request-inbox' : '/it-requests',
           color: 'from-teal-500 to-cyan-600'
         });
       })
