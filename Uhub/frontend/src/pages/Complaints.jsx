@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { complaintsApi } from '../services/complaintsApi';
 import HRCommentThread from '../components/hr/HRCommentThread';
+import ComplaintFormModal, { COMPLAINT_FORM_DEFAULTS } from '../components/hr/ComplaintFormModal';
 import {
   COMPLAINT_CATEGORIES,
   COMPLAINT_PRIORITIES,
@@ -36,14 +37,9 @@ const Complaints = () => {
     search: ''
   });
   const [expandedThreadId, setExpandedThreadId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    priority: 'medium',
-    anonymous: false
-  });
+  const [formData, setFormData] = useState({ ...COMPLAINT_FORM_DEFAULTS });
 
   const categories = COMPLAINT_CATEGORIES;
 
@@ -88,16 +84,31 @@ const Complaints = () => {
     }
   };
 
+  const resetForm = () => {
+    setFormData({ ...COMPLAINT_FORM_DEFAULTS });
+    setEditingComplaint(null);
+  };
+
+  const openNewComplaintForm = () => {
+    resetForm();
+    setShowForm(true);
+  };
+
+  const closeComplaintForm = () => {
+    if (submitting) return;
+    setShowForm(false);
+    resetForm();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
+      setSubmitting(true);
       if (editingComplaint) {
-        // Update existing complaint
         await complaintsApi.updateComplaint(editingComplaint.id, formData);
         success('Complaint Updated', 'Your complaint has been successfully updated');
       } else {
-        // Create new complaint
         await complaintsApi.createComplaint({
           ...formData,
           complainant_id: user.id,
@@ -109,18 +120,13 @@ const Complaints = () => {
       }
       
       setShowForm(false);
-      setEditingComplaint(null);
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        priority: 'medium',
-        anonymous: false
-      });
+      resetForm();
       fetchData();
     } catch (error) {
       console.error('Error submitting complaint:', error);
       showError('Failed to submit complaint', 'Please check your input and try again');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -201,7 +207,7 @@ const Complaints = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowForm(true)}
+              onClick={openNewComplaintForm}
               className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -410,7 +416,7 @@ const Complaints = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowForm(true)}
+                  onClick={openNewComplaintForm}
                   className="mt-6 px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-200 font-medium"
                 >
                   Submit Your First Complaint
@@ -527,158 +533,15 @@ const Complaints = () => {
         </div>
       </div>
 
-      {/* Enhanced Complaint Form Modal */}
-      <AnimatePresence>
-        {showForm && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200/20"
-            >
-              <div className="p-8 border-b border-gray-200/50 bg-gradient-to-r from-red-50 to-pink-50 rounded-t-2xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-red-100 rounded-xl">
-                      <AlertTriangle className="w-6 h-6 text-red-600" />
-                    </div>
-                    <div>
-                      <h2 className="text-3xl font-bold text-gray-900">
-                        {editingComplaint ? 'Edit Complaint' : 'Submit New Complaint'}
-                      </h2>
-                      <p className="text-gray-600 mt-1">
-                        {editingComplaint ? 'Update your complaint details' : 'Submit a new complaint or grievance'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingComplaint(null);
-                      setFormData({
-                        title: '',
-                        description: '',
-                        category: '',
-                        priority: 'medium',
-                        anonymous: false
-                      });
-                    }}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all duration-200"
-                  >
-                    <XCircle className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-8">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Complaint Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
-                      placeholder="Brief description of your complaint"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Category *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 cursor-pointer"
-                      required
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Priority Level *
-                    </label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 cursor-pointer"
-                      required
-                    >
-                      {priorities.map(priority => (
-                        <option key={priority.value} value={priority.value}>{priority.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Detailed Description *
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
-                      placeholder="Please provide a detailed description of your complaint..."
-                      rows={4}
-                      required
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="anonymous"
-                      checked={formData.anonymous}
-                      onChange={(e) => setFormData({ ...formData, anonymous: e.target.checked })}
-                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                    />
-                    <label htmlFor="anonymous" className="text-sm font-medium text-gray-700">
-                      Submit anonymously (your identity will be hidden from management)
-                    </label>
-                  </div>
-
-                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditingComplaint(null);
-                        setFormData({
-                          title: '',
-                          description: '',
-                          category: '',
-                          priority: 'medium',
-                          anonymous: false
-                        });
-                      }}
-                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit"
-                      className="px-8 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-                    >
-                      {editingComplaint ? 'Update Complaint' : 'Submit Complaint'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ComplaintFormModal
+        open={showForm}
+        onClose={closeComplaintForm}
+        onSubmit={handleSubmit}
+        formData={formData}
+        setFormData={setFormData}
+        editingComplaint={editingComplaint}
+        submitting={submitting}
+      />
     </div>
   );
 };

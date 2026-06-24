@@ -1,25 +1,60 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Edit, Trash, Search, Filter, Phone, User, Building,
   Wifi, Signal, CreditCard, Download,
-  X, Save, Users, AlertCircle, Loader2,
-  BarChart3, TrendingUp, Activity, Zap, Shield, FileText, FileSpreadsheet, Eye
+  X, Save, Users, AlertCircle,
+  TrendingUp, FileText, FileSpreadsheet,
+  RefreshCw, ChevronDown, Grid, List, Calendar, Clock, Package
 } from "lucide-react";
-import { useSimCards, useCreateSimCard, useUpdateSimCard, useDeleteSimCard, useSimCardStats } from "../hooks/useSimCards";
+import { useSimCards, useCreateSimCard, useUpdateSimCard, useDeleteSimCard, useSimCardStats, useSearchSimCards } from "../hooks/useSimCards";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { DEPARTMENTS, getDepartmentLabel, getDepartmentColor } from "../config/departments";
+import { useToast } from "../context/ToastContext";
+import { DEPARTMENTS, getDepartmentLabel } from "../config/departments";
 import DepartmentManager from "../components/DepartmentManager";
 import ExportModal from "../components/ExportModal";
+import EmployeeSearchPicker from "../components/simcards/EmployeeSearchPicker";
+import PaginationControls from "../components/ui/PaginationControls";
+import { CardSkeleton, StatsSkeleton } from "../components/LoadingSkeleton";
 import { supabase } from "../supabaseClient";
 import { useQueryClient } from '@tanstack/react-query';
 import { exportFilteredData } from "../utils/exportUtils";
-import { Link } from "react-router-dom";
+import {
+  filterSimCards,
+  getDepartmentBadgeClasses,
+  getExpiryBadgeClasses,
+  getExpiryInfo,
+  getPackageTypeColor,
+  getStatusColor,
+  isItStock,
+  isUnassigned,
+  isExpiringSoon,
+  QUICK_FILTERS,
+  SORT_OPTIONS,
+  applyEmployeeAssignment,
+  applyItStockAssignment,
+  validateSimCardForm,
+  IT_STOCK_LABEL,
+} from "../utils/simCardUtils";
+import { canManageSimCards, canDeleteSimCards, resolveUserRole } from "../utils/simCardPermissions";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+const PAGE_SIZE = 18;
+const FETCH_LIMIT = 2000;
+
+const FORM_TABS = [
+  { id: 'details', label: 'SIM Details', icon: Phone },
+  { id: 'package', label: 'Package', icon: Package },
+  { id: 'assignment', label: 'Assignment', icon: User },
+  { id: 'notes', label: 'Notes', icon: FileText },
+];
 
 // SIM Card Form Component
 const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
   const { isDark } = useTheme();
+  const [activeTab, setActiveTab] = useState('details');
+  const [formErrors, setFormErrors] = useState([]);
   const [formData, setFormData] = useState({
     sim_number: simCard?.sim_number || "",
     package_name: simCard?.package_name || "",
@@ -94,40 +129,37 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleEmployeeAssignChange = (e) => {
-    const selectedId = e.target.value;
-    if (!selectedId) {
-      setFormData((prev) => ({
-        ...prev,
-        assigned_employee_id: '',
-        assigned_employee_name: '',
-        assigned_employee_email: '',
-      }));
+  const handleEmployeeAssignChange = (selectedEmployee) => {
+    if (!selectedEmployee) {
+      setFormData((prev) => applyEmployeeAssignment(prev, null));
       return;
     }
+    setFormData((prev) => applyEmployeeAssignment(prev, selectedEmployee));
+  };
 
-    const selectedEmployee = employees.find((employee) => String(employee.employee_id || employee.id) === selectedId);
-    if (!selectedEmployee) return;
-
-    const canonicalCurrentUser = selectedEmployee.employee_id
-      ? `${selectedEmployee.full_name || 'Unknown'} (${selectedEmployee.employee_id})`
-      : selectedEmployee.full_name || '';
-
-    setFormData((prev) => ({
-      ...prev,
-      current_user: canonicalCurrentUser,
-      department: prev.department || selectedEmployee.department || '',
-      designation: prev.designation || selectedEmployee.position || '',
-      assigned_employee_id: selectedEmployee.employee_id || selectedEmployee.id || '',
-      assigned_employee_name: selectedEmployee.full_name || '',
-      assigned_employee_email: selectedEmployee.email || '',
-    }));
+  const handleItStock = () => {
+    setFormData((prev) => applyItStockAssignment(prev));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const errors = validateSimCardForm(formData);
+    setFormErrors(errors);
+    if (errors.length) {
+      setActiveTab(errors.some((msg) => msg.includes('SIM') || msg.includes('Package')) ? 'details' : 'assignment');
+      return;
+    }
     onSubmit(formData);
   };
+
+  const fieldClass = (extra = '') =>
+    `w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
+      isDark
+        ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-teal-400 hover:border-slate-500'
+        : 'border-gray-300 bg-white text-gray-900 focus:ring-teal-500 hover:border-gray-400'
+    } ${extra}`;
+
+  const labelClass = `block text-sm font-semibold mb-3 ${isDark ? 'text-slate-200' : 'text-gray-700'}`;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -142,310 +174,68 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
             : 'bg-white border-gray-200/20'
         }`}
       >
-        <div className={`p-8 border-b rounded-t-2xl transition-all duration-300 ${
-          isDark 
-            ? 'border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-700' 
-            : 'border-gray-200/50 bg-gradient-to-r from-blue-50 to-indigo-50'
+        <div className={`p-8 border-b rounded-t-2xl ${
+          isDark ? 'border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-700' : 'border-gray-200/50 bg-gradient-to-r from-teal-50 to-cyan-50'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl transition-all duration-300 ${
-                isDark ? 'bg-blue-900/50' : 'bg-blue-100'
-              }`}>
-                <Phone className={`w-6 h-6 transition-colors duration-300 ${
-                  isDark ? 'text-blue-400' : 'text-blue-600'
-                }`} />
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-teal-900/50' : 'bg-teal-100'}`}>
+                <Phone className={`w-6 h-6 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
               </div>
               <div>
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {simCard ? "Edit SIM Card" : "Add New SIM Card"}
+                <h2 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                  {simCard ? 'Edit SIM Card' : 'Add New SIM Card'}
                 </h2>
-                <p className={`mt-1 transition-colors duration-300 ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>
-                  {simCard ? "Update SIM card information" : "Create a new SIM card for your organization"}
+                <p className={`mt-1 text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
+                  {simCard ? 'Update SIM card information' : 'Create a new SIM card for your organization'}
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className={`p-2 rounded-xl transition-all duration-300 ${
-                isDark 
-                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50' 
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-              }`}
-            >
+            <button type="button" onClick={onClose} className={`p-2 rounded-xl ${isDark ? 'text-slate-400 hover:bg-slate-700/50' : 'text-gray-400 hover:bg-gray-100'}`}>
               <X className="w-6 h-6" />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  SIM Number *
-                </label>
-                <input
-                  type="text"
-                  name="sim_number"
-                  value={formData.sim_number}
-                  onChange={handleChange}
-                  required
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                  placeholder="Enter SIM number"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Package Name *
-                </label>
-                <input
-                  type="text"
-                  name="package_name"
-                  value={formData.package_name}
-                  onChange={handleChange}
-                  required
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                  placeholder="Enter package name"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Package Type
-                </label>
-                <select
-                  name="package_type"
-                  value={formData.package_type}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
+        <form onSubmit={handleSubmit} className="p-6 lg:p-8 space-y-6">
+          <div className={`flex flex-wrap gap-2 p-1 rounded-xl ${isDark ? 'bg-slate-700/50' : 'bg-gray-100'}`}>
+            {FORM_TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-teal-600 text-white shadow-md'
+                      : isDark ? 'text-slate-300 hover:bg-slate-600' : 'text-gray-600 hover:bg-white'
                   }`}
                 >
-                  <option value="Default">Default</option>
-                  <option value="Custom">Custom Made</option>
-                  <option value="Corporate">Corporate</option>
-                  <option value="Premium">Premium</option>
-                  <option value="Basic">Basic</option>
-                </select>
-              </div>
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
 
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Monthly Cost (AED)
-                </label>
-                <input
-                  type="number"
-                  name="monthly_cost"
-                  value={formData.monthly_cost}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Data Limit
-                </label>
-                <input
-                  type="text"
-                  name="data_limit"
-                  value={formData.data_limit}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                  placeholder="e.g., 10GB"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Voice Minutes
-                </label>
-                <input
-                  type="text"
-                  name="voice_minutes"
-                  value={formData.voice_minutes}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                  placeholder="e.g., 1000"
-                />
-              </div>
+          {formErrors.length > 0 && (
+            <div className="rounded-xl border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700 px-4 py-3">
+              {formErrors.map((msg) => (
+                <p key={msg} className="text-sm text-red-700 dark:text-red-300">{msg}</p>
+              ))}
             </div>
+          )}
 
-            <div className="space-y-6">
+          {activeTab === 'details' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Assign to Employee
-                </label>
-                <select
-                  value={formData.assigned_employee_id}
-                  onChange={handleEmployeeAssignChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                >
-                  <option value="">
-                    {employeesLoading ? 'Loading employees...' : 'Select employee (optional)'}
-                  </option>
-                  {employees.map((employee) => {
-                    const value = String(employee.employee_id || employee.id || '');
-                    const displayName = employee.full_name || 'Unknown';
-                    const suffix = employee.employee_id ? `(${employee.employee_id})` : '';
-                    return (
-                      <option key={`${value}-${employee.email || ''}`} value={value}>
-                        {displayName} {suffix}
-                      </option>
-                    );
-                  })}
-                </select>
-                <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-                  Helps keep assignment consistent with employee records.
-                </p>
+                <label className={labelClass}>SIM Number *</label>
+                <input type="text" name="sim_number" value={formData.sim_number} onChange={handleChange} required className={fieldClass()} placeholder="Enter SIM number" />
               </div>
-
               <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Current User
-                </label>
-                <input
-                  type="text"
-                  name="current_user"
-                  value={formData.current_user}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                  placeholder="Enter current user name"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Previous User
-                </label>
-                <input
-                  type="text"
-                  name="previous_user"
-                  value={formData.previous_user}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                  placeholder="Enter previous user name"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Department
-                </label>
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                >
-                  <option value="">Select Department</option>
-                  {DEPARTMENTS.map((dept) => (
-                    <option key={dept.value} value={dept.value}>
-                      {dept.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Designation
-                </label>
-                <input
-                  type="text"
-                  name="designation"
-                  value={formData.designation}
-                  onChange={handleChange}
-                  placeholder="Enter job title or position"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 placeholder-slate-400 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                >
+                <label className={labelClass}>Status</label>
+                <select name="status" value={formData.status} onChange={handleChange} className={fieldClass()}>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                   <option value="Suspended">Suspended</option>
@@ -453,110 +243,125 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
                   <option value="Expired">Expired</option>
                 </select>
               </div>
-
               <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Activation Date
-                </label>
-                <input
-                  type="date"
-                  name="activation_date"
-                  value={formData.activation_date}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                />
+                <label className={labelClass}>Activation Date</label>
+                <input type="date" name="activation_date" value={formData.activation_date} onChange={handleChange} className={fieldClass()} />
               </div>
-
               <div>
-                <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-                  isDark ? 'text-slate-200' : 'text-gray-700'
-                }`}>
-                  Expiry Date
-                </label>
-                <input
-                  type="date"
-                  name="expiry_date"
-                  value={formData.expiry_date}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    isDark 
-                      ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-                  }`}
-                />
+                <label className={labelClass}>Expiry Date</label>
+                <input type="date" name="expiry_date" value={formData.expiry_date} onChange={handleChange} className={fieldClass()} />
+              </div>
+              <div>
+                <label className={labelClass}>Department</label>
+                <select name="department" value={formData.department} onChange={handleChange} className={fieldClass()}>
+                  <option value="">Select Department</option>
+                  {DEPARTMENTS.map((dept) => (
+                    <option key={dept.value} value={dept.value}>{dept.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Designation</label>
+                <input type="text" name="designation" value={formData.designation} onChange={handleChange} placeholder="Job title or position" className={fieldClass()} />
               </div>
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-              isDark ? 'text-slate-200' : 'text-gray-700'
-            }`}>
-              Package Benefits
-            </label>
-            <textarea
-              name="package_benefits"
-              value={formData.package_benefits}
-              onChange={handleChange}
-              rows="3"
-              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                isDark 
-                  ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-              }`}
-              placeholder="Describe package benefits..."
-            />
-          </div>
+          {activeTab === 'package' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className={labelClass}>Package Name *</label>
+                <input type="text" name="package_name" value={formData.package_name} onChange={handleChange} required className={fieldClass()} placeholder="Enter package name" />
+              </div>
+              <div>
+                <label className={labelClass}>Package Type</label>
+                <select name="package_type" value={formData.package_type} onChange={handleChange} className={fieldClass()}>
+                  <option value="Default">Default</option>
+                  <option value="Custom">Custom Made</option>
+                  <option value="Corporate">Corporate</option>
+                  <option value="Premium">Premium</option>
+                  <option value="Basic">Basic</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Monthly Cost (AED)</label>
+                <input type="number" name="monthly_cost" value={formData.monthly_cost} onChange={handleChange} className={fieldClass()} placeholder="0.00" min="0" step="0.01" />
+              </div>
+              <div>
+                <label className={labelClass}>Data Limit</label>
+                <input type="text" name="data_limit" value={formData.data_limit} onChange={handleChange} className={fieldClass()} placeholder="e.g., 10GB" />
+              </div>
+              <div>
+                <label className={labelClass}>Voice Minutes</label>
+                <input type="text" name="voice_minutes" value={formData.voice_minutes} onChange={handleChange} className={fieldClass()} placeholder="e.g., 1000" />
+              </div>
+              <div>
+                <label className={labelClass}>SMS Limit</label>
+                <input type="text" name="sms_limit" value={formData.sms_limit} onChange={handleChange} className={fieldClass()} placeholder="e.g., 500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Package Benefits</label>
+                <textarea name="package_benefits" value={formData.package_benefits} onChange={handleChange} rows="3" className={fieldClass()} placeholder="Describe package benefits..." />
+              </div>
+            </div>
+          )}
 
-          <div>
-            <label className={`block text-sm font-semibold mb-3 transition-colors duration-300 ${
-              isDark ? 'text-slate-200' : 'text-gray-700'
-            }`}>
-              Notes
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows="3"
-              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                isDark 
-                  ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-blue-400 hover:border-slate-500' 
-                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500 hover:border-gray-400'
-              }`}
-              placeholder="Additional notes..."
-            />
-          </div>
+          {activeTab === 'assignment' && (
+            <div className="space-y-6">
+              <div>
+                <label className={labelClass}>Assign to Employee</label>
+                <EmployeeSearchPicker
+                  value={formData.assigned_employee_id}
+                  employees={employees}
+                  loading={employeesLoading}
+                  isDark={isDark}
+                  onSelect={handleEmployeeAssignChange}
+                  onClear={() => handleEmployeeAssignChange(null)}
+                />
+                <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  Search by name, employee ID, or email. Previous user is set automatically on reassignment.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleItStock}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                    formData.current_user === IT_STOCK_LABEL
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Mark as IT Stock
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className={labelClass}>Current User</label>
+                  <input type="text" name="current_user" value={formData.current_user} onChange={handleChange} className={fieldClass()} placeholder="Assigned user display name" />
+                </div>
+                <div>
+                  <label className={labelClass}>Previous User</label>
+                  <input type="text" name="previous_user" value={formData.previous_user} onChange={handleChange} className={fieldClass()} placeholder="Previous assignee" />
+                </div>
+              </div>
+            </div>
+          )}
 
-          <div className={`flex items-center justify-end gap-4 pt-8 border-t transition-all duration-300 ${
-            isDark ? 'border-slate-700' : 'border-gray-200'
-          }`}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={`px-6 py-3 border rounded-xl transition-all duration-300 font-medium ${
-                isDark 
-                  ? 'border-slate-600 text-slate-300 hover:bg-slate-700/50' 
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
+          {activeTab === 'notes' && (
+            <div>
+              <label className={labelClass}>Notes</label>
+              <textarea name="notes" value={formData.notes} onChange={handleChange} rows="5" className={fieldClass()} placeholder="Additional notes..." />
+            </div>
+          )}
+
+          <div className={`flex items-center justify-end gap-4 pt-6 border-t ${isDark ? 'border-slate-700' : 'border-gray-200'}`}>
+            <button type="button" onClick={onClose} className={`px-6 py-3 border rounded-xl font-medium ${isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700/50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 transition-all duration-300 disabled:opacity-50 font-medium shadow-lg hover:shadow-xl ${
-                isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
-              }`}
-            >
+            <button type="submit" disabled={isLoading} className="px-8 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white rounded-xl flex items-center gap-2 disabled:opacity-50 font-medium shadow-lg">
               <Save className="w-4 h-4" />
-              {isLoading ? "Saving..." : (simCard ? "Update SIM Card" : "Create SIM Card")}
+              {isLoading ? 'Saving...' : (simCard ? 'Update SIM Card' : 'Create SIM Card')}
             </button>
           </div>
         </form>
@@ -565,79 +370,91 @@ const SimCardForm = ({ simCard, onClose, onSubmit, isLoading }) => {
   );
 };
 
-// Enhanced SIM Card Component
-const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 border-green-200 dark:border-green-700/50';
-      case 'Inactive': return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-200 dark:border-red-700/50';
-      case 'Suspended': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700/50';
-      case 'Pending': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 border-blue-200 dark:border-blue-700/50';
-      case 'Expired': return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-200 border-gray-200 dark:border-gray-600/50';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-200 border-gray-200 dark:border-gray-600/50';
-    }
-  };
-
-  const getPackageTypeColor = (type) => {
-    switch (type) {
-      case 'Custom': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 border-purple-200 dark:border-purple-700/50';
-      case 'Corporate': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700/50';
-      case 'Premium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200 border-yellow-200 dark:border-yellow-700/50';
-      default: return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 border-blue-200 dark:border-blue-700/50';
-    }
-  };
+// List row for table/list view
+const SimCardListRow = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete, onView }) => {
+  const expiryInfo = getExpiryInfo(simCard.expiry_date);
 
   return (
-    <motion.div
-      whileHover={{ y: -4, scale: 1.02 }}
-      className={`rounded-2xl shadow-lg hover:shadow-2xl border p-6 transition-all duration-300 group cursor-pointer ${
-        isDark 
-          ? 'bg-slate-800/80 border-slate-700/50' 
-          : 'bg-white border-gray-200/50'
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onView(simCard.id)}
+      onKeyDown={(e) => e.key === 'Enter' && onView(simCard.id)}
+      className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border transition-all duration-200 cursor-pointer hover:shadow-md ${
+        isDark ? 'bg-slate-800/60 border-slate-700/50 hover:border-slate-600' : 'bg-white border-gray-200/80 hover:border-blue-200'
       }`}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
-            <Phone className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h3 className={`text-lg font-bold group-hover:text-blue-600 transition-colors duration-300 ${
-              isDark ? 'text-slate-100 group-hover:text-blue-400' : 'text-gray-900 group-hover:text-blue-600'
-            }`}>
-              {simCard.sim_number}
-            </h3>
-            <p className={`text-sm font-medium transition-colors duration-300 ${
-              isDark ? 'text-slate-300' : 'text-gray-600'
-            }`}>
-              {simCard.package_name}
-            </p>
-          </div>
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="p-2.5 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl shrink-0">
+          <Phone className="w-5 h-5 text-white" />
         </div>
+        <div className="min-w-0">
+          <p className={`font-bold truncate ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{simCard.sim_number}</p>
+          <p className={`text-sm truncate ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{simCard.package_name}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${getStatusColor(simCard.status)}`}>{simCard.status}</span>
+        {expiryInfo && (
+          <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${getExpiryBadgeClasses(expiryInfo.tone)}`}>{expiryInfo.label}</span>
+        )}
+        <span className={`text-sm truncate max-w-[140px] ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
+          {simCard.current_user || 'Unassigned'}
+        </span>
+        <span className={`text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>AED {simCard.monthly_cost || 0}</span>
         {(canEdit || canDelete) && (
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
             {canEdit && (
-              <button
-                onClick={() => onEdit(simCard)}
-                className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
-                  isDark 
-                    ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-800' 
-                    : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                }`}
-              >
+              <button type="button" onClick={() => onEdit(simCard)} className={`p-2 rounded-lg ${isDark ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
                 <Edit className="w-4 h-4" />
               </button>
             )}
             {canDelete && (
-              <button
-                onClick={() => onDelete(simCard.id)}
-                className={`p-2 rounded-lg transition-all duration-300 hover:scale-110 ${
-                  isDark 
-                    ? 'bg-red-900/50 text-red-400 hover:bg-red-800' 
-                    : 'bg-red-100 text-red-600 hover:bg-red-200'
-                }`}
-              >
+              <button type="button" onClick={() => onDelete(simCard.id)} className={`p-2 rounded-lg ${isDark ? 'bg-red-900/50 text-red-400' : 'bg-red-100 text-red-600'}`}>
+                <Trash className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Enhanced SIM Card Component
+const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete, onView }) => {
+  const expiryInfo = getExpiryInfo(simCard.expiry_date);
+  const assigneeInitial = (simCard.current_user || 'U').charAt(0).toUpperCase();
+
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      onClick={() => onView(simCard.id)}
+      className={`rounded-2xl shadow-lg hover:shadow-xl border p-5 transition-all duration-300 group cursor-pointer ${
+        isDark ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white border-gray-200/50'
+      }`}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-3 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl shadow-lg shrink-0">
+            <Phone className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h3 className={`text-lg font-bold truncate ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
+              {simCard.sim_number}
+            </h3>
+            <p className={`text-sm truncate ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{simCard.package_name}</p>
+          </div>
+        </div>
+        {(canEdit || canDelete) && (
+          <div className="flex items-center gap-1 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+            {canEdit && (
+              <button type="button" onClick={() => onEdit(simCard)} className={`p-2 rounded-lg ${isDark ? 'bg-blue-900/50 text-blue-400 hover:bg-blue-800' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'}`}>
+                <Edit className="w-4 h-4" />
+              </button>
+            )}
+            {canDelete && (
+              <button type="button" onClick={() => onDelete(simCard.id)} className={`p-2 rounded-lg ${isDark ? 'bg-red-900/50 text-red-400 hover:bg-red-800' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>
                 <Trash className="w-4 h-4" />
               </button>
             )}
@@ -645,151 +462,75 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
         )}
       </div>
 
-      {/* Status and Package Type */}
-      <div className="flex items-center gap-3 mb-6">
-        <span className={`px-3 py-1.5 text-xs font-bold rounded-full border ${getStatusColor(simCard.status)}`}>
-          {simCard.status}
-        </span>
-        <span className={`px-3 py-1.5 text-xs font-bold rounded-full border ${getPackageTypeColor(simCard.package_type)}`}>
-          {simCard.package_type}
-        </span>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${getStatusColor(simCard.status)}`}>{simCard.status}</span>
+        <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${getPackageTypeColor(simCard.package_type)}`}>{simCard.package_type}</span>
+        {expiryInfo && (
+          <span className={`px-2.5 py-1 text-xs font-bold rounded-full border inline-flex items-center gap-1 ${getExpiryBadgeClasses(expiryInfo.tone)}`}>
+            <Clock className="w-3 h-3" />
+            {expiryInfo.label}
+          </span>
+        )}
       </div>
 
-      {/* Key Information */}
-      <div className="space-y-4 mb-6">
-        <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
-          isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-        }`}>
-          <span className={`text-sm font-medium transition-colors duration-300 ${
-            isDark ? 'text-slate-300' : 'text-gray-600'
-          }`}>Monthly Cost</span>
-          <span className={`text-lg font-bold transition-colors duration-300 ${
-            isDark ? 'text-slate-100' : 'text-gray-900'
-          }`}>
-            AED {simCard.monthly_cost}
-          </span>
+      <div className="space-y-3 mb-4">
+        <div className={`flex items-center justify-between p-3 rounded-xl ${isDark ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+          <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Monthly Cost</span>
+          <span className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>AED {simCard.monthly_cost || 0}</span>
         </div>
 
-        <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
-          isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-        }`}>
-          <span className={`text-sm font-medium transition-colors duration-300 ${
-            isDark ? 'text-slate-300' : 'text-gray-600'
-          }`}>Current User</span>
-          <span className={`text-sm font-semibold transition-colors duration-300 ${
-            isDark ? 'text-slate-100' : 'text-gray-900'
-          }`} title={simCard.current_user || 'Unassigned'}>
-            {simCard.current_user || 'Unassigned'}
-          </span>
+        <div className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+            isUnassigned(simCard) ? (isDark ? 'bg-slate-600 text-slate-300' : 'bg-gray-200 text-gray-600') : 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'
+          }`}>
+            {assigneeInitial}
+          </div>
+          <div className="min-w-0">
+            <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>Assigned to</p>
+            <p className={`text-sm font-semibold truncate ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
+              {simCard.current_user || 'Unassigned'}
+            </p>
+          </div>
         </div>
 
-        <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
-          isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-        }`}>
-          <span className={`text-sm font-medium transition-colors duration-300 ${
-            isDark ? 'text-slate-300' : 'text-gray-600'
-          }`}>Department</span>
-          <span className={`px-3 py-1 text-xs font-bold rounded-full bg-${getDepartmentColor(simCard.department)}-100 dark:bg-${getDepartmentColor(simCard.department)}-900 text-${getDepartmentColor(simCard.department)}-800 dark:text-${getDepartmentColor(simCard.department)}-200`}>
-            {simCard.department ? getDepartmentLabel(simCard.department) : 'Not specified'}
-          </span>
-        </div>
-        
-        {/* Designation Field */}
-        {simCard.designation && (
-          <div className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
-            isDark ? 'bg-slate-700/50' : 'bg-gray-50'
-          }`}>
-            <span className={`text-sm font-medium transition-colors duration-300 ${
-              isDark ? 'text-slate-300' : 'text-gray-600'
-            }`}>Designation</span>
-            <span className={`text-sm font-semibold transition-colors duration-300 ${
-              isDark ? 'text-slate-100' : 'text-gray-900'
-            }`} title={simCard.designation}>
-              {simCard.designation}
+        {simCard.department && (
+          <div className="flex items-center justify-between">
+            <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Department</span>
+            <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${getDepartmentBadgeClasses(simCard.department)}`}>
+              {getDepartmentLabel(simCard.department)}
             </span>
+          </div>
+        )}
+        {simCard.designation && (
+          <div className="flex items-center justify-between gap-2">
+            <span className={`text-sm shrink-0 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Designation</span>
+            <span className={`text-sm font-medium truncate ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>{simCard.designation}</span>
           </div>
         )}
       </div>
 
-      {/* Additional Details */}
       {(simCard.data_limit || simCard.voice_minutes) && (
-        <div className={`pt-4 border-t transition-all duration-300 ${
-          isDark ? 'border-slate-700' : 'border-gray-200'
-        }`}>
-          <div className="grid grid-cols-2 gap-3">
-            {simCard.data_limit && (
-              <div className={`text-center p-2 rounded-lg transition-all duration-300 ${
-                isDark ? 'bg-blue-900/20' : 'bg-blue-50'
-              }`}>
-                <Wifi className={`w-4 h-4 mx-auto mb-1 transition-colors duration-300 ${
-                  isDark ? 'text-blue-400' : 'text-blue-600'
-                }`} />
-                <p className={`text-xs font-medium transition-colors duration-300 ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>Data</p>
-                <p className={`text-sm font-bold transition-colors duration-300 ${
-                  isDark ? 'text-slate-100' : 'text-gray-900'
-                }`}>{simCard.data_limit}</p>
-              </div>
-            )}
-            {simCard.voice_minutes && (
-              <div className={`text-center p-2 rounded-lg transition-all duration-300 ${
-                isDark ? 'bg-green-900/20' : 'bg-green-50'
-              }`}>
-                <Phone className={`w-4 h-4 mx-auto mb-1 transition-colors duration-300 ${
-                  isDark ? 'text-green-400' : 'text-green-600'
-                }`} />
-                <p className={`text-xs font-medium transition-colors duration-300 ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>Voice</p>
-                <p className={`text-sm font-bold transition-colors duration-300 ${
-                  isDark ? 'text-slate-100' : 'text-gray-900'
-                }`}>{simCard.voice_minutes}</p>
-              </div>
-            )}
-          </div>
+        <div className={`pt-3 border-t grid grid-cols-2 gap-2 ${isDark ? 'border-slate-700' : 'border-gray-200'}`}>
+          {simCard.data_limit && (
+            <div className={`text-center p-2 rounded-lg ${isDark ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+              <Wifi className={`w-4 h-4 mx-auto mb-1 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Data</p>
+              <p className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{simCard.data_limit}</p>
+            </div>
+          )}
+          {simCard.voice_minutes && (
+            <div className={`text-center p-2 rounded-lg ${isDark ? 'bg-green-900/20' : 'bg-green-50'}`}>
+              <Phone className={`w-4 h-4 mx-auto mb-1 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Voice</p>
+              <p className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{simCard.voice_minutes}</p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Notes */}
-      {simCard.notes && (
-        <div className={`pt-4 border-t mt-4 transition-all duration-300 ${
-          isDark ? 'border-slate-700' : 'border-gray-200'
-        }`}>
-          <p className={`text-sm italic transition-colors duration-300 ${
-            isDark ? 'text-slate-400' : 'text-gray-600'
-          }`}>
-            "{simCard.notes}"
-          </p>
-        </div>
-      )}
-
-      <div className={`pt-4 border-t mt-4 transition-all duration-300 ${
-        isDark ? 'border-slate-700' : 'border-gray-200'
-      }`}>
-        <Link
-          to={`/simcards/${simCard.id}`}
-          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            isDark
-              ? 'bg-slate-700 text-slate-100 hover:bg-slate-600'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <Eye className="w-4 h-4" />
-          View Profile
-        </Link>
-      </div>
-
-      {/* Dates */}
-      <div className={`pt-4 border-t mt-4 transition-all duration-300 ${
-        isDark ? 'border-slate-700' : 'border-gray-200'
-      }`}>
-        <div className={`flex items-center justify-between text-xs transition-colors duration-300 ${
-          isDark ? 'text-slate-400' : 'text-gray-500'
-        }`}>
-          <span>Activated: {simCard.activation_date}</span>
-          <span>Expires: {simCard.expiry_date}</span>
-        </div>
+      <div className={`pt-3 mt-3 border-t flex items-center justify-between text-xs ${isDark ? 'border-slate-700 text-slate-500' : 'border-gray-200 text-gray-400'}`}>
+        <span>{simCard.activation_date ? `Active: ${simCard.activation_date}` : '—'}</span>
+        <span>{simCard.expiry_date ? `Expires: ${simCard.expiry_date}` : '—'}</span>
       </div>
     </motion.div>
   );
@@ -798,51 +539,71 @@ const SimCard = ({ simCard, onEdit, onDelete, isDark, canEdit, canDelete }) => {
 export default function Simcard() {
   const { user, userProfile } = useAuth();
   const { isDark } = useTheme();
+  const { success, error: showError } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
-  // State management
   const [showForm, setShowForm] = useState(false);
   const [editingSimCard, setEditingSimCard] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [packageTypeFilter, setPackageTypeFilter] = useState("");
+  const [quickFilter, setQuickFilter] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState("grid");
   const [showDepartmentManager, setShowDepartmentManager] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // React Query hooks for data management
   const { data: simCards = [], isLoading, error, refetch } = useSimCards();
+  const { data: searchResults, isFetching: isSearching } = useSearchSimCards(searchTerm.trim().length >= 2 ? searchTerm.trim() : '');
   const { data: stats } = useSimCardStats();
   const createSimCard = useCreateSimCard();
   const updateSimCard = useUpdateSimCard();
   const deleteSimCard = useDeleteSimCard();
 
+  const dataSource = searchTerm.trim().length >= 2 ? (searchResults || []) : simCards;
 
+  const filteredSimCards = useMemo(
+    () => filterSimCards(dataSource, { searchTerm, statusFilter, departmentFilter, packageTypeFilter, quickFilter, sortBy }),
+    [dataSource, searchTerm, statusFilter, departmentFilter, packageTypeFilter, quickFilter, sortBy]
+  );
 
+  const totalPages = Math.max(1, Math.ceil(filteredSimCards.length / PAGE_SIZE));
+  const paginatedSimCards = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredSimCards.slice(start, start + PAGE_SIZE);
+  }, [filteredSimCards, currentPage]);
 
+  const atFetchLimit = simCards.length >= FETCH_LIMIT;
+  const userRole = resolveUserRole(user, userProfile);
+  const canManage = canManageSimCards(userRole);
+  const canDelete = canDeleteSimCards(userRole);
 
-  // Enhanced filtering with designation support and improved search
-  const filteredSimCards = simCards.filter(simCard => {
-    // Enhanced search that includes designation, department, and all relevant fields
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || 
-      simCard.sim_number.toLowerCase().includes(searchLower) ||
-      simCard.package_name.toLowerCase().includes(searchLower) ||
-      (simCard.current_user && simCard.current_user.toLowerCase().includes(searchLower)) ||
-      (simCard.previous_user && simCard.previous_user.toLowerCase().includes(searchLower)) ||
-      (simCard.department && simCard.department.toLowerCase().includes(searchLower)) ||
-      (simCard.designation && simCard.designation.toLowerCase().includes(searchLower)) ||
-      (simCard.package_type && simCard.package_type.toLowerCase().includes(searchLower)) ||
-      (simCard.status && simCard.status.toLowerCase().includes(searchLower));
-    
-    const matchesStatus = !statusFilter || simCard.status === statusFilter;
-    const matchesDepartment = !departmentFilter || simCard.department === departmentFilter;
-    const matchesPackageType = !packageTypeFilter || simCard.package_type === packageTypeFilter;
-    
-    return matchesSearch && matchesStatus && matchesDepartment && matchesPackageType;
-  });
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, departmentFilter, packageTypeFilter, quickFilter, sortBy]);
 
-  // Handlers
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || !simCards.length) return;
+    const card = simCards.find((s) => String(s.id) === editId);
+    if (card) {
+      setEditingSimCard(card);
+      setShowForm(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, simCards, setSearchParams]);
+
+  const handleViewSimCard = useCallback((id) => {
+    navigate(`/simcards/${id}`);
+  }, [navigate]);
+
   const handleAddSimCard = () => {
     setEditingSimCard(null);
     setShowForm(true);
@@ -854,10 +615,21 @@ export default function Simcard() {
   };
 
   const handleDeleteSimCard = (simCardId) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this SIM card?");
-    if (confirmDelete) {
-      deleteSimCard.mutate(simCardId);
-    }
+    setDeleteConfirmId(simCardId);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirmId) return;
+    deleteSimCard.mutate(deleteConfirmId, {
+      onSuccess: () => {
+        success('Deleted', 'SIM card removed successfully.');
+        setDeleteConfirmId(null);
+      },
+      onError: (err) => {
+        showError('Delete Failed', err.message);
+        setDeleteConfirmId(null);
+      },
+    });
   };
 
   const handleSubmitSimCard = (formData) => {
@@ -870,29 +642,23 @@ export default function Simcard() {
       assigned_employee_email: formData.assigned_employee_email || null,
     };
 
-    console.log('📝 Submitting SIM card data:', simCardData);
-
     if (editingSimCard) {
-      // Update existing SIM card
       updateSimCard.mutate({ id: editingSimCard.id, ...simCardData }, {
         onSuccess: () => {
+          success('Updated', 'SIM card updated successfully.');
           setShowForm(false);
           setEditingSimCard(null);
         },
-        onError: (error) => {
-          alert(`Failed to update SIM card: ${error.message}`);
-        }
+        onError: (err) => showError('Update Failed', err.message),
       });
     } else {
-      // Add new SIM card
       createSimCard.mutate(simCardData, {
         onSuccess: () => {
+          success('Created', 'SIM card created successfully.');
           setShowForm(false);
           setEditingSimCard(null);
         },
-        onError: (error) => {
-          alert(`Failed to create SIM card: ${error.message}`);
-        }
+        onError: (err) => showError('Create Failed', err.message),
       });
     }
   };
@@ -902,214 +668,180 @@ export default function Simcard() {
     setEditingSimCard(null);
   };
 
-  // Role-based permission functions
-  const canEditSimCard = useCallback(() => {
-    const userRole = user?.user_metadata?.role || userProfile?.role;
-    return userRole === 'admin';
-  }, [user?.user_metadata?.role, userProfile?.role]);
-
-  const canDeleteSimCard = useCallback(() => {
-    const userRole = user?.user_metadata?.role || userProfile?.role;
-    return userRole === 'admin';
-  }, [user?.user_metadata?.role, userProfile?.role]);
-
-  const canAddSimCard = useCallback(() => {
-    const userRole = user?.user_metadata?.role || userProfile?.role;
-    return userRole === 'admin';
-  }, [user?.user_metadata?.role, userProfile?.role]);
-
-  // Export handlers
-  const handleExportComplete = (exportInfo) => {
-    console.log('Export completed:', exportInfo);
-    // You can add toast notification here if needed
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['simCards'] });
+      await queryClient.invalidateQueries({ queryKey: ['simCardStats'] });
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
+
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("");
+    setDepartmentFilter("");
+    setPackageTypeFilter("");
+    setQuickFilter("");
+    setSortBy("newest");
+  };
+
+  const applyStatFilter = (filterId) => {
+    clearAllFilters();
+    if (filterId) setQuickFilter(filterId);
+  };
+
+  const canEditSimCard = useCallback(() => canManage, [canManage]);
+  const canDeleteSimCard = useCallback(() => canDelete, [canDelete]);
+  const canAddSimCard = useCallback(() => canManage, [canManage]);
+
+  const handleExportComplete = () => {};
 
   const handleQuickExport = (format) => {
-    const filters = {
-      searchTerm,
-      statusFilter,
-      departmentFilter,
-      packageTypeFilter
-    };
-    exportFilteredData(simCards, filters, format);
+    exportFilteredData(simCards, {
+      searchTerm, statusFilter, departmentFilter, packageTypeFilter,
+    }, format);
+    setShowExportMenu(false);
   };
+
+  const expiringCount = stats?.expiring_soon ?? simCards.filter((s) => isExpiringSoon(s)).length;
+  const itStockCount = simCards.filter((s) => isItStock(s)).length;
+  const unassignedCount = simCards.filter((s) => isUnassigned(s)).length;
+
+  const statCards = [
+    { id: '', label: 'Total SIM Cards', value: stats?.total_sim_cards || simCards.length, sub: 'Across all departments', gradient: 'from-teal-500 to-cyan-600', icon: Phone },
+    { id: 'active', label: 'Active', value: stats?.active_sim_cards || simCards.filter((s) => s.status === 'Active').length, sub: 'Currently operational', gradient: 'from-green-500 to-emerald-600', icon: Signal },
+    { id: 'it_stock', label: 'IT Stock', value: itStockCount, sub: 'Available inventory', gradient: 'from-indigo-500 to-blue-600', icon: Wifi },
+    { id: 'expiring', label: 'Expiring Soon', value: expiringCount, sub: 'Within 30 days', gradient: 'from-amber-500 to-orange-600', icon: Calendar },
+    { id: '', label: 'Assigned', value: stats?.assigned_sim_cards || simCards.filter((s) => s.current_user && !isUnassigned(s)).length, sub: 'In use by employees', gradient: 'from-violet-500 to-purple-600', icon: Users },
+    { id: '', label: 'Monthly Cost', value: `AED ${(stats?.total_monthly_cost || simCards.reduce((t, s) => t + (parseFloat(s.monthly_cost) || 0), 0)).toLocaleString()}`, sub: 'Total monthly spend', gradient: 'from-rose-500 to-pink-600', icon: CreditCard, isCost: true },
+  ];
 
   return (
     <div className={`min-h-screen transition-all duration-500 ${
       isDark 
         ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
-        : 'bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30'
+        : 'bg-gradient-to-br from-gray-50 via-teal-50/20 to-cyan-50/30'
     } flex`}>
       <div className="flex-1 transition-all duration-300 ease-in-out">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Enhanced Header */}
+          {/* Header */}
           <div className="mb-8">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className={`relative overflow-hidden rounded-2xl p-6 shadow-xl border transition-all duration-300 ${
-                isDark 
-                  ? 'bg-gradient-to-br from-slate-800 to-slate-700 border-slate-600/50' 
-                  : 'bg-gradient-to-br from-white to-blue-50/30 border-gray-200/50'
+              className={`relative overflow-hidden rounded-2xl p-6 lg:p-8 shadow-xl border ${
+                isDark ? 'bg-gradient-to-br from-slate-800 to-slate-700 border-slate-600/50' : 'bg-gradient-to-br from-white to-teal-50/40 border-gray-200/50'
               }`}
             >
-              {/* Background Pattern */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-green-400 to-blue-500 rounded-full blur-2xl transform -translate-x-12 translate-y-12"></div>
+              <div className="absolute inset-0 opacity-10 pointer-events-none">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full blur-2xl translate-x-16 -translate-y-16" />
               </div>
               
-              <div className="relative z-10">
-                <div className="flex flex-col xl:flex-row xl:justify-between xl:items-start gap-6">
-                  {/* Left Section */}
-                  <div className="flex items-start gap-4">
-                    <motion.div 
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ duration: 0.8, delay: 0.2, type: "spring", stiffness: 200 }}
-                      className="relative flex-shrink-0"
-                    >
-                      <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg transform hover:scale-105 transition-all duration-300">
-                        <Phone className="w-8 h-8 text-white" />
-                      </div>
-                      {/* Floating elements */}
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full animate-pulse"></div>
-                      <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-yellow-400 rounded-full animate-bounce"></div>
-                    </motion.div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <motion.h1 
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6, delay: 0.3 }}
-                        className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent leading-tight"
-                      >
-                        SIM Card Management
-                      </motion.h1>
-                      
-                      <motion.p 
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.6, delay: 0.4 }}
-                        className={`mt-2 text-base lg:text-lg transition-colors duration-300 ${
-                          isDark ? 'text-slate-300' : 'text-gray-600'
-                        }`}
-                      >
-                        Manage company SIM cards, packages, and user assignments with ease
-                      </motion.p>
-                      
-                      {/* Feature Indicators */}
-                      <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.5 }}
-                        className="flex flex-wrap items-center gap-3 mt-4"
-                      >
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/50">
-                          <Signal className="w-3 h-3 text-green-600 dark:text-green-400" />
-                          <span className="text-xs font-medium text-green-700 dark:text-green-300">Active Management</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50">
-                          <Shield className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Secure Control</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/50">
-                          <BarChart3 className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-                          <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Real-time Analytics</span>
-                        </div>
-                      </motion.div>
+              <div className="relative z-10 flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-4 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl shadow-lg shrink-0">
+                    <Phone className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                      SIM Card Management
+                    </h1>
+                    <p className={`mt-2 text-base lg:text-lg ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
+                      Manage company SIM cards, packages, and employee assignments
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {expiringCount > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                          <Calendar className="w-3 h-3" />
+                          {expiringCount} expiring soon
+                        </span>
+                      )}
+                      {unassignedCount > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 border border-teal-200 dark:border-teal-700/50">
+                          <Users className="w-3 h-3" />
+                          {unassignedCount} unassigned
+                        </span>
+                      )}
+                      {atFetchLimit && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border border-orange-200 dark:border-orange-700/50">
+                          <AlertCircle className="w-3 h-3" />
+                          Showing latest {FETCH_LIMIT} records
+                        </span>
+                      )}
                     </div>
                   </div>
-                  
-                  {/* Right Section - Action Buttons */}
-                  <motion.div 
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                    className="flex flex-col sm:flex-row xl:flex-col gap-4"
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className={`p-2.5 rounded-xl border transition-all ${
+                      isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                    title="Refresh"
                   >
-                    {/* Export Buttons */}
-                    <div className="flex flex-col gap-2">
-                      <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Export Data
+                    <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </motion.button>
+
+                  <div className="relative">
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => setShowExportMenu((v) => !v)}
+                      className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium border transition-all ${
+                        isDark ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Download className="w-4 h-4" />
+                      Export
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+                    </motion.button>
+                    {showExportMenu && (
+                      <div className={`absolute right-0 mt-2 w-48 rounded-xl shadow-xl border z-20 py-1 ${
+                        isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
+                      }`}>
+                        <button type="button" onClick={() => handleQuickExport('excel')} className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 ${isDark ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-50 text-gray-700'}`}>
+                          <FileSpreadsheet className="w-4 h-4 text-green-600" /> Excel (CSV)
+                        </button>
+                        <button type="button" onClick={() => handleQuickExport('pdf')} className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 ${isDark ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-50 text-gray-700'}`}>
+                          <FileText className="w-4 h-4 text-red-600" /> PDF
+                        </button>
+                        <button type="button" onClick={() => { setShowExportModal(true); setShowExportMenu(false); }} className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 ${isDark ? 'hover:bg-slate-700 text-slate-200' : 'hover:bg-gray-50 text-gray-700'}`}>
+                          <Download className="w-4 h-4 text-purple-600" /> More options
+                        </button>
                       </div>
-                      <div className="flex gap-2">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleQuickExport('excel')}
-                          className={`px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
-                            isDark ? 'shadow-green-500/25' : 'shadow-green-500/20'
-                          }`}
-                          title="Export to Excel"
-                        >
-                          <FileSpreadsheet className="w-4 h-4" />
-                          <span className="hidden sm:inline">Excel</span>
-                        </motion.button>
-                        
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleQuickExport('pdf')}
-                          className={`px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
-                            isDark ? 'shadow-red-500/25' : 'shadow-red-500/20'
-                          }`}
-                          title="Export to PDF"
-                        >
-                          <FileText className="w-4 h-4" />
-                          <span className="hidden sm:inline">PDF</span>
-                        </motion.button>
-                        
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowExportModal(true)}
-                          className={`px-4 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
-                            isDark ? 'shadow-purple-500/25' : 'shadow-purple-500/20'
-                          }`}
-                          title="Export Options"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span className="hidden sm:inline">Export</span>
-                        </motion.button>
-                      </div>
-                    </div>
-                    
-                    {/* Management Buttons */}
-                    <div className="flex flex-col gap-2">
-                      <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Management
-                      </div>
-                      <div className="flex gap-2">
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowDepartmentManager(true)}
-                          className={`px-4 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
-                            isDark ? 'shadow-gray-500/25' : 'shadow-gray-500/20'
-                          }`}
-                        >
-                          <Building className="w-4 h-4" />
-                          <span className="hidden sm:inline">Departments</span>
-                        </motion.button>
-                        
-                        {canAddSimCard() && (
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={handleAddSimCard}
-                            className={`px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg font-medium text-sm ${
-                              isDark ? 'shadow-blue-500/25' : 'shadow-blue-500/20'
-                            }`}
-                          >
-                            <Plus className="w-4 h-4" />
-                            <span className="hidden sm:inline">Add SIM Card</span>
-                          </motion.button>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
+                    )}
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setShowDepartmentManager(true)}
+                    className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium border transition-all ${
+                      isDark ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Building className="w-4 h-4" />
+                    Departments
+                  </motion.button>
+
+                  {canAddSimCard() && (
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={handleAddSimCard}
+                      className="px-5 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white rounded-xl flex items-center gap-2 text-sm font-medium shadow-lg shadow-teal-500/20"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add SIM Card
+                    </motion.button>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1135,12 +867,7 @@ export default function Simcard() {
                 }`}>Filter & Search</h3>
               </div>
               <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("");
-                  setDepartmentFilter("");
-                  setPackageTypeFilter("");
-                }}
+                onClick={clearAllFilters}
                 className={`px-4 py-2 rounded-xl transition-all duration-300 text-sm font-medium ${
                   isDark 
                     ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50' 
@@ -1151,14 +878,33 @@ export default function Simcard() {
               </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="flex flex-wrap gap-2 mb-5">
+              {QUICK_FILTERS.map((qf) => (
+                <button
+                  key={qf.id || 'all'}
+                  type="button"
+                  onClick={() => setQuickFilter(qf.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                    quickFilter === qf.id
+                      ? 'bg-teal-600 text-white shadow-md'
+                      : isDark
+                        ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {qf.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="relative group">
                 <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
                   isDark ? 'text-slate-400 group-focus-within:text-blue-400' : 'text-gray-400 group-focus-within:text-blue-500'
                 }`} />
                 <input
                   type="text"
-                  placeholder="Search SIM cards..."
+                  placeholder="Search SIM cards (server search at 2+ chars)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className={`pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent w-full transition-all duration-300 ${
@@ -1219,333 +965,175 @@ export default function Simcard() {
                 <option value="Premium">Premium</option>
                 <option value="Basic">Basic</option>
               </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className={`px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 cursor-pointer ${
+                  isDark 
+                    ? 'border-slate-600 bg-slate-700 text-slate-100 focus:ring-teal-400 hover:border-slate-500' 
+                    : 'border-gray-300 bg-white text-gray-900 focus:ring-teal-500 hover:border-gray-400'
+                }`}
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </div>
+            {isSearching && searchTerm.trim().length >= 2 && (
+              <p className={`text-xs mt-3 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>Searching full database...</p>
+            )}
           </div>
 
-          {/* Loading State */}
           {isLoading && (
-            <div className={`p-6 rounded-xl shadow-sm mb-6 transition-all duration-300 ${
-              isDark 
-                ? 'bg-slate-800/80 border border-slate-700/50' 
-                : 'bg-white border border-gray-200/50'
-            }`}>
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className={`w-6 h-6 animate-spin transition-colors duration-300 ${
-                  isDark ? 'text-blue-400' : 'text-blue-600'
-                }`} />
-                <span className={`ml-2 transition-colors duration-300 ${
-                  isDark ? 'text-slate-300' : 'text-gray-600'
-                }`}>Loading SIM cards...</span>
-              </div>
+            <div className="space-y-8 mb-8">
+              <StatsSkeleton />
+              <CardSkeleton cards={6} />
             </div>
           )}
 
-          {/* Error State */}
-          {error && (
-            <div className={`p-6 rounded-xl shadow-sm mb-6 transition-all duration-300 ${
-              isDark 
-                ? 'bg-slate-800/80 border border-slate-700/50' 
-                : 'bg-white border border-gray-200/50'
+          {error && !isLoading && (
+            <div className={`p-8 rounded-2xl shadow-xl border mb-8 ${
+              isDark ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white border-gray-200/50'
             }`}>
               <div className="text-center py-8">
                 <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-                <p className="text-lg text-red-600 font-medium">Failed to load SIM cards</p>
-                <p className={`text-sm mt-2 transition-colors duration-300 ${
-                  isDark ? 'text-slate-400' : 'text-gray-500'
-                }`}>{error.message}</p>
+                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Failed to load SIM cards</h3>
+                <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{error.message}</p>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl font-medium shadow-lg"
+                >
+                  Try Again
+                </button>
               </div>
             </div>
           )}
 
-          {/* Enhanced Summary Cards */}
           {!isLoading && !error && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group hover:scale-105 transition-all duration-300"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-300"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                      <Phone className="w-6 h-6 text-white" />
-                    </div>
-                    <TrendingUp className="w-5 h-5 text-white/70" />
-                  </div>
-                  <p className="text-sm font-medium text-blue-100 mb-1">Total SIM Cards</p>
-                  <p className="text-3xl font-bold text-white">
-                    {stats?.total_sim_cards || simCards.length}
-                  </p>
-                  <p className="text-xs text-blue-100 mt-2">Across all departments</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group hover:scale-105 transition-all duration-300"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-300"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                      <Signal className="w-6 h-6 text-white" />
-                    </div>
-                    <Activity className="w-5 h-5 text-white/70" />
-                  </div>
-                  <p className="text-sm font-medium text-green-100 mb-1">Active SIM Cards</p>
-                  <p className="text-3xl font-bold text-white">
-                    {stats?.active_sim_cards || simCards.filter(s => s.status === 'Active').length}
-                  </p>
-                  <p className="text-xs text-green-100 mt-2">Currently operational</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="bg-gradient-to-br from-indigo-500 to-blue-600 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group hover:scale-105 transition-all duration-300"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-300"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                      <Wifi className="w-6 h-6 text-white" />
-                    </div>
-                    <BarChart3 className="w-5 h-5 text-white/70" />
-                  </div>
-                  <p className="text-sm font-medium text-indigo-100 mb-1">SIM Card Stock</p>
-                  <p className="text-3xl font-bold text-white">
-                    {simCards.filter(s => s.current_user === 'IT STOCK').length}
-                  </p>
-                  <p className="text-xs text-indigo-100 mt-2">Available in inventory</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group hover:scale-105 transition-all duration-300"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-300"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                      <Users className="w-6 h-6 text-white" />
-                    </div>
-                    <User className="w-5 h-5 text-white/70" />
-                  </div>
-                  <p className="text-sm font-medium text-amber-100 mb-1">Assigned SIM Cards</p>
-                  <p className="text-3xl font-bold text-white">
-                    {stats?.assigned_sim_cards || simCards.filter(s => s.current_user).length}
-                  </p>
-                  <p className="text-xs text-amber-100 mt-2">In use by employees</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="bg-gradient-to-br from-purple-500 to-violet-600 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group hover:scale-105 transition-all duration-300"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-110 transition-transform duration-300"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                      <CreditCard className="w-6 h-6 text-white" />
-                    </div>
-                    <Zap className="w-5 h-5 text-white/70" />
-                  </div>
-                  <p className="text-sm font-medium text-purple-100 mb-1">Monthly Cost</p>
-                  <p className="text-3xl font-bold text-white">
-                    AED {(stats?.total_monthly_cost || simCards.reduce((total, sim) => total + (parseFloat(sim.monthly_cost) || 0), 0)).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-purple-100 mt-2">Total monthly expenses</p>
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50">
-              <div className="flex items-center justify-center py-16">
-                <div className="text-center">
-                  <Loader2 className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-4 animate-spin" />
-                  <p className="text-lg font-medium text-gray-600 dark:text-gray-400">Loading SIM cards...</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">Please wait while we fetch your data</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-200/50 dark:border-gray-700/50">
-              <div className="flex items-center justify-center py-16">
-                <div className="text-center">
-                  <AlertCircle className="w-12 h-12 text-red-600 dark:text-red-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading SIM Cards</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">{error.message}</p>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+              {statCards.map((card, index) => {
+                const Icon = card.icon;
+                const isClickable = !!card.id;
+                return (
+                  <motion.button
+                    key={card.label}
+                    type="button"
+                    disabled={!isClickable}
+                    onClick={() => isClickable && applyStatFilter(card.id)}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={`text-left p-5 rounded-2xl shadow-lg bg-gradient-to-br ${card.gradient} text-white relative overflow-hidden group transition-transform ${
+                      isClickable ? 'hover:scale-[1.03] cursor-pointer' : 'cursor-default'
+                    }`}
                   >
-                    Try Again
-                  </button>
-                </div>
-              </div>
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        {isClickable && <TrendingUp className="w-4 h-4 opacity-60" />}
+                      </div>
+                      <p className="text-xs font-medium text-white/80 mb-0.5">{card.label}</p>
+                      <p className={`font-bold text-white ${card.isCost ? 'text-xl' : 'text-2xl'}`}>{card.value}</p>
+                      <p className="text-[10px] text-white/70 mt-1">{card.sub}</p>
+                    </div>
+                  </motion.button>
+                );
+              })}
             </div>
           )}
-
-
-
-          {/* Enhanced SIM Cards Grid */}
           {!isLoading && !error && (
-            <div className={`p-8 rounded-2xl shadow-xl border transition-all duration-300 ${
-              isDark 
-                ? 'bg-slate-800/80 border-slate-700/50' 
-                : 'bg-white border-gray-200/50'
+            <div className={`p-6 lg:p-8 rounded-2xl shadow-xl border transition-all duration-300 ${
+              isDark ? 'bg-slate-800/80 border-slate-700/50' : 'bg-white border-gray-200/50'
             }`}>
-              <div className="flex justify-between items-center mb-8">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg transition-all duration-300 ${
-                    isDark ? 'bg-blue-900/50' : 'bg-blue-100'
-                  }`}>
-                    <Phone className={`w-5 h-5 transition-colors duration-300 ${
-                      isDark ? 'text-blue-400' : 'text-blue-600'
-                    }`} />
-                  </div>
-                  <div>
-                    <h2 className={`text-2xl font-bold transition-colors duration-300 ${
-                      isDark ? 'text-slate-100' : 'text-gray-900'
-                    }`}>
-                      SIM Cards ({filteredSimCards.length})
-                    </h2>
-                    <p className={`mt-1 transition-colors duration-300 ${
-                      isDark ? 'text-slate-300' : 'text-gray-600'
-                    }`}>
-                      Manage and monitor all SIM card assets
-                    </p>
-                  </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                <div>
+                  <h2 className={`text-2xl font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
+                    SIM Cards ({filteredSimCards.length})
+                  </h2>
+                  <p className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                    Showing {paginatedSimCards.length} of {filteredSimCards.length} filtered · {simCards.length} loaded
+                  </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={async () => {
-                      try {
-                        console.log('🔍 Manual data fetch test...');
-                        const { data, error } = await supabase
-                          .from('sim_cards')
-                          .select('*')
-                          .limit(5);
-                        
-                        if (error) {
-                          console.error('❌ Manual fetch failed:', error);
-                          alert(`Manual fetch failed: ${error.message}`);
-                        } else {
-                          console.log('✅ Manual fetch successful:', data);
-                          alert(`Manual fetch successful! Found ${data.length} SIM cards`);
-                        }
-                      } catch (err) {
-                        console.error('❌ Manual fetch error:', err);
-                        alert(`Manual fetch error: ${err.message}`);
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                      isDark 
-                        ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    Test Data Fetch
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        console.log('🔄 Refreshing SIM cards data...');
-                        // Invalidate and refetch
-                        await queryClient.invalidateQueries(['simCards']);
-                        await refetch();
-                        console.log('✅ Data refreshed successfully');
-                      } catch (err) {
-                        console.error('❌ Refresh error:', err);
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                      isDark 
-                        ? 'bg-slate-600 text-slate-200 hover:bg-slate-500' 
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
-                  >
-                    Refresh Data
-                  </button>
-                  <div className={`flex items-center gap-3 text-sm px-4 py-2 rounded-xl transition-all duration-300 ${
-                    isDark 
-                      ? 'text-slate-400 bg-slate-700/50' 
-                      : 'text-gray-500 bg-gray-100'
-                  }`}>
-                    <Filter className="w-4 h-4" />
-                    <span>Showing {filteredSimCards.length} of {simCards.length} SIM cards</span>
+                <div className="flex items-center gap-2">
+                  <div className={`flex rounded-xl border p-1 ${isDark ? 'border-slate-600 bg-slate-700/50' : 'border-gray-200 bg-gray-50'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-teal-600 text-white' : isDark ? 'text-slate-400' : 'text-gray-500'}`}
+                      title="Grid view"
+                    >
+                      <Grid className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-teal-600 text-white' : isDark ? 'text-slate-400' : 'text-gray-500'}`}
+                      title="List view"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
 
               {filteredSimCards.length === 0 ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-16"
-                >
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 transition-all duration-300 ${
-                    isDark ? 'bg-slate-700/50' : 'bg-gray-100'
-                  }`}>
-                    <Phone className={`w-12 h-12 transition-colors duration-300 ${
-                      isDark ? 'text-slate-400' : 'text-gray-400'
-                    }`} />
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
+                  <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${isDark ? 'bg-slate-700/50' : 'bg-gray-100'}`}>
+                    <Phone className={`w-10 h-10 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
                   </div>
-                  <h3 className={`text-xl font-semibold mb-2 transition-colors duration-300 ${
-                    isDark ? 'text-slate-300' : 'text-gray-600'
-                  }`}>
-                    No SIM cards found
-                  </h3>
-                  <p className={`max-w-md mx-auto transition-colors duration-300 ${
-                    isDark ? 'text-slate-400' : 'text-gray-500'
-                  }`}>
-                    {searchTerm || statusFilter || departmentFilter || packageTypeFilter 
-                      ? "Try adjusting your filters or search terms to find what you're looking for" 
-                      : "Get started by adding your first SIM card to the system"}
+                  <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>No SIM cards found</h3>
+                  <p className={`text-sm max-w-md mx-auto ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+                    {searchTerm || statusFilter || departmentFilter || packageTypeFilter || quickFilter
+                      ? 'Try adjusting your filters or search terms'
+                      : 'Get started by adding your first SIM card'}
                   </p>
-                  {!searchTerm && !statusFilter && !departmentFilter && !packageTypeFilter && canAddSimCard() && (
+                  {!searchTerm && !statusFilter && !departmentFilter && !packageTypeFilter && !quickFilter && canAddSimCard() && (
                     <button
+                      type="button"
                       onClick={handleAddSimCard}
-                      className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl flex items-center gap-2 mx-auto transition-all duration-300 shadow-lg hover:shadow-xl"
+                      className="mt-6 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl inline-flex items-center gap-2 font-medium shadow-lg"
                     >
                       <Plus className="w-5 h-5" />
                       Add First SIM Card
                     </button>
                   )}
                 </motion.div>
+              ) : viewMode === 'list' ? (
+                <div className="space-y-3">
+                  {paginatedSimCards.map((simCard) => (
+                    <SimCardListRow
+                      key={simCard.id}
+                      simCard={simCard}
+                      onEdit={handleEditSimCard}
+                      onDelete={handleDeleteSimCard}
+                      onView={handleViewSimCard}
+                      isDark={isDark}
+                      canEdit={canEditSimCard()}
+                      canDelete={canDeleteSimCard()}
+                    />
+                  ))}
+                </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   <AnimatePresence>
-                    {filteredSimCards.map((simCard, index) => (
+                    {paginatedSimCards.map((simCard, index) => (
                       <motion.div
                         key={simCard.id}
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
+                        transition={{ delay: Math.min(index * 0.04, 0.4) }}
                         layout
                       >
                         <SimCard
                           simCard={simCard}
                           onEdit={handleEditSimCard}
                           onDelete={handleDeleteSimCard}
+                          onView={handleViewSimCard}
                           isDark={isDark}
                           canEdit={canEditSimCard()}
                           canDelete={canDeleteSimCard()}
@@ -1555,8 +1143,60 @@ export default function Simcard() {
                   </AnimatePresence>
                 </div>
               )}
+
+              <PaginationControls
+                page={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredSimCards.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setCurrentPage}
+                className="mt-6"
+              />
             </div>
           )}
+
+          {/* Delete confirmation */}
+          <AnimatePresence>
+            {deleteConfirmId && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className={`rounded-2xl shadow-2xl p-6 max-w-md w-full border ${
+                    isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
+                      <Trash className="w-6 h-6 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div>
+                      <h3 className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Delete SIM card?</h3>
+                      <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>This action cannot be undone.</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmId(null)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium ${isDark ? 'text-slate-300 hover:bg-slate-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmDelete}
+                      disabled={deleteSimCard.isPending}
+                      className="px-4 py-2 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                    >
+                      {deleteSimCard.isPending ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
 
           {/* SIM Card Form Modal */}
           <AnimatePresence>

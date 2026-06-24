@@ -23,19 +23,40 @@ export const getHomeStats = async ({ userId, role }) => {
 
   if (hasFeatureAccess(role, 'my_tasks') || hasFeatureAccess(role, 'task_management')) {
     tasks.push(
-      taskApi.getStats(userId).then((stats) => {
+      (async () => {
+        const stats = await taskApi.getStats(userId);
         if (!stats) return;
-        const overdue = stats.overdue_tasks ?? 0;
+
+        const response = await taskApi.getAll({}, 1, 100);
+        const taskList = response?.data || [];
+        const { data: profile } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', userId)
+          .maybeSingle();
+
+        const openCount = taskList.filter(
+          (t) =>
+            t.assigned_to === profile?.id &&
+            !['completed', 'cancelled'].includes(t.status)
+        ).length;
+
+        const overdue = taskList.filter((t) => {
+          if (!t.due_date || ['completed', 'cancelled'].includes(t.status)) return false;
+          if (t.assigned_to !== profile?.id) return false;
+          return new Date(t.due_date) < new Date();
+        }).length;
+
         cards.push({
           key: 'tasks',
-          label: 'My tasks',
-          value: stats.my_tasks ?? 0,
-          sub: overdue > 0 ? `${overdue} overdue` : 'On track',
-          subTone: overdue > 0 ? 'warning' : 'neutral',
-          path: '/tasks',
+          label: 'Open tasks',
+          value: openCount,
+          sub: overdue > 0 ? `${overdue} overdue` : openCount > 0 ? 'Needs attention' : 'All caught up',
+          subTone: overdue > 0 ? 'warning' : openCount > 0 ? 'info' : 'success',
+          path: '/task-management?tab=my-tasks',
           color: 'from-purple-500 to-pink-600'
         });
-      })
+      })()
     );
   }
 

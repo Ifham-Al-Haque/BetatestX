@@ -5,6 +5,7 @@ import { Home, Users, Shield, Zap, Globe } from 'lucide-react';
 import WidgetNavigation from '../components/WidgetNavigation';
 import QuickAccessBar from '../components/QuickAccessBar';
 import HomeStatsStrip from '../components/HomeStatsStrip';
+import TaskSummaryWidget from '../components/tasks/TaskSummaryWidget';
 
 const UserWelcome = () => {
   const { user, userProfile, role } = useAuth();
@@ -110,6 +111,10 @@ const UserWelcome = () => {
 
           <div className={`transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <HomeStatsStrip userId={user?.id} userRole={userRole} />
+          </div>
+
+          <div className={`max-w-2xl mx-auto mb-8 sm:mb-10 transition-all duration-1000 delay-250 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <TaskSummaryWidget variant="dark" />
           </div>
 
           <div className={`transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>

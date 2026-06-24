@@ -81,7 +81,6 @@ const RequestInbox = safeLazy(() => import('./pages/RequestInbox'), 'RequestInbo
 const CSPA = safeLazy(() => import('./pages/CSPA'), 'CSPA');
 const Complaints = safeLazy(() => import('./pages/Complaints'), 'Complaints');
 const Attendance = safeLazy(() => import('./pages/Attendance'), 'Attendance');
-const Tasks = safeLazy(() => import('./pages/Tasks'), 'Tasks');
 const CalendarView = safeLazy(() => import('./pages/CalendarView'), 'CalendarView');
 const Analytics = safeLazy(() => import('./pages/Analytics'), 'Analytics');
 const FleetManagement = safeLazy(() => import('./pages/FleetManagement'), 'FleetManagement');
@@ -93,6 +92,7 @@ const UserProfile = safeLazy(() => import('./pages/UserProfile'), 'UserProfile')
 const Suggestions = safeLazy(() => import('./pages/Suggestions'), 'Suggestions');
 const SuggestionsInbox = safeLazy(() => import('./pages/SuggestionsInbox'), 'SuggestionsInbox');
 const TaskManagement = safeLazy(() => import('./pages/TaskManagement'), 'TaskManagement');
+const TaskReports = safeLazy(() => import('./pages/TaskReports'), 'TaskReports');
 const ExpenseTracker = safeLazy(() => import('./pages/ExpenseTracker'), 'ExpenseTracker');
 const PaymentCalendar = safeLazy(() => import('./pages/PaymentCalendar'), 'PaymentCalendar');
 const Chat = safeLazy(() => import('./pages/Chat'), 'Chat');
@@ -223,10 +223,8 @@ function App() {
                         } />
 
                         <Route path="/tasks" element={
-                          <ProtectedRoute requiredFeature="task_management">
-                            <Layout>
-                              <Tasks />
-                            </Layout>
+                          <ProtectedRoute requiredFeature="my_tasks">
+                            <Navigate to="/task-management?tab=my-tasks" replace />
                           </ProtectedRoute>
                         } />
 
@@ -644,10 +642,7 @@ function App() {
                         <Route path="/reports" element={
                           <ProtectedRoute requiredFeature="reports">
                             <Layout>
-                              <div className="p-8">
-                                <h1 className="text-2xl font-bold mb-4">Reports</h1>
-                                <p>Reports functionality coming soon...</p>
-                              </div>
+                              <TaskReports />
                             </Layout>
                           </ProtectedRoute>
                         } />

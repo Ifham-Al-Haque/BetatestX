@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
@@ -8,7 +9,8 @@ import {
   CheckSquare, ClipboardList, Users, AlertTriangle,
   MessageCircle, Bell, Star, TrendingUp, BarChart3,
   RefreshCw, Send, ThumbsUp, ThumbsDown, Flag,
-  Target, Timer, Award, Activity, Zap, Sparkles, Rocket
+  Target, Timer, Award, Activity, Zap, Sparkles, Rocket,
+  LayoutGrid, Columns3
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -27,22 +29,29 @@ import Textarea from '../components/ui/textarea';
 import TaskCard from '../components/TaskCard';
 import TaskNotes from '../components/TaskNotes';
 import MyTaskCard from '../components/MyTaskCard';
+import TaskKanbanBoard from '../components/tasks/TaskKanbanBoard';
 import { CardSkeleton } from '../components/LoadingSkeleton';
 import PaginationControls from '../components/ui/PaginationControls';
 import { safeMotion } from '../utils/motion';
+
+const TASK_TABS = ['all', 'my-tasks', 'assigned-by-me'];
 
 const TaskManagement = () => {
   const { user, userProfile } = useAuth();
   const { success, error: showError } = useToast();
   const prefersReducedMotion = useReducedMotion();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const tabFromUrl = searchParams.get('tab');
+  const initialTab = TASK_TABS.includes(tabFromUrl) ? tabFromUrl : 'all';
   
   const [allUsers, setAllUsers] = useState([]);
   const [departmentUsers, setDepartmentUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'my-tasks', 'assigned-by-me'
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [showComments, setShowComments] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
@@ -66,6 +75,23 @@ const TaskManagement = () => {
   const [currentUserId, setCurrentUserId] = useState(null); // Store current user's users.id (primary key)
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 12;
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('task-view-mode');
+      return saved === 'kanban' ? 'kanban' : 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+
+  const handleViewModeChange = useCallback((mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('task-view-mode', mode);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -84,14 +110,49 @@ const TaskManagement = () => {
   });
   const [newComment, setNewComment] = useState(''); // For adding new comments
 
+  const handleTabChange = useCallback((tabId) => {
+    if (!TASK_TABS.includes(tabId)) return;
+    setActiveTab(tabId);
+    if (tabId === 'all') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab: tabId }, { replace: true });
+    }
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (urlTab && TASK_TABS.includes(urlTab)) {
+      setActiveTab(urlTab);
+    } else if (!urlTab) {
+      setActiveTab('all');
+    }
+  }, [searchParams]);
+
+  const pageTitle = useMemo(() => {
+    switch (activeTab) {
+      case 'my-tasks': return 'My Tasks';
+      case 'assigned-by-me': return 'Assigned by Me';
+      default: return 'Task Management';
+    }
+  }, [activeTab]);
+
+  const pageSubtitle = useMemo(() => {
+    switch (activeTab) {
+      case 'my-tasks': return 'Tasks assigned to you - track progress and add notes';
+      case 'assigned-by-me': return 'Tasks you created and assigned to others';
+      default: return 'Create, assign, and track tasks across your team';
+    }
+  }, [activeTab]);
+
   // Use centralized departments from config
   const departments = DEPARTMENTS.map(dept => dept.value);
 
   const priorities = [
-    { value: 'low', label: 'Low', color: 'bg-green-100 text-green-800', icon: '🟢' },
-    { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-800', icon: '🟡' },
-    { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-800', icon: '🟠' },
-    { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-800', icon: '🔴' }
+    { value: 'low', label: 'Low', color: 'bg-green-100 text-green-800', icon: 'ðŸŸ¢' },
+    { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-800', icon: 'ðŸŸ¡' },
+    { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-800', icon: 'ðŸŸ ' },
+    { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-800', icon: 'ðŸ”´' }
   ];
 
   const categories = [
@@ -205,12 +266,12 @@ const TaskManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      console.log('🔄 Fetching real UHub users for task assignment...');
+      console.log('ðŸ”„ Fetching real UHub users for task assignment...');
       
       // Fetch users from the users table
       const users = await apiService.userManagement.getAll();
       
-      console.log('📊 Raw users data from UHub database:', users);
+      console.log('ðŸ“Š Raw users data from UHub database:', users);
       
       if (users && users.length > 0) {
         // First, filter users with basic criteria
@@ -232,7 +293,7 @@ const TaskManagement = () => {
             return hasAuthUserId && hasValidDepartment && isActive;
           });
         
-        console.log(`📋 Found ${basicFilteredUsers.length} users after basic filtering`);
+        console.log(`ðŸ“‹ Found ${basicFilteredUsers.length} users after basic filtering`);
         
         // Note: We're using users.id (primary key) for task assignment, which matches
         // the foreign key constraint on tasks.assigned_to -> users.id
@@ -255,25 +316,25 @@ const TaskManagement = () => {
           location: user.location || 'N/A'
         }));
         
-        console.log(`✅ Valid UHub users for task assignment: ${finalUsers.length} users`);
-        console.log('🏢 Available departments:', [...new Set(finalUsers.map(u => u.department))]);
-        console.log('🔑 User IDs (users.id) for task assignment:', finalUsers.map(u => ({ id: u.id, email: u.email, users_table_id: u.users_table_id })));
+        console.log(`âœ… Valid UHub users for task assignment: ${finalUsers.length} users`);
+        console.log('ðŸ¢ Available departments:', [...new Set(finalUsers.map(u => u.department))]);
+        console.log('ðŸ”‘ User IDs (users.id) for task assignment:', finalUsers.map(u => ({ id: u.id, email: u.email, users_table_id: u.users_table_id })));
         
         if (finalUsers.length > 0) {
-          console.log('🎉 Successfully loaded real UHub users!');
+          console.log('ðŸŽ‰ Successfully loaded real UHub users!');
           setAllUsers(finalUsers);
           return;
         } else {
-          console.warn('⚠️ No valid users found in UHub database after auth verification');
-          console.log('🔍 All users were filtered out. Check department assignments, status, and auth accounts.');
+          console.warn('âš ï¸ No valid users found in UHub database after auth verification');
+          console.log('ðŸ” All users were filtered out. Check department assignments, status, and auth accounts.');
         }
       } else {
-        console.warn('⚠️ No users found in UHub database');
+        console.warn('âš ï¸ No users found in UHub database');
       }
       
       // If no valid users found, show error message
-      console.error('🚨 No active users with valid departments found in UHub database');
-      console.log('💡 Please check:');
+      console.error('ðŸš¨ No active users with valid departments found in UHub database');
+      console.log('ðŸ’¡ Please check:');
       console.log('   1. Users have proper department assignments');
       console.log('   2. Users are marked as active');
       console.log('   3. Database connection is working');
@@ -282,8 +343,8 @@ const TaskManagement = () => {
       setAllUsers([]);
       
     } catch (err) {
-      console.error('❌ Error fetching UHub users:', err);
-      console.log('🔧 This might be due to:');
+      console.error('âŒ Error fetching UHub users:', err);
+      console.log('ðŸ”§ This might be due to:');
       console.log('   1. Database connection issues');
       console.log('   2. RLS policies blocking access');
       console.log('   3. API service not working properly');
@@ -310,12 +371,12 @@ const TaskManagement = () => {
   };
 
   const filterUsersByDepartment = (department) => {
-    console.log('🔍 Filtering users by department:', department);
-    console.log('📊 All users:', allUsers);
-    console.log('🏢 User departments:', allUsers.map(u => ({ name: u.full_name, dept: u.department, status: u.status })));
+    console.log('ðŸ” Filtering users by department:', department);
+    console.log('ðŸ“Š All users:', allUsers);
+    console.log('ðŸ¢ User departments:', allUsers.map(u => ({ name: u.full_name, dept: u.department, status: u.status })));
     
     if (!department) {
-      console.log('⚠️ No department selected');
+      console.log('âš ï¸ No department selected');
       setDepartmentUsers([]);
       return;
     }
@@ -361,21 +422,21 @@ const TaskManagement = () => {
       
       const isActive = (user.status || '').toLowerCase() === 'active';
       
-      console.log(`👤 User: ${user.full_name}`);
+      console.log(`ðŸ‘¤ User: ${user.full_name}`);
       console.log(`   User Dept: "${userDept}" (normalized: "${normalizedUserDept}")`);
       console.log(`   Selected: "${selectedDept}" (normalized: "${normalizedSelectedDept}")`);
       console.log(`   Match: ${isMatch} (exact: ${exactMatch}, normalized: ${normalizedMatch}, contains: ${containsMatch})`);
       console.log(`   Active: ${isActive}`);
-      console.log(`   ✅ Result: ${isMatch && isActive ? 'INCLUDED' : 'EXCLUDED'}`);
+      console.log(`   âœ… Result: ${isMatch && isActive ? 'INCLUDED' : 'EXCLUDED'}`);
       
       return isMatch && isActive;
     });
     
-    console.log(`✅ Filtered ${filtered.length} users for department "${department}":`, filtered.map(u => u.full_name));
+    console.log(`âœ… Filtered ${filtered.length} users for department "${department}":`, filtered.map(u => u.full_name));
     setDepartmentUsers(filtered);
     
     if (filtered.length === 0 && allUsers.length > 0) {
-      console.warn('⚠️ No users found! Available departments in database:', 
+      console.warn('âš ï¸ No users found! Available departments in database:', 
         [...new Set(allUsers.map(u => u.department))].filter(Boolean)
       );
     }
@@ -462,30 +523,16 @@ const TaskManagement = () => {
     queryFn: async () => {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
-        return { data: [], commentsMap: {} };
+        return { data: [] };
       }
 
       const tasksResponse = await taskApi.getAll(taskFilters, 1, 100);
       
       if (!tasksResponse || !tasksResponse.data) {
-        return { data: [], commentsMap: {} };
+        return { data: [] };
       }
-      
-      // Fetch comments for each task
-      const commentsMap = {};
-      await Promise.all(
-        tasksResponse.data.map(async (task) => {
-          try {
-            const comments = await taskApi.getComments(task.id);
-            commentsMap[task.id] = comments || [];
-          } catch (error) {
-            console.error(`Error fetching comments for task ${task.id}:`, error);
-            commentsMap[task.id] = [];
-          }
-        })
-      );
 
-      return { data: tasksResponse.data, commentsMap };
+      return { data: tasksResponse.data };
     },
     enabled: !!user?.id && !!currentUserId, // Only fetch when user is available
     staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh for 2 minutes
@@ -496,10 +543,28 @@ const TaskManagement = () => {
     keepPreviousData: true, // Keep previous data while fetching new data
   });
 
-  // Extract tasks and comments from query data
+  // Extract tasks from query data
   const tasks = useMemo(() => tasksData?.data || [], [tasksData]);
-  const taskComments = useMemo(() => tasksData?.commentsMap || {}, [tasksData]);
-  const loading = tasksLoading && !tasksData; // Only show loading if we don't have cached data
+  const loading = tasksLoading && !tasksData;
+
+  // Lazy-load comments only when task detail is open
+  const {
+    data: selectedTaskComments = [],
+    isLoading: commentsLoading
+  } = useQuery({
+    queryKey: ['taskComments', selectedTask?.id],
+    queryFn: () => taskApi.getComments(selectedTask.id),
+    enabled: !!selectedTask?.id,
+    staleTime: 30 * 1000
+  });
+
+  // Open task detail when linked from notifications (?task=id)
+  useEffect(() => {
+    const taskId = searchParams.get('task');
+    if (!taskId || tasks.length === 0) return;
+    const linked = tasks.find((t) => t.id === taskId);
+    if (linked) setSelectedTask(linked);
+  }, [searchParams, tasks]);
 
   // Handle refresh manually
   const handleRefresh = useCallback(async () => {
@@ -507,6 +572,7 @@ const TaskManagement = () => {
     await refetchTasks();
     // Also refetch stats
     queryClient.invalidateQueries(['taskStats']);
+    queryClient.invalidateQueries(['taskSidebarCounts']);
     setRefreshing(false);
   }, [refetchTasks, queryClient]);
   
@@ -581,7 +647,7 @@ const TaskManagement = () => {
         .single();
 
       if (currentUserError || !currentUser) {
-        console.error('❌ Error fetching current user from users table:', currentUserError);
+        console.error('âŒ Error fetching current user from users table:', currentUserError);
         showError('Error', 'Your account is not properly set up in the system. Please contact your administrator.');
         return;
       }
@@ -638,7 +704,7 @@ const TaskManagement = () => {
 
       // Validate that assigned users have valid auth_user_id
       if (assignedToId && !allUsers.find(u => u.id === assignedToId)) {
-        console.error('❌ Selected user not found in allUsers:', assignedToId);
+        console.error('âŒ Selected user not found in allUsers:', assignedToId);
         console.log('Available users:', allUsers.map(u => ({ id: u.id, email: u.email })));
         showError('Error', 'Selected user is not valid. Please select a different user.');
         return;
@@ -663,7 +729,7 @@ const TaskManagement = () => {
 
       // Validate that assignedToId is a valid UUID (auth_user_id)
       if (assignedToId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignedToId)) {
-        console.error('❌ Invalid UUID format for assigned_to:', assignedToId);
+        console.error('âŒ Invalid UUID format for assigned_to:', assignedToId);
         showError('Error', 'Invalid user ID format. Please select a user again.');
         return;
       }
@@ -686,12 +752,12 @@ const TaskManagement = () => {
         assignees: assignees // Array of users.id values for coordinated tasks
       };
 
-      console.log('📝 Submitting task with data:', taskData);
-      console.log('👤 Assigned to (users.id):', assignedToId);
-      console.log('👤 Assigned by (users.id):', currentUserId);
-      console.log('👥 Assignees (users.ids):', assignees);
-      console.log('📋 Selected user details:', allUsers.find(u => u.id === assignedToId));
-      console.log('🔍 All available users:', allUsers.map(u => ({ id: u.id, email: u.email })));
+      console.log('ðŸ“ Submitting task with data:', taskData);
+      console.log('ðŸ‘¤ Assigned to (users.id):', assignedToId);
+      console.log('ðŸ‘¤ Assigned by (users.id):', currentUserId);
+      console.log('ðŸ‘¥ Assignees (users.ids):', assignees);
+      console.log('ðŸ“‹ Selected user details:', allUsers.find(u => u.id === assignedToId));
+      console.log('ðŸ” All available users:', allUsers.map(u => ({ id: u.id, email: u.email })));
 
       if (editingTask) {
         // Update existing task
@@ -699,6 +765,8 @@ const TaskManagement = () => {
         // Invalidate and refetch tasks to get fresh data
         queryClient.invalidateQueries(['tasks']);
         queryClient.invalidateQueries(['taskStats']);
+      queryClient.invalidateQueries(['taskSidebarCounts']);
+      queryClient.invalidateQueries(['taskSummaryWidget']);
         success('Success', 'Task updated successfully!');
       } else {
         // Create new task
@@ -706,6 +774,8 @@ const TaskManagement = () => {
         // Invalidate and refetch tasks to get fresh data
         queryClient.invalidateQueries(['tasks']);
         queryClient.invalidateQueries(['taskStats']);
+      queryClient.invalidateQueries(['taskSidebarCounts']);
+      queryClient.invalidateQueries(['taskSummaryWidget']);
         success('Success', 'Task created and assigned successfully!');
 
         // Notify assignee(s): in-app + push + email
@@ -726,7 +796,7 @@ const TaskManagement = () => {
       setEditingTask(null);
       resetForm();
     } catch (err) {
-      console.error('❌ Error submitting task:', err);
+      console.error('âŒ Error submitting task:', err);
       console.error('Error details:', {
         message: err.message,
         details: err.details,
@@ -771,6 +841,8 @@ const TaskManagement = () => {
       // Invalidate and refetch tasks to get fresh data
       queryClient.invalidateQueries(['tasks']);
       queryClient.invalidateQueries(['taskStats']);
+      queryClient.invalidateQueries(['taskSidebarCounts']);
+      queryClient.invalidateQueries(['taskSummaryWidget']);
       success('Success', `Task status updated to ${newStatus.replace('_', ' ')}`);
     } catch (err) {
       console.error('Error updating status:', err);
@@ -785,7 +857,7 @@ const TaskManagement = () => {
       await taskApi.addComment(taskId, newComment.trim());
       
       // Invalidate tasks query to refetch with new comments
-      queryClient.invalidateQueries(['tasks']);
+      queryClient.invalidateQueries(['taskComments', taskId]);
       setNewComment('');
       success('Success', 'Comment added successfully');
     } catch (err) {
@@ -852,6 +924,8 @@ const TaskManagement = () => {
         // Invalidate and refetch tasks to get fresh data
         queryClient.invalidateQueries(['tasks']);
         queryClient.invalidateQueries(['taskStats']);
+      queryClient.invalidateQueries(['taskSidebarCounts']);
+      queryClient.invalidateQueries(['taskSummaryWidget']);
         success('Success', 'Task deleted successfully!');
       } catch (err) {
         console.error('Error deleting task:', err);
@@ -885,7 +959,7 @@ const TaskManagement = () => {
     // Use currentUserId from state (users.id primary key)
     // Note: tasks use users.id, not auth.users.id
     if (!currentUserId) {
-      console.warn('⚠️ Current user ID not available for filtering, showing all tasks');
+      console.warn('âš ï¸ Current user ID not available for filtering, showing all tasks');
       // Still apply other filters
     } else {
       // Filter by tab with visibility rules
@@ -998,6 +1072,10 @@ const TaskManagement = () => {
   };
 
   const filteredTasks = getFilteredTasks();
+  const kanbanTasks = useMemo(
+    () => filteredTasks.filter((t) => t.status !== 'cancelled'),
+    [filteredTasks]
+  );
   const totalPages = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedTasks = useMemo(() => {
@@ -1021,21 +1099,18 @@ const TaskManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
-      {/* Header Section */}
-      <div className="bg-white dark:bg-gray-800/95 dark:backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 dark:shadow-lg shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
-                <CheckSquare className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Task Management</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Create, assign, and track tasks efficiently across your team</p>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header with Stats */}
+        <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 rounded-2xl p-8 text-white shadow-xl mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
+            <div>
+              <p className="text-purple-200 text-sm font-medium mb-1">To Do List</p>
+              <h1 className="text-4xl font-bold mb-2">{pageTitle}</h1>
+              <p className="text-purple-100 text-lg">{pageSubtitle}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <motion.div
                 whileHover={safeMotion(prefersReducedMotion, { scale: 1.05 }, {})}
                 whileTap={safeMotion(prefersReducedMotion, { scale: 0.95 }, {})}
@@ -1044,7 +1119,7 @@ const TaskManagement = () => {
                   onClick={handleRefresh}
                   disabled={isRefreshing}
                   variant="secondary"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 border-white/30 text-white hover:bg-white/30"
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   Refresh
@@ -1056,37 +1131,11 @@ const TaskManagement = () => {
               >
                 <EnhancedButton
                   onClick={() => setShowForm(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="flex items-center gap-2 bg-white text-purple-700 hover:bg-purple-50 px-4 py-2 rounded-lg shadow-lg font-semibold"
                 >
                   <Plus className="w-4 h-4" />
                   New Task
                 </EnhancedButton>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Enhanced Header with Stats */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl p-8 text-white shadow-xl mb-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Task Management</h1>
-              <p className="text-blue-100 text-lg">
-                Manage and monitor your team's tasks with comprehensive analytics
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <motion.div 
-                className="flex items-center space-x-3 px-4 py-2 bg-white/20 rounded-full"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium">System Online</span>
               </motion.div>
             </div>
           </div>
@@ -1133,9 +1182,10 @@ const TaskManagement = () => {
         </div>
 
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation + View Toggle */}
         <div className="bg-white dark:bg-gray-800/90 dark:backdrop-blur-sm rounded-xl shadow-sm dark:shadow-lg dark:shadow-blue-500/5 border border-gray-200 dark:border-gray-700 p-6 mb-8">
-          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg flex-1">
             {[
               { id: 'all', label: 'All Tasks', icon: ClipboardList, count: stats.total },
               { id: 'my-tasks', label: 'My Tasks', icon: Target, count: stats.myTasks },
@@ -1145,10 +1195,10 @@ const TaskManagement = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-md transition-all duration-200 ${
                     activeTab === tab.id
-                      ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                      ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
                 >
@@ -1156,7 +1206,7 @@ const TaskManagement = () => {
                   <span className="font-medium">{tab.label}</span>
                   <span className={`px-2 py-1 rounded-full text-xs ${
                     activeTab === tab.id
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300'
+                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300'
                       : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
                   }`}>
                     {tab.count}
@@ -1164,6 +1214,36 @@ const TaskManagement = () => {
                 </button>
               );
             })}
+            </div>
+
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg shrink-0">
+              <button
+                type="button"
+                onClick={() => handleViewModeChange('grid')}
+                title="Grid view"
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleViewModeChange('kanban')}
+                title="Kanban board"
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                  viewMode === 'kanban'
+                    ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                <Columns3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Board</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1659,7 +1739,7 @@ const TaskManagement = () => {
                                   />
                                   <div className="flex-1">
                                     <p className="font-medium text-gray-900">{user.full_name}</p>
-                                    <p className="text-sm text-gray-500">{user.email} {user.department && `• ${user.department}`}</p>
+                                    <p className="text-sm text-gray-500">{user.email} {user.department && `â€¢ ${user.department}`}</p>
                                   </div>
                                   {isSelected && (
                                     <CheckCircle className="w-5 h-5 text-purple-500" />
@@ -1980,7 +2060,7 @@ const TaskManagement = () => {
                       <div>
                         <h2 className="text-2xl font-bold text-white mb-1">My Tasks</h2>
                         <p className="text-blue-100 text-sm">
-                          Tasks assigned to you or created by you • {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
+                          Tasks assigned to you or created by you &bull; {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
                         </p>
                       </div>
                     </div>
@@ -2002,6 +2082,15 @@ const TaskManagement = () => {
                 </motion.div>
               )}
               
+              {viewMode === 'kanban' ? (
+                <TaskKanbanBoard
+                  tasks={kanbanTasks}
+                  onView={setSelectedTask}
+                  onStatusChange={handleStatusChange}
+                  isOverdue={isOverdue}
+                />
+              ) : (
+              <>
               <div className={`grid gap-6 ${
                 activeTab === 'my-tasks' 
                   ? 'grid-cols-1 lg:grid-cols-2' 
@@ -2049,24 +2138,26 @@ const TaskManagement = () => {
                 pageSize={PAGE_SIZE}
                 onPageChange={setPage}
               />
+              </>
+              )}
             </>
           )}
         </div>
 
         {/* Task Details Modal */}
         {selectedTask && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700"
             >
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">{selectedTask.title}</h2>
-                    <p className="text-gray-600 text-sm mt-1">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedTask.title}</h2>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
                       Created on {new Date(selectedTask.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -2081,8 +2172,8 @@ const TaskManagement = () => {
                 
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-                    <p className="text-gray-600">{selectedTask.description}</p>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
+                    <p className="text-gray-600 dark:text-gray-300">{selectedTask.description}</p>
                   </div>
                   
                   {selectedTask.notes && (
@@ -2098,8 +2189,8 @@ const TaskManagement = () => {
                   )}
                   
                   {/* Status Change Section */}
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                       <CheckCircle className="w-5 h-5 text-blue-500" />
                       Task Status
                     </h3>
@@ -2116,6 +2207,9 @@ const TaskManagement = () => {
                                 setSelectedTask(updatedTask);
                                 // Invalidate queries to refresh data
                                 queryClient.invalidateQueries(['tasks']);
+                                queryClient.invalidateQueries(['taskStats']);
+                                queryClient.invalidateQueries(['taskSidebarCounts']);
+      queryClient.invalidateQueries(['taskSummaryWidget']);
                                 success('Success', `Task status updated to ${status.label}`);
                               } catch (err) {
                                 console.error('Error updating status:', err);
@@ -2213,8 +2307,12 @@ const TaskManagement = () => {
                     
                     {/* Comments List */}
                     <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
-                      {taskComments[selectedTask.id] && taskComments[selectedTask.id].length > 0 ? (
-                        taskComments[selectedTask.id].map((comment) => (
+                      {commentsLoading ? (
+                        <div className="flex justify-center py-8">
+                          <RefreshCw className="w-6 h-6 animate-spin text-purple-500" />
+                        </div>
+                      ) : selectedTaskComments.length > 0 ? (
+                        selectedTaskComments.map((comment) => (
                           <div key={comment.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-2">
@@ -2259,8 +2357,7 @@ const TaskManagement = () => {
                           try {
                             const comment = await taskApi.addComment(selectedTask.id, newComment.trim());
                             setNewComment('');
-                            // Invalidate queries to refresh comments
-                            queryClient.invalidateQueries(['tasks']);
+                            queryClient.invalidateQueries(['taskComments', selectedTask.id]);
                             success('Success', 'Comment added successfully!');
                           } catch (err) {
                             console.error('Error adding comment:', err);
@@ -2280,390 +2377,6 @@ const TaskManagement = () => {
           </div>
         )}
 
-        {/* Create/Edit Task Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-t-2xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-white bg-opacity-20 rounded-lg">
-                      <FileText className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">
-                        {editingTask ? 'Edit Task' : 'Create New Task'}
-                      </h2>
-                      <p className="text-blue-100 text-sm">
-                        {editingTask ? 'Update task details' : 'Fill in the details to create a new task'}
-                      </p>
-                    </div>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingTask(null);
-                      resetForm();
-                    }}
-                    className="p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-lg transition-all duration-200"
-                  >
-                    <XCircle className="w-6 h-6" />
-                  </motion.button>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2">
-                      <Label htmlFor="title" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Task Title *
-                      </Label>
-                      <Input
-                        id="title"
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 text-lg"
-                        placeholder="Enter task title"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="md:col-span-2">
-                      <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Description *
-                      </Label>
-                      <Textarea
-                        id="description"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 min-h-[100px]"
-                        placeholder="Describe the task details"
-                        required
-                      />
-                    </div>
-                    
-                    {/* Department field removed - will be auto-determined from selected users */}
-                    
-                    <div>
-                      <Label htmlFor="priority" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Priority *
-                      </Label>
-                      <select
-                        id="priority"
-                        value={formData.priority}
-                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
-                        required
-                      >
-                        {priorities.map(priority => (
-                          <option key={priority.value} value={priority.value}>
-                            {priority.icon} {priority.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    {/* Notes Section */}
-                    <div className="md:col-span-2">
-                      <Label htmlFor="notes" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Notes
-                      </Label>
-                      <Textarea
-                        id="notes"
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-300 min-h-[80px]"
-                        placeholder="Add any additional notes, reminders, or important information about this task..."
-                      />
-                      <p className="text-xs text-gray-500 mt-1">These notes will be visible to all assigned users and the task creator</p>
-                    </div>
-
-                    {/* Task Type Selection - Individual or Joined Task */}
-                    <div className="md:col-span-2">
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                        Task Type *
-                      </Label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
-                        <label className="flex items-center space-x-3 cursor-pointer p-4 rounded-lg hover:bg-white transition-colors border-2 border-transparent hover:border-green-300">
-                          <input
-                            type="radio"
-                            name="assignmentType"
-                            value="single"
-                            checked={formData.assignmentType === 'single'}
-                            onChange={() => setFormData({ 
-                              ...formData, 
-                              assignmentType: 'single',
-                              assignToMyself: false,
-                              assigned_to_multiple: [],
-                              assigned_to: ''
-                            })}
-                            className="w-5 h-5 text-green-600 focus:ring-green-500 focus:ring-2"
-                          />
-                          <div className="flex items-center gap-2 flex-1">
-                            <User className="w-6 h-6 text-green-500" />
-                            <div>
-                              <span className="font-bold text-gray-900 block">Individual Task</span>
-                              <span className="text-xs text-gray-600">Assign to one person</span>
-                            </div>
-                          </div>
-                        </label>
-                        <label className="flex items-center space-x-3 cursor-pointer p-4 rounded-lg hover:bg-white transition-colors border-2 border-transparent hover:border-purple-300">
-                          <input
-                            type="radio"
-                            name="assignmentType"
-                            value="coordinated"
-                            checked={formData.assignmentType === 'coordinated'}
-                            onChange={() => setFormData({ 
-                              ...formData, 
-                              assignmentType: 'coordinated',
-                              assignToMyself: false,
-                              assigned_to: ''
-                            })}
-                            className="w-5 h-5 text-purple-600 focus:ring-purple-500 focus:ring-2"
-                          />
-                          <div className="flex items-center gap-2 flex-1">
-                            <Users className="w-6 h-6 text-purple-500" />
-                            <div>
-                              <span className="font-bold text-gray-900 block">Joined Task</span>
-                              <span className="text-xs text-gray-600">Assign to multiple people</span>
-                            </div>
-                          </div>
-                        </label>
-                      </div>
-                      {formData.assignmentType === 'single' && (
-                        <div className="flex items-center gap-2 mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <User className="w-4 h-4 text-green-500" />
-                          <p className="text-sm text-green-600 font-medium">
-                            This task will be assigned to one person - visible to both you and the assignee
-                          </p>
-                        </div>
-                      )}
-                      {formData.assignmentType === 'coordinated' && (
-                        <div className="flex items-center gap-2 mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                          <Users className="w-4 h-4 text-purple-500" />
-                          <p className="text-sm text-purple-600 font-medium">
-                            This task will be assigned to multiple people for coordination - visible to all assignees and you
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Assignment Section - Show all UHub account holders */}
-                    <div className="md:col-span-2">
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                        {formData.assignmentType === 'coordinated'
-                          ? 'Select Multiple UHub Users *'
-                          : 'Assign To UHub User *'}
-                      </Label>
-                      
-                      {formData.assignmentType === 'coordinated' ? (
-                        <div className="space-y-3">
-                          <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl p-3 bg-white">
-                            {allUsers.length === 0 ? (
-                              <p className="text-sm text-gray-500 text-center py-4">No UHub users available</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {allUsers.map(user => {
-                                  const isSelected = formData.assigned_to_multiple.includes(user.id);
-                                  return (
-                                    <label
-                                      key={user.id}
-                                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                                        isSelected
-                                          ? 'bg-purple-50 border-2 border-purple-300'
-                                          : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                                      }`}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={(e) => {
-                                          if (e.target.checked) {
-                                            setFormData({
-                                              ...formData,
-                                              assigned_to_multiple: [...formData.assigned_to_multiple, user.id],
-                                              department: formData.department || user.department || formData.department
-                                            });
-                                          } else {
-                                            setFormData({
-                                              ...formData,
-                                              assigned_to_multiple: formData.assigned_to_multiple.filter(id => id !== user.id)
-                                            });
-                                          }
-                                        }}
-                                        className="w-5 h-5 text-purple-600 focus:ring-purple-500 focus:ring-2 rounded"
-                                      />
-                                      <div className="flex-1">
-                                        <p className="font-medium text-gray-900">{user.full_name}</p>
-                                        <p className="text-sm text-gray-500">{user.email} {user.department && `• ${user.department}`}</p>
-                                      </div>
-                                      {isSelected && (
-                                        <CheckCircle className="w-5 h-5 text-purple-500" />
-                                      )}
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                          {formData.assigned_to_multiple.length > 0 && (
-                            <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                              <Users className="w-4 h-4 text-purple-500" />
-                              <p className="text-sm text-purple-600 font-medium">
-                                {formData.assigned_to_multiple.length} UHub user(s) selected for coordination
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <select
-                            id="assigned_to"
-                            value={formData.assigned_to}
-                            onChange={(e) => {
-                              const selectedUserId = e.target.value;
-                              const selectedUser = allUsers.find(u => u.id === selectedUserId);
-                              setFormData({ 
-                                ...formData, 
-                                assigned_to: selectedUserId,
-                                department: formData.department || selectedUser?.department || formData.department
-                              });
-                            }}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer text-lg bg-white"
-                            required={formData.assignmentType === 'single'}
-                          >
-                            <option value="">Select UHub User</option>
-                            {allUsers.map(user => (
-                              <option key={user.id} value={user.id}>
-                                {user.full_name} - {user.email} {user.department && `(${user.department})`}
-                              </option>
-                            ))}
-                          </select>
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                            <User className="w-5 h-5 text-gray-400" />
-                          </div>
-                        </div>
-                      )}
-                      
-                      {allUsers.length === 0 && (
-                        <div className="flex items-center gap-2 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                          <p className="text-sm text-red-600 font-medium">
-                            No UHub users found in database
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="due_date" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Due Date
-                      </Label>
-                      <Input
-                        id="due_date"
-                        type="datetime-local"
-                        value={formatDateTimeLocalValue(formData.due_date)}
-                        onChange={(e) => setFormData({ 
-                          ...formData, 
-                          due_date: e.target.value ? normalizeDueDateForSave(e.target.value) : '' 
-                        })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="estimated_hours" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Estimated Hours
-                      </Label>
-                      <Input
-                        id="estimated_hours"
-                        type="number"
-                        min="1"
-                        value={formData.estimated_hours}
-                        onChange={(e) => setFormData({ ...formData, estimated_hours: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
-                        placeholder="e.g., 8"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="category" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Category
-                      </Label>
-                      <select
-                        id="category"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 appearance-none cursor-pointer bg-white"
-                      >
-                        {categories.map(category => (
-                          <option key={category} value={category}>
-                            {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="tags" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Tags (comma-separated)
-                      </Label>
-                      <Input
-                        id="tags"
-                        type="text"
-                        value={formData.tags}
-                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
-                        placeholder="e.g., urgent, frontend, bug-fix"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditingTask(null);
-                        setFormData({
-                          title: '',
-                          description: '',
-                          assigned_to: '',
-                          priority: 'medium',
-                          department: '',
-                          due_date: '',
-                          estimated_hours: '',
-                          tags: '',
-                          category: 'general',
-                          assignToMyself: false
-                        });
-                      }}
-                      className="px-6 py-3 rounded-xl border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="px-8 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      {editingTask ? 'Update Task' : 'Create Task'}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
       </div>
     </div>
   );

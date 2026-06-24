@@ -697,6 +697,30 @@ export const apiService = {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      // Backfill last_login from activity logs when the column was never updated
+      const lastLoginByEmail = {};
+      try {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 180);
+
+        const { data: loginActivity } = await supabase
+          .from('activity_logs')
+          .select('user_email, created_at')
+          .in('action', ['login', 'session_start'])
+          .not('user_email', 'is', null)
+          .gte('created_at', cutoff.toISOString())
+          .order('created_at', { ascending: false });
+
+        (loginActivity || []).forEach((log) => {
+          const email = log.user_email?.trim().toLowerCase();
+          if (email && !lastLoginByEmail[email]) {
+            lastLoginByEmail[email] = log.created_at;
+          }
+        });
+      } catch (activityError) {
+        console.warn('Could not load last login from activity logs:', activityError);
+      }
       
       // Ensure ALL users have the same structure with default values
       return data.map(user => ({
@@ -723,7 +747,14 @@ export const apiService = {
         
         // Additional fields that might be expected
         is_active: user.status === 'active',
-        last_login: user.last_login || null,
+        // Prefer the most recent timestamp from users.last_login or activity logs
+        last_login: (() => {
+          const fromDb = user.last_login;
+          const fromLogs = lastLoginByEmail[user.email?.trim().toLowerCase()];
+          if (!fromDb) return fromLogs || null;
+          if (!fromLogs) return fromDb;
+          return new Date(fromDb) >= new Date(fromLogs) ? fromDb : fromLogs;
+        })(),
         permissions: user.permissions || []
       }));
     },

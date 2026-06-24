@@ -59,7 +59,7 @@ export const useSimCards = () => {
           .from('sim_cards')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(500);
+          .limit(2000);
 
         if (error) {
           console.error('❌ Error fetching SIM cards:', error);
@@ -70,7 +70,7 @@ export const useSimCards = () => {
         return data || [];
       } catch (error) {
         console.error('❌ Error in useSimCards:', error);
-        return [];
+        throw error;
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

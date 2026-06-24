@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrefetch } from '../hooks/usePrefetch';
+import { useTaskSidebarCounts } from '../hooks/useTaskSidebarCounts';
 import { 
   ChevronLeft,
   ChevronRight,
@@ -209,11 +210,40 @@ const NAVIGATION_PANELS = [
   }
 ];
 
+const NavBadge = ({ count, variant = 'purple' }) => {
+  if (!count || count <= 0) return null;
+  const colors =
+    variant === 'red'
+      ? 'bg-red-500 text-white'
+      : 'bg-purple-500 text-white';
+  return (
+    <span
+      className={`ml-auto min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold ${colors}`}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+};
+
+const CollapsedBadge = ({ count, variant = 'purple' }) => {
+  if (!count || count <= 0) return null;
+  const color = variant === 'red' ? 'bg-red-500' : 'bg-purple-500';
+  return (
+    <span
+      className={`absolute -top-1 -right-1 min-w-[1rem] h-4 px-0.5 flex items-center justify-center rounded-full text-[9px] font-bold text-white ${color} ring-2 ring-[var(--card-bg)]`}
+      title={`${count} item${count !== 1 ? 's' : ''}`}
+    >
+      {count > 9 ? '9+' : count}
+    </span>
+  );
+};
+
 const Sidebar = () => {
   const { isCollapsed, toggleSidebar, isMobile, isMobileOpen, closeMobileSidebar } = useSidebar();
   const location = useLocation();
   const { user, userProfile } = useAuth();
   const { prefetchRoute } = usePrefetch();
+  const { data: taskCounts } = useTaskSidebarCounts();
 
   const userRole = userProfile?.role || user?.role || 'loading';
   const isAuthLoading = !user && !userProfile;
@@ -668,16 +698,27 @@ const Sidebar = () => {
                       }}
                     >
                       <div className="flex items-center space-x-3">
-                        <Icon 
-                          className="w-5 h-5 transition-colors duration-300"
-                          style={{ color: 'var(--text-secondary)' }}
-                        />
+                        <div className="relative shrink-0">
+                          <Icon 
+                            className="w-5 h-5 transition-colors duration-300"
+                            style={{ color: 'var(--text-secondary)' }}
+                          />
+                          {isCollapsed && !isMobile && panel.key === 'todo_list' && (
+                            <CollapsedBadge
+                              count={taskCounts?.overdue || taskCounts?.myOpen}
+                              variant={taskCounts?.overdue > 0 ? 'red' : 'purple'}
+                            />
+                          )}
+                        </div>
                         {(!isCollapsed || isMobile) && (
                           <span 
-                            className="text-sm font-medium transition-colors duration-300"
+                            className="text-sm font-medium transition-colors duration-300 flex items-center gap-2 flex-1 min-w-0"
                             style={{ color: 'var(--text-primary)' }}
                           >
-                            {panel.title}
+                            <span className="truncate">{panel.title}</span>
+                            {panel.key === 'todo_list' && (
+                              <NavBadge count={taskCounts?.overdue} variant="red" />
+                            )}
                           </span>
                         )}
                       </div>
@@ -810,6 +851,7 @@ const Sidebar = () => {
                                       
                                       <div className="relative z-10 flex items-center w-full">
                                         <motion.div
+                                          className="relative shrink-0"
                                           animate={active ? {
                                             scale: 1.1,
                                             transition: {
@@ -828,9 +870,13 @@ const Sidebar = () => {
                                               filter: active ? 'drop-shadow(0 0 4px var(--border-accent))' : 'none'
                                             }}
                                           />
+                                          {isCollapsed && !isMobile && item.feature === 'my_tasks' && (
+                                            <CollapsedBadge count={taskCounts?.myOpen} variant="purple" />
+                                          )}
                                         </motion.div>
                                         {(!isCollapsed || isMobile) && (
                                           <motion.span
+                                            className="flex items-center flex-1 min-w-0"
                                             animate={active ? {
                                               fontWeight: 600,
                                               transition: {
@@ -845,7 +891,10 @@ const Sidebar = () => {
                                               color: active ? 'var(--text-accent)' : 'var(--text-secondary)'
                                             }}
                                           >
-                                            {item.label}
+                                            <span className="truncate">{item.label}</span>
+                                            {item.feature === 'my_tasks' && (
+                                              <NavBadge count={taskCounts?.myOpen} variant="purple" />
+                                            )}
                                           </motion.span>
                                         )}
                                       </div>

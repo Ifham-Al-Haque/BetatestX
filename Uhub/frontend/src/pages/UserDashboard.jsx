@@ -42,6 +42,7 @@ import {
   Plus
 } from 'lucide-react';
 import Logo from '../components/ui/logo';
+import TaskSummaryWidget from '../components/tasks/TaskSummaryWidget';
 
 const UserDashboard = () => {
   const navigate = useNavigate();
@@ -321,7 +322,7 @@ const UserDashboard = () => {
           description: 'View and manage assigned tasks',
           color: 'from-yellow-500 to-amber-600',
           bgColor: 'bg-yellow-50',
-          route: '/my-tasks',
+          route: '/task-management?tab=my-tasks',
           category: 'Work'
         },
         {
@@ -509,6 +510,10 @@ const UserDashboard = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mb-8 max-w-3xl mx-auto">
+          <TaskSummaryWidget variant="light" />
         </div>
 
         {/* Role-based Panels */}

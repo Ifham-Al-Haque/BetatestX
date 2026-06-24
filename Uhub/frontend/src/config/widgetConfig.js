@@ -53,7 +53,7 @@ export const widgetConfig = [
   },
   {
     key: 'todo_list',
-    title: 'Tasks',
+    title: 'To Do List',
     icon: ClipboardList,
     color: 'from-purple-500 to-pink-600',
     items: [

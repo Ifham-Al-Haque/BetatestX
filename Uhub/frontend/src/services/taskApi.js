@@ -1085,7 +1085,7 @@ class TaskApi {
               ...additionalData
             },
             priority: this.getNotificationPriority(type, priority),
-            actionUrl: `/tasks?task=${taskId}`,
+            actionUrl: `/task-management?tab=my-tasks&task=${taskId}`,
             actionLabel: 'View Task'
           });
         } catch (notificationError) {

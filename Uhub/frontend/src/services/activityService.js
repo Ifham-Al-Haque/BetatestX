@@ -331,12 +331,47 @@ class ActivityService {
   /**
    * Common activity logging methods
    */
+  async recordUserLastLogin() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const now = new Date().toISOString();
+      const payload = { last_login: now, updated_at: now };
+
+      const { data: updatedByAuth, error: authError } = await supabase
+        .from('users')
+        .update(payload)
+        .eq('auth_user_id', user.id)
+        .select('id');
+
+      if (authError) {
+        console.error('Failed to update users.last_login by auth_user_id:', authError);
+      }
+
+      if (!updatedByAuth?.length && user.email) {
+        const { error: emailError } = await supabase
+          .from('users')
+          .update(payload)
+          .eq('email', user.email);
+
+        if (emailError) {
+          console.error('Failed to update users.last_login by email:', emailError);
+        }
+      }
+    } catch (error) {
+      console.error('Error in recordUserLastLogin:', error);
+    }
+  }
+
   async logLogin(method = 'email') {
-    return this.logActivity('login', `User logged in via ${method}`, {
+    const result = await this.logActivity('login', `User logged in via ${method}`, {
       method: 'POST',
       statusCode: 200,
       metadata: { loginMethod: method }
     });
+    await this.recordUserLastLogin();
+    return result;
   }
 
   async logLogout() {
