@@ -10,7 +10,7 @@ export const usePaymentEvents = () => {
         
         const { data, error } = await supabase
           .from('payment_events')
-          .select('id, user_id, amount, currency, status, description, due_date, created_at, updated_at')
+          .select('id, user_id, amount, currency, status, description, due_date, is_recurring, recurrence_frequency, recurrence_end_date, reminder_days_before, created_at, updated_at')
           .order('due_date', { ascending: true })
           .limit(500); // Add limit to prevent large data loads
 

@@ -1,163 +1,170 @@
 // src/pages/ExpenseTracker.jsx
-import { useState, useCallback, useMemo, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '../hooks/useApi';
+import { useToast } from '../context/ToastContext';
+import { DEPARTMENTS } from '../config/departments';
+import { parseExpenseFile, mapRowToExpense, getExpenseImportTemplateCsv } from '../utils/expenseImportUtils';
+import {
+  applyPeriodFilter,
+  filterExpenses,
+  sortExpenses,
+  computeExpenseStats,
+  exportExpensesCsv,
+  getDefaultExpenseForm,
+  EMPTY_FILTERS,
+  PERIOD_OPTIONS,
+  STATUS_OPTIONS,
+} from '../utils/expenseHelpers';
 
-import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "../hooks/useApi";
-import { useToast } from "../context/ToastContext";
-import { DEPARTMENTS, getDepartmentLabel } from "../config/departments";
-import { parseExpenseFile, mapRowToExpense, getExpenseImportTemplateCsv } from "../utils/expenseImportUtils";
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Plus,
+  Filter,
+  Search,
+  Upload,
+  Download,
+  AlertTriangle,
+  BarChart3,
+  List,
+  FileSpreadsheet,
+  ExternalLink,
+  Calendar,
+} from 'lucide-react';
 
-import { motion } from "framer-motion";
-import { Plus, Edit, Trash, Save, X, Filter, Search, Calendar, DollarSign, Building, Upload, FileSpreadsheet, Download, AlertTriangle } from "lucide-react";
+import ExpenseStatsCards from '../components/expense/ExpenseStatsCards';
+import ExpenseFormPanel from '../components/expense/ExpenseFormPanel';
+import ExpenseImportPanel from '../components/expense/ExpenseImportPanel';
+import ExpenseTable from '../components/expense/ExpenseTable';
+import { uploadExpenseReceipt, validateExpenseReceiptFile } from '../services/expenseAttachmentService';
+
+const TABS = [
+  { id: 'expenses', label: 'Expenses', icon: List },
+  { id: 'add', label: 'Add Expense', icon: Plus },
+  { id: 'import', label: 'Import', icon: FileSpreadsheet },
+];
 
 export default function ExpenseTracker() {
   const { user } = useAuth();
-  
   const { success, error: showError } = useToast();
-  
-  // Form state
-  const [form, setForm] = useState({
-    service_name: "",
-    amount_aed: "",
-    currency: "AED",
-    months: "",
-    service_status: "active",
-    department: "",
-    date_paid: "",
-    invoice_number: "",
-    invoice_generation_date: "",
-    invoice_due_date: "",
-  });
-  
+
+  const [activeTab, setActiveTab] = useState('expenses');
+  const [period, setPeriod] = useState('all');
+  const [form, setForm] = useState(getDefaultExpenseForm);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-
-  // Filter state
-  const [filters, setFilters] = useState({
-    search: "",
-    department: "",
-    service_status: "",
-    startDate: "",
-    endDate: "",
-    minAmount: "",
-    maxAmount: "",
-  });
-
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
-
-  // Delete confirmation modal state (smooth UX vs browser confirm)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [sortField, setSortField] = useState('date_paid');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  // Import state
-  const [importFile, setImportFile] = useState(null);
-  const [parsedRows, setParsedRows] = useState([]);
-  const [importPreview, setImportPreview] = useState([]); // { expense, rowErrors }[]
+  const [importPreview, setImportPreview] = useState([]);
   const [importing, setImporting] = useState(false);
-  const [importError, setImportError] = useState("");
+  const [importError, setImportError] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptError, setReceiptError] = useState('');
   const fileInputRef = useRef(null);
 
-  // Use React Query hooks
   const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
-  const expenses = expensesResponse?.data || [];
+  const expenses = useMemo(() => expensesResponse?.data || [], [expensesResponse?.data]);
   const createExpenseMutation = useCreateExpense();
   const updateExpenseMutation = useUpdateExpense();
   const deleteExpenseMutation = useDeleteExpense();
 
-  // Filter and search expenses
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter(expense => {
-      // Search filter
-      if (filters.search) {
-        const searchTerm = filters.search.toLowerCase();
-        const matchesSearch = 
-          expense.service_name?.toLowerCase().includes(searchTerm) ||
-          expense.department?.toLowerCase().includes(searchTerm) ||
-          expense.invoice_number?.toLowerCase().includes(searchTerm) ||
-          expense.months?.toLowerCase().includes(searchTerm);
-        if (!matchesSearch) return false;
-      }
+  const periodFiltered = useMemo(
+    () => applyPeriodFilter(expenses, period),
+    [expenses, period]
+  );
 
-      // Department filter
-      if (filters.department && expense.department !== filters.department) {
-        return false;
-      }
+  const filteredExpenses = useMemo(
+    () => filterExpenses(periodFiltered, filters),
+    [periodFiltered, filters]
+  );
 
-      // Status filter
-      if (filters.service_status && expense.service_status !== filters.service_status) {
-        return false;
-      }
+  const sortedExpenses = useMemo(
+    () => sortExpenses(filteredExpenses, sortField, sortDirection),
+    [filteredExpenses, sortField, sortDirection]
+  );
 
-      // Date range filter
-      if (filters.startDate && new Date(expense.date_paid) < new Date(filters.startDate)) {
-        return false;
-      }
-      if (filters.endDate && new Date(expense.date_paid) > new Date(filters.endDate)) {
-        return false;
-      }
+  const stats = useMemo(() => computeExpenseStats(filteredExpenses), [filteredExpenses]);
 
-      // Amount range filter
-      if (filters.minAmount && parseFloat(expense.amount_aed) < parseFloat(filters.minAmount)) {
-        return false;
-      }
-      if (filters.maxAmount && parseFloat(expense.amount_aed) > parseFloat(filters.maxAmount)) {
-        return false;
-      }
+  const validImportCount = useMemo(
+    () => importPreview.filter((p) => p.rowErrors.length === 0).length,
+    [importPreview]
+  );
+  const invalidImportCount = importPreview.length - validImportCount;
 
-      return true;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, period, sortField, sortDirection, pageSize]);
+
+  useEffect(() => {
+    if (!receiptFile) {
+      setReceiptError('');
+      return;
+    }
+    setReceiptError(validateExpenseReceiptFile(receiptFile) || '');
+  }, [receiptFile]);
+
+  const handleSort = useCallback((field) => {
+    setSortField((prev) => {
+      if (prev === field) {
+        setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setSortDirection('desc');
+      return field;
     });
-  }, [expenses, filters]);
-
-  const stats = useMemo(() => {
-    const totalAmount = filteredExpenses.reduce(
-      (sum, exp) => sum + (parseFloat(exp.amount_aed) || 0),
-      0
-    );
-    const activeCount = filteredExpenses.filter((exp) => exp.service_status === "active").length;
-    const pendingCount = filteredExpenses.filter((exp) => exp.service_status === "pending").length;
-    const finalCount = filteredExpenses.filter((exp) => exp.service_status === "final").length;
-    return { totalAmount, activeCount, pendingCount, finalCount };
-  }, [filteredExpenses]);
-
-  // Get unique departments and statuses for filter dropdowns
-  const uniqueDepartments = useMemo(() => {
-    const departments = [...new Set(expenses.map(expense => expense.department).filter(Boolean))];
-    return departments.sort();
-  }, [expenses]);
-
-  const uniqueStatuses = useMemo(() => {
-    const statuses = [...new Set(expenses.map(expense => expense.service_status).filter(Boolean))];
-    return statuses.sort();
-  }, [expenses]);
+  }, []);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!user) {
-      showError("Error", "User not logged in");
+      showError('Error', 'User not logged in');
       return;
+    }
+    if (receiptFile) {
+      const fileError = validateExpenseReceiptFile(receiptFile);
+      if (fileError) {
+        setReceiptError(fileError);
+        showError('Receipt', fileError);
+        return;
+      }
     }
 
     try {
-      const newExpense = { ...form, user_id: user.id };
-      await createExpenseMutation.mutateAsync(newExpense);
-      
-      setForm({
-        service_name: "",
-        amount_aed: "",
-        currency: "AED",
-        months: "",
-        service_status: "active",
-        department: "",
-        date_paid: "",
-        invoice_number: "",
-        invoice_generation_date: "",
-        invoice_due_date: "",
-      });
-      
-      success("Success", "Expense added successfully!");
+      let receiptMeta = {};
+      if (receiptFile) {
+        receiptMeta = await uploadExpenseReceipt(user.id, receiptFile);
+      }
+
+      const payload = {
+        ...form,
+        notes: form.notes?.trim() || null,
+        ...receiptMeta,
+        user_id: user.id,
+      };
+
+      await createExpenseMutation.mutateAsync(payload);
+      setForm(getDefaultExpenseForm());
+      setReceiptFile(null);
+      setReceiptError('');
+      success('Success', 'Expense added successfully!');
+      setActiveTab('expenses');
     } catch (err) {
-      showError("Error", err.message);
+      showError('Error', err.message);
     }
-  }, [form, user, createExpenseMutation, success, showError]);
+  }, [form, user, receiptFile, createExpenseMutation, success, showError]);
+
+  const handleClearForm = useCallback(() => {
+    setForm(getDefaultExpenseForm());
+    setReceiptFile(null);
+    setReceiptError('');
+  }, []);
 
   const startEdit = useCallback((expense) => {
     setEditingId(expense.id);
@@ -171,7 +178,7 @@ export default function ExpenseTracker() {
 
   const saveEdit = useCallback(async () => {
     if (!user) {
-      showError("Error", "User not logged in");
+      showError('Error', 'User not logged in');
       return;
     }
 
@@ -189,155 +196,148 @@ export default function ExpenseTracker() {
           invoice_number: editForm.invoice_number,
           invoice_generation_date: editForm.invoice_generation_date,
           invoice_due_date: editForm.invoice_due_date,
-        }
+          notes: editForm.notes?.trim() || null,
+        },
       });
-      
       cancelEdit();
-      success("Success", "Expense updated successfully!");
+      success('Success', 'Expense updated successfully!');
     } catch (err) {
-      showError("Error", err.message);
+      showError('Error', err.message);
     }
   }, [editingId, editForm, user, updateExpenseMutation, cancelEdit, success, showError]);
 
-  const handleDelete = useCallback(async (id) => {
+  const handleDelete = useCallback((id) => {
     if (!user) {
-      showError("Error", "User not logged in");
+      showError('Error', 'User not logged in');
       return;
     }
     setDeleteConfirmId(id);
-  }, [user, deleteExpenseMutation, success, showError]);
+  }, [user, showError]);
 
   const confirmDelete = useCallback(async () => {
     if (!deleteConfirmId) return;
     try {
       await deleteExpenseMutation.mutateAsync(deleteConfirmId);
-      success("Success", "Expense deleted successfully!");
+      success('Success', 'Expense deleted successfully!');
     } catch (err) {
-      showError("Error", err.message);
+      showError('Error', err.message);
     } finally {
       setDeleteConfirmId(null);
     }
   }, [deleteConfirmId, deleteExpenseMutation, success, showError]);
 
   const clearFilters = useCallback(() => {
-    setFilters({
-      search: "",
-      department: "",
-      service_status: "",
-      startDate: "",
-      endDate: "",
-      minAmount: "",
-      maxAmount: "",
-    });
+    setFilters(EMPTY_FILTERS);
+    setPeriod('all');
   }, []);
+
+  const handleExport = useCallback(() => {
+    if (!sortedExpenses.length) {
+      showError('Export', 'No expenses to export for the current filters.');
+      return;
+    }
+    exportExpensesCsv(sortedExpenses);
+    success('Export', `Exported ${sortedExpenses.length} expense(s).`);
+  }, [sortedExpenses, showError, success]);
 
   const handleImportFileChange = useCallback(async (e) => {
     const file = e.target?.files?.[0];
     if (!file) return;
-    setImportError("");
-    setImportFile(null);
-    setParsedRows([]);
+    setImportError('');
     setImportPreview([]);
-    const name = (file.name || "").toLowerCase();
-    if (!name.endsWith(".csv") && !name.endsWith(".xlsx") && !name.endsWith(".xls")) {
-      setImportError("Please select a CSV or Excel (.xlsx, .xls) file.");
+
+    const name = (file.name || '').toLowerCase();
+    if (!name.endsWith('.csv') && !name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+      setImportError('Please select a CSV or Excel (.xlsx, .xls) file.');
       return;
     }
+
     try {
       const { rows, errors } = await parseExpenseFile(file);
       if (errors.length) {
-        setImportError(errors.join(" "));
+        setImportError(errors.join(' '));
         return;
       }
       if (!rows.length) {
-        setImportError("No data rows found in the file.");
+        setImportError('No data rows found in the file.');
         return;
       }
-      const preview = rows.map((row) => {
-        const { expense, errors: rowErrors } = mapRowToExpense(row);
-        return { expense, rowErrors };
-      });
-      setImportFile(file);
-      setParsedRows(rows);
-      setImportPreview(preview);
+      setImportPreview(rows.map((row) => mapRowToExpense(row)));
     } catch (err) {
-      setImportError(err?.message || "Failed to parse file.");
+      setImportError(err?.message || 'Failed to parse file.');
     }
-    e.target.value = "";
+    e.target.value = '';
   }, []);
-
-  const validImportCount = useMemo(
-    () => importPreview.filter((p) => p.rowErrors.length === 0).length,
-    [importPreview]
-  );
-  const invalidImportCount = importPreview.length - validImportCount;
 
   const handleImportConfirm = useCallback(async () => {
     if (!user) {
-      showError("Error", "User not logged in");
+      showError('Error', 'User not logged in');
       return;
     }
-    const toImport = importPreview.filter((p) => p.rowErrors.length === 0).map((p) => ({ ...p.expense, user_id: user.id }));
+    const toImport = importPreview
+      .filter((p) => p.rowErrors.length === 0)
+      .map((p) => ({ ...p.expense, user_id: user.id }));
+
     if (!toImport.length) {
-      showError("Import", "No valid rows to import. Fix errors and try again.");
+      showError('Import', 'No valid rows to import. Fix errors and try again.');
       return;
     }
+
     setImporting(true);
     let imported = 0;
     const failed = [];
+
     for (let i = 0; i < toImport.length; i++) {
       try {
         await createExpenseMutation.mutateAsync(toImport[i]);
         imported++;
       } catch (err) {
-        failed.push({ row: i + 1, message: err?.message || "Failed" });
+        failed.push({ row: i + 1, message: err?.message || 'Failed' });
       }
     }
+
     setImporting(false);
-    setImportFile(null);
-    setParsedRows([]);
     setImportPreview([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
     if (imported > 0) {
-      success("Import complete", `Imported ${imported} expense(s).`);
+      success('Import complete', `Imported ${imported} expense(s).`);
+      setActiveTab('expenses');
     }
     if (failed.length > 0) {
       showError(
-        "Import partial",
-        `${failed.length} row(s) failed: ${failed.slice(0, 3).map((f) => `Row ${f.row}: ${f.message}`).join("; ")}${failed.length > 3 ? "…" : ""}`
+        'Import partial',
+        `${failed.length} row(s) failed: ${failed.slice(0, 3).map((f) => `Row ${f.row}: ${f.message}`).join('; ')}${failed.length > 3 ? '…' : ''}`
       );
     }
   }, [user, importPreview, createExpenseMutation, success, showError]);
 
   const handleImportCancel = useCallback(() => {
-    setImportFile(null);
-    setParsedRows([]);
     setImportPreview([]);
-    setImportError("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setImportError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
 
   const downloadTemplate = useCallback(() => {
     const csv = getExpenseImportTemplateCsv();
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = "expense_import_template.csv";
+    a.download = 'expense_import_template.csv';
     a.click();
     URL.revokeObjectURL(url);
   }, []);
 
+  const periodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label || 'All Time';
+
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-        
-        <div className="flex-1 transition-all duration-300 ease-in-out" >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <h3 className="text-red-800 font-medium">Error Loading Expenses</h3>
-              <p className="text-red-600 mt-1">{error.message}</p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6">
+            <h3 className="text-red-800 dark:text-red-200 font-semibold">Error Loading Expenses</h3>
+            <p className="text-red-600 dark:text-red-300 mt-1">{error.message}</p>
           </div>
         </div>
       </div>
@@ -345,624 +345,281 @@ export default function ExpenseTracker() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
-      
-      <div className="flex-1 transition-all duration-300 ease-in-out" >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2 mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Hero */}
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 rounded-2xl p-6 sm:p-8 text-white shadow-xl mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-                Expense Tracker
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Track spending, import invoice sheets, and manage finance records faster.
+              <p className="text-emerald-100 text-sm font-medium mb-1">Finance</p>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2">Expense Tracker</h1>
+              <p className="text-emerald-50/90 text-base max-w-xl">
+                Manage invoices, track spending by department, and import bulk records — {periodLabel.toLowerCase()} view.
               </p>
             </div>
-          </div>
-
-          {/* Finance stats strip (reflects current filters) */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"
-          >
-            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30 shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="text-sm text-blue-700 dark:text-blue-200 font-medium">Total amount</div>
-              <div className="text-2xl font-bold text-blue-900 dark:text-white">
-                AED {stats.totalAmount.toFixed(2)}
-              </div>
-            </div>
-            <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30 shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="text-sm text-green-700 dark:text-green-200 font-medium">Active</div>
-              <div className="text-2xl font-bold text-green-900 dark:text-white">{stats.activeCount}</div>
-            </div>
-            <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/30 shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="text-sm text-yellow-700 dark:text-yellow-200 font-medium">Pending</div>
-              <div className="text-2xl font-bold text-yellow-900 dark:text-white">{stats.pendingCount}</div>
-            </div>
-            <div className="p-4 rounded-xl bg-blue-100/60 dark:bg-blue-900/10 border border-blue-200/70 dark:border-blue-900/20 shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="text-sm text-blue-800 dark:text-blue-200 font-medium">Final</div>
-              <div className="text-2xl font-bold text-blue-900 dark:text-white">{stats.finalCount}</div>
-            </div>
-          </motion.div>
-
-          {/* Add Expense Form */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200/70 dark:border-gray-700 p-6 mb-6 transition-all duration-200"
-          >
-            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Add New Expense
-            </h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <input
-                type="text"
-                placeholder="Service Name"
-                value={form.service_name}
-                onChange={(e) => setForm({ ...form, service_name: e.target.value })}
-                required
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              <input
-                type="number"
-                placeholder="Amount (AED)"
-                value={form.amount_aed}
-                onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
-                required
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              <input
-                type="text"
-                placeholder="Invoice Number"
-                value={form.invoice_number}
-                onChange={(e) => setForm({ ...form, invoice_number: e.target.value })}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              <select
-                value={form.currency}
-                onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              >
-                <option value="AED">AED</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-              <input
-                type="text"
-                placeholder="Months"
-                value={form.months}
-                onChange={(e) => setForm({ ...form, months: e.target.value })}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              <select
-                value={form.service_status}
-                onChange={(e) => setForm({ ...form, service_status: e.target.value })}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="pending">Pending</option>
-                <option value="final">Final</option>
-              </select>
-              <input
-                type="text"
-                placeholder="Department"
-                value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Paid On
-                </label>
-                <input
-                  type="date"
-                  value={form.date_paid}
-                  onChange={(e) => setForm({ ...form, date_paid: e.target.value })}
-                  required
-                  aria-label="Paid On"
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Generated On
-                </label>
-                <input
-                  type="date"
-                  value={form.invoice_generation_date}
-                  onChange={(e) => setForm({ ...form, invoice_generation_date: e.target.value })}
-                  aria-label="Generated On"
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Due On
-                </label>
-                <input
-                  type="date"
-                  value={form.invoice_due_date}
-                  onChange={(e) => setForm({ ...form, invoice_due_date: e.target.value })}
-                  aria-label="Due On"
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-              </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <button
-                type="submit"
-                disabled={createExpenseMutation.isLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 col-span-full lg:col-span-1"
+                type="button"
+                onClick={() => setActiveTab('add')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 text-white font-medium transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                {createExpenseMutation.isLoading ? "Adding..." : "Add Expense"}
+                Add
               </button>
-            </form>
-          </motion.div>
-
-          {/* Import from CSV / Excel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200/70 dark:border-gray-700 p-6 mb-6 transition-all duration-200"
-          >
-            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5" />
-              Import from Excel or CSV
-            </h3>
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleImportFileChange}
-                className="hidden"
-              />
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                onClick={() => setActiveTab('import')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 text-white font-medium transition-colors"
               >
                 <Upload className="w-4 h-4" />
-                Choose file
+                Import
               </button>
               <button
                 type="button"
-                onClick={downloadTemplate}
-                className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-400 hover:underline"
+                onClick={handleExport}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 text-white font-medium transition-colors"
               >
                 <Download className="w-4 h-4" />
-                Download template (CSV)
+                Export
               </button>
+              <Link
+                to="/analytics"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 font-medium transition-colors shadow-sm"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+                <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+              </Link>
             </div>
-            {importError && (
-              <p className="text-sm text-red-600 dark:text-red-400 mb-4">{importError}</p>
-            )}
-            {importPreview.length > 0 && (
-              <>
-                <div className="flex items-center gap-4 mb-3 text-sm text-gray-600 dark:text-gray-400">
-                  <span>
-                    <strong>{validImportCount}</strong> valid row(s) ready to import
-                    {invalidImportCount > 0 && (
-                      <span className="text-amber-600 dark:text-amber-400">
-                        {" "}({invalidImportCount} skipped due to errors)
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <div className="overflow-x-auto max-h-48 border border-gray-200 dark:border-gray-600 rounded-lg mb-4">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Service</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Amount</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Date Paid</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Invoice Gen Date</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Invoice Due Date</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Department</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Status</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Issues</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {importPreview.slice(0, 10).map((item, idx) => (
-                        <tr
-                          key={idx}
-                          className={item.rowErrors.length > 0 ? "bg-amber-50 dark:bg-amber-900/20" : ""}
-                        >
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.service_name || "—"}</td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.amount_aed ? `AED ${item.expense.amount_aed}` : "—"}</td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.date_paid || "—"}</td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.invoice_generation_date || "—"}</td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.invoice_due_date || "—"}</td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.department || "—"}</td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.service_status || "—"}</td>
-                          <td className="px-3 py-2 text-amber-600 dark:text-amber-400 text-xs">
-                            {item.rowErrors.length > 0 ? item.rowErrors.join(", ") : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {importPreview.length > 10 && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                    Showing first 10 of {importPreview.length} rows. All valid rows will be imported.
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleImportConfirm}
-                    disabled={importing || validImportCount === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {importing ? "Importing…" : `Import ${validImportCount} expense(s)`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleImportCancel}
-                    disabled={importing}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </>
-            )}
-          </motion.div>
+          </div>
 
-          {/* Filters Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200/70 dark:border-gray-700 p-6 mb-6 transition-all duration-200"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Filter className="w-5 h-5" />
-                Filters & Search
-              </h3>
+          {/* Period selector in hero */}
+          <div className="mt-6 flex flex-wrap gap-2">
+            {PERIOD_OPTIONS.map((opt) => (
               <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                key={opt.value}
+                type="button"
+                onClick={() => setPeriod(opt.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  period === opt.value
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'bg-white/15 hover:bg-white/25 text-white'
+                }`}
               >
-                {showFilters ? "Hide Filters" : "Show Filters"}
+                {opt.label}
               </button>
-            </div>
-
-            {/* Search Bar */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search by service name, department, invoice number, or months..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-
-            {/* Advanced Filters */}
-            {showFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              >
-                <select
-                  value={filters.department}
-                  onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="">All Departments</option>
-                  {uniqueDepartments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={filters.service_status}
-                  onChange={(e) => setFilters({ ...filters, service_status: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="">All Statuses</option>
-                  {uniqueStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-
-                <input
-                  type="date"
-                  placeholder="Start Date"
-                  value={filters.startDate}
-                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-
-                <input
-                  type="date"
-                  placeholder="End Date"
-                  value={filters.endDate}
-                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-
-                <input
-                  type="number"
-                  placeholder="Min Amount (AED)"
-                  value={filters.minAmount}
-                  onChange={(e) => setFilters({ ...filters, minAmount: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-
-                <input
-                  type="number"
-                  placeholder="Max Amount (AED)"
-                  value={filters.maxAmount}
-                  onChange={(e) => setFilters({ ...filters, maxAmount: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-
-                <button
-                  onClick={clearFilters}
-                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                >
-                  Clear Filters
-                </button>
-              </motion.div>
-            )}
-
-            {/* Results Summary */}
-            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-              Showing {filteredExpenses.length} of {expenses.length} expenses
-            </div>
-          </motion.div>
-
-          {/* Expenses List */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/70 dark:border-gray-700 overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Your Expenses
-              </h3>
-            </div>
-            
-            {isLoading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto max-h-[68vh]">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Service
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Invoice #
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Gen. Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Due Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Department
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredExpenses.length === 0 && (
-                      <tr>
-                        <td colSpan={9} className="px-6 py-12 text-center">
-                          <div className="max-w-md mx-auto">
-                            <p className="text-base font-medium text-gray-700 dark:text-gray-200">No expenses match your filters</p>
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                              Try clearing filters or broadening search criteria to see more records.
-                            </p>
-                            <button
-                              onClick={clearFilters}
-                              className="mt-4 inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm text-gray-800 dark:text-gray-200 rounded-lg transition-colors"
-                            >
-                              Reset Filters
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    {filteredExpenses.map((expense) => (
-                      <motion.tr
-                        key={expense.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="hover:bg-blue-50/50 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {editingId === expense.id ? (
-                            <input
-                              type="text"
-                              value={editForm.service_name}
-                              onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                            />
-                          ) : (
-                            expense.service_name
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {editingId === expense.id ? (
-                            <input
-                              type="text"
-                              value={editForm.invoice_number || ""}
-                              onChange={(e) => setEditForm({ ...editForm, invoice_number: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                            />
-                          ) : (
-                            <span className="font-mono text-xs bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded">
-                              {expense.invoice_number || "N/A"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {editingId === expense.id ? (
-                            <input
-                              type="date"
-                              value={editForm.invoice_generation_date || ""}
-                              onChange={(e) => setEditForm({ ...editForm, invoice_generation_date: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                            />
-                          ) : (
-                            expense.invoice_generation_date ? new Date(expense.invoice_generation_date).toLocaleDateString() : "N/A"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {editingId === expense.id ? (
-                            <input
-                              type="date"
-                              value={editForm.invoice_due_date || ""}
-                              onChange={(e) => setEditForm({ ...editForm, invoice_due_date: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                            />
-                          ) : (
-                            expense.invoice_due_date ? new Date(expense.invoice_due_date).toLocaleDateString() : "N/A"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {editingId === expense.id ? (
-                            <input
-                              type="number"
-                              value={editForm.amount_aed}
-                              onChange={(e) => setEditForm({ ...editForm, amount_aed: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                            />
-                          ) : (
-                            `AED ${parseFloat(expense.amount_aed).toFixed(2)}`
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {editingId === expense.id ? (
-                            <input
-                              type="date"
-                              value={editForm.date_paid}
-                              onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                            />
-                          ) : (
-                            new Date(expense.date_paid).toLocaleDateString()
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {editingId === expense.id ? (
-                            <input
-                              type="text"
-                              value={editForm.department || ""}
-                              onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
-                              placeholder="Enter department"
-                            />
-                          ) : (
-                            getDepartmentLabel(expense.department) || "N/A"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {editingId === expense.id ? (
-                            <select
-                              value={editForm.service_status}
-                              onChange={(e) => setEditForm({ ...editForm, service_status: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
-                            >
-                              <option value="active">Active</option>
-                              <option value="inactive">Inactive</option>
-                              <option value="pending">Pending</option>
-                              <option value="final">Final</option>
-                            </select>
-                          ) : (
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                              expense.service_status === 'active' 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : expense.service_status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                : expense.service_status === 'final'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                            }`}>
-                              {expense.service_status}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {editingId === expense.id ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={saveEdit}
-                                disabled={updateExpenseMutation.isLoading}
-                                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                              >
-                                <Save className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={cancelEdit}
-                                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => startEdit(expense)}
-                                className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(expense.id)}
-                                disabled={deleteExpenseMutation.isLoading}
-                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                              >
-                                <Trash className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-                
-                {filteredExpenses.length === 0 && (
-                  <div className="p-8 text-center">
-                    <p className="text-gray-500 dark:text-gray-400">
-                      {expenses.length === 0 
-                        ? "No expenses found. Add your first expense above."
-                        : "No expenses match your current filters. Try adjusting your search criteria."
-                      }
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            ))}
           </div>
         </div>
+
+        {/* Stats — visible on all tabs */}
+        <div className="mb-6">
+          <ExpenseStatsCards stats={stats} totalCount={stats.totalCount} />
+        </div>
+
+        {/* Tab navigation */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700 p-2 mb-6">
+          <div className="flex flex-wrap gap-1">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {activeTab === 'expenses' && (
+            <motion.div
+              key="expenses"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              {/* Filters toolbar */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700 p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Filter className="w-5 h-5" />
+                    Search & filters
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters((v) => !v)}
+                    className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium"
+                  >
+                    {showFilters ? 'Hide advanced filters' : 'Show advanced filters'}
+                  </button>
+                </div>
+
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search service, department, invoice #, months…"
+                    value={filters.search}
+                    onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+
+                {showFilters && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                  >
+                    <select
+                      value={filters.department}
+                      onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+                      className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">All departments</option>
+                      {DEPARTMENTS.map((dept) => (
+                        <option key={dept.value} value={dept.value}>{dept.label}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={filters.service_status}
+                      onChange={(e) => setFilters({ ...filters, service_status: e.target.value })}
+                      className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">All statuses</option>
+                      {STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                      <input
+                        type="date"
+                        value={filters.startDate}
+                        onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                        className="flex-1 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                        aria-label="Start date"
+                      />
+                      <span className="text-gray-400">–</span>
+                      <input
+                        type="date"
+                        value={filters.endDate}
+                        onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                        className="flex-1 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                        aria-label="End date"
+                      />
+                    </div>
+
+                    <input
+                      type="number"
+                      placeholder="Min amount"
+                      value={filters.minAmount}
+                      onChange={(e) => setFilters({ ...filters, minAmount: e.target.value })}
+                      className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Max amount"
+                      value={filters.maxAmount}
+                      onChange={(e) => setFilters({ ...filters, maxAmount: e.target.value })}
+                      className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="px-4 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-colors font-medium"
+                    >
+                      Clear all filters
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+
+              <ExpenseTable
+                expenses={sortedExpenses}
+                totalFiltered={filteredExpenses.length}
+                totalAll={expenses.length}
+                isLoading={isLoading}
+                editingId={editingId}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                onStartEdit={startEdit}
+                onSaveEdit={saveEdit}
+                onCancelEdit={cancelEdit}
+                onDelete={handleDelete}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                onClearFilters={clearFilters}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'add' && (
+            <motion.div
+              key="add"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ExpenseFormPanel
+                form={form}
+                setForm={setForm}
+                onSubmit={handleSubmit}
+                onClear={handleClearForm}
+                onGoToImport={() => setActiveTab('import')}
+                isLoading={createExpenseMutation.isLoading}
+                receiptFile={receiptFile}
+                setReceiptFile={setReceiptFile}
+                receiptError={receiptError}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'import' && (
+            <motion.div
+              key="import"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ExpenseImportPanel
+                fileInputRef={fileInputRef}
+                onFileChange={handleImportFileChange}
+                onDownloadTemplate={downloadTemplate}
+                importError={importError}
+                importPreview={importPreview}
+                validImportCount={validImportCount}
+                invalidImportCount={invalidImportCount}
+                importing={importing}
+                onConfirm={handleImportConfirm}
+                onCancel={handleImportCancel}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Delete confirmation modal */}
@@ -971,19 +628,13 @@ export default function ExpenseTracker() {
           <motion.div
             initial={{ opacity: 0, scale: 0.98, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 8 }}
-            transition={{ duration: 0.15 }}
             className="w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl overflow-hidden"
           >
             <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Delete expense?
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                  This action cannot be undone.
-                </p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete expense?</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">This action cannot be undone.</p>
               </div>
             </div>
             <div className="p-5 flex gap-3 justify-end">
@@ -1001,7 +652,7 @@ export default function ExpenseTracker() {
                 className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
                 disabled={deleteExpenseMutation.isLoading}
               >
-                {deleteExpenseMutation.isLoading ? "Deleting..." : "Delete"}
+                {deleteExpenseMutation.isLoading ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </motion.div>
@@ -1010,5 +661,3 @@ export default function ExpenseTracker() {
     </div>
   );
 }
-
-

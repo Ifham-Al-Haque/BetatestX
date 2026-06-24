@@ -11,6 +11,14 @@ export const useEmployees = (page = 1, limit = 50, search = '', filters = {}) =>
   });
 };
 
+export const useEmployeeSummaryStats = () => {
+  return useQuery({
+    queryKey: ['employees', 'summary-stats'],
+    queryFn: () => apiService.employees.getSummaryStats(),
+    staleTime: 60 * 1000,
+  });
+};
+
 export const useEmployee = (id) => {
   return useQuery({
     queryKey: ['employee', id],
@@ -27,6 +35,7 @@ export const useCreateEmployee = () => {
     mutationFn: apiService.employees.create,
     onSuccess: () => {
       queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['employees', 'summary-stats']);
     },
     onError: (error) => {
       console.error('Create employee error:', error);
@@ -42,6 +51,7 @@ export const useUpdateEmployee = () => {
     mutationFn: ({ id, data }) => apiService.employees.update(id, data),
     onSuccess: (data) => {
       queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['employees', 'summary-stats']);
       queryClient.invalidateQueries(['employee', data.id]);
     },
     onError: (error) => {
@@ -58,6 +68,7 @@ export const useDeleteEmployee = () => {
     mutationFn: apiService.employees.delete,
     onSuccess: () => {
       queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['employees', 'summary-stats']);
     },
     onError: (error) => {
       console.error('Delete employee error:', error);
@@ -73,6 +84,7 @@ export const useArchiveEmployee = () => {
     mutationFn: apiService.employees.archive,
     onSuccess: () => {
       queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['employees', 'summary-stats']);
       queryClient.invalidateQueries(['archived-employees']);
     },
     onError: (error) => {
@@ -89,6 +101,7 @@ export const useUnarchiveEmployee = () => {
     mutationFn: apiService.employees.unarchive,
     onSuccess: () => {
       queryClient.invalidateQueries(['employees']);
+      queryClient.invalidateQueries(['employees', 'summary-stats']);
       queryClient.invalidateQueries(['archived-employees']);
     },
     onError: (error) => {

@@ -259,46 +259,84 @@ export const suggestionsApi = {
     }
   },
 
-  // Upvote a suggestion
-  async upvoteSuggestion(suggestionId) {
+  /**
+   * Cast, switch, or remove the current user's vote (poll-style, one vote per user).
+   * Requires `cast_suggestion_vote` RPC — run create_suggestion_votes.sql first.
+   * @param {string} suggestionId
+   * @param {'up'|'down'|'upvote'|'downvote'} voteType
+   * @returns {{ suggestion_id, upvotes, downvotes, user_vote: 'up'|'down'|null }}
+   */
+  async castSuggestionVote(suggestionId, voteType) {
+    const normalized =
+      voteType === 'upvote' ? 'up' : voteType === 'downvote' ? 'down' : voteType;
+
+    if (normalized !== 'up' && normalized !== 'down') {
+      throw new Error('Invalid vote type');
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('suggestions')
-        .update({
-          upvotes: supabase.raw('upvotes + 1'),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', suggestionId)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('cast_suggestion_vote', {
+        p_suggestion_id: suggestionId,
+        p_vote_type: normalized,
+      });
 
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error upvoting suggestion:', error);
+      console.error('Error casting suggestion vote:', error);
       throw error;
     }
   },
 
-  // Downvote a suggestion
-  async downvoteSuggestion(suggestionId) {
+  /** Fetch current user's votes for a set of suggestions */
+  async getMyVotesForSuggestions(suggestionIds, userId) {
+    if (!userId || !suggestionIds?.length) return {};
+
     try {
       const { data, error } = await supabase
-        .from('suggestions')
-        .update({
-          downvotes: supabase.raw('downvotes + 1'),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', suggestionId)
-        .select()
-        .single();
+        .from('suggestion_votes')
+        .select('suggestion_id, vote_type')
+        .eq('voter_id', userId)
+        .in('suggestion_id', suggestionIds);
 
       if (error) throw error;
-      return data;
+
+      return Object.fromEntries(
+        (data || []).map((row) => [row.suggestion_id, row.vote_type])
+      );
     } catch (error) {
-      console.error('Error downvoting suggestion:', error);
+      console.error('Error fetching user votes:', error);
+      return {};
+    }
+  },
+
+  /** HR/admin: who voted support or against on a suggestion */
+  async getSuggestionVoteBreakdown(suggestionId) {
+    try {
+      const { data, error } = await supabase.rpc('get_suggestion_vote_breakdown', {
+        p_suggestion_id: suggestionId,
+      });
+
+      if (error) throw error;
+
+      return {
+        support: data?.support || [],
+        against: data?.against || [],
+      };
+    } catch (error) {
+      console.error('Error fetching vote breakdown:', error);
       throw error;
     }
+  },
+
+  /** @deprecated Use castSuggestionVote instead */
+  async upvoteSuggestion(suggestionId) {
+    return this.castSuggestionVote(suggestionId, 'up');
+  },
+
+  /** @deprecated Use castSuggestionVote instead */
+  async downvoteSuggestion(suggestionId) {
+    return this.castSuggestionVote(suggestionId, 'down');
   },
 
   // HR inbox — all suggestions (RLS restricts to admin/hr_manager)

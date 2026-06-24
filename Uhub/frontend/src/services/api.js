@@ -16,6 +16,7 @@ export const apiService = {
           employee_id,
           department,
           position,
+          designation,
           email,
           phone,
           location,
@@ -84,6 +85,34 @@ export const apiService = {
       if (error) throw error;
       
       return { data, count: totalCount };
+    },
+
+    getSummaryStats: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('department, performance_rating, status, termination_date')
+        .eq('is_archived', false);
+
+      if (error) throw error;
+
+      const rows = data || [];
+      const departmentBreakdown = rows.reduce((acc, row) => {
+        const dept = row.department?.trim() || 'Unassigned';
+        acc[dept] = (acc[dept] || 0) + 1;
+        return acc;
+      }, {});
+
+      return {
+        total: rows.length,
+        highPerformers: rows.filter((e) => (e.performance_rating || 0) >= 4.5).length,
+        active: rows.filter(
+          (e) =>
+            !e.termination_date &&
+            String(e.status || 'active').toLowerCase() !== 'inactive'
+        ).length,
+        departments: Object.keys(departmentBreakdown).length,
+        departmentBreakdown,
+      };
     },
 
     getDistinctFieldValues: async (field, includeArchived = false) => {
@@ -326,8 +355,7 @@ export const apiService = {
             full_name,
             employee_id
           )
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' });
 
       // Apply filters
       if (filters.status) query = query.eq('status', filters.status);
@@ -373,6 +401,11 @@ export const apiService = {
 
         query = query.or(orConditions);
       }
+
+      const allowedSortColumns = ['created_at', 'name', 'purchase_price', 'status', 'type'];
+      const sortBy = allowedSortColumns.includes(filters.sortBy) ? filters.sortBy : 'created_at';
+      const ascending = filters.sortOrder === 'asc';
+      query = query.order(sortBy, { ascending });
 
       const from = (page - 1) * limit;
       const to = from + limit - 1;
@@ -447,38 +480,114 @@ export const apiService = {
     },
 
     getStats: async () => {
-      // Get counts for each status across all assets
-      const { data: statusCounts, error } = await supabase
+      const { data: allAssets, error } = await supabase
         .from('assets')
-        .select('status')
-        .not('status', 'is', null);
+        .select('status, type, purchase_price, purchase_date');
 
       if (error) throw error;
 
-      // Calculate statistics
-      const stats = {
-        total: statusCounts.length,
-        inStock: statusCounts.filter(asset => asset.status === 'In Stock').length,
-        assigned: statusCounts.filter(asset => asset.status === 'Assigned').length,
-        maintenance: statusCounts.filter(asset => asset.status === 'Maintenance').length,
-        retired: statusCounts.filter(asset => asset.status === 'Retired').length
+      const rows = allAssets || [];
+      const typeBreakdown = rows.reduce((acc, asset) => {
+        const type = asset.type?.trim() || 'Other';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+
+      const now = Date.now();
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+      const warrantyExpiringSoon = rows.filter((asset) => {
+        if (!asset.purchase_date) return false;
+        const purchaseDate = new Date(asset.purchase_date);
+        const warrantyEnd = new Date(purchaseDate);
+        warrantyEnd.setFullYear(warrantyEnd.getFullYear() + 3);
+        const msLeft = warrantyEnd.getTime() - now;
+        return msLeft > 0 && msLeft <= thirtyDaysMs;
+      }).length;
+
+      return {
+        total: rows.length,
+        inStock: rows.filter((asset) => asset.status === 'In Stock').length,
+        assigned: rows.filter((asset) => asset.status === 'Assigned').length,
+        maintenance: rows.filter((asset) => asset.status === 'Maintenance').length,
+        retired: rows.filter((asset) => asset.status === 'Retired').length,
+        totalValue: rows.reduce((sum, asset) => sum + (parseFloat(asset.purchase_price) || 0), 0),
+        typeBreakdown,
+        warrantyExpiringSoon,
       };
+    },
 
-      // Get total value across all assets
-      const { data: allAssets, error: valueError } = await supabase
+    exportData: async (filters = {}) => {
+      let query = supabase
         .from('assets')
-        .select('purchase_price');
+        .select(`
+          id,
+          name,
+          type,
+          status,
+          created_at,
+          assigned_to,
+          asset_code,
+          lpo_number,
+          purchase_price,
+          purchase_date,
+          supplier,
+          asset_picture_url,
+          assigned_employee:assigned_to (
+            full_name,
+            employee_id
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-      if (!valueError && allAssets) {
-        stats.totalValue = allAssets.reduce((sum, asset) => {
-          return sum + (parseFloat(asset.purchase_price) || 0);
-        }, 0);
-      } else {
-        stats.totalValue = 0;
+      if (filters.status) query = query.eq('status', filters.status);
+      if (filters.type) query = query.eq('type', filters.type);
+      if (filters.assigned_to) query = query.eq('assigned_to', filters.assigned_to);
+
+      if (filters.search) {
+        const search = String(filters.search).trim();
+        const isNumeric = /^\d+(\.\d+)?$/.test(search);
+        let orConditions =
+          `name.ilike.*${search}*` +
+          `,type.ilike.*${search}*` +
+          `,asset_code.ilike.*${search}*` +
+          `,lpo_number.ilike.*${search}*` +
+          `,supplier.ilike.*${search}*`;
+        if (isNumeric) orConditions += `,purchase_price.eq.${search}`;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(search)) orConditions += `,purchase_date.eq.${search}`;
+
+        const { data: matchingEmployees, error: empErr } = await supabase
+          .from('employees')
+          .select('id')
+          .or(`full_name.ilike.%${search}%,employee_id.ilike.%${search}%`);
+
+        if (!empErr && Array.isArray(matchingEmployees) && matchingEmployees.length > 0) {
+          const idList = matchingEmployees
+            .map((e) => (e?.id != null ? `"${e.id}"` : null))
+            .filter(Boolean)
+            .join(',');
+          if (idList) orConditions += `,assigned_to.in.(${idList})`;
+        }
+
+        query = query.or(orConditions);
       }
 
-      return stats;
-    }
+      const { data, error } = await query.limit(10000);
+      if (error) throw error;
+
+      return (data || []).map((asset) => ({
+        name: asset.name || '',
+        type: asset.type || '',
+        status: asset.status || '',
+        asset_code: asset.asset_code || '',
+        assigned_employee: asset.assigned_employee?.full_name || '',
+        employee_id: asset.assigned_employee?.employee_id || '',
+        purchase_price: asset.purchase_price ?? '',
+        purchase_date: asset.purchase_date || '',
+        supplier: asset.supplier || '',
+        lpo_number: asset.lpo_number || '',
+        created_at: asset.created_at || '',
+      }));
+    },
   },
 
   // Expense APIs
@@ -987,7 +1096,7 @@ export const apiService = {
     getAll: async () => {
       const { data, error } = await supabase
         .from('payment_events')
-        .select('id, user_id, amount, currency, status, description, due_date, created_at, updated_at')
+        .select('id, user_id, amount, currency, status, description, due_date, is_recurring, recurrence_frequency, recurrence_end_date, reminder_days_before, created_at, updated_at')
         .order('due_date', { ascending: true });
 
       if (error) throw error;
@@ -1003,7 +1112,11 @@ export const apiService = {
           currency: eventData.currency || 'AED',
           status: eventData.status || 'pending',
           description: eventData.description,
-          due_date: eventData.due_date
+          due_date: eventData.due_date,
+          is_recurring: eventData.is_recurring || false,
+          recurrence_frequency: eventData.is_recurring ? eventData.recurrence_frequency : null,
+          recurrence_end_date: eventData.is_recurring ? eventData.recurrence_end_date || null : null,
+          reminder_days_before: Number(eventData.reminder_days_before) || 3,
         })
         .select()
         .single();

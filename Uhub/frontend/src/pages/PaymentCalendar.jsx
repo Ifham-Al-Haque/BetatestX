@@ -1,48 +1,41 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import PaymentCalendar from '../components/PaymentCalendar';
-import { supabase } from '../supabaseClient';
+import PaymentEventFormModal from '../components/PaymentEventFormModal';
 import { useAuth } from '../context/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-
+import { useLocation } from 'react-router-dom';
+import { DEFAULT_PAYMENT_FORM } from '../constants/paymentEvents';
+import { formatDateOnly } from '../utils/paymentRecurrence';
+import {
+  buildPaymentPayload,
+  createPaymentEvent,
+  eventToFormData,
+  fetchPaymentEvents,
+  markPaymentPaid,
+  subscribePaymentEvents,
+  updatePaymentEvent,
+} from '../services/paymentEventService';
 
 const PaymentCalendarPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const location = useLocation();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [formData, setFormData] = useState(DEFAULT_PAYMENT_FORM);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  useEffect(() => {
-    fetchPaymentEvents();
-    
-    // Subscribe to real-time changes
-    const subscription = supabase
-      .channel('payment_events_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'payment_events' },
-        (payload) => {
-          console.log('Payment event change:', payload);
-          // Refresh data when changes occur
-          fetchPaymentEvents();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const fetchPaymentEvents = async () => {
+  const loadEvents = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('payment_events')
-        .select('id, user_id, amount, currency, status, description, due_date, created_at, updated_at')
-        .order('due_date', { ascending: true });
-
-      if (error) throw error;
-      setEvents(data || []);
+      const data = await fetchPaymentEvents();
+      setEvents(data);
+      queryClient.setQueryData(['paymentEvents'], data);
     } catch (error) {
       console.error('Error fetching payment events:', error);
     } finally {
@@ -50,24 +43,74 @@ const PaymentCalendarPage = () => {
     }
   };
 
-  const handleDateClick = (date) => {
-    console.log('Date clicked:', date);
-  };
+  useEffect(() => {
+    loadEvents();
+    return subscribePaymentEvents(() => loadEvents());
+  }, []);
 
-  const handleEventsUpdate = (updatedEvents) => {
+  const syncEvents = (updatedEvents) => {
     setEvents(updatedEvents);
-    // Update query cache for synchronization with other components
     queryClient.setQueryData(['paymentEvents'], updatedEvents);
   };
 
-  const stats = useMemo(() => {
-    const total = events.length;
-    const pending = events.filter((e) => e.status === 'pending').length;
-    const paid = events.filter((e) => e.status === 'paid').length;
-    const overdue = events.filter((e) => e.status === 'overdue').length;
-    const totalAmount = events.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-    return { total, pending, paid, overdue, totalAmount };
-  }, [events]);
+  const handleAddPayment = (date) => {
+    setEditingEvent(null);
+    setFormData({
+      ...DEFAULT_PAYMENT_FORM,
+      due_date: formatDateOnly(date || new Date()),
+    });
+    setFormError('');
+    setShowForm(true);
+  };
+
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setFormData(eventToFormData(event));
+    setFormError('');
+    setShowForm(true);
+  };
+
+  const handleMarkPaid = async (event) => {
+    const updated = await markPaymentPaid(event);
+    syncEvents(events.map((item) => (item.id === updated.id ? updated : item)));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.description || !formData.amount || !formData.due_date) {
+      setFormError('Please fill Description, Amount, and Due Date.');
+      return;
+    }
+
+    if (formData.is_recurring && !formData.recurrence_frequency) {
+      setFormError('Please select a recurrence frequency.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setFormError('');
+      const payload = buildPaymentPayload(formData, user?.id);
+
+      if (editingEvent) {
+        const updated = await updatePaymentEvent(editingEvent.id, payload);
+        syncEvents(events.map((item) => (item.id === editingEvent.id ? updated : item)));
+      } else {
+        const created = await createPaymentEvent(payload);
+        syncEvents([...events, created]);
+      }
+
+      setShowForm(false);
+      setEditingEvent(null);
+      setFormData(DEFAULT_PAYMENT_FORM);
+    } catch (error) {
+      console.error('Error saving payment event:', error);
+      setFormError(error.message || 'Failed to save payment event');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -90,47 +133,41 @@ const PaymentCalendarPage = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
           >
-            <div className="flex items-center justify-end gap-4 mb-6">
-              <motion.button
-                whileHover={{ scale: loading ? 1 : 1.02 }}
-                onClick={fetchPaymentEvents}
-                disabled={loading}
-                className="shrink-0 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                Refresh
-              </motion.button>
-            </div>
-
-            {/* Stats strip */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30">
-                <div className="text-sm text-blue-700 dark:text-blue-200 font-medium">Total events</div>
-                <div className="text-2xl font-bold text-blue-900 dark:text-white">{stats.total}</div>
-              </div>
-              <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/30">
-                <div className="text-sm text-yellow-700 dark:text-yellow-200 font-medium">Pending</div>
-                <div className="text-2xl font-bold text-yellow-900 dark:text-white">{stats.pending}</div>
-              </div>
-              <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/30">
-                <div className="text-sm text-green-700 dark:text-green-200 font-medium">Paid</div>
-                <div className="text-2xl font-bold text-green-900 dark:text-white">{stats.paid}</div>
-              </div>
-              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30">
-                <div className="text-sm text-red-700 dark:text-red-200 font-medium">Overdue</div>
-                <div className="text-2xl font-bold text-red-900 dark:text-white">{stats.overdue}</div>
-              </div>
-            </div>
-
             <PaymentCalendar
               events={events}
-              onDateClick={handleDateClick}
-              onEventsUpdate={handleEventsUpdate}
+              onEventsUpdate={syncEvents}
+              onAddPayment={handleAddPayment}
+              onMarkPaid={handleMarkPaid}
+              onEditEvent={handleEditEvent}
+              initialSelectedDate={location.state?.selectedDate}
             />
           </motion.div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <PaymentEventFormModal
+            open={showForm}
+            title={editingEvent ? 'Edit Payment' : 'Schedule New Payment'}
+            subtitle="Payments appear on the calendar and upcoming list"
+            formData={formData}
+            setFormData={setFormData}
+            onSubmit={handleSubmit}
+            onClose={() => {
+              setShowForm(false);
+              setEditingEvent(null);
+              setFormData(DEFAULT_PAYMENT_FORM);
+              setFormError('');
+            }}
+            saving={saving}
+            error={formError}
+            submitLabel={editingEvent ? 'Update Payment' : 'Schedule Payment'}
+            accent="blue"
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

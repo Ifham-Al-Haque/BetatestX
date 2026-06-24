@@ -12,6 +12,8 @@ import { suggestionsApi } from '../services/suggestionsApi';
 import { hrPanelApi } from '../services/hrPanelApi';
 import PaginationControls from '../components/ui/PaginationControls';
 import HRCommentThread from '../components/hr/HRCommentThread';
+import SuggestionVotePoll from '../components/suggestions/SuggestionVotePoll';
+import SuggestionVoteBreakdown from '../components/suggestions/SuggestionVoteBreakdown';
 import { downloadCsv, csvFilename } from '../utils/csvExport';
 import {
   isHROrAdmin,
@@ -48,6 +50,9 @@ const SuggestionsInbox = () => {
   const [activeQuickFilter, setActiveQuickFilter] = useState(null);
   const [sortByVotes, setSortByVotes] = useState(false);
   const [hrStaff, setHrStaff] = useState([]);
+  const [voteBreakdown, setVoteBreakdown] = useState({ support: [], against: [] });
+  const [voteBreakdownLoading, setVoteBreakdownLoading] = useState(false);
+  const [voteBreakdownError, setVoteBreakdownError] = useState(null);
 
   const role = userProfile?.role;
   const canAccess = isHROrAdmin(role);
@@ -58,6 +63,40 @@ const SuggestionsInbox = () => {
       hrPanelApi.getHRStaff().then(setHrStaff);
     }
   }, [filters, userProfile, canAccess]);
+
+  useEffect(() => {
+    if (!selected?.id) {
+      setVoteBreakdown({ support: [], against: [] });
+      setVoteBreakdownError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadBreakdown = async () => {
+      setVoteBreakdownLoading(true);
+      setVoteBreakdownError(null);
+      try {
+        const data = await suggestionsApi.getSuggestionVoteBreakdown(selected.id);
+        if (!cancelled) setVoteBreakdown(data);
+      } catch (error) {
+        if (!cancelled) {
+          const msg = error.message || '';
+          if (msg.includes('get_suggestion_vote_breakdown') || msg.includes('Could not find the function')) {
+            setVoteBreakdownError('Vote breakdown requires add_suggestion_vote_breakdown_hr.sql to be run in Supabase.');
+          } else {
+            setVoteBreakdownError(msg || 'Failed to load vote breakdown');
+          }
+          setVoteBreakdown({ support: [], against: [] });
+        }
+      } finally {
+        if (!cancelled) setVoteBreakdownLoading(false);
+      }
+    };
+
+    loadBreakdown();
+    return () => { cancelled = true; };
+  }, [selected?.id]);
 
   const fetchData = async () => {
     try {
@@ -517,13 +556,6 @@ const SuggestionsInbox = () => {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Votes</p>
-                    <p className="inline-flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
-                      <span className="inline-flex items-center gap-1 text-emerald-600"><ThumbsUp className="w-4 h-4" />{selected.upvotes || 0}</span>
-                      <span className="inline-flex items-center gap-1 text-red-500"><ThumbsDown className="w-4 h-4" />{selected.downvotes || 0}</span>
-                    </p>
-                  </div>
-                  <div>
                     <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Submitted</p>
                     <p style={{ color: 'var(--text-primary)' }}>{new Date(selected.created_at).toLocaleString()}</p>
                   </div>
@@ -534,6 +566,19 @@ const SuggestionsInbox = () => {
                     </p>
                   </div>
                 </div>
+
+                <SuggestionVotePoll
+                  upvotes={selected.upvotes}
+                  downvotes={selected.downvotes}
+                  readOnly
+                />
+
+                <SuggestionVoteBreakdown
+                  support={voteBreakdown.support}
+                  against={voteBreakdown.against}
+                  loading={voteBreakdownLoading}
+                  error={voteBreakdownError}
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>

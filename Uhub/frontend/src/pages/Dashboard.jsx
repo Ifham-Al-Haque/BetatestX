@@ -12,6 +12,7 @@ import ScrollableExpenseTable from '../components/ScrollableExpenseTable';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TodaySpendingChart from '../components/TodaySpendingChart';
 import { MonthlyTrendsChart, DepartmentSpendingChart } from '../components/TrendChart';
+import { expandRecurringPaymentEvents } from '../utils/paymentRecurrence';
 import DashboardNotification, { NotificationTypes } from '../components/DashboardNotification';
 
 import './Dashboard.css';
@@ -510,16 +511,28 @@ export default function Dashboard() {
 
   const paymentAlerts = useMemo(() => {
     const alerts = [];
-    const overdue = safePaymentEvents.filter((e) => e.status === 'overdue');
     const now = new Date();
+    now.setHours(0, 0, 0, 0);
     const weekFromNow = new Date(now);
     weekFromNow.setDate(now.getDate() + 7);
+    const horizon = new Date(now);
+    horizon.setDate(now.getDate() + 30);
 
-    const dueSoon = safePaymentEvents.filter((e) => {
-      if (e.status !== 'pending' || !e.due_date) return false;
+    const overdue = safePaymentEvents.filter((e) => e.status === 'overdue');
+    const expanded = expandRecurringPaymentEvents(safePaymentEvents, now, horizon);
+
+    const dueSoon = expanded.filter((e) => {
+      if (e.status === 'paid' || e.status === 'cancelled' || !e.due_date) return false;
       const due = new Date(e.due_date);
-      return due >= now && due <= weekFromNow;
+      due.setHours(0, 0, 0, 0);
+      if (due < now || due > weekFromNow) return false;
+      const reminderDays = Number(e.reminder_days_before ?? 3);
+      const reminderStart = new Date(due);
+      reminderStart.setDate(due.getDate() - reminderDays);
+      return reminderStart <= now;
     });
+
+    const recurringDueSoon = dueSoon.filter((e) => e.is_recurring || e.isVirtual);
 
     if (overdue.length > 0) {
       alerts.push({
@@ -536,7 +549,9 @@ export default function Dashboard() {
         id: 'due-soon',
         type: NotificationTypes.WARNING,
         title: `${dueSoon.length} payment${dueSoon.length === 1 ? '' : 's'} due within 7 days`,
-        message: 'Upcoming payments need your attention.',
+        message: recurringDueSoon.length
+          ? `${recurringDueSoon.length} recurring payment${recurringDueSoon.length === 1 ? '' : 's'} included.`
+          : 'Upcoming payments need your attention.',
         action: { label: 'View calendar', url: '/payment-calendar' },
       });
     }

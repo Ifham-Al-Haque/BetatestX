@@ -1,68 +1,189 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, DollarSign, Clock, AlertTriangle, CheckCircle, Plus, X } from 'lucide-react';
-import paymentService from '../services/paymentService';
+import { Calendar, DollarSign, Plus, Repeat, Loader2, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-
+import { useAuth } from '../context/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
+import PaymentEventFormModal from '../components/PaymentEventFormModal';
+import { DEFAULT_PAYMENT_FORM } from '../constants/paymentEvents';
+import { expandRecurringPaymentEvents, getRecurrenceLabel } from '../utils/paymentRecurrence';
+import {
+  buildPaymentPayload,
+  createPaymentEvent,
+  deletePaymentEvent,
+  eventToFormData,
+  fetchPaymentEvents,
+  markPaymentPaid,
+  subscribePaymentEvents,
+  updatePaymentEvent,
+} from '../services/paymentEventService';
 
 const UpcomingPaymentEvents = () => {
-  const [paymentEvents, setPaymentEvents] = useState([]);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newPayment, setNewPayment] = useState({
-    title: '',
-    amount: '',
-    dueDate: '',
-    type: 'expense',
-    priority: 'medium',
-    description: ''
-  });
+  const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [formData, setFormData] = useState(DEFAULT_PAYMENT_FORM);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const [scheduleError, setScheduleError] = useState('');
+  const formatAmount = (amount, currency = 'AED') =>
+    `${currency} ${Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
-  const formatAED = (amount) =>
-    `AED ${Number(amount || 0).toLocaleString()}`;
+  const loadEvents = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchPaymentEvents();
+      setEvents(data);
+      queryClient.setQueryData(['paymentEvents'], data);
+    } catch (error) {
+      console.error('Error fetching payment events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Load payments from service
-    setPaymentEvents(paymentService.getUpcomingPayments());
-    setLoading(false);
-    
-    // Subscribe to payment changes
-    const unsubscribe = paymentService.subscribe((updatedPayments) => {
-      setPaymentEvents(paymentService.getUpcomingPayments());
-    });
-    
-    return unsubscribe;
+    loadEvents();
+    return subscribePaymentEvents(() => loadEvents());
   }, []);
 
+  const syncEvents = (next) => {
+    setEvents(next);
+    queryClient.setQueryData(['paymentEvents'], next);
+  };
 
+  const openAddForm = () => {
+    setEditingEvent(null);
+    setFormData(DEFAULT_PAYMENT_FORM);
+    setFormError('');
+    setShowForm(true);
+  };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const openEditForm = (event) => {
+    if (event.isVirtual) return;
+    setEditingEvent(event);
+    setFormData(eventToFormData(event));
+    setFormError('');
+    setShowForm(true);
+  };
+
+  const handleDelete = async (event) => {
+    if (event.isVirtual) return;
+    if (!window.confirm('Delete this payment reminder?')) return;
+    try {
+      await deletePaymentEvent(event.id);
+      syncEvents(events.filter((item) => item.id !== event.id));
+    } catch (error) {
+      console.error('Error deleting payment event:', error);
+      alert('Failed to delete payment event');
     }
   };
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'salary': return <DollarSign className="w-4 h-4" />;
-      case 'expense': return <Clock className="w-4 h-4" />;
-      case 'maintenance': return <AlertTriangle className="w-4 h-4" />;
-      case 'insurance': return <CheckCircle className="w-4 h-4" />;
-      default: return <Calendar className="w-4 h-4" />;
+  const handleMarkPaid = async (event) => {
+    try {
+      const updated = await markPaymentPaid(event);
+      syncEvents(events.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      alert('Failed to update payment status');
     }
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.description || !formData.amount || !formData.due_date) {
+      setFormError('Please fill Description, Amount, and Due Date.');
+      return;
+    }
+    if (formData.is_recurring && !formData.recurrence_frequency) {
+      setFormError('Please select a recurrence frequency.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setFormError('');
+      const payload = buildPaymentPayload(formData, user?.id);
+
+      if (editingEvent) {
+        const updated = await updatePaymentEvent(editingEvent.id, payload);
+        syncEvents(events.map((item) => (item.id === editingEvent.id ? updated : item)));
+      } else {
+        const created = await createPaymentEvent(payload);
+        syncEvents([...events, created]);
+      }
+
+      setShowForm(false);
+      setEditingEvent(null);
+      setFormData(DEFAULT_PAYMENT_FORM);
+    } catch (error) {
+      console.error('Error saving payment event:', error);
+      setFormError(error.message || 'Failed to save payment event');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const horizonEnd = useMemo(() => {
+    const d = new Date(today);
+    d.setMonth(d.getMonth() + 3);
+    return d;
+  }, [today]);
+
+  const upcomingDisplayEvents = useMemo(() => {
+    const expanded = expandRecurringPaymentEvents(events, today, horizonEnd);
+    return expanded.filter((event) => {
+      const due = new Date(event.due_date);
+      due.setHours(0, 0, 0, 0);
+      return due >= today && event.status !== 'paid' && event.status !== 'cancelled';
+    });
+  }, [events, today, horizonEnd]);
+
+  const stats = useMemo(() => {
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    return {
+      totalUpcoming: upcomingDisplayEvents.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
+      dueThisWeek: upcomingDisplayEvents
+        .filter((e) => {
+          const due = new Date(e.due_date);
+          return due >= today && due <= weekEnd;
+        })
+        .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
+      overdueAmount: events
+        .filter((e) => e.status === 'overdue')
+        .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
+      recurringCount: events.filter((e) => e.is_recurring).length,
+    };
+  }, [events, upcomingDisplayEvents, today]);
 
   const getDaysUntilDue = (dueDate) => {
-    const today = new Date();
     const due = new Date(dueDate);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    due.setHours(0, 0, 0, 0);
+    return Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+  };
+
+  const getPriorityFromDue = (dueDate) => {
+    const days = getDaysUntilDue(dueDate);
+    if (days <= 3) return 'high';
+    if (days <= 7) return 'medium';
+    return 'low';
+  };
+
+  const getPriorityColor = (priority) => {
+    if (priority === 'high') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200';
+    if (priority === 'medium') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200';
+    return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200';
   };
 
   const getDueStatus = (daysUntilDue) => {
@@ -73,377 +194,235 @@ const UpcomingPaymentEvents = () => {
   };
 
   const getDueStatusColor = (status) => {
-    switch (status) {
-      case 'overdue': return 'bg-red-100 text-red-800';
-      case 'due-today': return 'bg-orange-100 text-orange-800';
-      case 'due-soon': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-green-100 text-green-800';
-    }
+    if (status === 'overdue') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200';
+    if (status === 'due-today') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200';
+    if (status === 'due-soon') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200';
+    return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200';
   };
 
   const filteredPaymentEvents = useMemo(() => {
-    return paymentEvents.filter((event) => {
+    return upcomingDisplayEvents.filter((event) => {
       if (filter === 'all') return true;
-      if (filter === 'high') return event.priority === 'high';
+      if (filter === 'recurring') return event.is_recurring || event.isVirtual;
       if (filter === 'due-soon') {
-        const daysUntilDue = getDaysUntilDue(event.dueDate);
-        return daysUntilDue >= 0 && daysUntilDue <= 3;
+        const days = getDaysUntilDue(event.due_date);
+        return days >= 0 && days <= 7;
       }
+      if (filter === 'high') return getPriorityFromDue(event.due_date) === 'high';
       return true;
     });
-  }, [paymentEvents, filter]);
+  }, [upcomingDisplayEvents, filter, today]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300">Loading payment events...</p>
-        </div>
+        <Loader2 className="w-12 h-12 animate-spin text-emerald-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
       <div className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Upcoming Payment Events</h1>
-            <div className="flex space-x-3">
-              <button 
-                onClick={() => setShowAddForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+        <div className="max-w-7xl mx-auto space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 rounded-2xl p-6 text-white shadow-lg"
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <Calendar className="w-7 h-7" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">Upcoming Payments</h1>
+                  <p className="text-emerald-100 text-sm">
+                    Actionable list with recurring projections for the next 3 months
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={loadEvents}
+                  className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </button>
+                <button
+                  onClick={openAddForm}
+                  className="px-4 py-2 bg-white text-emerald-700 font-semibold rounded-xl hover:bg-emerald-50 flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Schedule Payment
+                </button>
+              </div>
+            </div>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Upcoming', value: formatAmount(stats.totalUpcoming), sub: 'Next 3 months' },
+              { label: 'Due This Week', value: formatAmount(stats.dueThisWeek), sub: 'Next 7 days', color: 'text-amber-600' },
+              { label: 'Overdue', value: formatAmount(stats.overdueAmount), sub: 'Needs action', color: 'text-red-600' },
+              { label: 'Recurring', value: stats.recurringCount, sub: 'Active schedules', color: 'text-indigo-600' },
+            ].map((card) => (
+              <div
+                key={card.label}
+                className="p-5 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Schedule Payment
-              </button>
-              <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                Export Report
-              </button>
-            </div>
+                <div className="text-sm font-medium text-gray-500">{card.label}</div>
+                <div className={`text-2xl font-bold mt-1 ${card.color || 'text-blue-600'}`}>{card.value}</div>
+                <div className="text-xs text-gray-500 mt-1">{card.sub}</div>
+              </div>
+            ))}
           </div>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h3 className="text-lg font-semibold text-blue-900">Total Upcoming</h3>
-              <p className="text-3xl font-bold text-blue-600">AED {paymentService.getPaymentStats().pending.toLocaleString()}</p>
-              <p className="text-sm text-blue-700">This month</p>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex flex-wrap gap-2 mb-6">
+              {[
+                { id: 'all', label: 'All Events' },
+                { id: 'due-soon', label: 'Due This Week' },
+                { id: 'high', label: 'High Priority' },
+                { id: 'recurring', label: 'Recurring' },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setFilter(id)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                    filter === id
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-              <h3 className="text-lg font-semibold text-red-900">High Priority</h3>
-              <p className="text-3xl font-bold text-red-600">AED {paymentService.getUpcomingPayments().filter(p => p.priority === 'high').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</p>
-              <p className="text-sm text-red-700">Requires attention</p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-              <h3 className="text-lg font-semibold text-yellow-900">Due This Week</h3>
-              <p className="text-3xl font-bold text-yellow-600">AED {(() => {
-                const today = new Date();
-                const thisWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-                return paymentService.getUpcomingPayments().filter(p => {
-                  const dueDate = new Date(p.dueDate);
-                  return dueDate <= thisWeek && dueDate >= today;
-                }).reduce((sum, p) => sum + p.amount, 0);
-              })().toLocaleString()}</p>
-              <p className="text-sm text-yellow-700">Next 7 days</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-              <h3 className="text-lg font-semibold text-green-900">Low Priority</h3>
-              <p className="text-3xl font-bold text-green-600">AED {paymentService.getUpcomingPayments().filter(p => p.priority === 'low').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</p>
-              <p className="text-sm text-green-700">Can wait</p>
-            </div>
-          </div>
 
-          {/* Filters */}
-          <div className="flex items-center space-x-4 mb-6">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All Events
-            </button>
-            <button
-              onClick={() => setFilter('high')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'high'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              High Priority
-            </button>
-            <button
-              onClick={() => setFilter('due-soon')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'due-soon'
-                  ? 'bg-yellow-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Due Soon
-            </button>
-          </div>
-
-          {/* Payment Events Table */}
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Payment Schedule</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-900/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Event
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Due Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Priority
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    {['Event', 'Amount', 'Due Date', 'Priority', 'Status', 'Actions'].map((col) => (
+                      <th
+                        key={col}
+                        className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                      >
+                        {col}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredPaymentEvents.length === 0 ? (
                     <tr>
-                      <td className="px-6 py-10 text-center text-gray-500" colSpan={6}>
-                        No events match this filter.
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                        No upcoming payments match this filter.
                       </td>
                     </tr>
                   ) : (
-                    <AnimatePresence>
-                      {filteredPaymentEvents.map((event) => {
-                        const daysUntilDue = getDaysUntilDue(event.dueDate);
-                        const dueStatus = getDueStatus(daysUntilDue);
-                        
-                        return (
-                          <motion.tr
-                            key={event.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            transition={{ duration: 0.18 }}
-                            className="hover:bg-gray-50"
-                          >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                              {getTypeIcon(event.type)}
+                    filteredPaymentEvents.map((event) => {
+                      const daysUntilDue = getDaysUntilDue(event.due_date);
+                      const dueStatus = getDueStatus(daysUntilDue);
+                      const priority = getPriorityFromDue(event.due_date);
+
+                      return (
+                        <tr key={event.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+                                {event.is_recurring || event.isVirtual ? (
+                                  <Repeat className="w-4 h-4 text-indigo-600" />
+                                ) : (
+                                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {event.description || 'Payment'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {event.isVirtual
+                                    ? `Projected · ${getRecurrenceLabel(event.recurrence_frequency)}`
+                                    : event.is_recurring
+                                    ? `Recurring · ${getRecurrenceLabel(event.recurrence_frequency)}`
+                                    : 'One-time payment'}
+                                </div>
+                              </div>
                             </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-medium text-gray-900">{event.title}</div>
-                              <div className="text-sm text-gray-500">{event.type}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-bold whitespace-nowrap">
+                            {formatAmount(event.amount, event.currency)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm">{new Date(event.due_date).toLocaleDateString()}</div>
+                            <div className="text-xs text-gray-500">
+                              {daysUntilDue === 0 ? 'Due today' : `${daysUntilDue} days left`}
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                          {formatAED(event.amount)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{event.dueDate}</div>
-                          <div className="text-xs text-gray-500">
-                            {daysUntilDue < 0 
-                              ? `${Math.abs(daysUntilDue)} days overdue`
-                              : daysUntilDue === 0
-                              ? 'Due today'
-                              : `${daysUntilDue} days left`
-                            }
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(event.priority)}`}>
-                            {event.priority}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDueStatusColor(dueStatus)}`}>
-                            {dueStatus.replace('-', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                          <button className="text-green-600 hover:text-green-900">Process</button>
-                        </td>
-                        </motion.tr>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(priority)}`}>
+                              {priority}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getDueStatusColor(dueStatus)}`}>
+                              {dueStatus.replace('-', ' ')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm whitespace-nowrap">
+                            <button
+                              onClick={() => handleMarkPaid(event)}
+                              className="text-emerald-600 hover:text-emerald-800 font-medium mr-3"
+                            >
+                              {event.is_recurring || event.isVirtual ? 'Mark paid & next' : 'Mark paid'}
+                            </button>
+                            {!event.isVirtual && (
+                              <>
+                                <button onClick={() => openEditForm(event)} className="text-blue-600 hover:text-blue-800 mr-3">
+                                  Edit
+                                </button>
+                                <button onClick={() => handleDelete(event)} className="text-red-600 hover:text-red-800">
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                            {event.isVirtual && <span className="text-xs text-gray-400">Auto-generated</span>}
+                          </td>
+                        </tr>
                       );
-                      })}
-                    </AnimatePresence>
+                    })
                   )}
                 </tbody>
               </table>
             </div>
           </div>
-
-          {/* Add Payment Form Modal */}
-          <AnimatePresence>
-            {showAddForm && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-              >
-                <motion.div
-                  initial={{ y: 12, opacity: 0, scale: 0.98 }}
-                  animate={{ y: 0, opacity: 1, scale: 1 }}
-                  exit={{ y: 12, opacity: 0, scale: 0.98 }}
-                  transition={{ duration: 0.15 }}
-                  className="bg-white rounded-2xl p-6 w-full max-w-md border border-gray-200 shadow-2xl overflow-hidden"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Schedule New Payment</h3>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAddForm(false);
-                        setScheduleError('');
-                      }}
-                      className="text-gray-500 hover:text-gray-900 transition-colors"
-                      aria-label="Close"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                
-                  {scheduleError && (
-                    <div className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
-                      {scheduleError}
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                    <input
-                      type="text"
-                      value={newPayment.title}
-                      onChange={(e) => setNewPayment({...newPayment, title: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Payment title"
-                    />
-                  </div>
-                  
-                  <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Amount (AED)</label>
-                    <input
-                      type="number"
-                      value={newPayment.amount}
-                      onChange={(e) => setNewPayment({...newPayment, amount: parseFloat(e.target.value) || 0})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                    <input
-                      type="date"
-                      value={newPayment.dueDate}
-                      onChange={(e) => setNewPayment({...newPayment, dueDate: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                    <select
-                      value={newPayment.type}
-                      onChange={(e) => setNewPayment({...newPayment, type: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="expense">Expense</option>
-                      <option value="salary">Salary</option>
-                      <option value="maintenance">Maintenance</option>
-                      <option value="insurance">Insurance</option>
-                      <option value="rent">Rent</option>
-                      <option value="utilities">Utilities</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                    <select
-                      value={newPayment.priority}
-                      onChange={(e) => setNewPayment({...newPayment, priority: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                      value={newPayment.description}
-                      onChange={(e) => setNewPayment({...newPayment, description: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Payment description"
-                      rows="3"
-                    />
-                  </div>
-                  </div>
-
-                  <div className="flex space-x-3 mt-6">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newPayment.title || !newPayment.amount || !newPayment.dueDate) {
-                          setScheduleError('Please fill Title, Amount, and Due Date.');
-                          return;
-                        }
-                        paymentService.addPayment(newPayment);
-                        setNewPayment({
-                          title: '',
-                          amount: '',
-                          dueDate: '',
-                          type: 'expense',
-                          priority: 'medium',
-                          description: ''
-                        });
-                        setScheduleError('');
-                        setShowAddForm(false);
-                      }}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                    >
-                      Schedule Payment
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAddForm(false);
-                        setScheduleError('');
-                      }}
-                      className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
-    </div>
+
+      <AnimatePresence>
+        {showForm && (
+          <PaymentEventFormModal
+            open={showForm}
+            title={editingEvent ? 'Edit Payment' : 'Schedule New Payment'}
+            subtitle="Set up one-time or recurring payment reminders"
+            formData={formData}
+            setFormData={setFormData}
+            onSubmit={handleSubmit}
+            onClose={() => {
+              setShowForm(false);
+              setEditingEvent(null);
+              setFormData(DEFAULT_PAYMENT_FORM);
+              setFormError('');
+            }}
+            saving={saving}
+            error={formError}
+            submitLabel={editingEvent ? 'Update Payment' : 'Schedule Payment'}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
