@@ -19,7 +19,7 @@ import { useToast } from '../context/ToastContext';
  * - Logs all password reset attempts
  * - Uses Supabase Admin API for secure password resets
  */
-export default function AdminPasswordReset() {
+export default function AdminPasswordReset({ embedded = false }) {
   const { user } = useAuth();
   const { success, error: showError, warning } = useToast();
   
@@ -238,57 +238,49 @@ export default function AdminPasswordReset() {
   }
   
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-3 rounded-lg">
-            <Lock className="w-8 h-8" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Admin Password Reset</h1>
-            <p className="text-blue-100">
-              Reset passwords for users (Authorized Admin Only)
-            </p>
+    <div className="space-y-5">
+      {!embedded && (
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-xl">
+              <Lock className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">Admin Password Reset</h1>
+              <p className="text-blue-100 text-sm">Reset passwords for users (Authorized Admin Only)</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       
-      {/* Search Section */}
+      {/* Search */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl shadow-lg p-6"
+        className="rounded-2xl p-5"
+        style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
       >
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Search className="w-5 h-5 text-blue-600" />
+        <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+          <Search className="w-4 h-4 text-blue-600" />
           Search User
         </h2>
         
         <div className="flex gap-3">
-          <div className="flex-1">
-            <input
-              type="email"
-              value={targetEmail}
-              onChange={(e) => setTargetEmail(e.target.value)}
-              placeholder="Enter user email address..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              onKeyPress={(e) => e.key === 'Enter' && handleSearchUser()}
-            />
-          </div>
+          <input
+            type="email"
+            value={targetEmail}
+            onChange={(e) => setTargetEmail(e.target.value)}
+            placeholder="Enter user email address..."
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearchUser()}
+          />
           <button
             onClick={handleSearchUser}
             disabled={searchLoading}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm disabled:opacity-50"
           >
-            {searchLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <Search className="w-5 h-5" />
-                Search
-              </>
-            )}
+            {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Search className="w-4 h-4" /> Search</>}
           </button>
         </div>
         
@@ -336,12 +328,13 @@ export default function AdminPasswordReset() {
       {/* Password Reset Section */}
       {selectedUser && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl shadow-lg p-6"
+          className="rounded-2xl p-5"
+          style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
         >
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Lock className="w-5 h-5 text-green-600" />
+          <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Lock className="w-4 h-4 text-green-600" />
             Reset Password for: {selectedUser.email}
           </h2>
           

@@ -266,6 +266,14 @@ const NAVIGATION_ITEMS = {
     description: 'HR complaints inbox - manage and respond to all complaints'
   },
 
+  suggestions_inbox: {
+    path: '/suggestions-inbox',
+    label: 'Suggestions Inbox',
+    icon: Inbox,
+    roles: ['admin', 'hr_manager'],
+    description: 'HR suggestions inbox — review and implement employee ideas'
+  },
+
   complaints_test: {
     path: '/complaints-test',
     label: 'Complaints Test',

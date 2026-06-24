@@ -85,8 +85,9 @@ export const widgetConfig = [
       { label: 'Employee History', path: '/employee-history', icon: Archive, feature: 'employees', description: 'View archived employees' },
       { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance', description: 'Track attendance' },
       { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints', description: 'Issue tracking' },
-      { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox', description: 'View complaints' },
-      { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions', description: 'View suggestions' }
+      { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox', description: 'HR complaints triage' },
+      { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions', description: 'Submit & vote on ideas' },
+      { label: 'Suggestions Inbox', path: '/suggestions-inbox', icon: Inbox, feature: 'suggestions_inbox', description: 'HR suggestions triage' }
     ]
   },
   {
@@ -213,7 +214,7 @@ export const widgetConfig = [
 
 const DEFAULT_QUICK_PATHS = {
   admin: ['/dashboard', '/user-management', '/employees', '/it-requests'],
-  hr_manager: ['/employees', '/payroll', '/complaints-inbox', '/task-management'],
+  hr_manager: ['/employees', '/payroll', '/complaints-inbox', '/suggestions-inbox', '/task-management'],
   manager: ['/dashboard', '/employees', '/task-management', '/it-requests'],
   employee: ['/tasks', '/profile', '/it-requests', '/calendar-view'],
   default: ['/profile', '/tasks', '/calendar-view', '/it-requests']

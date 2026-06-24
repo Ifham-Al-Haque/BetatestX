@@ -201,6 +201,113 @@ class ActivityService {
   }
 
   /**
+   * Aggregate per-user activity for admin analytics charts
+   */
+  async getUserActivityAnalytics(daysBack = 30) {
+    try {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - (daysBack - 1));
+
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('created_at, user_email, action')
+        .gte('created_at', start.toISOString());
+
+      if (error) {
+        console.error('Error fetching user activity analytics:', error);
+        return { dailyTrend: [], topUsers: [], summary: {} };
+      }
+
+      const toDateKey = (iso) => {
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+
+      const buckets = [];
+      for (let i = 0; i < daysBack; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        const dateKey = toDateKey(d);
+        buckets.push({
+          dateKey,
+          label: daysBack <= 7
+            ? d.toLocaleDateString('en-US', { weekday: 'short' })
+            : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          activeUsers: 0,
+          logins: 0,
+          totalEvents: 0,
+          _users: new Set(),
+        });
+      }
+
+      const bucketMap = Object.fromEntries(buckets.map((b) => [b.dateKey, b]));
+      const userCounts = {};
+
+      (data || []).forEach((log) => {
+        const bucket = bucketMap[toDateKey(log.created_at)];
+        if (!bucket) return;
+
+        bucket.totalEvents += 1;
+        const email = log.user_email?.trim().toLowerCase();
+        if (!email) return;
+
+        bucket._users.add(email);
+
+        if (!userCounts[email]) {
+          userCounts[email] = { email, count: 0, logins: 0 };
+        }
+        userCounts[email].count += 1;
+
+        const isLogin = log.action === 'login' || log.action === 'session_start';
+        if (isLogin) {
+          bucket.logins += 1;
+          userCounts[email].logins += 1;
+        }
+      });
+
+      const dailyTrend = buckets.map(({ dateKey, label, totalEvents, logins, _users }) => ({
+        dateKey,
+        label,
+        activeUsers: _users.size,
+        logins,
+        totalEvents,
+      }));
+
+      const topUsers = Object.values(userCounts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+        .map((u) => ({
+          ...u,
+          label: u.email.split('@')[0],
+        }));
+
+      const activeDays = dailyTrend.filter((d) => d.activeUsers > 0);
+      const avgDau = activeDays.length
+        ? Math.round(activeDays.reduce((s, d) => s + d.activeUsers, 0) / activeDays.length)
+        : 0;
+      const peakDay = dailyTrend.reduce(
+        (best, d) => (d.activeUsers > (best?.activeUsers || 0) ? d : best),
+        null
+      );
+
+      return {
+        dailyTrend,
+        topUsers,
+        summary: {
+          avgDau,
+          peakDay: peakDay?.label || '—',
+          peakUsers: peakDay?.activeUsers || 0,
+          topUser: topUsers[0]?.email || '—',
+        },
+      };
+    } catch (error) {
+      console.error('Error in getUserActivityAnalytics:', error);
+      return { dailyTrend: [], topUsers: [], summary: {} };
+    }
+  }
+
+  /**
    * Get real-time activity logs
    */
   subscribeToActivityLogs(callback, filters = {}) {

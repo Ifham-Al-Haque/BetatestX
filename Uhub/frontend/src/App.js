@@ -91,6 +91,7 @@ const DeliveryTracking = safeLazy(() => import('./pages/DeliveryTracking'), 'Del
 const DeliveryRoutes = safeLazy(() => import('./pages/DeliveryRoutes'), 'DeliveryRoutes');
 const UserProfile = safeLazy(() => import('./pages/UserProfile'), 'UserProfile');
 const Suggestions = safeLazy(() => import('./pages/Suggestions'), 'Suggestions');
+const SuggestionsInbox = safeLazy(() => import('./pages/SuggestionsInbox'), 'SuggestionsInbox');
 const TaskManagement = safeLazy(() => import('./pages/TaskManagement'), 'TaskManagement');
 const ExpenseTracker = safeLazy(() => import('./pages/ExpenseTracker'), 'ExpenseTracker');
 const PaymentCalendar = safeLazy(() => import('./pages/PaymentCalendar'), 'PaymentCalendar');
@@ -162,7 +163,7 @@ function App() {
                         {/* Admin Routes */}
                         <Route path="/admin/*" element={
                           <ProtectedRoute requiredRole="admin">
-                            <Layout>
+                            <Layout pageTitle="Admin Dashboard" pageDescription="User activity monitoring and system administration">
                               <Routes>
                                 <Route path="dashboard" element={<AdminDashboard />} />
                                 <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
@@ -508,7 +509,7 @@ function App() {
 
                         {/* Complaints Inbox */}
                         <Route path="/complaints-inbox" element={
-                          <ProtectedRoute requiredFeature="complaints">
+                          <ProtectedRoute requiredFeature="complaints_inbox">
                             <Layout>
                               <ComplaintsInbox />
                             </Layout>
@@ -520,6 +521,15 @@ function App() {
                           <ProtectedRoute requiredFeature="suggestions">
                             <Layout>
                               <Suggestions />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        {/* Suggestions Inbox */}
+                        <Route path="/suggestions-inbox" element={
+                          <ProtectedRoute requiredFeature="suggestions_inbox">
+                            <Layout>
+                              <SuggestionsInbox />
                             </Layout>
                           </ProtectedRoute>
                         } />

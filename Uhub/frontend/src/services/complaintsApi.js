@@ -74,7 +74,10 @@ export const complaintsApi = {
     try {
       let query = supabase
         .from('complaints')
-        .select('*')
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
         .order('created_at', { ascending: false });
 
       // Apply role-based filtering
@@ -223,7 +226,10 @@ export const complaintsApi = {
       
       let query = supabase
         .from('complaints')
-        .select('*')
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
         .order('created_at', { ascending: false });
 
       // Exclude complaints raised by the current admin
@@ -323,7 +329,10 @@ export const complaintsApi = {
       
       let query = supabase
         .from('complaints')
-        .select('*')
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
         .order('created_at', { ascending: false });
 
       // Apply status filter
@@ -417,7 +426,10 @@ export const complaintsApi = {
       
       let query = supabase
         .from('complaints')
-        .select('*')
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
         .order('created_at', { ascending: false });
 
       // Apply status filter
@@ -466,7 +478,10 @@ export const complaintsApi = {
       
       let query = supabase
         .from('complaints')
-        .select('*')
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
         .order('created_at', { ascending: false });
 
       // Apply role-based filtering
@@ -591,5 +606,31 @@ export const complaintsApi = {
       console.error('Error assigning complaint to department:', error);
       throw error;
     }
-  }
+  },
+
+  /** Assign complaint to a UHub user (users.id) */
+  async assignComplaintToUser(complaintId, userId, userName) {
+    try {
+      const { data, error } = await supabase
+        .from('complaints')
+        .update({
+          assigned_to: userId || null,
+          assigned_to_name: userName || null,
+          assigned_at: userId ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', complaintId)
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error assigning complaint to user:', error);
+      throw error;
+    }
+  },
 };

@@ -101,7 +101,8 @@ const NAVIGATION_PANELS = [
       { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
       { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints' },
       { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox' },
-      { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions' }
+      { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions' },
+      { label: 'Suggestions Inbox', path: '/suggestions-inbox', icon: Inbox, feature: 'suggestions_inbox' }
     ]
   },
   {

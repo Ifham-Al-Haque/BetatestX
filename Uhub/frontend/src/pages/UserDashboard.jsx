@@ -181,7 +181,7 @@ const UserDashboard = () => {
           description: 'Handle customer complaints and feedback',
           color: 'from-orange-500 to-red-600',
           bgColor: 'bg-orange-50',
-          route: '/complaints-inbox',
+          route: '/complaints',
           category: 'Service'
         },
         {

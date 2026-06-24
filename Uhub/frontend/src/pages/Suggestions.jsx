@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { suggestionsApi } from '../services/suggestionsApi';
+import HRCommentThread from '../components/hr/HRCommentThread';
 
 const Suggestions = () => {
   const { user, userProfile } = useAuth();
@@ -31,6 +32,7 @@ const Suggestions = () => {
     search: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [expandedThreadId, setExpandedThreadId] = useState(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -316,27 +318,32 @@ const Suggestions = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="ml-64">
-        {/* Enhanced Header with Glassmorphism */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-emerald-600/10 rounded-3xl blur-3xl"></div>
-          <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl m-6 p-8 border border-white/20 dark:border-gray-700/50 shadow-xl">
+    <div
+      className="min-h-screen p-4 md:p-6 transition-colors duration-300"
+      style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+    >
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="relative mb-6">
+          <div
+            className="relative rounded-2xl p-6 md:p-8 border shadow-xl"
+            style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+          >
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex items-center gap-4">
                 <div className="p-4 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl shadow-lg">
                   <Lightbulb className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-blue-800 dark:from-white dark:via-purple-200 dark:to-blue-200 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
                     Suggestions
                   </h1>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2 text-lg">
-                    Share ideas and feedback to improve our organization
+                  <p className="mt-2 text-base" style={{ color: 'var(--text-muted)' }}>
+                    Share ideas and vote on improvements
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap items-center gap-3">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -351,21 +358,13 @@ const Suggestions = () => {
                   <Plus className="w-5 h-5" />
                   New Suggestion
                 </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  Analytics
-                </motion.button>
-                
+
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={fetchData}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-200 shadow-lg hover:shadow-xl font-semibold"
+                  className="inline-flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-semibold border transition-colors"
+                  style={{ borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
                 >
                   <RefreshCw className="w-5 h-5" />
                   Refresh
@@ -376,8 +375,7 @@ const Suggestions = () => {
         </div>
 
         {/* Statistics Cards */}
-        <div className="px-6 pb-6">
-          <div className="max-w-7xl mx-auto">
+        <div className="pb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -465,12 +463,10 @@ const Suggestions = () => {
                 </div>
               </motion.div>
             </div>
-          </div>
         </div>
 
         {/* Main Content */}
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+        <div>
             {/* Enhanced Action Bar */}
             <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 border border-white/20 dark:border-gray-700/50">
               <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
@@ -944,9 +940,20 @@ const Suggestions = () => {
                         )}
                       </div>
 
-                      {/* Enhanced Voting and Actions */}
                       <div className="relative flex items-center justify-between pt-6 border-t border-gray-100 dark:border-gray-700/50">
                         <div className="flex items-center space-x-4">
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setExpandedThreadId(
+                              expandedThreadId === suggestion.id ? null : suggestion.id
+                            )}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                            {expandedThreadId === suggestion.id ? 'Hide responses' : 'HR responses'}
+                          </motion.button>
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
@@ -967,20 +974,8 @@ const Suggestions = () => {
                           </motion.button>
                         </div>
 
-                        {/* Enhanced Action Menu */}
+                        {/* Actions — status managed in Suggestions Inbox (HR) */}
                         <div className="flex items-center space-x-2">
-                          {(userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
-                            <select
-                              value={suggestion.status}
-                              onChange={(e) => handleStatusUpdate(suggestion.id, e.target.value)}
-                              className="px-3 py-2 text-xs border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
-                            >
-                              {statuses.map(status => (
-                                <option key={status.value} value={status.value}>{status.label}</option>
-                              ))}
-                            </select>
-                          )}
-
                           {(suggestion.suggester_id === user.id || userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
                             <div className="flex items-center space-x-1">
                               <motion.button
@@ -1003,6 +998,16 @@ const Suggestions = () => {
                           )}
                         </div>
                       </div>
+
+                      {expandedThreadId === suggestion.id && (
+                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
+                          <HRCommentThread
+                            entityType="suggestion"
+                            entityId={suggestion.id}
+                            canReply={suggestion.suggester_id === user.id}
+                          />
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -1074,18 +1079,6 @@ const Suggestions = () => {
 
                         {/* Action Menu */}
                         <div className="flex items-center space-x-2">
-                          {(userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
-                            <select
-                              value={suggestion.status}
-                              onChange={(e) => handleStatusUpdate(suggestion.id, e.target.value)}
-                              className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                            >
-                              {statuses.map(status => (
-                                <option key={status.value} value={status.value}>{status.label}</option>
-                              ))}
-                            </select>
-                          )}
-
                           {(suggestion.suggester_id === user.id || userProfile.role === 'admin' || userProfile.role === 'hr_manager' || userProfile.role === 'cs_manager') && (
                             <div className="flex items-center space-x-1">
                               <button
@@ -1109,7 +1102,6 @@ const Suggestions = () => {
                 </div>
               )}
             </div>
-          </div>
         </div>
       </div>
     </div>

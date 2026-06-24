@@ -301,6 +301,36 @@ export const suggestionsApi = {
     }
   },
 
+  // HR inbox — all suggestions (RLS restricts to admin/hr_manager)
+  async getAllSuggestionsForInbox(filters = {}) {
+    try {
+      let query = supabase
+        .from('suggestions')
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (filters.status) query = query.eq('status', filters.status);
+      if (filters.priority) query = query.eq('priority', filters.priority);
+      if (filters.category) query = query.eq('category', filters.category);
+      if (filters.suggestion_type) query = query.eq('suggestion_type', filters.suggestion_type);
+      if (filters.search) {
+        query = query.or(
+          `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,suggester_name.ilike.%${filters.search}%`
+        );
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching suggestions inbox:', error);
+      throw error;
+    }
+  },
+
   // Get users for targeting suggestions
   async getUsersForTargeting() {
     try {
@@ -316,5 +346,31 @@ export const suggestionsApi = {
       console.error('Error fetching users for targeting:', error);
       throw error;
     }
-  }
+  },
+
+  /** Assign suggestion to a UHub user (users.id) */
+  async assignSuggestionToUser(suggestionId, userId, userName) {
+    try {
+      const { data, error } = await supabase
+        .from('suggestions')
+        .update({
+          assigned_to: userId || null,
+          assigned_to_name: userName || null,
+          assigned_at: userId ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', suggestionId)
+        .select(`
+          *,
+          assignee:assigned_to(id, full_name, email, department)
+        `)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error assigning suggestion to user:', error);
+      throw error;
+    }
+  },
 };

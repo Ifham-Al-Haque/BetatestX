@@ -6,7 +6,7 @@ import { useUserInvitation } from '../hooks/useUserInvitation';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../supabaseClient';
 
-const InvitationManager = () => {
+const InvitationManager = ({ embedded = false }) => {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [lastInvitation, setLastInvitation] = useState(null);
   const [invitations, setInvitations] = useState([]);
@@ -218,19 +218,22 @@ const InvitationManager = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">User Invitations</h2>
-          <p className="text-gray-600">Send invitations to new users</p>
-        </div>
+    <div className="space-y-5">
+      {/* Header / toolbar */}
+      <div className={`flex items-center ${embedded ? 'justify-end' : 'justify-between'}`}>
+        {!embedded && (
+          <div>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>User Invitations</h2>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Send invitations to new UHub users</p>
+          </div>
+        )}
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={fetchInvitations}
             disabled={loadingInvitations}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition-colors flex items-center gap-2"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors"
+            style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
           >
             <RefreshCw className={`w-4 h-4 ${loadingInvitations ? 'animate-spin' : ''}`} />
             Refresh
@@ -238,7 +241,7 @@ const InvitationManager = () => {
           
           <button
             onClick={cleanupExpiredInvitations}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-2"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors"
             title="Remove expired invitations"
           >
             <Trash2 className="w-4 h-4" />
@@ -247,7 +250,7 @@ const InvitationManager = () => {
           
           <button
             onClick={() => setShowInviteForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
           >
             <UserPlus className="w-4 h-4" />
             Send Invitation
@@ -258,29 +261,32 @@ const InvitationManager = () => {
       {/* Invitation Form */}
       {showInviteForm && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-6 rounded-lg border"
+          className="rounded-2xl p-5"
+          style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email *</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Email *</label>
               <input
                 type="email"
                 required
                 value={inviteForm.email}
                 onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
                 placeholder="user@example.com"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700">Role *</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Role *</label>
               <select
                 value={inviteForm.role}
                 onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
               >
                 <option value="admin">Administrator</option>
                 <option value="data_operator">Data Operator</option>
@@ -302,30 +308,22 @@ const InvitationManager = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Department</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Department</label>
               <input
                 type="text"
                 value={inviteForm.department}
                 onChange={(e) => setInviteForm({ ...inviteForm, department: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
                 placeholder="e.g., IT, HR, Sales"
               />
             </div>
             
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg"
-              >
+            <div className="flex gap-3">
+              <button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm">
                 {loading ? 'Sending...' : 'Send Invitation'}
               </button>
-              
-              <button
-                type="button"
-                onClick={() => setShowInviteForm(false)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg"
-              >
+              <button type="button" onClick={() => setShowInviteForm(false)} className="px-4 py-2 rounded-xl text-sm" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
                 Cancel
               </button>
             </div>
@@ -367,11 +365,11 @@ const InvitationManager = () => {
         </motion.div>
       )}
 
-      {/* Invitations List */}
-      <div className="bg-white rounded-lg border">
-        <div className="px-6 py-4 border-b">
+      {/* Invitations list */}
+      <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border-primary)' }}>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Pending Invitations</h3>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Pending Invitations</h3>
             
             {invitations.length > 0 && (
               <div className="flex items-center gap-3">
@@ -402,27 +400,27 @@ const InvitationManager = () => {
         </div>
         
         {loadingInvitations ? (
-          <div className="p-6 text-center text-gray-500">Loading invitations...</div>
+          <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Loading invitations...</div>
         ) : invitations.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">No pending invitations</div>
+          <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>No pending invitations</div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
             {invitations.map((invitation) => (
-              <div key={invitation.id} className="px-6 py-4">
-                <div className="flex items-center justify-between">
+              <div key={invitation.id} className="px-5 py-4">
+                <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={selectedInvitations.has(invitation.id)}
                       onChange={() => toggleInvitationSelection(invitation.id)}
-                      className="rounded border-gray-300"
+                      className="rounded"
                     />
                     <div>
-                      <p className="font-medium text-gray-900">{invitation.email}</p>
-                      <p className="text-sm text-gray-500">
-                        Role: {invitation.role} | Department: {invitation.department || 'Unassigned'}
+                      <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{invitation.email}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Role: {invitation.role} · Dept: {invitation.department || 'Unassigned'}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                         Expires: {new Date(invitation.expires_at).toLocaleDateString()}
                       </p>
                     </div>

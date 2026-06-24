@@ -12,6 +12,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { complaintsApi } from '../services/complaintsApi';
+import HRCommentThread from '../components/hr/HRCommentThread';
+import {
+  COMPLAINT_CATEGORIES,
+  COMPLAINT_PRIORITIES,
+  getComplaintStatusColor,
+  getComplaintPriorityColor,
+  isHROrAdmin,
+} from '../config/hrPanelConfig';
 
 const Complaints = () => {
   const { user, userProfile } = useAuth();
@@ -27,6 +35,7 @@ const Complaints = () => {
     category: '',
     search: ''
   });
+  const [expandedThreadId, setExpandedThreadId] = useState(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -36,22 +45,9 @@ const Complaints = () => {
     anonymous: false
   });
 
-  const categories = [
-    'Work Environment',
-    'Misconduct',
-    'Discrimination',
-    'Pay & Benefits',
-    'Management Issues',
-    'Concerns',
-    'Other'
-  ];
+  const categories = COMPLAINT_CATEGORIES;
 
-  const priorities = [
-    { value: 'low', label: 'Low', color: 'bg-green-100 text-green-800 border-green-200' },
-    { value: 'medium', label: 'Medium', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-    { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-    { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-800 border-red-200' }
-  ];
+  const priorities = COMPLAINT_PRIORITIES;
 
   useEffect(() => {
     fetchData();
@@ -163,31 +159,16 @@ const Complaints = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'resolved': return 'bg-green-100 text-green-800 border-green-200';
-      case 'closed': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
+  const getStatusColor = getComplaintStatusColor;
 
-  const getPriorityColor = (priority) => {
-    const priorityObj = priorities.find(p => p.value === priority);
-    return priorityObj ? priorityObj.color : 'bg-gray-100 text-gray-800 border-gray-200';
-  };
+  const getPriorityColor = getComplaintPriorityColor;
 
   const canEdit = (complaint) => {
-    return user.id === complaint.complainant_id || userProfile?.role === 'admin' || userProfile?.role === 'hr';
+    return user.id === complaint.complainant_id || userProfile?.role === 'admin' || isHROrAdmin(userProfile?.role);
   };
 
   const canDelete = (complaint) => {
     return user.id === complaint.complainant_id || userProfile?.role === 'admin';
-  };
-
-  const canChangeStatus = (complaint) => {
-    return userProfile?.role === 'admin' || userProfile?.role === 'hr';
   };
 
   if (loading) {
@@ -495,6 +476,29 @@ const Complaints = () => {
                         </div>
                       </div>
 
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedThreadId(
+                            expandedThreadId === complaint.id ? null : complaint.id
+                          )}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          {expandedThreadId === complaint.id ? 'Hide responses' : 'HR responses'}
+                        </button>
+                      </div>
+
+                      {expandedThreadId === complaint.id && (
+                        <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                          <HRCommentThread
+                            entityType="complaint"
+                            entityId={complaint.id}
+                            canReply
+                          />
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         {canEdit(complaint) && (
                           <button
@@ -512,19 +516,6 @@ const Complaints = () => {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                        )}
-                        
-                        {canChangeStatus(complaint) && (
-                          <select
-                            value={complaint.status}
-                            onChange={(e) => handleStatusUpdate(complaint.id, e.target.value)}
-                            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer"
-                          >
-                            <option value="open">Open</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="resolved">Resolved</option>
-                            <option value="closed">Closed</option>
-                          </select>
                         )}
                       </div>
                     </div>

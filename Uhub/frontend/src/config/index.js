@@ -152,7 +152,7 @@ const config = {
         // User Profile
         'user_profile',
         // HR Panel
-        'complaints', 'complaints_inbox', 'suggestions',
+        'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox',
         // IT Services
         'it_requests',
         // Todo List Panel (All Sections)
