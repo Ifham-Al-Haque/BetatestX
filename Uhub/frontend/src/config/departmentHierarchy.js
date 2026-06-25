@@ -178,6 +178,33 @@ const findParent = (deptNorm) => {
   );
 };
 
+/** All branch options for employee form dropdowns */
+export const getAllBranchOptions = () => {
+  const options = [];
+  DEPARTMENT_HIERARCHY.forEach((parent) => {
+    parent.branches.forEach((branch) => {
+      options.push({
+        value: branch.key,
+        label: `${parent.label} → ${branch.label}`,
+        parentKey: parent.key,
+      });
+    });
+  });
+  return options;
+};
+
+const findBranchByKey = (branchKey) => {
+  if (!branchKey) return null;
+  const keyNorm = norm(branchKey).replace(/\s+/g, '_');
+  for (const parent of DEPARTMENT_HIERARCHY) {
+    const branch = parent.branches.find(
+      (b) => b.key === branchKey || b.key === keyNorm || norm(b.label) === norm(branchKey)
+    );
+    if (branch) return { parent, branch };
+  }
+  return null;
+};
+
 const matchBranch = (parent, deptNorm, roleText) => {
   if (!parent) return null;
 
@@ -197,6 +224,21 @@ const matchBranch = (parent, deptNorm, roleText) => {
 
 /** Map one employee record to parent department + sub-branch */
 export const resolveEmployeePlacement = (employee) => {
+  if (employee?.sub_department) {
+    const byKey = findBranchByKey(employee.sub_department);
+    if (byKey) {
+      const { parent, branch } = byKey;
+      return {
+        parentKey: parent.key,
+        branchKey: branch.key,
+        parentLabel: parent.label,
+        branchLabel: branch.label,
+        parent,
+        branch,
+      };
+    }
+  }
+
   const deptNorm = norm(employee?.department);
   const roleText = norm(`${employee?.position || ''} ${employee?.designation || ''}`).toLowerCase();
 

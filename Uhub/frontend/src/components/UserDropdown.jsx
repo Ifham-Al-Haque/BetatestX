@@ -115,7 +115,7 @@ export default function UserDropdown() {
                 Profile
               </button>
               <button
-                onClick={() => { navigate('/settings'); setShowDropdown(false); }}
+                onClick={() => { navigate('/profile?tab=preferences'); setShowDropdown(false); }}
                 className={menuItemClass}
               >
                 <Settings className="w-4 h-4" />

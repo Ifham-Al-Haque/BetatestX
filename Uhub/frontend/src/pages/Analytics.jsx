@@ -13,8 +13,20 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useExpenses } from "../hooks/useApi";
+import { usePaymentEvents } from "../hooks/usePaymentEvents";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { canonicalServiceName, normalizeServiceLabel, parseAmountValue } from "../components/analytics/chartUtils";
+import AnalyticsHero from "../components/analytics/AnalyticsHero";
+import AnalyticsKpiCard from "../components/analytics/AnalyticsKpiCard";
+import CashFlowSummary from "../components/analytics/CashFlowSummary";
+import AnalyticsFiltersPanel from "../components/analytics/AnalyticsFiltersPanel";
+import { canonicalServiceName, normalizeServiceLabel, parseAmountValue, canonicalDepartmentName, DEPARTMENT_CHART_COLORS } from "../components/analytics/chartUtils";
+import { getDepartmentLabel } from "../config/departments";
+import {
+  DEFAULT_ANALYTICS_FILTERS,
+  computeAnalyticsWithComparison,
+  computeCashFlowSummary,
+} from "../utils/analyticsHelpers";
+import { exportExpensesCsv, formatCurrency } from "../utils/expenseHelpers";
 
 const downloadChartPng = async (containerId, fileName) => {
   try {
@@ -451,6 +463,119 @@ const ChartEmptyState = ({ title, subtitle, icon: Icon = BarChart3 }) => (
       <p className="text-lg font-medium text-gray-500 dark:text-gray-400">{title}</p>
       <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">{subtitle}</p>
     </div>
+  </div>
+);
+
+const OVERVIEW_ICON_STYLES = {
+  purple: 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400',
+  green: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400',
+  orange: 'bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400',
+  indigo: 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400',
+  pink: 'bg-pink-100 dark:bg-pink-900/50 text-pink-600 dark:text-pink-400',
+  blue: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400',
+};
+
+const OverviewSectionHeader = ({ title, subtitle }) => (
+  <div className="mb-4">
+    <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
+    {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{subtitle}</p>}
+  </div>
+);
+
+const OverviewChartCard = ({
+  title,
+  subtitle,
+  icon: Icon,
+  iconTone = 'blue',
+  exportContainerId,
+  exportFileName,
+  onExport,
+  delay = 0,
+  children,
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 18 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.35 }}
+    className="bg-gradient-to-br from-white to-gray-50/80 dark:from-gray-800 dark:to-gray-900/80 p-6 rounded-2xl shadow-lg border border-gray-200/70 dark:border-gray-700/70 hover:shadow-xl transition-shadow duration-300"
+  >
+    <div className="flex items-start justify-between gap-3 mb-5">
+      <div className="flex items-start gap-3 min-w-0">
+        {Icon && (
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${OVERVIEW_ICON_STYLES[iconTone]}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+        )}
+        <div className="min-w-0">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+          {subtitle && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{subtitle}</p>
+          )}
+        </div>
+      </div>
+      {exportContainerId && onExport && (
+        <button
+          type="button"
+          onClick={() => onExport(exportContainerId, exportFileName)}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0"
+        >
+          <Download className="w-3.5 h-3.5" />
+          PNG
+        </button>
+      )}
+    </div>
+    <div id={exportContainerId}>{children}</div>
+  </motion.div>
+);
+
+const OVERVIEW_QUICK_LINKS = [
+  {
+    tab: 'breakdown',
+    label: 'Service Breakdown',
+    description: 'Top services & department trends',
+    icon: BarChart3,
+    tone: 'from-blue-500 to-indigo-600',
+  },
+  {
+    tab: 'distribution',
+    label: 'Distribution',
+    description: 'Share of spend & service trends',
+    icon: PieChartIcon,
+    tone: 'from-emerald-500 to-teal-600',
+  },
+  {
+    tab: 'monthly-breakdown',
+    label: 'Monthly Breakdown',
+    description: 'Per-service monthly bars & invoices',
+    icon: Calendar,
+    tone: 'from-violet-500 to-purple-600',
+  },
+];
+
+const OverviewQuickLinks = ({ onNavigate }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    {OVERVIEW_QUICK_LINKS.map((link, index) => {
+      const Icon = link.icon;
+      return (
+        <motion.button
+          key={link.tab}
+          type="button"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 + index * 0.05 }}
+          onClick={() => onNavigate(link.tab)}
+          className="group text-left rounded-2xl border border-gray-200/70 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md transition-all"
+        >
+          <div className={`inline-flex p-2 rounded-xl bg-gradient-to-br ${link.tone} text-white mb-3`}>
+            <Icon className="w-4 h-4" />
+          </div>
+          <p className="font-semibold text-gray-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+            {link.label}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{link.description}</p>
+        </motion.button>
+      );
+    })}
   </div>
 );
 
@@ -953,11 +1078,12 @@ const ServiceBreakdownChart = ({ expenses }) => {
     }
 
     const hasSelection = serviceData.some((item) => item.service === selectedService);
-    if (!hasSelection) {
-      const firstDrillableService = serviceData.find((item) => !item.service.startsWith('Others ('));
-      setSelectedService(firstDrillableService?.service || null);
+    if (!hasSelection && selectedService !== null) {
+      setSelectedService(null);
     }
   }, [serviceData, selectedService]);
+
+  const barChartHeight = Math.min(480, Math.max(280, serviceData.length * 46));
 
   const selectedServiceMonthlyData = useMemo(() => {
     if (!selectedService || !expenses?.length || selectedService.startsWith('Others (')) {
@@ -1021,21 +1147,23 @@ const ServiceBreakdownChart = ({ expenses }) => {
   }
 
   return (
-    <div className="h-[560px] bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 dark:from-gray-800 dark:via-blue-900/20 dark:to-indigo-900/30 rounded-2xl p-6 border border-gray-200/60 dark:border-gray-700/60 shadow-xl backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Top spending services ({serviceData.length})
-        </p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Sorted by total AED
-        </p>
-      </div>
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="space-y-5">
+      <div className="rounded-xl border border-gray-200/70 dark:border-gray-700/70 bg-white/60 dark:bg-gray-900/30 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+            Top spending services ({serviceData.length})
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Click a bar to drill down
+          </p>
+        </div>
+        <div style={{ height: barChartHeight }}>
+          <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={serviceData}
           layout="vertical"
-          margin={{ top: 12, right: 24, left: 20, bottom: 12 }}
-          barCategoryGap={10}
+          margin={{ top: 8, right: 24, left: 8, bottom: 8 }}
+          barCategoryGap={12}
         >
           <defs>
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
@@ -1124,40 +1252,41 @@ const ServiceBreakdownChart = ({ expenses }) => {
             ))}
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-      <div className="mt-5 rounded-xl border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/40 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
+      <div className="rounded-xl border border-emerald-200/70 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-900/10 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+          <div>
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-              {selectedService ? `${selectedService} monthly spending` : 'Select a service to view monthly trend'}
+              {selectedService ? `${selectedService} — monthly trend` : 'Monthly trend drill-down'}
             </p>
-            <div className="hidden sm:flex items-center gap-2 text-[11px] text-gray-600 dark:text-gray-300">
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-blue-500" />
-                AED Total
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                Transactions
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
             {selectedService && (
-              <button
-                type="button"
-                onClick={() => setSelectedService(null)}
-                className="inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 px-2 py-1 text-[11px] font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                Reset
-              </button>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-gray-600 dark:text-gray-300">
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  AED total
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Transactions
+                </span>
+              </div>
             )}
-            <p className="text-xs text-gray-500 dark:text-gray-400">Click any bar to drill down</p>
           </div>
+          {selectedService && (
+            <button
+              type="button"
+              onClick={() => setSelectedService(null)}
+              className="self-start inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+            >
+              Clear selection
+            </button>
+          )}
         </div>
         {selectedServiceMonthlyData.length ? (
-          <div className="h-48">
+          <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={selectedServiceMonthlyData} margin={{ top: 8, right: 18, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" opacity={0.25} />
@@ -1215,11 +1344,13 @@ const ServiceBreakdownChart = ({ expenses }) => {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
-            {selectedService
-              ? 'No monthly history available for this service.'
-              : 'Choose a service in the bar chart to see its monthly trend.'}
-          </p>
+          <div className="h-32 flex items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-900/20">
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center px-4">
+              {selectedService
+                ? 'No monthly history available for this service.'
+                : 'Select a service bar above to view its monthly spending trend.'}
+            </p>
+          </div>
         )}
       </div>
     </div>
@@ -2348,12 +2479,116 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
 // Enhanced Departmental Expenses Chart Component
 const DepartmentalExpensesLineChart = ({ data }) => {
   const [filterType, setFilterType] = useState('monthly');
+  const [hiddenDepartments, setHiddenDepartments] = useState(new Set());
 
   const parseDate = (val) => {
     if (!val) return null;
     const d = new Date(val);
-    return isNaN(d.getTime()) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   };
+
+  const { chartData, departmentSeries, departmentTotals } = useMemo(() => {
+    const deptData = {};
+
+    (data || []).forEach((expense) => {
+      const dept = canonicalDepartmentName(
+        expense.department || expense.dept || expense.division
+      );
+      const amount = parseAmountValue(
+        expense.amount_aed || expense.amount || expense.value || expense.cost
+      );
+      if (!amount || amount <= 0) return;
+
+      if (!deptData[dept]) {
+        deptData[dept] = { monthly: {}, yearly: {}, total: 0 };
+      }
+      deptData[dept].total += amount;
+
+      const date =
+        parseDate(expense.date_paid) ||
+        parseDate(expense.date) ||
+        parseDate(expense.created_at) ||
+        parseDate(expense.updated_at);
+
+      if (date) {
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        deptData[dept].monthly[monthKey] = (deptData[dept].monthly[monthKey] || 0) + amount;
+
+        const yearKey = date.getFullYear().toString();
+        deptData[dept].yearly[yearKey] = (deptData[dept].yearly[yearKey] || 0) + amount;
+      }
+    });
+
+    const sortedDepts = Object.entries(deptData)
+      .sort(([, a], [, b]) => b.total - a.total)
+      .map(([dept]) => dept);
+
+    const topDepts = sortedDepts.slice(0, 7);
+    const restDepts = sortedDepts.slice(7);
+    const displayDepts = restDepts.length ? [...topDepts, 'Others'] : topDepts;
+
+    if (restDepts.length) {
+      deptData.Others = { monthly: {}, yearly: {}, total: 0 };
+      restDepts.forEach((dept) => {
+        deptData.Others.total += deptData[dept].total;
+        Object.entries(deptData[dept].monthly).forEach(([month, val]) => {
+          deptData.Others.monthly[month] = (deptData.Others.monthly[month] || 0) + val;
+        });
+        Object.entries(deptData[dept].yearly).forEach(([year, val]) => {
+          deptData.Others.yearly[year] = (deptData.Others.yearly[year] || 0) + val;
+        });
+      });
+    }
+
+    const buildRows = (periodKeys, bucket) =>
+      periodKeys.map((period) => {
+        const row = { period };
+        displayDepts.forEach((dept) => {
+          row[dept] = deptData[dept]?.[bucket]?.[period] || 0;
+        });
+        return row;
+      });
+
+    let rows = [];
+    if (filterType === 'monthly') {
+      const allMonths = new Set();
+      displayDepts.forEach((dept) => {
+        Object.keys(deptData[dept]?.monthly || {}).forEach((m) => allMonths.add(m));
+      });
+      rows = buildRows(Array.from(allMonths).sort(), 'monthly');
+    } else {
+      const allYears = new Set();
+      displayDepts.forEach((dept) => {
+        Object.keys(deptData[dept]?.yearly || {}).forEach((y) => allYears.add(y));
+      });
+      rows = buildRows(Array.from(allYears).sort(), 'yearly');
+    }
+
+    const totals = {};
+    displayDepts.forEach((dept) => {
+      totals[dept] = deptData[dept]?.total || 0;
+    });
+
+    return {
+      chartData: rows,
+      departmentSeries: displayDepts,
+      departmentTotals: totals,
+    };
+  }, [data, filterType]);
+
+  const toggleDepartment = (dept) => {
+    setHiddenDepartments((prev) => {
+      const next = new Set(prev);
+      if (next.has(dept)) next.delete(dept);
+      else next.add(dept);
+      return next;
+    });
+  };
+
+  const visibleDepartments = departmentSeries.filter((d) => !hiddenDepartments.has(d));
+  const xTickInterval = filterType === 'monthly' && chartData.length > 14
+    ? Math.ceil(chartData.length / 12) - 1
+    : 0;
 
   if (!data || data.length === 0) {
     return (
@@ -2367,165 +2602,120 @@ const DepartmentalExpensesLineChart = ({ data }) => {
     );
   }
 
-  const processData = () => {
-    const deptData = {};
-
-    data.forEach(expense => {
-      // Try different possible field names for department and amount
-      const dept = (expense.department || expense.dept || expense.division || 'Unknown Department')?.trim();
-      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
-      
-      if (!dept || !amount || amount <= 0) return;
-
-      if (!deptData[dept]) {
-        deptData[dept] = { monthly: {}, yearly: {} };
-      }
-
-      const date =
-        parseDate(expense.date_paid) ||
-        parseDate(expense.date) ||
-        parseDate(expense.created_at) ||
-        parseDate(expense.updated_at);
-
-      if (date) {
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        deptData[dept].monthly[monthKey] =
-          (deptData[dept].monthly[monthKey] || 0) + parseFloat(amount);
-
-        const yearKey = date.getFullYear().toString();
-        deptData[dept].yearly[yearKey] =
-          (deptData[dept].yearly[yearKey] || 0) + parseFloat(amount);
-      }
-    });
-
-    return deptData;
-  };
-
-  const deptData = processData();
-  const departments = Object.keys(deptData);
-
-  const getChartData = () => {
-    if (filterType === 'monthly') {
-      const allMonths = new Set();
-      departments.forEach(dept => {
-        Object.keys(deptData[dept].monthly).forEach(month => allMonths.add(month));
-      });
-      const sortedMonths = Array.from(allMonths).sort();
-
-      if (sortedMonths.length === 0) return [];
-
-      return sortedMonths.map(month => {
-        const row = { period: month };
-        departments.forEach(dept => {
-          row[dept] = deptData[dept].monthly[month] || 0;
-        });
-        return row;
-      });
-    }
-
-    if (filterType === 'yearly') {
-      const allYears = new Set();
-      departments.forEach(dept => {
-        Object.keys(deptData[dept].yearly).forEach(year => allYears.add(year));
-      });
-      const sortedYears = Array.from(allYears).sort();
-
-      if (sortedYears.length === 0) return [];
-
-      return sortedYears.map(year => {
-        const row = { period: year.toString() };
-        departments.forEach(dept => {
-          row[dept] = deptData[dept].yearly[year] || 0;
-        });
-        return row;
-      });
-    }
-
-    return [];
-  };
-
-  const chartData = getChartData();
+  if (!chartData.length) {
+    return <ChartEmptyState title="No departmental trends yet" subtitle="Expenses need a date and department to appear here" icon={BarChart3} />;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Enhanced filter buttons */}
-      <div className="flex justify-center">
-        <div className="inline-flex bg-gray-100 rounded-xl p-1 shadow-inner">
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="inline-flex bg-gray-100 dark:bg-gray-700/60 rounded-xl p-1">
           <button
+            type="button"
             onClick={() => setFilterType('monthly')}
-            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               filterType === 'monthly'
-                ? 'bg-white text-blue-600 shadow-md'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                ? 'bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white'
             }`}
           >
-            Monthly View
+            Monthly
           </button>
           <button
+            type="button"
             onClick={() => setFilterType('yearly')}
-            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               filterType === 'yearly'
-                ? 'bg-white text-blue-600 shadow-md'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-200'
+                ? 'bg-white dark:bg-gray-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white'
             }`}
           >
-            Yearly View
+            Yearly
           </button>
         </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Click legend items to show/hide departments
+        </p>
       </div>
 
-      <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-          <XAxis 
-            dataKey="period" 
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+      <div className="flex flex-wrap gap-2">
+        {departmentSeries.map((dept) => {
+          const hidden = hiddenDepartments.has(dept);
+          const color = DEPARTMENT_CHART_COLORS[dept] || COLORS[departmentSeries.indexOf(dept) % COLORS.length];
+          const label = dept === 'Others' ? 'Others' : getDepartmentLabel(dept);
+
+          return (
+            <button
+              key={dept}
+              type="button"
+              onClick={() => toggleDepartment(dept)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                hidden
+                  ? 'opacity-40 border-gray-200 dark:border-gray-600 text-gray-500'
+                  : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <ResponsiveContainer width="100%" height={380}>
+        <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: filterType === 'monthly' ? 48 : 16 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" opacity={0.35} />
+          <XAxis
+            dataKey="period"
+            tick={{ fontSize: 11, fill: '#6B7280' }}
+            interval={xTickInterval}
+            angle={filterType === 'monthly' ? -40 : 0}
+            textAnchor={filterType === 'monthly' ? 'end' : 'middle'}
+            height={filterType === 'monthly' ? 56 : 30}
             tickFormatter={(value) => {
               if (filterType === 'monthly') {
                 const [year, month] = value.split('-');
-                return `${month}/${year.slice(2)}`;
+                const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                return `${names[parseInt(month, 10) - 1]} '${year.slice(2)}`;
               }
               return value;
             }}
           />
-          <YAxis 
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+          <YAxis
+            tick={{ fontSize: 11, fill: '#6B7280' }}
             tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+            width={48}
           />
-          <Tooltip 
+          <Tooltip
             contentStyle={{
-              backgroundColor: 'var(--surface-raised)',
-              border: '1px solid var(--border-primary)',
+              backgroundColor: 'var(--surface-raised, #fff)',
+              border: '1px solid var(--border-primary, #e5e7eb)',
               borderRadius: '8px',
-              color: 'var(--text-primary)',
-              boxShadow: 'var(--shadow-lg)',
+              fontSize: '12px',
             }}
             formatter={(value, name) => [
-              `${(value / 1000).toFixed(1)}k AED`,
-              name
+              `AED ${Number(value).toLocaleString()}`,
+              name === 'Others' ? 'Others' : getDepartmentLabel(name),
             ]}
             labelFormatter={(label) => {
               if (filterType === 'monthly') {
                 const [year, month] = label.split('-');
-                const monthNames = [
-                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-                ];
-                return `${monthNames[parseInt(month) - 1]} ${year}`;
+                const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
               }
               return `Year ${label}`;
             }}
           />
-          <Legend />
-          {departments.map((dept, index) => (
+          {visibleDepartments.map((dept) => (
             <Line
               key={dept}
               type="monotone"
               dataKey={dept}
-              stroke={COLORS[index % COLORS.length]}
-              strokeWidth={3}
-              dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2, r: 5 }}
-              activeDot={{ r: 8, strokeWidth: 2, stroke: 'white' }}
+              name={dept === 'Others' ? 'Others' : getDepartmentLabel(dept)}
+              stroke={DEPARTMENT_CHART_COLORS[dept] || '#94A3B8'}
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
             />
           ))}
         </LineChart>
@@ -2754,31 +2944,25 @@ export default function Analytics() {
   const expenseFilters = isAdmin ? {} : { userId: user?.id };
   
   const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, expenseFilters);
+  const { data: paymentEvents = [] } = usePaymentEvents();
   const expenses = useMemo(() => expensesResponse?.data || [], [expensesResponse]);
   
-  // State
   const [activeTab, setActiveTab] = useState('overview');
   const [exportToast, setExportToast] = useState(null);
-  const [filters, setFilters] = useState({
-    timeRange: 'all-time',
-    comparison: 'none',
-    year: 'all'
-  });
+  const [filters, setFilters] = useState(DEFAULT_ANALYTICS_FILTERS);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   const handleFilterChange = (filterType, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [filterType]: value
+      [filterType]: value,
+      ...(filterType === 'timeRange' ? { year: 'all' } : {}),
+      ...(filterType === 'year' && value !== 'all' ? { timeRange: 'all-time' } : {}),
     }));
   };
 
   const resetAllFilters = () => {
-    setFilters({
-      timeRange: 'all-time',
-      comparison: 'none',
-      year: 'all'
-    });
+    setFilters(DEFAULT_ANALYTICS_FILTERS);
   };
 
   const handleChartExport = async (containerId, fileName) => {
@@ -2803,87 +2987,34 @@ export default function Analytics() {
     return Array.from(years).sort((a, b) => b - a);
   }, [expenses]);
 
-  const effectiveExpenses = useMemo(() => {
-    let filtered = [...expenses];
+  const { current: summaryStats, comparison, currentExpenses: effectiveExpenses } = useMemo(
+    () => computeAnalyticsWithComparison(expenses, filters),
+    [expenses, filters]
+  );
 
-    if (filters.year && filters.year !== 'all') {
-      const selectedYear = Number(filters.year);
-      filtered = filtered.filter((expense) => {
-        if (!expense.date_paid) return false;
-        const y = new Date(expense.date_paid).getFullYear();
-        return y === selectedYear;
-      });
-    }
+  const cashFlowSummary = useMemo(
+    () => computeCashFlowSummary(paymentEvents, expenses),
+    [paymentEvents, expenses]
+  );
 
-    if (filters.timeRange !== 'all-time') {
-      const now = new Date();
-      const cutoffDate = new Date();
-      switch (filters.timeRange) {
-        case 'current-month':
-          cutoffDate.setMonth(now.getMonth());
-          cutoffDate.setDate(1);
-          break;
-        case 'last-3-months':
-          cutoffDate.setMonth(now.getMonth() - 3);
-          break;
-        case 'last-6-months':
-          cutoffDate.setMonth(now.getMonth() - 6);
-          break;
-        case 'last-year':
-          cutoffDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          break;
-      }
-      filtered = filtered.filter((expense) => {
-        if (!expense.date_paid) return false;
-        return new Date(expense.date_paid) >= cutoffDate;
-      });
-    }
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.timeRange !== 'all-time') count += 1;
+    if (filters.year !== 'all') count += 1;
+    if (filters.comparison !== 'none') count += 1;
+    if (filters.department !== 'all') count += 1;
+    if (filters.serviceStatus !== 'all') count += 1;
+    return count;
+  }, [filters]);
 
-    return filtered;
-  }, [expenses, filters.year, filters.timeRange]);
-
-
-
-  // Calculate summary statistics from real expense data
-  const summaryStats = useMemo(() => {
+  const handleExportCsv = () => {
     if (!effectiveExpenses.length) {
-      return {
-        totalServices: 0,
-        totalSpent: 0,
-        averagePerService: 0
-      };
+      setExportToast('No data to export for current filters.');
+      return;
     }
-
-    const serviceStats = {};
-    effectiveExpenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '') {
-        const service = expense.service_name.trim();
-        if (!serviceStats[service]) {
-          serviceStats[service] = 0;
-        }
-        serviceStats[service] += parseFloat(expense.amount_aed) || 0;
-      }
-    });
-
-    const totalSpent = Object.values(serviceStats).reduce((sum, val) => sum + val, 0);
-    const totalServices = Object.keys(serviceStats).length;
-
-    return {
-      totalServices,
-      totalSpent,
-      averagePerService: totalServices > 0 ? totalSpent / totalServices : 0
-    };
-  }, [effectiveExpenses]);
-
-  const analyticsHealth = useMemo(() => {
-    const withAmount = expenses.filter((e) => e.amount_aed != null && e.amount_aed !== '').length;
-    const withTrendFields = expenses.filter(
-      (e) => e.service_name && e.amount_aed != null && e.amount_aed !== '' && e.date_paid
-    ).length;
-    return { total: expenses.length, withAmount, withTrendFields };
-  }, [expenses]);
+    exportExpensesCsv(effectiveExpenses);
+    setExportToast('CSV exported successfully.');
+  };
 
 
 
@@ -2891,11 +3022,9 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <div className="flex-1 transition-all duration-300 ease-in-out">
-          <div className="p-6">
-            <LoadingSpinner size="xl" text="Loading analytics data..." />
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSpinner size="xl" text="Loading analytics data..." />
         </div>
       </div>
     );
@@ -2903,79 +3032,56 @@ export default function Analytics() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <div className="flex-1 transition-all duration-300 ease-in-out">
-          <div className="p-6">
-            <div className="text-center">
-              <p className="text-red-600 mb-2 text-lg">Error loading analytics data</p>
-              <p className="text-gray-600">{error.message || 'Please try again later'}</p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6">
+            <p className="text-red-800 dark:text-red-200 font-semibold mb-1">Error loading analytics data</p>
+            <p className="text-red-600 dark:text-red-300">{error.message || 'Please try again later'}</p>
           </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Enhanced Header Section */}
-      <div className="bg-gradient-to-r from-white via-blue-50 to-indigo-50 border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-lg">
-                <BarChart3 className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-                <p className="text-sm text-gray-600">Track and analyze your service spending and expenses with advanced insights</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                <Filter className="w-4 h-4" />
-                <span className="text-sm font-medium">Filters</span>
-                {isFilterExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              <button
-                type="button"
-                onClick={resetAllFilters}
-                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span className="text-sm font-medium">Reset Filters</span>
-              </button>
-              <button
-                disabled
-                title="Export will be available soon"
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg transition-colors shadow-sm opacity-60 cursor-not-allowed"
-              >
-                <Download className="w-4 h-4" />
-                <span className="text-sm font-medium">Export</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+  const comparisonLabel = comparison?.label;
 
-      {/* Filter Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <AnalyticsFilter
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50 dark:from-gray-900 dark:via-slate-900 dark:to-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <AnalyticsHero
+          timeRange={filters.timeRange}
+          onTimeRangeChange={(value) => handleFilterChange('timeRange', value)}
+          onResetFilters={resetAllFilters}
+          onExport={handleExportCsv}
+          exportDisabled={!effectiveExpenses.length}
+        />
+
+        <div className="flex items-center justify-between mb-4">
+          <button
+            type="button"
+            onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm"
+          >
+            <Filter className="w-4 h-4" />
+            Advanced filters
+            {activeFilterCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                {activeFilterCount}
+              </span>
+            )}
+            {isFilterExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
+
+        <AnalyticsFiltersPanel
           filters={filters}
           onFilterChange={handleFilterChange}
           isExpanded={isFilterExpanded}
-          onToggle={() => setIsFilterExpanded(!isFilterExpanded)}
           availableYears={availableYears}
         />
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {exportToast && (
-          <div className="fixed right-6 bottom-6 z-50 rounded-lg bg-gray-900 text-white px-4 py-2 text-sm shadow-xl">
+          <div className="fixed right-6 bottom-6 z-50 rounded-xl bg-gray-900 text-white px-4 py-2.5 text-sm shadow-xl">
             {exportToast}
           </div>
         )}
@@ -2984,10 +3090,16 @@ export default function Analytics() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800"
+            className="mb-6 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-emerald-800 dark:text-emerald-200"
           >
-            No expense records found yet. Add or import expenses in `Expense Tracker` to unlock analytics insights.
+            No expense records found yet. Add or import expenses in Expense Tracker to unlock analytics.
           </motion.div>
+        )}
+
+        {expenses.length > 0 && effectiveExpenses.length === 0 && (
+          <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            Current filters returned no rows. Use Reset to restore full analytics.
+          </div>
         )}
 
         {/* Tab Navigation */}
@@ -2995,70 +3107,30 @@ export default function Analytics() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl shadow-sm p-1 mb-8"
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700 p-2 mb-6"
         >
-          <div className="flex space-x-1 overflow-x-auto scrollbar-thin pb-1">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'overview'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Overview
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('breakdown')}
-              className={`min-w-[170px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'breakdown'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Service Breakdown
-            </button>
-            <button
-              onClick={() => setActiveTab('distribution')}
-              className={`min-w-[140px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'distribution'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Distribution
-            </button>
-            <button
-              onClick={() => setActiveTab('monthly-breakdown')}
-              className={`min-w-[185px] px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'monthly-breakdown'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Monthly Breakdown
-            </button>
+          <div className="flex flex-wrap gap-1">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'breakdown', label: 'Service Breakdown' },
+              { id: 'distribution', label: 'Distribution' },
+              { id: 'monthly-breakdown', label: 'Monthly Breakdown' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </motion.div>
-
-        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          <div className="flex flex-wrap items-center gap-2">
-            <span>Data status: {analyticsHealth.total} rows loaded, {analyticsHealth.withAmount} value-ready, {analyticsHealth.withTrendFields} trend-ready.</span>
-            <span className="px-2 py-0.5 rounded-full bg-white/80 border border-blue-200 text-xs">
-              Year: {filters.year === 'all' ? 'All' : filters.year}
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-white/80 border border-blue-200 text-xs">
-              Range: {filters.timeRange}
-            </span>
-          </div>
-        </div>
-
-        {expenses.length > 0 && effectiveExpenses.length === 0 && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Current filters returned no rows. Use `Reset Filters` to restore full analytics.
-          </div>
-        )}
 
         {/* Content based on active tab */}
         <AnimatePresence mode="wait">
@@ -3070,201 +3142,144 @@ export default function Analytics() {
             transition={{ duration: 0.3 }}
           >
             {activeTab === 'overview' && (
-              <div className="space-y-6">
-                {/* Enhanced Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <AnimatedMetricCard
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <AnalyticsKpiCard
                     title="Total Services"
-                    value={summaryStats.totalServices}
+                    value={summaryStats.totalServices.toLocaleString()}
                     icon={DollarSign}
                     color="blue"
-                    delay={0.1}
+                    delay={0.05}
+                    delta={comparison?.totalServices}
+                    comparisonLabel={comparisonLabel}
                   />
-                  
-                  <AnimatedMetricCard
+                  <AnalyticsKpiCard
                     title="Total Spent"
-                    value={`AED ${summaryStats.totalSpent}`}
+                    value={formatCurrency(summaryStats.totalSpent)}
                     icon={TrendingUp}
                     color="green"
-                    delay={0.2}
-                    formatValue={(val) => val.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                    delay={0.1}
+                    delta={comparison?.totalSpent}
+                    comparisonLabel={comparisonLabel}
                   />
-                  
-                  <AnimatedMetricCard
-                    title="Average Per Service"
-                    value={`AED ${summaryStats.averagePerService}`}
+                  <AnalyticsKpiCard
+                    title="Avg per Service"
+                    value={formatCurrency(Math.round(summaryStats.averagePerService))}
                     icon={Calendar}
-                    color="yellow"
-                    delay={0.3}
-                    formatValue={(val) => Math.round(val).toLocaleString('en-US')}
+                    color="amber"
+                    delay={0.15}
+                    delta={comparison?.averagePerService}
+                    comparisonLabel={comparisonLabel}
                   />
-                  
-                  <AnimatedMetricCard
-                    title="Total Transactions"
-                    value={effectiveExpenses.length}
+                  <AnalyticsKpiCard
+                    title="Transactions"
+                    value={summaryStats.totalTransactions.toLocaleString()}
                     icon={Shield}
                     color="purple"
-                    delay={0.4}
+                    delay={0.2}
+                    delta={comparison?.totalTransactions}
+                    comparisonLabel={comparisonLabel}
                   />
                 </div>
 
-                {/* Enhanced Charts */}
-                <div className="grid grid-cols-1 gap-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 }}
-                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Service Distribution Snapshot</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleChartExport('chart-overview-service-distribution', 'overview-service-distribution')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          PNG
-                        </button>
-                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                          <PieChartIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        </div>
-                      </div>
-                    </div>
-                    <div id="chart-overview-service-distribution">
-                      <ServiceDistributionChart expenses={effectiveExpenses} />
-                    </div>
-                  </motion.div>
+                <CashFlowSummary
+                  summary={cashFlowSummary}
+                  hasPaymentEvents={paymentEvents.length > 0}
+                />
 
-                </div>
-
-                {/* Additional Enhanced Charts - Stacked Vertically */}
-                <div className="grid grid-cols-1 gap-6">
-                  {/* Monthly Expense Trend Snapshot */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.7 }}
-                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
+                <section>
+                  <OverviewSectionHeader
+                    title="Spending over time"
+                    subtitle="Track how total spend changes month by month"
+                  />
+                  <OverviewChartCard
+                    title="Monthly Expense Trend"
+                    icon={TrendingUp}
+                    iconTone="purple"
+                    exportContainerId="chart-overview-monthly-trend"
+                    exportFileName="overview-monthly-expense-trend"
+                    onExport={handleChartExport}
+                    delay={0.25}
                   >
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Trend Snapshot</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleChartExport('chart-overview-monthly-trend', 'overview-monthly-expense-trend')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          PNG
-                        </button>
-                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                          <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                        </div>
-                      </div>
-                    </div>
-                    <div id="chart-overview-monthly-trend">
-                      <MonthlyExpenseTrendChart data={effectiveExpenses} filters={filters} hideTitle />
-                    </div>
-                  </motion.div>
+                    <MonthlyExpenseTrendChart data={effectiveExpenses} filters={filters} hideTitle />
+                  </OverviewChartCard>
+                </section>
 
-                  {/* Departmental Expenses Chart */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.75 }}
-                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
+                <section>
+                  <OverviewSectionHeader
+                    title="Where your budget goes"
+                    subtitle="Share of spend across services and categories"
+                  />
+                  <OverviewChartCard
+                    title="Service Distribution"
+                    subtitle="Proportional breakdown of spending by service"
+                    icon={PieChartIcon}
+                    iconTone="green"
+                    exportContainerId="chart-overview-service-distribution"
+                    exportFileName="overview-service-distribution"
+                    onExport={handleChartExport}
+                    delay={0.3}
                   >
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Departmental Expenses</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleChartExport('chart-overview-departmental', 'overview-departmental-expenses')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          PNG
-                        </button>
-                        <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
-                          <BarChart3 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                        </div>
-                      </div>
-                    </div>
-                    <div id="chart-overview-departmental">
-                      <DepartmentalExpensesLineChart data={effectiveExpenses} />
-                    </div>
-                  </motion.div>
-                </div>
+                    <ServiceDistributionChart expenses={effectiveExpenses} />
+                  </OverviewChartCard>
+                </section>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Average Spending by Service Chart */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.9 }}
-                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
+                <section>
+                  <OverviewSectionHeader
+                    title="Department view"
+                    subtitle="Compare spending trends across departments"
+                  />
+                  <OverviewChartCard
+                    title="Departmental Expenses"
+                    icon={BarChart3}
+                    iconTone="orange"
+                    exportContainerId="chart-overview-departmental"
+                    exportFileName="overview-departmental-expenses"
+                    onExport={handleChartExport}
+                    delay={0.35}
                   >
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Average Spending by Service</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleChartExport('chart-overview-average-spending', 'overview-average-spending')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          PNG
-                        </button>
-                        <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                          <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                        </div>
-                      </div>
-                    </div>
-                    <div id="chart-overview-average-spending">
+                    <DepartmentalExpensesLineChart data={effectiveExpenses} />
+                  </OverviewChartCard>
+                </section>
+
+                <section>
+                  <OverviewSectionHeader
+                    title="Service insights"
+                    subtitle="Average spend and top categories at a glance"
+                  />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <OverviewChartCard
+                      title="Average Spending by Service"
+                      icon={Target}
+                      iconTone="indigo"
+                      exportContainerId="chart-overview-average-spending"
+                      exportFileName="overview-average-spending"
+                      onExport={handleChartExport}
+                      delay={0.4}
+                    >
                       <AverageSpendingChart data={effectiveExpenses} />
-                    </div>
-                  </motion.div>
-
-                  {/* Top Expense Categories Chart */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.0 }}
-                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Top Expense Categories</h3>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleChartExport('chart-overview-top-categories', 'overview-top-expense-categories')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          PNG
-                        </button>
-                        <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center">
-                          <Star className="w-4 h-4 text-pink-600 dark:text-pink-400" />
-                        </div>
-                      </div>
-                    </div>
-                    <div id="chart-overview-top-categories">
+                    </OverviewChartCard>
+                    <OverviewChartCard
+                      title="Top Expense Categories"
+                      icon={Star}
+                      iconTone="pink"
+                      exportContainerId="chart-overview-top-categories"
+                      exportFileName="overview-top-expense-categories"
+                      onExport={handleChartExport}
+                      delay={0.45}
+                    >
                       <TopExpenseCategories data={effectiveExpenses} />
-                    </div>
-                  </motion.div>
-                </div>
+                    </OverviewChartCard>
+                  </div>
+                </section>
 
-                {/* Individual Service Line Charts */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7 }}
-                  className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300"
-                >
-                  <IndividualServiceCharts expenses={effectiveExpenses} filters={filters} />
-                </motion.div>
+                <section>
+                  <OverviewSectionHeader
+                    title="Explore deeper"
+                    subtitle="Jump to detailed views for drill-down analysis"
+                  />
+                  <OverviewQuickLinks onNavigate={setActiveTab} />
+                </section>
               </div>
             )}
 
@@ -3294,6 +3309,23 @@ export default function Analytics() {
                   </div>
                   <div id="chart-service-breakdown">
                     <ServiceBreakdownChart expenses={effectiveExpenses} />
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Departmental Expenses</h3>
+                    <button
+                      type="button"
+                      onClick={() => handleChartExport('chart-overview-departmental', 'departmental-expenses')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      PNG
+                    </button>
+                  </div>
+                  <div id="chart-overview-departmental">
+                    <DepartmentalExpensesLineChart data={effectiveExpenses} />
                   </div>
                 </div>
               </motion.div>
@@ -3326,6 +3358,46 @@ export default function Analytics() {
                   <div id="chart-service-distribution">
                     <ServiceDistributionChart expenses={effectiveExpenses} />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Average Spending by Service</h3>
+                      <button
+                        type="button"
+                        onClick={() => handleChartExport('chart-overview-average-spending', 'average-spending')}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PNG
+                      </button>
+                    </div>
+                    <div id="chart-overview-average-spending">
+                      <AverageSpendingChart data={effectiveExpenses} />
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Top Expense Categories</h3>
+                      <button
+                        type="button"
+                        onClick={() => handleChartExport('chart-overview-top-categories', 'top-expense-categories')}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PNG
+                      </button>
+                    </div>
+                    <div id="chart-overview-top-categories">
+                      <TopExpenseCategories data={effectiveExpenses} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700">
+                  <IndividualServiceCharts expenses={effectiveExpenses} filters={filters} />
                 </div>
               </motion.div>
             )}

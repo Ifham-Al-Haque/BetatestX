@@ -15,6 +15,7 @@ import { clearImageCache, forceRefreshEmployeeImages } from "../utils/imageUtils
 import { accessListToFormString, accessListFromForm } from "../utils/accessList";
 import { useAuth } from "../context/AuthContext";
 import { canEditEmployees, getPermissionDeniedMessage } from "../utils/permissions";
+import { getAllBranchOptions } from "../config/departmentHierarchy";
 
 export default function EmployeeForm() {
   const { userProfile } = useAuth();
@@ -29,6 +30,7 @@ export default function EmployeeForm() {
     email: "",
     phone: "",
     department: "",
+    sub_department: "",
     position: "",
     designation: "",
     employee_id: "",
@@ -371,6 +373,7 @@ export default function EmployeeForm() {
           extra_responsibilities: safeJsonbProcess(formData.extra_responsibilities),
           key_roles_detailed: safeJsonbProcess(formData.key_roles_detailed),
           reporting_manager_id: formData.reporting_manager_id || null,
+          sub_department: formData.sub_department || null,
           // Use name field if full_name is empty
           name: formData.name || formData.full_name,
           // Handle profile picture fields properly
@@ -902,6 +905,29 @@ export default function EmployeeForm() {
                             </select>
                             <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Team / Branch
+                          </label>
+                          <div className="relative">
+                            <select
+                              name="sub_department"
+                              value={formData.sub_department || ""}
+                              onChange={handleChange}
+                              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            >
+                              <option value="">Auto-detect from department & role</option>
+                              {getAllBranchOptions().map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                            <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Used for org chart branch labels (e.g. Technology → Product, IT, IoT). Run add_sub_department_column.sql if this field does not save yet.
+                          </p>
                         </div>
 
                         <div className="space-y-2">

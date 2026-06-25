@@ -1,38 +1,53 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
 
+const EMPLOYEE_SELECT = `
+  id,
+  full_name,
+  employee_id,
+  department,
+  sub_department,
+  position,
+  designation,
+  email,
+  phone,
+  location,
+  hire_date,
+  profile_picture,
+  photo_url,
+  reporting_manager_id,
+  reporting_manager:reporting_manager_id (
+    id,
+    full_name,
+    employee_id,
+    department,
+    position,
+    email,
+    phone
+  )
+`;
+
+const EMPLOYEE_SELECT_LEGACY = EMPLOYEE_SELECT.replace('sub_department,\n  ', '');
+
 export const useEmployees = () => {
   return useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('employees')
-        .select(`
-          id,
-          full_name,
-          employee_id,
-          department,
-          position,
-          designation,
-          email,
-          phone,
-          location,
-          hire_date,
-          profile_picture,
-          photo_url,
-          reporting_manager_id,
-          reporting_manager:reporting_manager_id (
-            id,
-            full_name,
-            employee_id,
-            department,
-            position,
-            email,
-            phone
-          )
-        `)
+        .select(EMPLOYEE_SELECT)
         .eq('status', 'active')
         .order('full_name');
+
+      if (error?.message?.includes('sub_department')) {
+        const fallback = await supabase
+          .from('employees')
+          .select(EMPLOYEE_SELECT_LEGACY)
+          .eq('status', 'active')
+          .order('full_name');
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) throw error;
       return data || [];

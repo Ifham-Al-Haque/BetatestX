@@ -126,7 +126,31 @@ export const nodeMatchesQuery = (node, query) => {
     node.position?.toLowerCase().includes(q) ||
     node.designation?.toLowerCase?.().includes(q) ||
     node.department?.toLowerCase().includes(q) ||
+    node.sub_department?.toLowerCase?.().includes(q) ||
     node.employee_id?.toLowerCase?.().includes(q) ||
     node.managerName?.toLowerCase().includes(q)
   );
+};
+
+/** Return a single root node for focus-mode (show one manager's subtree). */
+export const getFocusRoot = (map, focusId) => {
+  if (!focusId || !map) return null;
+  return map.get(String(focusId)) || null;
+};
+
+/** Data-quality signals for HR review. */
+export const computeOrgHealth = (employees = [], treeData) => {
+  const { brokenLinks = [], roots = [], stats = {} } = treeData || {};
+  const noDepartment = employees.filter((e) => !e.department?.trim()).length;
+  const noManager = employees.filter((e) => !e.reporting_manager_id).length;
+  const multipleTopLevel = roots.length > 1 ? roots.length : 0;
+
+  return {
+    brokenLinks: brokenLinks.length,
+    noDepartment,
+    noManager,
+    multipleTopLevel,
+    total: stats.total || employees.length,
+    issues: brokenLinks.length + noDepartment + (multipleTopLevel > 1 ? multipleTopLevel - 1 : 0),
+  };
 };

@@ -2,14 +2,27 @@ import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import {
   Users, User, ChevronDown, ChevronUp, GripVertical, Crown, Shield, Zap,
   UserCheck, TrendingUp, Search, X, Info, ZoomIn, ZoomOut, Maximize2,
-  RotateCcw, Plus, Minus, GitBranch, ListTree, AlertTriangle, Presentation, Building2
+  RotateCcw, Plus, Minus, GitBranch, ListTree, AlertTriangle, Presentation, Building2,
+  Focus, Download, Lock, ArrowLeft
 } from 'lucide-react';
 import { useUpdateReportingManager } from '../hooks/useEmployees';
 import { useToast } from '../context/ToastContext';
-import { buildOrgTree, getAncestorIds, nodeMatchesQuery } from '../utils/buildOrgTree';
+import {
+  buildOrgTree, getAncestorIds, nodeMatchesQuery, getFocusRoot, computeOrgHealth,
+} from '../utils/buildOrgTree';
 import { resolveEmployeePlacement } from '../config/departmentHierarchy';
 import DepartmentHierarchyView from './DepartmentHierarchyView';
+import { exportOrgChartAsPng } from '../utils/exportOrgChart';
 import './orgchart.css';
+
+const ORG_LEGEND = [
+  { label: 'Top level', className: 'oc-level-root' },
+  { label: 'Level 2', className: 'oc-level-1' },
+  { label: 'Level 3', className: 'oc-level-2' },
+  { label: 'Level 4', className: 'oc-level-3' },
+  { label: 'Deeper', className: 'oc-level-deep' },
+  { label: 'Search match', className: 'oc-match', isMatch: true },
+];
 
 const DEPARTMENT_COLORS = {
   IT: 'from-blue-500 to-blue-600',
@@ -47,6 +60,7 @@ const OrgChartPro = ({
   loading = false,
   onEmployeeClick,
   externalSearch = '',
+  canEditHierarchy = false,
 }) => {
   const [displayMode, setDisplayMode] = useState('chart'); // 'chart' | 'structure' | 'departments'
   const [presentationMode, setPresentationMode] = useState(true);
@@ -56,6 +70,9 @@ const OrgChartPro = ({
   const [dragOverId, setDragOverId] = useState(null);
   const [rootDragOver, setRootDragOver] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
+  const [focusNodeId, setFocusNodeId] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [showHealth, setShowHealth] = useState(false);
   const viewportRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -65,6 +82,10 @@ const OrgChartPro = ({
   const searchTerm = (externalSearch || localSearch).trim();
   const treeData = useMemo(() => buildOrgTree(employees), [employees]);
   const { map, roots, managerIds, brokenLinks, flatByLevel, stats } = treeData;
+  const orgHealth = useMemo(() => computeOrgHealth(employees, treeData), [employees, treeData]);
+  const focusRoot = useMemo(() => getFocusRoot(map, focusNodeId), [map, focusNodeId]);
+  const displayRoots = focusRoot ? [focusRoot] : roots;
+  const focusNode = focusNodeId ? map.get(String(focusNodeId)) : null;
 
   // When searching, auto-expand every ancestor on the path to each match.
   useEffect(() => {
@@ -189,10 +210,37 @@ const OrgChartPro = ({
 
   // Auto-fit once the chart renders so HR sees a sensible first view
   useEffect(() => {
-    if (loading || displayMode !== 'chart' || !roots.length) return;
+    if (loading || displayMode !== 'chart' || !displayRoots.length) return;
     const timer = setTimeout(fitToView, 120);
     return () => clearTimeout(timer);
-  }, [loading, displayMode, roots.length, collapsed, presentationMode, fitToView]);
+  }, [loading, displayMode, displayRoots.length, collapsed, presentationMode, focusNodeId, fitToView]);
+
+  const handleExport = async () => {
+    if (!viewportRef.current || exporting) return;
+    setExporting(true);
+    try {
+      await exportOrgChartAsPng(
+        viewportRef.current,
+        `udrive-org-chart-${new Date().toISOString().slice(0, 10)}.png`
+      );
+      success('Exported', 'Org chart saved as PNG');
+    } catch {
+      showError('Export failed', 'Could not generate image. Try zooming out and retry.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const enterFocus = (nodeId) => {
+    setFocusNodeId(String(nodeId));
+    setCollapsed(new Set());
+    setTimeout(fitToView, 150);
+  };
+
+  const exitFocus = () => {
+    setFocusNodeId(null);
+    setTimeout(fitToView, 150);
+  };
 
   const NodeCard = ({ node, isRoot }) => {
     const id = String(node.id);
@@ -211,13 +259,13 @@ const OrgChartPro = ({
 
     return (
       <div
-        draggable
-        onDragStart={(e) => handleDragStart(e, id)}
-        onDragEnd={clearDragState}
-        onDragOver={(e) => allowDrop(e, id)}
-        onDragLeave={() => setDragOverId((prev) => (prev === id ? null : prev))}
-        onDrop={(e) => handleDropOnNode(e, id)}
-        className={`oc-card relative select-none transition-all duration-150 cursor-grab active:cursor-grabbing ${levelClass}
+        draggable={canEditHierarchy}
+        onDragStart={canEditHierarchy ? (e) => handleDragStart(e, id) : undefined}
+        onDragEnd={canEditHierarchy ? clearDragState : undefined}
+        onDragOver={canEditHierarchy ? (e) => allowDrop(e, id) : undefined}
+        onDragLeave={canEditHierarchy ? () => setDragOverId((prev) => (prev === id ? null : prev)) : undefined}
+        onDrop={canEditHierarchy ? (e) => handleDropOnNode(e, id) : undefined}
+        className={`oc-card relative select-none transition-all duration-150 ${canEditHierarchy ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} ${levelClass}
           ${isDropTarget ? 'oc-drop-target -translate-y-0.5' : ''}
           ${isDragging ? 'opacity-40' : ''}
           ${isForbidden ? 'opacity-30' : ''}
@@ -236,7 +284,9 @@ const OrgChartPro = ({
 
         <div className="p-4">
           <div className="flex items-start gap-3">
-            <GripVertical className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-4" />
+            {canEditHierarchy && (
+              <GripVertical className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-4" />
+            )}
             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 flex items-center justify-center overflow-hidden ring-[3px] ring-white dark:ring-gray-700 shadow-md flex-shrink-0">
               {node.profile_picture || node.photo_url ? (
                 <img src={node.profile_picture || node.photo_url} alt={node.full_name} className="w-full h-full object-cover" />
@@ -293,6 +343,17 @@ const OrgChartPro = ({
               </span>
             )}
           </div>
+
+          {hasReports && !focusNodeId && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); enterFocus(id); }}
+              className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+              title="Show only this manager's team"
+            >
+              <Focus className="w-3.5 h-3.5" /> Focus team
+            </button>
+          )}
         </div>
 
         {hasReports && (
@@ -542,11 +603,59 @@ const OrgChartPro = ({
               <button onClick={fitToView} title="Fit entire structure" className="px-2 py-2 rounded-lg text-xs font-semibold text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600">
                 Fit all
               </button>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                title="Download org chart as PNG"
+                className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white dark:hover:bg-gray-600 disabled:opacity-50"
+              >
+                {exporting ? <RotateCcw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              </button>
             </div>
             </>
           )}
+
+          {orgHealth.issues > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowHealth((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all ${
+                showHealth
+                  ? 'bg-amber-600 text-white border-amber-600'
+                  : 'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {orgHealth.issues} data issue{orgHealth.issues !== 1 ? 's' : ''}
+            </button>
+          )}
         </div>
       </div>
+
+      {showHealth && orgHealth.issues > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-4">
+          {orgHealth.brokenLinks > 0 && (
+            <div className="text-sm text-amber-900 dark:text-amber-100">
+              <span className="font-bold">{orgHealth.brokenLinks}</span> broken manager link{orgHealth.brokenLinks !== 1 ? 's' : ''}
+            </div>
+          )}
+          {orgHealth.noDepartment > 0 && (
+            <div className="text-sm text-amber-900 dark:text-amber-100">
+              <span className="font-bold">{orgHealth.noDepartment}</span> without department
+            </div>
+          )}
+          {orgHealth.multipleTopLevel > 1 && (
+            <div className="text-sm text-amber-900 dark:text-amber-100">
+              <span className="font-bold">{orgHealth.multipleTopLevel}</span> top-level roots
+            </div>
+          )}
+          {orgHealth.noManager > 0 && (
+            <div className="text-sm text-amber-900 dark:text-amber-100">
+              <span className="font-bold">{orgHealth.noManager}</span> with no manager set
+            </div>
+          )}
+        </div>
+      )}
 
       {brokenLinks.length > 0 && (
         <div className="flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
@@ -562,13 +671,49 @@ const OrgChartPro = ({
 
       {displayMode === 'chart' && (
         <>
+          {focusNode && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm text-indigo-900 dark:text-indigo-100">
+                <Focus className="w-4 h-4 flex-shrink-0" />
+                <span>
+                  Focused on <strong>{focusNode.full_name}</strong>
+                  {' '}({focusNode.directReports.length} direct · {focusNode.totalReports} total in subtree)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={exitFocus}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Show full org
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 px-1">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Border colors:</span>
+            {ORG_LEGEND.map(({ label, className, isMatch }) => (
+              <span key={label} className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
+                <span
+                  className={`oc-swatch ${isMatch ? 'oc-match' : className}`}
+                  aria-hidden
+                />
+                {label}
+              </span>
+            ))}
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex items-start gap-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 px-3 py-2.5 flex-1">
               <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-blue-800 dark:text-blue-200">
-                Every card shows who that person reports to. Drag onto another card to change reporting lines, or drop on the zone below to make someone top level.
+                {canEditHierarchy
+                  ? 'Drag a card onto another to change reporting lines, or drop on the zone below to make someone top level. Use Focus team on managers with large teams.'
+                  : 'View-only mode. Contact HR or admin to update reporting lines.'}
               </p>
+              {!canEditHierarchy && <Lock className="w-4 h-4 text-blue-500 flex-shrink-0" />}
             </div>
+            {canEditHierarchy && (
             <div
               onDragOver={(e) => { if (!draggedId) return; e.preventDefault(); setRootDragOver(true); }}
               onDragLeave={() => setRootDragOver(false)}
@@ -580,6 +725,7 @@ const OrgChartPro = ({
             >
               <Crown className="w-4 h-4" /> Drop here = remove manager
             </div>
+            )}
           </div>
 
           <div className="h-5">
@@ -604,7 +750,7 @@ const OrgChartPro = ({
             <div ref={canvasRef} className="oc-canvas" style={{ transform: `scale(${zoom})` }}>
               <div className="oc-tree">
                 <ul>
-                  {roots.map((node) => (
+                  {displayRoots.map((node) => (
                     <NodeLi key={node.id} node={node} isRoot />
                   ))}
                 </ul>

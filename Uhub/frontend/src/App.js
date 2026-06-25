@@ -478,6 +478,10 @@ function App() {
                           </ProtectedRoute>
                         } />
 
+                        <Route path="/settings" element={
+                          <Navigate to="/profile?tab=preferences" replace />
+                        } />
+
                         {/* Additional routes referenced in sidebar */}
                         <Route path="/calendar-view" element={
                           <ProtectedRoute requiredFeature="calendar_view">

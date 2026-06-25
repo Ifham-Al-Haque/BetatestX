@@ -172,7 +172,7 @@ export const FEATURE_ACCESS = {
   home: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   dashboard: ['admin', 'manager', 'marketing_manager', 'marketing_management'], // Dashboard for admin and manager
   calendar_view: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
-  organizational_hierarchy: ['admin', 'iot_management'],
+  organizational_hierarchy: ['admin', 'hr_manager', 'iot_management'],
   
   // Slice of Life Panel - Subscribe Now has access to ALL sections
   events: ['admin', 'data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
@@ -450,7 +450,7 @@ export const getRoleNavigationAccess = (userRole) => {
   hr_manager: {
     panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'todo_list', 'slice_of_life', 'communication', 'operation', 'asset_management', 'subscribe_panel'],
     items: {
-      main: ['home', 'dashboard', 'calendar_view'],
+      main: ['home', 'dashboard', 'calendar_view', 'organizational_hierarchy'],
       user_profile: ['profile', 'settings'],
       hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'payroll', 'payroll_calculator', 'epr'],
       it_services: ['it_requests'],
