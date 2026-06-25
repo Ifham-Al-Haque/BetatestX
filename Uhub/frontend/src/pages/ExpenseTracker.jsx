@@ -1,6 +1,6 @@
 // src/pages/ExpenseTracker.jsx
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
@@ -48,6 +48,7 @@ const TABS = [
 export default function ExpenseTracker() {
   const { user } = useAuth();
   const { success, error: showError } = useToast();
+  const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState('expenses');
   const [period, setPeriod] = useState('all');
@@ -101,6 +102,14 @@ export default function ExpenseTracker() {
   useEffect(() => {
     setCurrentPage(1);
   }, [filters, period, sortField, sortDirection, pageSize]);
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (!q) return;
+    setFilters((prev) => ({ ...prev, search: q }));
+    setShowFilters(true);
+    setActiveTab('expenses');
+  }, [searchParams]);
 
   useEffect(() => {
     if (!receiptFile) {
