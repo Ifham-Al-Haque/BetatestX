@@ -101,6 +101,13 @@ export default function ExpenseCardList({
                     </select>
                   </div>
                   <input
+                    type="text"
+                    placeholder="Billing period e.g. Jan 2026"
+                    value={editForm.months || ''}
+                    onChange={(e) => setEditForm({ ...editForm, months: e.target.value })}
+                    className={editInputClass}
+                  />
+                  <input
                     type="date"
                     value={editForm.date_paid}
                     onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}

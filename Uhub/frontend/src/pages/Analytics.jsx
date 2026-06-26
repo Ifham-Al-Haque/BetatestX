@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from "react"; // Analytics component with real expense data
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react"; // Analytics component with real expense data
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -12,7 +12,7 @@ import {
   Clock, Target, Zap, Star
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useExpenses } from "../hooks/useApi";
+import { useAllExpenses } from "../hooks/useApi";
 import { usePaymentEvents } from "../hooks/usePaymentEvents";
 import LoadingSpinner from "../components/LoadingSpinner";
 import AnalyticsHero from "../components/analytics/AnalyticsHero";
@@ -20,6 +20,7 @@ import AnalyticsKpiCard from "../components/analytics/AnalyticsKpiCard";
 import CashFlowSummary from "../components/analytics/CashFlowSummary";
 import AnalyticsFiltersPanel from "../components/analytics/AnalyticsFiltersPanel";
 import IndividualServiceTrends from "../components/analytics/IndividualServiceTrends";
+import MissingBillingPeriodPanel from "../components/analytics/MissingBillingPeriodPanel";
 import { downloadChartPng } from "../components/analytics/chartExport";
 import { canonicalServiceName, normalizeServiceLabel, parseAmountValue, canonicalDepartmentName, DEPARTMENT_CHART_COLORS } from "../components/analytics/chartUtils";
 import { getDepartmentLabel } from "../config/departments";
@@ -27,8 +28,13 @@ import {
   DEFAULT_ANALYTICS_FILTERS,
   computeAnalyticsWithComparison,
   computeCashFlowSummary,
+  aggregateExpensesByMonth,
+  getBillingPeriodMonthKey,
+  filterExpensesForMonthlyTrend,
+  countExpensesMissingBillingPeriod,
+  getExpensesMissingBillingPeriod,
 } from "../utils/analyticsHelpers";
-import { exportExpensesCsv, formatCurrency } from "../utils/expenseHelpers";
+import { exportExpensesCsv, formatCurrency, getExpenseAmount } from "../utils/expenseHelpers";
 
 // Enhanced color scheme for charts with gradients
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
@@ -1547,10 +1553,9 @@ const ServiceDistributionChart = ({ expenses }) => {
 };
 
 // Monthly Expense Trend Chart Component
-const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, hideTitle = false }) => {
+const MonthlyExpenseTrendChart = ({ data, skippedCount = 0, onReviewExcluded, hideTitle = false }) => {
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [monthBreakdown, setMonthBreakdown] = useState([]);
-  const [timeFilter, setTimeFilter] = useState('all-time');
   const [hoveredMonth, setHoveredMonth] = useState(null);
   const [animatedAverage, setAnimatedAverage] = useState(0);
   const [animatedLatest, setAnimatedLatest] = useState(0);
@@ -1562,60 +1567,7 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
     return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
   };
 
-  // Process monthly data for charts with filtering
-  const monthlyData = useMemo(() => {
-    if (!data || !data.length) return [];
-
-    const monthlyStats = {};
-    const now = new Date();
-    let filteredData = data;
-
-    // Apply time range filter
-    if (timeFilter !== 'all-time') {
-      const cutoffDate = new Date();
-      switch (timeFilter) {
-        case 'current-month':
-          cutoffDate.setMonth(now.getMonth());
-          cutoffDate.setDate(1);
-          break;
-        case 'last-3-months':
-          cutoffDate.setMonth(now.getMonth() - 3);
-          break;
-        case 'last-6-months':
-          cutoffDate.setMonth(now.getMonth() - 6);
-          break;
-        case 'last-year':
-          cutoffDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          break;
-      }
-      
-      filteredData = data.filter(expense => {
-        const expenseDate = new Date(expense.date_paid || expense.date || expense.created_at);
-        return expenseDate >= cutoffDate;
-      });
-    }
-
-    filteredData.forEach(expense => {
-      const date = expense.date_paid || expense.date || expense.created_at;
-      const amount = expense.amount_aed || expense.amount || expense.value || expense.cost || 0;
-      
-      if (!date || !amount || amount <= 0) return;
-      
-      const expenseDate = new Date(date);
-      const monthKey = `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}`;
-      
-      if (!monthlyStats[monthKey]) {
-        monthlyStats[monthKey] = 0;
-      }
-      monthlyStats[monthKey] += parseFloat(amount);
-    });
-
-    return Object.entries(monthlyStats)
-      .map(([month, total]) => ({ month, total }))
-      .sort((a, b) => a.month.localeCompare(b.month));
-  }, [data, timeFilter]);
+  const monthlyData = useMemo(() => aggregateExpensesByMonth(data), [data]);
 
   const trendInsights = useMemo(() => {
     if (!monthlyData.length) {
@@ -1659,7 +1611,7 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
     }, duration / steps);
 
     return () => clearInterval(timer);
-  }, [trendInsights.average, trendInsights.latestDelta, latestMonth?.total, timeFilter]);
+  }, [trendInsights.average, trendInsights.latestDelta, latestMonth?.total]);
 
   // Handle bar click to show expense breakdown
   const handleBarClick = (barData) => {
@@ -1668,20 +1620,15 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
     setSelectedMonth(barData.month);
     
     // Get expenses for the selected month
-    const monthExpenses = data.filter(expense => {
-      const date = expense.date_paid || expense.date || expense.created_at;
-      if (!date) return false;
-      
-      const expenseDate = new Date(date);
-      const monthKey = `${expenseDate.getFullYear()}-${String(expenseDate.getMonth() + 1).padStart(2, '0')}`;
-      return monthKey === barData.month;
-    });
+    const monthExpenses = data.filter(
+      (expense) => getBillingPeriodMonthKey(expense) === barData.month
+    );
 
     // Group by service for breakdown
     const breakdown = {};
     monthExpenses.forEach(expense => {
       const service = expense.service_name || 'Unknown Service';
-      const amount = parseFloat(expense.amount_aed || expense.amount || expense.value || expense.cost || 0);
+      const amount = getExpenseAmount(expense);
       
       if (!breakdown[service]) {
         breakdown[service] = {
@@ -1727,6 +1674,18 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {monthlyData.length} months of data • Total: AED {totalSpend.toLocaleString()}
           </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+            Totals use the billing period from Expense Tracker (e.g. Jan 2026, Feb 2026)
+          </p>
+          {skippedCount > 0 && (
+            <button
+              type="button"
+              onClick={onReviewExcluded}
+              className="text-xs text-amber-700 dark:text-amber-300 mt-1 font-medium hover:underline text-left"
+            >
+              {skippedCount} expense{skippedCount === 1 ? '' : 's'} excluded — review and add billing period
+            </button>
+          )}
         </div>
         
         {/* Summary Stats */}
@@ -1777,19 +1736,6 @@ const MonthlyExpenseTrendChart = ({ data, filters = { timeRange: 'all-time' }, h
               </div>
             </div>
           )}
-          <div className="flex items-center space-x-2 ml-auto">
-            <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all-time">All Time</option>
-              <option value="last-year">Last Year</option>
-              <option value="last-6-months">Last 6 Months</option>
-              <option value="last-3-months">Last 3 Months</option>
-              <option value="current-month">Current Month</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -2475,14 +2421,14 @@ export default function Analytics() {
   const isAdmin = userProfile?.role === 'admin';
   const expenseFilters = isAdmin ? {} : { userId: user?.id };
   
-  const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, expenseFilters);
+  const { data: expenses = [], isLoading, error } = useAllExpenses(expenseFilters);
   const { data: paymentEvents = [] } = usePaymentEvents();
-  const expenses = useMemo(() => expensesResponse?.data || [], [expensesResponse]);
   
   const [activeTab, setActiveTab] = useState('overview');
   const [exportToast, setExportToast] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_ANALYTICS_FILTERS);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [excludedPanelOpen, setExcludedPanelOpen] = useState(true);
 
   const handleFilterChange = (filterType, value) => {
     setFilters((prev) => ({
@@ -2511,13 +2457,38 @@ export default function Analytics() {
   const availableYears = useMemo(() => {
     const years = new Set();
     expenses.forEach((expense) => {
-      if (expense.date_paid) {
-        const y = new Date(expense.date_paid).getFullYear();
-        if (!Number.isNaN(y)) years.add(y);
+      const monthKey = getBillingPeriodMonthKey(expense);
+      if (monthKey) {
+        years.add(Number(monthKey.split('-')[0]));
       }
     });
     return Array.from(years).sort((a, b) => b - a);
   }, [expenses]);
+
+  const monthlyTrendExpenses = useMemo(
+    () => filterExpensesForMonthlyTrend(expenses, filters),
+    [expenses, filters]
+  );
+
+  const monthlyTrendSkippedCount = useMemo(
+    () => countExpensesMissingBillingPeriod(expenses, filters),
+    [expenses, filters]
+  );
+
+  const excludedFromMonthlyTrend = useMemo(
+    () => getExpensesMissingBillingPeriod(expenses, filters),
+    [expenses, filters]
+  );
+
+  const reviewExcludedExpenses = useCallback(() => {
+    setExcludedPanelOpen(true);
+    window.setTimeout(() => {
+      document.getElementById('missing-billing-period-panel')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 120);
+  }, []);
 
   const { current: summaryStats, comparison, currentExpenses: effectiveExpenses } = useMemo(
     () => computeAnalyticsWithComparison(expenses, filters),
@@ -2733,7 +2704,17 @@ export default function Analytics() {
                     onExport={handleChartExport}
                     delay={0.25}
                   >
-                    <MonthlyExpenseTrendChart data={effectiveExpenses} filters={filters} hideTitle />
+                    <MonthlyExpenseTrendChart
+                      data={monthlyTrendExpenses}
+                      skippedCount={monthlyTrendSkippedCount}
+                      onReviewExcluded={reviewExcludedExpenses}
+                      hideTitle
+                    />
+                    <MissingBillingPeriodPanel
+                      expenses={excludedFromMonthlyTrend}
+                      expanded={excludedPanelOpen}
+                      onExpandedChange={setExcludedPanelOpen}
+                    />
                   </OverviewChartCard>
                 </section>
 

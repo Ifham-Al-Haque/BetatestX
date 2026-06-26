@@ -23,12 +23,216 @@ export const DEFAULT_ANALYTICS_FILTERS = {
   serviceStatus: 'all',
 };
 
-const getExpenseDate = (expense) => {
-  const raw = expense.date_paid || expense.date || expense.created_at;
-  if (!raw) return null;
+const MONTH_NAME_TO_NUM = {
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  may: 5,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
+
+/** Parse YYYY-MM-DD (and timestamps) without UTC month-shift bugs. */
+export function parseExpenseDateLocal(raw) {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'string') {
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      const y = Number(iso[1]);
+      const m = Number(iso[2]);
+      const d = Number(iso[3]);
+      const date = new Date(y, m - 1, d);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date;
-};
+}
+
+function monthKeyFromParts(year, month) {
+  const y = Number(year);
+  const m = Number(month);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) return null;
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+function normalizeYear(year) {
+  const y = Number(year);
+  if (!Number.isInteger(y)) return null;
+  if (y < 100) return 2000 + y;
+  return y;
+}
+
+function monthKeyFromName(monthName, year) {
+  const monthNum = MONTH_NAME_TO_NUM[String(monthName).toLowerCase()];
+  const y = normalizeYear(year);
+  if (!monthNum || y == null) return null;
+  return monthKeyFromParts(y, monthNum);
+}
+
+/** Parse billing period text (e.g. "Jun 2026", "January 2026") to YYYY-MM month key. */
+export function parseMonthsToMonthKey(months) {
+  if (months == null || months === '') return null;
+  const value = String(months).trim().replace(/\s+/g, ' ');
+  if (!value) return null;
+
+  let match = value.match(/^(\d{4})-(\d{1,2})$/);
+  if (match) return monthKeyFromParts(match[1], match[2]);
+
+  match = value.match(/^(\d{4})[/.-](\d{1,2})$/);
+  if (match) return monthKeyFromParts(match[1], match[2]);
+
+  match = value.match(/^(\d{1,2})[/.-](\d{4})$/);
+  if (match) return monthKeyFromParts(match[2], match[1]);
+
+  match = value.match(/^([a-zA-Z]+)[,\s]+(\d{2,4})$/);
+  if (match) return monthKeyFromName(match[1], match[2]);
+
+  match = value.match(/^([a-zA-Z]+)[\-/](\d{2,4})$/);
+  if (match) return monthKeyFromName(match[1], match[2]);
+
+  const parsed = parseExpenseDateLocal(value);
+  if (parsed) {
+    return monthKeyFromParts(parsed.getFullYear(), parsed.getMonth() + 1);
+  }
+
+  return null;
+}
+
+/** Billing period month key from the Expense Tracker `months` field only. */
+export function getBillingPeriodMonthKey(expense) {
+  return parseMonthsToMonthKey(expense?.months);
+}
+
+/** Month bucket for charts: billing period first, then payment/invoice dates. */
+export function getExpenseMonthKey(expense) {
+  const fromMonths = getBillingPeriodMonthKey(expense);
+  if (fromMonths) return fromMonths;
+
+  const date = getExpenseDate(expense);
+  if (!date) return null;
+
+  return monthKeyFromParts(date.getFullYear(), date.getMonth() + 1);
+}
+
+export function getExpenseDate(expense) {
+  return parseExpenseDateLocal(
+    expense?.date_paid ||
+      expense?.invoice_due_date ||
+      expense?.invoice_generation_date ||
+      expense?.date ||
+      expense?.created_at
+  );
+}
+
+function applyDepartmentAndStatusFilters(expenses, filters) {
+  let filtered = [...expenses];
+
+  if (filters.department && filters.department !== 'all') {
+    filtered = filtered.filter((e) => (e.department || '') === filters.department);
+  }
+
+  if (filters.serviceStatus && filters.serviceStatus !== 'all') {
+    filtered = filtered.filter(
+      (e) => (e.service_status || e.status || '').toLowerCase() === filters.serviceStatus
+    );
+  }
+
+  return filtered;
+}
+
+function billingPeriodInRange(monthKey, start, end) {
+  if (!monthKey) return false;
+  const [y, m] = monthKey.split('-').map(Number);
+  const periodStart = new Date(y, m - 1, 1);
+  const periodEnd = new Date(y, m, 0, 23, 59, 59, 999);
+  if (start && periodEnd < start) return false;
+  if (end && periodStart > end) return false;
+  return true;
+}
+
+/** Expenses for the Monthly Expense Trend chart — grouped by billing period (`months`). */
+export function filterExpensesForMonthlyTrend(expenses, filters) {
+  if (!expenses?.length) return [];
+
+  let filtered = applyDepartmentAndStatusFilters(expenses, filters);
+  filtered = filtered.filter((e) => getBillingPeriodMonthKey(e));
+
+  if (filters.year && filters.year !== 'all') {
+    const selectedYear = Number(filters.year);
+    filtered = filtered.filter((e) => {
+      const key = getBillingPeriodMonthKey(e);
+      return Number(key.split('-')[0]) === selectedYear;
+    });
+  } else if (filters.timeRange !== 'all-time') {
+    const { start, end } = getTimeRangeBounds(filters.timeRange);
+    filtered = filtered.filter((e) =>
+      billingPeriodInRange(getBillingPeriodMonthKey(e), start, end)
+    );
+  }
+
+  return filtered;
+}
+
+export function suggestBillingPeriod(expense) {
+  const date = getExpenseDate(expense);
+  if (!date) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+export function getExpensesMissingBillingPeriod(expenses, filters) {
+  if (!expenses?.length) return [];
+
+  const scoped = applyDepartmentAndStatusFilters(expenses, filters);
+
+  return scoped.filter((e) => {
+    const amount = getExpenseAmount(e);
+    if (!amount || amount <= 0) return false;
+    return !getBillingPeriodMonthKey(e);
+  });
+}
+
+export function countExpensesMissingBillingPeriod(expenses, filters) {
+  return getExpensesMissingBillingPeriod(expenses, filters).length;
+}
+
+export function aggregateExpensesByMonth(expenses) {
+  if (!expenses?.length) return [];
+
+  const monthlyStats = {};
+
+  expenses.forEach((expense) => {
+    const amount = getExpenseAmount(expense);
+    if (!amount || amount <= 0) return;
+
+    const monthKey = getBillingPeriodMonthKey(expense);
+    if (!monthKey) return;
+
+    monthlyStats[monthKey] = (monthlyStats[monthKey] || 0) + amount;
+  });
+
+  return Object.entries(monthlyStats)
+    .map(([month, total]) => ({ month, total }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
 
 const isValueReady = (expense) =>
   expense.service_name && expense.amount_aed != null && expense.amount_aed !== '';
@@ -117,6 +321,11 @@ function getComparisonBounds(filters, referenceDate = new Date()) {
 }
 
 function expenseInRange(expense, start, end) {
+  const billingKey = getBillingPeriodMonthKey(expense);
+  if (billingKey) {
+    return billingPeriodInRange(billingKey, start, end);
+  }
+
   const date = getExpenseDate(expense);
   if (!date) return false;
   if (start && date < start) return false;
@@ -142,6 +351,10 @@ export function filterAnalyticsExpenses(expenses, filters) {
   if (filters.year && filters.year !== 'all') {
     const selectedYear = Number(filters.year);
     filtered = filtered.filter((e) => {
+      const billingKey = getBillingPeriodMonthKey(e);
+      if (billingKey) {
+        return Number(billingKey.split('-')[0]) === selectedYear;
+      }
       const date = getExpenseDate(e);
       return date && date.getFullYear() === selectedYear;
     });

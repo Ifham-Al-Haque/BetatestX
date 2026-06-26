@@ -207,6 +207,14 @@ export const useExpenses = (page = 1, limit = 100, filters = {}) => {
   });
 };
 
+export const useAllExpenses = (filters = {}) => {
+  return useQuery({
+    queryKey: ['expenses', 'all', filters],
+    queryFn: () => apiService.expenses.fetchAll(filters),
+    staleTime: 1 * 60 * 1000,
+  });
+};
+
 export const useExpenseStats = () => {
   return useQuery({
     queryKey: ['expense-stats'],

@@ -595,7 +595,7 @@ export const apiService = {
     getAll: async (page = 1, limit = 100, filters = {}) => {
       let query = supabase
         .from('expenses')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('date_paid', { ascending: false });
 
       // Apply filters
@@ -611,12 +611,28 @@ export const apiService = {
 
       const from = (page - 1) * limit;
       const to = from + limit - 1;
-      
+
       const { data, error, count } = await query.range(from, to);
-      
+
       if (error) throw error;
-      
+
       return { data, count };
+    },
+
+    fetchAll: async function fetchAllExpenses(filters = {}) {
+      const limit = 1000;
+      let page = 1;
+      const all = [];
+
+      while (true) {
+        const { data, count } = await this.getAll(page, limit, filters);
+        if (data?.length) all.push(...data);
+        if (!data?.length || data.length < limit) break;
+        if (count != null && all.length >= count) break;
+        page += 1;
+      }
+
+      return all;
     },
 
     getStats: async () => {

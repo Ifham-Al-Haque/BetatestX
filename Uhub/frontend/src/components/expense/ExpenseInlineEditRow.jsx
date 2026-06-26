@@ -84,6 +84,16 @@ export default function ExpenseInlineEditRow({
             </div>
           </EditField>
 
+          <EditField label="Billing period">
+            <input
+              type="text"
+              placeholder="e.g. Jan 2026"
+              value={editForm.months || ''}
+              onChange={(e) => setEditForm({ ...editForm, months: e.target.value })}
+              className={editInputClass}
+            />
+          </EditField>
+
           <EditField label="Date paid">
             <input
               type="date"

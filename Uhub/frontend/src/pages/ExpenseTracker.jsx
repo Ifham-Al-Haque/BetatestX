@@ -2,7 +2,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '../hooks/useApi';
+import { useAllExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { DEPARTMENTS } from '../config/departments';
 import { parseExpenseFile, mapRowToExpense, getExpenseImportTemplateCsv } from '../utils/expenseImportUtils';
@@ -16,7 +16,9 @@ import {
   EMPTY_FILTERS,
   PERIOD_OPTIONS,
   STATUS_OPTIONS,
+  getExpenseAmount,
 } from '../utils/expenseHelpers';
+import { getBillingPeriodMonthKey } from '../utils/analyticsHelpers';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -70,8 +72,7 @@ export default function ExpenseTracker() {
   const [receiptError, setReceiptError] = useState('');
   const fileInputRef = useRef(null);
 
-  const { data: expensesResponse, isLoading, error } = useExpenses(1, 1000, { userId: user?.id });
-  const expenses = useMemo(() => expensesResponse?.data || [], [expensesResponse?.data]);
+  const { data: expenses = [], isLoading, error } = useAllExpenses({ userId: user?.id });
   const createExpenseMutation = useCreateExpense();
   const updateExpenseMutation = useUpdateExpense();
   const deleteExpenseMutation = useDeleteExpense();
@@ -81,9 +82,20 @@ export default function ExpenseTracker() {
     [expenses, period]
   );
 
+  const fixBillingPeriod = searchParams.get('fixBillingPeriod') === '1';
+
+  const scopeExpenses = useMemo(() => {
+    if (!fixBillingPeriod) return periodFiltered;
+    return periodFiltered.filter((expense) => {
+      const amount = getExpenseAmount(expense);
+      if (!amount || amount <= 0) return false;
+      return !getBillingPeriodMonthKey(expense);
+    });
+  }, [periodFiltered, fixBillingPeriod]);
+
   const filteredExpenses = useMemo(
-    () => filterExpenses(periodFiltered, filters),
-    [periodFiltered, filters]
+    () => filterExpenses(scopeExpenses, filters),
+    [scopeExpenses, filters]
   );
 
   const sortedExpenses = useMemo(
@@ -109,6 +121,13 @@ export default function ExpenseTracker() {
     setFilters((prev) => ({ ...prev, search: q }));
     setShowFilters(true);
     setActiveTab('expenses');
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get('fixBillingPeriod') !== '1') return;
+    setActiveTab('expenses');
+    setPeriod('all');
+    setShowFilters(false);
   }, [searchParams]);
 
   useEffect(() => {
@@ -420,6 +439,25 @@ export default function ExpenseTracker() {
             ))}
           </div>
         </div>
+
+        {fixBillingPeriod && (
+          <div className="mb-6 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                Showing {filteredExpenses.length} expense{filteredExpenses.length === 1 ? '' : 's'} missing a valid billing period
+              </p>
+              <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-0.5">
+                Edit each record and set billing period (e.g. Jan 2026) to include it in the monthly trend chart.
+              </p>
+            </div>
+            <Link
+              to="/expenses"
+              className="text-xs font-medium text-amber-800 dark:text-amber-200 hover:underline shrink-0"
+            >
+              Show all expenses
+            </Link>
+          </div>
+        )}
 
         {/* Stats — visible on all tabs */}
         <div className="mb-6">
