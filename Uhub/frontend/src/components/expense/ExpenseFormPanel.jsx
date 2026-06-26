@@ -19,7 +19,10 @@ import { DEPARTMENTS, getDepartmentLabel } from '../../config/departments';
 import { STATUS_OPTIONS, formatCurrency } from '../../utils/expenseHelpers';
 
 const inputClass =
-  'px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700/80 dark:text-white w-full transition-shadow';
+  'px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700/80 dark:text-white w-full min-w-0 transition-shadow';
+
+const inputClassInline =
+  'px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700/80 dark:text-white min-w-0 flex-1 transition-shadow';
 
 const labelClass = 'text-sm font-medium text-gray-700 dark:text-gray-300';
 const hintClass = 'text-xs text-gray-500 dark:text-gray-400';
@@ -55,14 +58,14 @@ function FormSection({ icon: Icon, title, subtitle, children }) {
           {subtitle && <p className={hintClass}>{subtitle}</p>}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">{children}</div>
     </section>
   );
 }
 
 function Field({ label, required, hint, children, className = '' }) {
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-1.5 min-w-0 ${className}`}>
       <label className={labelClass}>
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
@@ -255,43 +258,45 @@ export default function ExpenseFormPanel({
                 />
               </Field>
 
-              <Field label="Amount" required>
-                <div className="flex gap-2">
-                  <select
-                    value={form.currency}
-                    onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                    className={`${inputClass} w-24 shrink-0`}
-                    aria-label="Currency"
-                  >
-                    <option value="AED">AED</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                  </select>
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Amount" required>
+                  <div className="flex gap-2 min-w-0">
+                    <select
+                      value={form.currency}
+                      onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                      className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700/80 dark:text-white w-[5.5rem] shrink-0 transition-shadow"
+                      aria-label="Currency"
+                    >
+                      <option value="AED">AED</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={form.amount_aed}
+                      onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
+                      required
+                      min="0"
+                      step="0.01"
+                      className={inputClassInline}
+                    />
+                  </div>
+                </Field>
+
+                <Field
+                  label="Billing period"
+                  hint="Which month or period this expense covers"
+                >
                   <input
-                    type="number"
-                    placeholder="0.00"
-                    value={form.amount_aed}
-                    onChange={(e) => setForm({ ...form, amount_aed: e.target.value })}
-                    required
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    placeholder="e.g. Jan 2025"
+                    value={form.months}
+                    onChange={(e) => setForm({ ...form, months: e.target.value })}
                     className={inputClass}
                   />
-                </div>
-              </Field>
-
-              <Field
-                label="Billing period"
-                hint="Which month or period this expense covers"
-              >
-                <input
-                  type="text"
-                  placeholder="e.g. Jan 2025"
-                  value={form.months}
-                  onChange={(e) => setForm({ ...form, months: e.target.value })}
-                  className={inputClass}
-                />
-              </Field>
+                </Field>
+              </div>
             </FormSection>
 
             <FormSection
