@@ -21,6 +21,7 @@ import {
   serviceInitial,
   isOverdue,
   editInputClass,
+  editSelectClass,
 } from './expenseDisplayUtils';
 
 function DetailRow({ icon: Icon, label, value, warn }) {
@@ -86,13 +87,13 @@ export default function ExpenseCardList({
                       type="number"
                       value={editForm.amount_aed}
                       onChange={(e) => setEditForm({ ...editForm, amount_aed: e.target.value })}
-                      className={editInputClass}
+                      className={`${editInputClass} min-w-0`}
                       placeholder="Amount"
                     />
                     <select
                       value={editForm.currency || 'AED'}
                       onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })}
-                      className={editInputClass}
+                      className={editSelectClass}
                     >
                       <option value="AED">AED</option>
                       <option value="USD">USD</option>
@@ -108,7 +109,7 @@ export default function ExpenseCardList({
                   <select
                     value={editForm.department || ''}
                     onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                    className={editInputClass}
+                    className={editSelectClass}
                   >
                     <option value="">Department</option>
                     {DEPARTMENTS.map((d) => (
@@ -118,7 +119,7 @@ export default function ExpenseCardList({
                   <select
                     value={editForm.service_status}
                     onChange={(e) => setEditForm({ ...editForm, service_status: e.target.value })}
-                    className={editInputClass}
+                    className={editSelectClass}
                   >
                     {STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>

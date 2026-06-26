@@ -3,8 +3,6 @@ import { motion } from 'framer-motion';
 import {
   Edit,
   Trash,
-  Save,
-  X,
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
@@ -20,9 +18,9 @@ import {
   Columns3,
   RotateCcw,
 } from 'lucide-react';
-import { DEPARTMENTS } from '../../config/departments';
-import { formatCurrency, STATUS_OPTIONS, PAGE_SIZE_OPTIONS, getExpenseAmount } from '../../utils/expenseHelpers';
+import { formatCurrency, PAGE_SIZE_OPTIONS, getExpenseAmount } from '../../utils/expenseHelpers';
 import ExpenseCardList from './ExpenseCardList';
+import ExpenseInlineEditRow from './ExpenseInlineEditRow';
 import {
   COLUMN_DEFS,
   StatusBadge,
@@ -31,7 +29,6 @@ import {
   formatServiceName,
   serviceInitial,
   isOverdue,
-  editInputClass,
   loadColumnVisibility,
   saveColumnVisibility,
   loadViewMode,
@@ -197,26 +194,10 @@ export default function ExpenseTable({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showColumnMenu]);
 
-  const renderCell = (colKey, expense, isEditing, rowIndex, overdue) => {
+  const renderCell = (colKey, expense, overdue) => {
     switch (colKey) {
       case 'service_name':
-        return isEditing ? (
-          <div className="space-y-2 min-w-[200px]">
-            <input
-              type="text"
-              value={editForm.service_name}
-              onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
-              className={editInputClass}
-            />
-            <textarea
-              rows={2}
-              placeholder="Notes (optional)"
-              value={editForm.notes || ''}
-              onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-              className={`${editInputClass} resize-y text-xs`}
-            />
-          </div>
-        ) : (
+        return (
           <div className="flex items-start gap-3 min-w-[180px] max-w-[240px]">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-200 shrink-0 shadow-sm">
               {serviceInitial(expense.service_name)}
@@ -249,40 +230,17 @@ export default function ExpenseTable({
         );
 
       case 'invoice_number':
-        return isEditing ? (
-          <input
-            type="text"
-            value={editForm.invoice_number || ''}
-            onChange={(e) => setEditForm({ ...editForm, invoice_number: e.target.value })}
-            className={editInputClass}
-          />
-        ) : (
+        return (
           <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700/80 text-gray-700 dark:text-gray-300 px-2.5 py-1 rounded-lg border border-gray-200/80 dark:border-gray-600">
             {expense.invoice_number || '—'}
           </span>
         );
 
       case 'invoice_generation_date':
-        return isEditing ? (
-          <input
-            type="date"
-            value={editForm.invoice_generation_date || ''}
-            onChange={(e) => setEditForm({ ...editForm, invoice_generation_date: e.target.value })}
-            className={editInputClass}
-          />
-        ) : (
-          formatDate(expense.invoice_generation_date)
-        );
+        return formatDate(expense.invoice_generation_date);
 
       case 'invoice_due_date':
-        return isEditing ? (
-          <input
-            type="date"
-            value={editForm.invoice_due_date || ''}
-            onChange={(e) => setEditForm({ ...editForm, invoice_due_date: e.target.value })}
-            className={editInputClass}
-          />
-        ) : (
+        return (
           <span className={`inline-flex items-center gap-1 ${overdue ? 'text-red-600 dark:text-red-400 font-medium' : ''}`}>
             {overdue && <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
             {formatDate(expense.invoice_due_date)}
@@ -290,72 +248,20 @@ export default function ExpenseTable({
         );
 
       case 'amount_aed':
-        return isEditing ? (
-          <div className="flex gap-1 justify-end">
-            <input
-              type="number"
-              value={editForm.amount_aed}
-              onChange={(e) => setEditForm({ ...editForm, amount_aed: e.target.value })}
-              className={`${editInputClass} w-24`}
-            />
-            <select
-              value={editForm.currency || 'AED'}
-              onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })}
-              className={`${editInputClass} w-20`}
-            >
-              <option value="AED">AED</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
-          </div>
-        ) : (
+        return (
           <span className="font-bold text-gray-900 dark:text-white tabular-nums">
             {formatCurrency(expense.amount_aed, expense.currency || 'AED')}
           </span>
         );
 
       case 'date_paid':
-        return isEditing ? (
-          <input
-            type="date"
-            value={editForm.date_paid}
-            onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
-            className={editInputClass}
-          />
-        ) : (
-          formatDate(expense.date_paid)
-        );
+        return formatDate(expense.date_paid);
 
       case 'department':
-        return isEditing ? (
-          <select
-            value={editForm.department || ''}
-            onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-            className={editInputClass}
-          >
-            <option value="">Select department</option>
-            {DEPARTMENTS.map((dept) => (
-              <option key={dept.value} value={dept.value}>{dept.label}</option>
-            ))}
-          </select>
-        ) : (
-          <DepartmentBadge department={expense.department} />
-        );
+        return <DepartmentBadge department={expense.department} />;
 
       case 'service_status':
-        return isEditing ? (
-          <select
-            value={editForm.service_status}
-            onChange={(e) => setEditForm({ ...editForm, service_status: e.target.value })}
-            className={editInputClass}
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        ) : (
-          <StatusBadge status={expense.service_status} />
-        );
+        return <StatusBadge status={expense.service_status} />;
 
       default:
         return null;
@@ -558,6 +464,21 @@ export default function ExpenseTable({
                 const isEditing = editingId === expense.id;
                 const overdue = isOverdue(expense.invoice_due_date, expense.service_status);
 
+                if (isEditing) {
+                  return (
+                    <ExpenseInlineEditRow
+                      key={expense.id}
+                      expense={expense}
+                      editForm={editForm}
+                      setEditForm={setEditForm}
+                      colSpan={visibleColumnDefs.length + 1}
+                      rowIndex={rowIndex}
+                      onSaveEdit={onSaveEdit}
+                      onCancelEdit={onCancelEdit}
+                    />
+                  );
+                }
+
                 return (
                   <motion.tr
                     key={expense.id}
@@ -565,11 +486,9 @@ export default function ExpenseTable({
                     animate={{ opacity: 1 }}
                     transition={{ delay: rowIndex * 0.015 }}
                     className={`group transition-colors ${
-                      isEditing
-                        ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200 dark:ring-emerald-800'
-                        : rowIndex % 2 === 0
-                          ? 'bg-white dark:bg-gray-800 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
-                          : 'bg-gray-50/40 dark:bg-gray-800/60 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
+                      rowIndex % 2 === 0
+                        ? 'bg-white dark:bg-gray-800 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
+                        : 'bg-gray-50/40 dark:bg-gray-800/60 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
                     }`}
                   >
                     {visibleColumnDefs.map((col) => (
@@ -579,34 +498,21 @@ export default function ExpenseTable({
                           col.align === 'right' ? 'text-right' : ''
                         } ${
                           col.key === 'service_name'
-                            ? `sticky left-0 z-10 ${stickyBg(isEditing, rowIndex, true)} group-hover:bg-emerald-50/30 dark:group-hover:bg-gray-700/40`
+                            ? `sticky left-0 z-10 ${stickyBg(false, rowIndex, true)} group-hover:bg-emerald-50/30 dark:group-hover:bg-gray-700/40`
                             : ''
                         } ${col.key === 'amount_aed' ? 'text-gray-900 dark:text-white' : ''}`}
                       >
-                        {renderCell(col.key, expense, isEditing, rowIndex, overdue)}
+                        {renderCell(col.key, expense, overdue)}
                       </td>
                     ))}
                     <td className="px-4 py-3.5 text-sm">
                       <div className="flex items-center justify-end gap-1">
-                        {isEditing ? (
-                          <>
-                            <button type="button" onClick={onSaveEdit} className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Save">
-                              <Save className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={onCancelEdit} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700" title="Cancel">
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button type="button" onClick={() => onStartEdit(expense)} className="p-2 rounded-lg text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 opacity-80 group-hover:opacity-100" title="Edit">
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button type="button" onClick={() => onDelete(expense.id)} className="p-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 opacity-80 group-hover:opacity-100" title="Delete">
-                              <Trash className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
+                        <button type="button" onClick={() => onStartEdit(expense)} className="p-2 rounded-lg text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 opacity-80 group-hover:opacity-100" title="Edit">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button type="button" onClick={() => onDelete(expense.id)} className="p-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 opacity-80 group-hover:opacity-100" title="Delete">
+                          <Trash className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </motion.tr>

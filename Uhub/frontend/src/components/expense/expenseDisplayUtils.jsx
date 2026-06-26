@@ -29,7 +29,10 @@ export const DEPT_BADGE_STYLES = {
 };
 
 export const editInputClass =
-  'w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm';
+  'w-full min-w-0 box-border px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm';
+
+export const editSelectClass =
+  'w-full min-w-0 box-border px-2.5 py-1.5 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm';
 
 export function getDefaultColumnVisibility() {
   return COLUMN_DEFS.reduce((acc, col) => {
