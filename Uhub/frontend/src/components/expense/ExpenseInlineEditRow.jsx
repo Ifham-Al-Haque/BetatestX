@@ -11,7 +11,7 @@ import {
 
 function EditField({ label, children, className = '' }) {
   return (
-    <div className={className}>
+    <div className={`min-w-0 ${className}`}>
       <label className="block text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
         {label}
       </label>
@@ -36,8 +36,9 @@ export default function ExpenseInlineEditRow({
       transition={{ delay: rowIndex * 0.015 }}
       className="bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200 dark:ring-emerald-800"
     >
-      <td colSpan={colSpan} className="p-4">
-        <div className="flex items-start gap-3 mb-4">
+      <td colSpan={colSpan} className="p-0 w-full">
+        <div className="p-4 min-w-0 w-full max-w-full box-border">
+        <div className="flex items-start gap-3 mb-4 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-200 shrink-0">
             {serviceInitial(editForm.service_name || expense.service_name)}
           </div>
@@ -51,111 +52,117 @@ export default function ExpenseInlineEditRow({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <EditField label="Service name" className="sm:col-span-2 lg:col-span-2">
-            <input
-              type="text"
-              value={editForm.service_name}
-              onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
-              className={editInputClass}
-            />
-          </EditField>
-
-          <EditField label="Amount">
-            <div className="flex gap-2 min-w-0">
-              <select
-                value={editForm.currency || 'AED'}
-                onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })}
-                className={`${editSelectClass} w-[5.5rem] shrink-0`}
-                aria-label="Currency"
-              >
-                <option value="AED">AED</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
+        <div className="space-y-3 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+            <EditField label="Service name">
               <input
-                type="number"
-                value={editForm.amount_aed}
-                onChange={(e) => setEditForm({ ...editForm, amount_aed: e.target.value })}
-                min="0"
-                step="0.01"
-                className={`${editInputClass} flex-1 min-w-0`}
+                type="text"
+                value={editForm.service_name}
+                onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
+                className={editInputClass}
               />
-            </div>
-          </EditField>
+            </EditField>
 
-          <EditField label="Billing period">
-            <input
-              type="text"
-              placeholder="e.g. Jan 2026"
-              value={editForm.months || ''}
-              onChange={(e) => setEditForm({ ...editForm, months: e.target.value })}
-              className={editInputClass}
-            />
-          </EditField>
+            <EditField label="Amount">
+              <div className="flex gap-2 min-w-0">
+                <select
+                  value={editForm.currency || 'AED'}
+                  onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })}
+                  className={`${editSelectClass} w-[5.5rem] shrink-0`}
+                  aria-label="Currency"
+                >
+                  <option value="AED">AED</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+                <input
+                  type="number"
+                  value={editForm.amount_aed}
+                  onChange={(e) => setEditForm({ ...editForm, amount_aed: e.target.value })}
+                  min="0"
+                  step="0.01"
+                  className={`${editInputClass} flex-1 min-w-0`}
+                />
+              </div>
+            </EditField>
 
-          <EditField label="Date paid">
-            <input
-              type="date"
-              value={editForm.date_paid || ''}
-              onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
-              className={editInputClass}
-            />
-          </EditField>
+            <EditField label="Billing period" className="sm:col-span-2 lg:col-span-1">
+              <input
+                type="text"
+                placeholder="e.g. Jan 2026"
+                value={editForm.months || ''}
+                onChange={(e) => setEditForm({ ...editForm, months: e.target.value })}
+                className={editInputClass}
+              />
+            </EditField>
+          </div>
 
-          <EditField label="Invoice #">
-            <input
-              type="text"
-              value={editForm.invoice_number || ''}
-              onChange={(e) => setEditForm({ ...editForm, invoice_number: e.target.value })}
-              className={editInputClass}
-            />
-          </EditField>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+            <EditField label="Date paid">
+              <input
+                type="date"
+                value={editForm.date_paid || ''}
+                onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
+                className={editInputClass}
+              />
+            </EditField>
 
-          <EditField label="Gen. date">
-            <input
-              type="date"
-              value={editForm.invoice_generation_date || ''}
-              onChange={(e) => setEditForm({ ...editForm, invoice_generation_date: e.target.value })}
-              className={editInputClass}
-            />
-          </EditField>
+            <EditField label="Invoice #">
+              <input
+                type="text"
+                value={editForm.invoice_number || ''}
+                onChange={(e) => setEditForm({ ...editForm, invoice_number: e.target.value })}
+                className={editInputClass}
+              />
+            </EditField>
 
-          <EditField label="Due date">
-            <input
-              type="date"
-              value={editForm.invoice_due_date || ''}
-              onChange={(e) => setEditForm({ ...editForm, invoice_due_date: e.target.value })}
-              className={editInputClass}
-            />
-          </EditField>
+            <EditField label="Gen. date">
+              <input
+                type="date"
+                value={editForm.invoice_generation_date || ''}
+                onChange={(e) => setEditForm({ ...editForm, invoice_generation_date: e.target.value })}
+                className={editInputClass}
+              />
+            </EditField>
 
-          <EditField label="Department">
-            <select
-              value={editForm.department || ''}
-              onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-              className={editSelectClass}
-            >
-              <option value="">Select department</option>
-              {DEPARTMENTS.map((dept) => (
-                <option key={dept.value} value={dept.value}>{dept.label}</option>
-              ))}
-            </select>
-          </EditField>
+            <EditField label="Due date">
+              <input
+                type="date"
+                value={editForm.invoice_due_date || ''}
+                onChange={(e) => setEditForm({ ...editForm, invoice_due_date: e.target.value })}
+                className={editInputClass}
+              />
+            </EditField>
+          </div>
 
-          <EditField label="Status">
-            <select
-              value={editForm.service_status}
-              onChange={(e) => setEditForm({ ...editForm, service_status: e.target.value })}
-              className={editSelectClass}
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </EditField>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+            <EditField label="Department">
+              <select
+                value={editForm.department || ''}
+                onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                className={editSelectClass}
+              >
+                <option value="">Select department</option>
+                {DEPARTMENTS.map((dept) => (
+                  <option key={dept.value} value={dept.value}>{dept.label}</option>
+                ))}
+              </select>
+            </EditField>
 
-          <EditField label="Notes (optional)" className="sm:col-span-2 lg:col-span-4">
+            <EditField label="Status">
+              <select
+                value={editForm.service_status}
+                onChange={(e) => setEditForm({ ...editForm, service_status: e.target.value })}
+                className={editSelectClass}
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </EditField>
+          </div>
+
+          <EditField label="Notes (optional)">
             <textarea
               rows={2}
               placeholder="Optional notes"
@@ -183,6 +190,7 @@ export default function ExpenseInlineEditRow({
             <Save className="w-4 h-4" />
             Save changes
           </button>
+        </div>
         </div>
       </td>
     </motion.tr>
