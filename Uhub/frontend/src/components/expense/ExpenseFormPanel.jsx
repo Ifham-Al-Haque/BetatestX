@@ -14,9 +14,16 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Layers3,
 } from 'lucide-react';
 import { DEPARTMENTS, getDepartmentLabel } from '../../config/departments';
-import { STATUS_OPTIONS, formatCurrency } from '../../utils/expenseHelpers';
+import {
+  STATUS_OPTIONS,
+  formatCurrency,
+  getBreakdownRemaining,
+  getBreakdownTotal,
+} from '../../utils/expenseHelpers';
+import ExpenseBreakdownEditor from './ExpenseBreakdownEditor';
 
 const inputClass =
   'px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-gray-700/80 dark:text-white w-full min-w-0 transition-shadow';
@@ -87,6 +94,9 @@ function ExpensePreview({ form, receiptFile }) {
   };
 
   const statusStyle = STATUS_STYLES[form.service_status]?.idle || STATUS_STYLES.inactive.idle;
+  const breakdowns = form.breakdowns || [];
+  const breakdownTotal = getBreakdownTotal(breakdowns);
+  const remaining = getBreakdownRemaining(form.amount_aed, breakdowns);
 
   return (
     <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-emerald-950/40 dark:via-gray-800 dark:to-teal-950/30 p-5 shadow-sm">
@@ -138,6 +148,45 @@ function ExpensePreview({ form, receiptFile }) {
           </div>
         )}
 
+        {breakdowns.length > 0 && (
+          <div className="pt-3 border-t border-emerald-200/60 dark:border-emerald-900/40">
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-2">
+              <Layers3 className="w-3 h-3" /> Spending breakdown
+            </p>
+            <div className="space-y-1.5">
+              {breakdowns.slice(0, 3).map((item, index) => (
+                <div key={item.id || item._key || index} className="flex justify-between gap-3 text-xs">
+                  <span className="text-gray-600 dark:text-gray-400 truncate">
+                    {item.label || `Item ${index + 1}`}
+                  </span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 tabular-nums shrink-0">
+                    {formatCurrency(item.amount, form.currency)}
+                  </span>
+                </div>
+              ))}
+              {breakdowns.length > 3 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  +{breakdowns.length - 3} more item(s)
+                </p>
+              )}
+              {remaining > 0 && (
+                <div className="flex justify-between gap-3 text-xs pt-1 border-t border-emerald-200/50 dark:border-emerald-900/30">
+                  <span className="text-gray-500 dark:text-gray-400">Unallocated</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300 tabular-nums">
+                    {formatCurrency(remaining, form.currency)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between gap-3 text-xs font-semibold pt-1">
+                <span className="text-gray-700 dark:text-gray-300">Breakdown total</span>
+                <span className="text-emerald-700 dark:text-emerald-300 tabular-nums">
+                  {formatCurrency(breakdownTotal, form.currency)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {form.notes?.trim() && (
           <div className="pt-3 border-t border-emerald-200/60 dark:border-emerald-900/40">
             <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -175,6 +224,7 @@ export default function ExpenseFormPanel({
   receiptError,
 }) {
   const [showOptional, setShowOptional] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const receiptInputRef = useRef(null);
   const completion = useMemo(() => {
     let done = 0;
@@ -384,6 +434,53 @@ export default function ExpenseFormPanel({
                 </div>
               </Field>
             </FormSection>
+
+            {/* Optional manually-entered spending breakdown */}
+            <section className="rounded-2xl border border-dashed border-emerald-300 dark:border-emerald-800 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowBreakdown((value) => !value)}
+                className="w-full px-5 py-4 flex items-center justify-between text-left bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-xl bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800">
+                    <Layers3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
+                      Spending breakdown
+                      <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                        (optional)
+                      </span>
+                      {(form.breakdowns || []).length > 0 && (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                          {form.breakdowns.length} item{form.breakdowns.length === 1 ? '' : 's'}
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Manually explain what makes up this service or platform total.
+                    </p>
+                  </div>
+                </div>
+                {showBreakdown ? (
+                  <ChevronUp className="w-5 h-5 text-gray-400 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />
+                )}
+              </button>
+
+              {showBreakdown && (
+                <div className="p-5 border-t border-emerald-200/70 dark:border-emerald-900/40 bg-white dark:bg-gray-800/50">
+                  <ExpenseBreakdownEditor
+                    expenseAmount={form.amount_aed}
+                    currency={form.currency}
+                    breakdowns={form.breakdowns || []}
+                    onChange={(breakdowns) => setForm({ ...form, breakdowns })}
+                  />
+                </div>
+              )}
+            </section>
 
             {/* Optional details — collapsed by default */}
             <section className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 overflow-hidden">

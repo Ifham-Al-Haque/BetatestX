@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Edit,
@@ -21,6 +21,7 @@ import {
 import { formatCurrency, PAGE_SIZE_OPTIONS, getExpenseAmount } from '../../utils/expenseHelpers';
 import ExpenseCardList from './ExpenseCardList';
 import ExpenseInlineEditRow from './ExpenseInlineEditRow';
+import ExpenseBreakdownView from './ExpenseBreakdownView';
 import {
   COLUMN_DEFS,
   StatusBadge,
@@ -141,6 +142,7 @@ export default function ExpenseTable({
   const [viewMode, setViewMode] = useState(loadViewMode);
   const [visibleColumns, setVisibleColumns] = useState(loadColumnVisibility);
   const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const [expandedExpenseIds, setExpandedExpenseIds] = useState(() => new Set());
   const columnMenuRef = useRef(null);
 
   const visibleColumnDefs = useMemo(
@@ -184,6 +186,15 @@ export default function ExpenseTable({
     saveColumnVisibility(defaults);
   }, []);
 
+  const toggleBreakdown = useCallback((expenseId) => {
+    setExpandedExpenseIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(expenseId)) next.delete(expenseId);
+      else next.add(expenseId);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
@@ -196,9 +207,25 @@ export default function ExpenseTable({
 
   const renderCell = (colKey, expense, overdue) => {
     switch (colKey) {
-      case 'service_name':
+      case 'service_name': {
+        const hasBreakdown = (expense.breakdowns || []).length > 0;
+        const isExpanded = expandedExpenseIds.has(expense.id);
         return (
           <div className="flex items-start gap-3 min-w-[180px] max-w-[240px]">
+            {hasBreakdown && (
+              <button
+                type="button"
+                onClick={() => toggleBreakdown(expense.id)}
+                className="mt-1 p-1 rounded-lg text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors shrink-0"
+                aria-expanded={isExpanded}
+                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${expense.service_name} breakdown`}
+                title={`${isExpanded ? 'Collapse' : 'Show'} spending breakdown`}
+              >
+                {isExpanded
+                  ? <ChevronDown className="w-4 h-4" />
+                  : <ChevronRight className="w-4 h-4" />}
+              </button>
+            )}
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-200 shrink-0 shadow-sm">
               {serviceInitial(expense.service_name)}
             </div>
@@ -228,6 +255,7 @@ export default function ExpenseTable({
             </div>
           </div>
         );
+      }
 
       case 'invoice_number':
         return (
@@ -425,6 +453,8 @@ export default function ExpenseTable({
           onCancelEdit={onCancelEdit}
           onDelete={onDelete}
           visibleColumns={visibleColumns}
+          expandedExpenseIds={expandedExpenseIds}
+          onToggleBreakdown={toggleBreakdown}
         />
       ) : (
         <div className="overflow-x-auto">
@@ -480,42 +510,50 @@ export default function ExpenseTable({
                 }
 
                 return (
-                  <motion.tr
-                    key={expense.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: rowIndex * 0.015 }}
-                    className={`group transition-colors ${
-                      rowIndex % 2 === 0
-                        ? 'bg-white dark:bg-gray-800 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
-                        : 'bg-gray-50/40 dark:bg-gray-800/60 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
-                    }`}
-                  >
-                    {visibleColumnDefs.map((col) => (
-                      <td
-                        key={col.key}
-                        className={`px-4 py-3.5 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap ${
-                          col.align === 'right' ? 'text-right' : ''
-                        } ${
-                          col.key === 'service_name'
-                            ? `sticky left-0 z-10 ${stickyBg(false, rowIndex, true)} group-hover:bg-emerald-50/30 dark:group-hover:bg-gray-700/40`
-                            : ''
-                        } ${col.key === 'amount_aed' ? 'text-gray-900 dark:text-white' : ''}`}
-                      >
-                        {renderCell(col.key, expense, overdue)}
+                  <Fragment key={expense.id}>
+                    <motion.tr
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: rowIndex * 0.015 }}
+                      className={`group transition-colors ${
+                        rowIndex % 2 === 0
+                          ? 'bg-white dark:bg-gray-800 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
+                          : 'bg-gray-50/40 dark:bg-gray-800/60 hover:bg-emerald-50/30 dark:hover:bg-gray-700/40'
+                      }`}
+                    >
+                      {visibleColumnDefs.map((col) => (
+                        <td
+                          key={col.key}
+                          className={`px-4 py-3.5 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap ${
+                            col.align === 'right' ? 'text-right' : ''
+                          } ${
+                            col.key === 'service_name'
+                              ? `sticky left-0 z-10 ${stickyBg(false, rowIndex, true)} group-hover:bg-emerald-50/30 dark:group-hover:bg-gray-700/40`
+                              : ''
+                          } ${col.key === 'amount_aed' ? 'text-gray-900 dark:text-white' : ''}`}
+                        >
+                          {renderCell(col.key, expense, overdue)}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3.5 text-sm">
+                        <div className="flex items-center justify-end gap-1">
+                          <button type="button" onClick={() => onStartEdit(expense)} className="p-2 rounded-lg text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 opacity-80 group-hover:opacity-100" title="Edit">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button type="button" onClick={() => onDelete(expense.id)} className="p-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 opacity-80 group-hover:opacity-100" title="Delete">
+                            <Trash className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
-                    ))}
-                    <td className="px-4 py-3.5 text-sm">
-                      <div className="flex items-center justify-end gap-1">
-                        <button type="button" onClick={() => onStartEdit(expense)} className="p-2 rounded-lg text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 opacity-80 group-hover:opacity-100" title="Edit">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button type="button" onClick={() => onDelete(expense.id)} className="p-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 opacity-80 group-hover:opacity-100" title="Delete">
-                          <Trash className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
+                    </motion.tr>
+                    {expandedExpenseIds.has(expense.id) && expense.breakdowns?.length > 0 && (
+                      <tr className="bg-emerald-50/30 dark:bg-emerald-950/10">
+                        <td colSpan={visibleColumnDefs.length + 1} className="px-5 py-4">
+                          <ExpenseBreakdownView expense={expense} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

@@ -17,6 +17,33 @@ export const STATUS_OPTIONS = [
 export const getExpenseAmount = (expense) =>
   parseFloat(expense.amount_aed || expense.amount || 0);
 
+export const getBreakdownTotal = (breakdowns = []) =>
+  breakdowns.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+export const getBreakdownRemaining = (expenseAmount, breakdowns = []) =>
+  Math.round(((parseFloat(expenseAmount) || 0) - getBreakdownTotal(breakdowns)) * 100) / 100;
+
+export const validateExpenseBreakdowns = (expenseAmount, breakdowns = []) => {
+  const populated = breakdowns.filter(
+    (item) => String(item.label || '').trim() || String(item.amount ?? '').trim()
+  );
+
+  for (const item of populated) {
+    if (!String(item.label || '').trim()) {
+      return 'Each breakdown item needs a name.';
+    }
+    if (!Number.isFinite(Number(item.amount)) || Number(item.amount) <= 0) {
+      return `Enter a valid amount for "${item.label}".`;
+    }
+  }
+
+  if (getBreakdownRemaining(expenseAmount, populated) < 0) {
+    return 'Breakdown items cannot exceed the total expense amount.';
+  }
+
+  return null;
+};
+
 export const formatCurrency = (amount, currency = 'AED') => {
   const value = Number(amount) || 0;
   return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -57,7 +84,12 @@ export const filterExpenses = (expenses, filters) => {
         expense.department?.toLowerCase().includes(searchTerm) ||
         expense.invoice_number?.toLowerCase().includes(searchTerm) ||
         expense.months?.toLowerCase().includes(searchTerm) ||
-        expense.notes?.toLowerCase().includes(searchTerm);
+        expense.notes?.toLowerCase().includes(searchTerm) ||
+        expense.breakdowns?.some(
+          (item) =>
+            item.label?.toLowerCase().includes(searchTerm) ||
+            item.notes?.toLowerCase().includes(searchTerm)
+        );
       if (!matchesSearch) return false;
     }
 
@@ -125,6 +157,9 @@ export const exportExpensesCsv = (expenses) => {
     'Status',
     'Months',
     'Notes',
+    'Breakdown',
+    'Breakdown Total',
+    'Unallocated',
   ];
 
   const rows = expenses.map((e) => [
@@ -139,6 +174,13 @@ export const exportExpensesCsv = (expenses) => {
     e.service_status || '',
     e.months || '',
     e.notes || '',
+    (e.breakdowns || [])
+      .map((item) => `${item.label}: ${item.amount}`)
+      .join('; '),
+    getBreakdownTotal(e.breakdowns || []),
+    (e.breakdowns || []).length
+      ? Math.max(0, getBreakdownRemaining(getExpenseAmount(e), e.breakdowns))
+      : '',
   ]);
 
   const csv = [headers, ...rows]
@@ -166,6 +208,7 @@ export const EMPTY_EXPENSE_FORM = {
   invoice_generation_date: '',
   invoice_due_date: '',
   notes: '',
+  breakdowns: [],
 };
 
 export const getDefaultExpenseForm = () => ({

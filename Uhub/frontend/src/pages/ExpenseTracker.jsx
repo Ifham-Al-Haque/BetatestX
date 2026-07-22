@@ -17,6 +17,7 @@ import {
   PERIOD_OPTIONS,
   STATUS_OPTIONS,
   getExpenseAmount,
+  validateExpenseBreakdowns,
 } from '../utils/expenseHelpers';
 import { getBillingPeriodMonthKey } from '../utils/analyticsHelpers';
 
@@ -155,6 +156,11 @@ export default function ExpenseTracker() {
       showError('Error', 'User not logged in');
       return;
     }
+    const breakdownError = validateExpenseBreakdowns(form.amount_aed, form.breakdowns);
+    if (breakdownError) {
+      showError('Spending breakdown', breakdownError);
+      return;
+    }
     if (receiptFile) {
       const fileError = validateExpenseReceiptFile(receiptFile);
       if (fileError) {
@@ -210,6 +216,15 @@ export default function ExpenseTracker() {
       return;
     }
 
+    const breakdownError = validateExpenseBreakdowns(
+      editForm.amount_aed,
+      editForm.breakdowns
+    );
+    if (breakdownError) {
+      showError('Spending breakdown', breakdownError);
+      return;
+    }
+
     try {
       await updateExpenseMutation.mutateAsync({
         id: editingId,
@@ -225,6 +240,7 @@ export default function ExpenseTracker() {
           invoice_generation_date: editForm.invoice_generation_date,
           invoice_due_date: editForm.invoice_due_date,
           notes: editForm.notes?.trim() || null,
+          breakdowns: editForm.breakdowns || [],
         },
       });
       cancelEdit();

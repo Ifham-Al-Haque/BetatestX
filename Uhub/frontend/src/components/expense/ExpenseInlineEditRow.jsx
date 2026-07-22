@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Save, X } from 'lucide-react';
+import { Save, X, Layers3 } from 'lucide-react';
 import { DEPARTMENTS } from '../../config/departments';
 import { STATUS_OPTIONS } from '../../utils/expenseHelpers';
 import {
@@ -8,6 +8,7 @@ import {
   formatServiceName,
   serviceInitial,
 } from './expenseDisplayUtils';
+import ExpenseBreakdownEditor from './ExpenseBreakdownEditor';
 
 function EditField({ label, children, className = '' }) {
   return (
@@ -171,6 +172,28 @@ export default function ExpenseInlineEditRow({
               className={`${editInputClass} resize-y text-xs`}
             />
           </EditField>
+
+          <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white/70 dark:bg-gray-800/50 p-4">
+            <div className="mb-3">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <Layers3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Spending breakdown
+                <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                  (optional)
+                </span>
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Add, update, or remove the manually entered items for this expense.
+              </p>
+            </div>
+            <ExpenseBreakdownEditor
+              expenseAmount={editForm.amount_aed}
+              currency={editForm.currency || 'AED'}
+              breakdowns={editForm.breakdowns || []}
+              onChange={(breakdowns) => setEditForm({ ...editForm, breakdowns })}
+              compact
+            />
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-emerald-200/80 dark:border-emerald-800/60">

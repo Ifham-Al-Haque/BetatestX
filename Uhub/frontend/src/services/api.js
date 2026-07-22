@@ -1,5 +1,96 @@
 import { supabase } from '../supabaseClient';
 
+const isMissingExpenseBreakdownsTable = (error) =>
+  error?.code === '42P01' ||
+  error?.code === 'PGRST205' ||
+  /expense_breakdowns.*(?:does not exist|schema cache|could not find)/i.test(error?.message || '');
+
+const normalizeExpenseBreakdowns = (expenseId, breakdowns = []) =>
+  breakdowns
+    .map((item, index) => ({
+      ...(item.id ? { id: item.id } : {}),
+      expense_id: expenseId,
+      label: String(item.label || '').trim(),
+      amount: Number(item.amount),
+      notes: String(item.notes || '').trim() || null,
+      sort_order: index,
+      updated_at: new Date().toISOString(),
+    }))
+    .filter((item) => item.label && Number.isFinite(item.amount) && item.amount > 0);
+
+const fetchExpenseBreakdowns = async (expenseIds = []) => {
+  if (!expenseIds.length) return new Map();
+
+  const grouped = new Map();
+  const batchSize = 100;
+
+  for (let start = 0; start < expenseIds.length; start += batchSize) {
+    const ids = expenseIds.slice(start, start + batchSize);
+    const { data, error } = await supabase
+      .from('expense_breakdowns')
+      .select('id, expense_id, label, amount, notes, sort_order, created_at, updated_at')
+      .in('expense_id', ids)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      // Keep the existing Expense Tracker usable until the optional schema is installed.
+      if (isMissingExpenseBreakdownsTable(error)) return new Map();
+      throw error;
+    }
+
+    (data || []).forEach((item) => {
+      const list = grouped.get(item.expense_id) || [];
+      list.push(item);
+      grouped.set(item.expense_id, list);
+    });
+  }
+
+  return grouped;
+};
+
+const saveExpenseBreakdowns = async (expenseId, breakdowns) => {
+  if (!Array.isArray(breakdowns)) return null;
+
+  const normalized = normalizeExpenseBreakdowns(expenseId, breakdowns);
+  const retainedIds = normalized.filter((item) => item.id).map((item) => item.id);
+  const existingRows = normalized.filter((item) => item.id);
+  const newRows = normalized.filter((item) => !item.id);
+
+  const { data: previousRows, error: previousError } = await supabase
+    .from('expense_breakdowns')
+    .select('id')
+    .eq('expense_id', expenseId);
+  if (previousError) throw previousError;
+
+  if (existingRows.length) {
+    const { error } = await supabase
+      .from('expense_breakdowns')
+      .upsert(existingRows, { onConflict: 'id' });
+    if (error) throw error;
+  }
+
+  if (newRows.length) {
+    const { error } = await supabase.from('expense_breakdowns').insert(newRows);
+    if (error) throw error;
+  }
+
+  const staleIds = (previousRows || [])
+    .map((row) => row.id)
+    .filter((id) => !retainedIds.includes(id));
+
+  if (staleIds.length) {
+    const { error } = await supabase
+      .from('expense_breakdowns')
+      .delete()
+      .eq('expense_id', expenseId)
+      .in('id', staleIds);
+    if (error) throw error;
+  }
+
+  const grouped = await fetchExpenseBreakdowns([expenseId]);
+  return grouped.get(expenseId) || [];
+};
+
 // API Service Layer for centralized data fetching
 export const apiService = {
   // Employee APIs
@@ -413,8 +504,16 @@ export const apiService = {
       const { data, error, count } = await query.range(from, to);
       
       if (error) throw error;
-      
-      return { data, count };
+
+      const breakdownsByExpense = await fetchExpenseBreakdowns(
+        (data || []).map((expense) => expense.id)
+      );
+      const expensesWithBreakdowns = (data || []).map((expense) => ({
+        ...expense,
+        breakdowns: breakdownsByExpense.get(expense.id) || [],
+      }));
+
+      return { data: expensesWithBreakdowns, count };
     },
 
     getById: async (id) => {
@@ -645,26 +744,48 @@ export const apiService = {
     },
 
     create: async (expenseData) => {
+      const { breakdowns, ...parentExpense } = expenseData;
       const { data, error } = await supabase
         .from('expenses')
-        .insert(expenseData)
+        .insert(parentExpense)
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+
+      let savedBreakdowns = [];
+      if (Array.isArray(breakdowns) && breakdowns.length) {
+        try {
+          savedBreakdowns = await saveExpenseBreakdowns(data.id, breakdowns);
+        } catch (breakdownError) {
+          // Avoid leaving a parent record behind when its requested breakdown fails.
+          await supabase.from('expenses').delete().eq('id', data.id);
+          throw breakdownError;
+        }
+      }
+
+      return { ...data, breakdowns: savedBreakdowns };
     },
 
     update: async (id, expenseData) => {
+      const { breakdowns, ...parentExpense } = expenseData;
       const { data, error } = await supabase
         .from('expenses')
-        .update(expenseData)
+        .update(parentExpense)
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+
+      const savedBreakdowns = Array.isArray(breakdowns)
+        ? await saveExpenseBreakdowns(id, breakdowns)
+        : null;
+
+      return {
+        ...data,
+        breakdowns: savedBreakdowns ?? expenseData.breakdowns ?? [],
+      };
     },
 
     delete: async (id) => {

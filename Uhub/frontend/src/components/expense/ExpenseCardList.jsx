@@ -10,6 +10,9 @@ import {
   AlertCircle,
   Calendar,
   Hash,
+  Layers3,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { DEPARTMENTS } from '../../config/departments';
 import { formatCurrency, STATUS_OPTIONS } from '../../utils/expenseHelpers';
@@ -23,6 +26,8 @@ import {
   editInputClass,
   editSelectClass,
 } from './expenseDisplayUtils';
+import ExpenseBreakdownEditor from './ExpenseBreakdownEditor';
+import ExpenseBreakdownView from './ExpenseBreakdownView';
 
 function DetailRow({ icon: Icon, label, value, warn }) {
   if (!value || value === '—') return null;
@@ -49,6 +54,8 @@ export default function ExpenseCardList({
   onCancelEdit,
   onDelete,
   visibleColumns,
+  expandedExpenseIds,
+  onToggleBreakdown,
 }) {
   const show = (key) => visibleColumns[key] !== false;
 
@@ -59,6 +66,8 @@ export default function ExpenseCardList({
       {expenses.map((expense, index) => {
         const isEditing = editingId === expense.id;
         const overdue = isOverdue(expense.invoice_due_date, expense.service_status);
+        const hasBreakdown = (expense.breakdowns || []).length > 0;
+        const isExpanded = expandedExpenseIds.has(expense.id);
 
         return (
           <motion.article
@@ -139,6 +148,19 @@ export default function ExpenseCardList({
                     onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                     className={`${editInputClass} resize-y text-xs`}
                   />
+                  <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1.5">
+                      <Layers3 className="w-3.5 h-3.5" />
+                      Spending breakdown (optional)
+                    </p>
+                    <ExpenseBreakdownEditor
+                      expenseAmount={editForm.amount_aed}
+                      currency={editForm.currency || 'AED'}
+                      breakdowns={editForm.breakdowns || []}
+                      onChange={(breakdowns) => setEditForm({ ...editForm, breakdowns })}
+                      compact
+                    />
+                  </div>
                 </div>
               ) : (
                 <>
@@ -211,6 +233,30 @@ export default function ExpenseCardList({
                       {expense.receipt_file_name || 'View receipt'}
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
+                  )}
+
+                  {hasBreakdown && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => onToggleBreakdown(expense.id)}
+                        className="w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-sm font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/35 transition-colors"
+                        aria-expanded={isExpanded}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Layers3 className="w-4 h-4" />
+                          {expense.breakdowns.length} breakdown item{expense.breakdowns.length === 1 ? '' : 's'}
+                        </span>
+                        {isExpanded
+                          ? <ChevronDown className="w-4 h-4" />
+                          : <ChevronRight className="w-4 h-4" />}
+                      </button>
+                      {isExpanded && (
+                        <div className="mt-3">
+                          <ExpenseBreakdownView expense={expense} compact />
+                        </div>
+                      )}
+                    </div>
                   )}
                 </>
               )}
