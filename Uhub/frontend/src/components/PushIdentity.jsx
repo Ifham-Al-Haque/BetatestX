@@ -8,11 +8,22 @@ const PushIdentity = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user?.id) {
-      setExternalUserId(user.id);
-    } else {
-      clearExternalUserId();
-    }
+    let cancelled = false;
+
+    const syncIdentity = async () => {
+      if (cancelled) return;
+      if (user?.id) {
+        await setExternalUserId(user.id);
+      } else {
+        await clearExternalUserId();
+      }
+    };
+
+    syncIdentity();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   return null;

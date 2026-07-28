@@ -3,7 +3,50 @@ import { supabase } from '../supabaseClient';
 const isMissingExpenseBreakdownsTable = (error) =>
   error?.code === '42P01' ||
   error?.code === 'PGRST205' ||
-  /expense_breakdowns.*(?:does not exist|schema cache|could not find)/i.test(error?.message || '');
+  error?.code === '22P02' ||
+  error?.code === '42703' ||
+  /expense_breakdowns.*(?:does not exist|schema cache|could not find)/i.test(error?.message || '') ||
+  /invalid input syntax for type uuid/i.test(error?.message || '');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const normalizeExpenseId = (id) => {
+  if (id == null || id === '') return null;
+  const asString = String(id).trim();
+  return UUID_RE.test(asString) ? asString : null;
+};
+
+const fetchExpenseBreakdowns = async (expenseIds = []) => {
+  const ids = [...new Set(expenseIds.map(normalizeExpenseId).filter(Boolean))];
+  if (!ids.length) return new Map();
+
+  const grouped = new Map();
+  const batchSize = 100;
+
+  for (let start = 0; start < ids.length; start += batchSize) {
+    const batch = ids.slice(start, start + batchSize);
+    const { data, error } = await supabase
+      .from('expense_breakdowns')
+      .select('id, expense_id, label, amount, notes, sort_order, created_at, updated_at')
+      .in('expense_id', batch)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      // Keep Expense Tracker usable when optional breakdown schema is missing or mismatched.
+      if (isMissingExpenseBreakdownsTable(error)) return new Map();
+      throw error;
+    }
+
+    (data || []).forEach((item) => {
+      const key = normalizeExpenseId(item.expense_id) ?? item.expense_id;
+      const list = grouped.get(key) || [];
+      list.push(item);
+      grouped.set(key, list);
+    });
+  }
+
+  return grouped;
+};
 
 const normalizeExpenseBreakdowns = (expenseId, breakdowns = []) =>
   breakdowns
@@ -18,36 +61,6 @@ const normalizeExpenseBreakdowns = (expenseId, breakdowns = []) =>
     }))
     .filter((item) => item.label && Number.isFinite(item.amount) && item.amount > 0);
 
-const fetchExpenseBreakdowns = async (expenseIds = []) => {
-  if (!expenseIds.length) return new Map();
-
-  const grouped = new Map();
-  const batchSize = 100;
-
-  for (let start = 0; start < expenseIds.length; start += batchSize) {
-    const ids = expenseIds.slice(start, start + batchSize);
-    const { data, error } = await supabase
-      .from('expense_breakdowns')
-      .select('id, expense_id, label, amount, notes, sort_order, created_at, updated_at')
-      .in('expense_id', ids)
-      .order('sort_order', { ascending: true });
-
-    if (error) {
-      // Keep the existing Expense Tracker usable until the optional schema is installed.
-      if (isMissingExpenseBreakdownsTable(error)) return new Map();
-      throw error;
-    }
-
-    (data || []).forEach((item) => {
-      const list = grouped.get(item.expense_id) || [];
-      list.push(item);
-      grouped.set(item.expense_id, list);
-    });
-  }
-
-  return grouped;
-};
-
 const saveExpenseBreakdowns = async (expenseId, breakdowns) => {
   if (!Array.isArray(breakdowns)) return null;
 
@@ -60,7 +73,10 @@ const saveExpenseBreakdowns = async (expenseId, breakdowns) => {
     .from('expense_breakdowns')
     .select('id')
     .eq('expense_id', expenseId);
-  if (previousError) throw previousError;
+  if (previousError) {
+    if (isMissingExpenseBreakdownsTable(previousError)) return [];
+    throw previousError;
+  }
 
   if (existingRows.length) {
     const { error } = await supabase
@@ -88,7 +104,8 @@ const saveExpenseBreakdowns = async (expenseId, breakdowns) => {
   }
 
   const grouped = await fetchExpenseBreakdowns([expenseId]);
-  return grouped.get(expenseId) || [];
+  const key = normalizeExpenseId(expenseId) ?? expenseId;
+  return grouped.get(key) || [];
 };
 
 // API Service Layer for centralized data fetching
@@ -505,15 +522,7 @@ export const apiService = {
       
       if (error) throw error;
 
-      const breakdownsByExpense = await fetchExpenseBreakdowns(
-        (data || []).map((expense) => expense.id)
-      );
-      const expensesWithBreakdowns = (data || []).map((expense) => ({
-        ...expense,
-        breakdowns: breakdownsByExpense.get(expense.id) || [],
-      }));
-
-      return { data: expensesWithBreakdowns, count };
+      return { data, count };
     },
 
     getById: async (id) => {
@@ -715,7 +724,15 @@ export const apiService = {
 
       if (error) throw error;
 
-      return { data, count };
+      const breakdownsByExpense = await fetchExpenseBreakdowns(
+        (data || []).map((expense) => expense.id)
+      );
+      const expensesWithBreakdowns = (data || []).map((expense) => ({
+        ...expense,
+        breakdowns: breakdownsByExpense.get(normalizeExpenseId(expense.id) ?? expense.id) || [],
+      }));
+
+      return { data: expensesWithBreakdowns, count };
     },
 
     fetchAll: async function fetchAllExpenses(filters = {}) {
