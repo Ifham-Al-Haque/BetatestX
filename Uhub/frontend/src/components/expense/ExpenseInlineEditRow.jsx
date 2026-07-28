@@ -37,8 +37,8 @@ export default function ExpenseInlineEditRow({
       transition={{ delay: rowIndex * 0.015 }}
       className="bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200 dark:ring-emerald-800"
     >
-      <td colSpan={colSpan} className="p-0 w-full">
-        <div className="p-4 min-w-0 w-full max-w-full box-border">
+      <td colSpan={colSpan} className="p-0 !w-full">
+        <div className="p-4 min-w-0 w-full box-border overflow-hidden">
         <div className="flex items-start gap-3 mb-4 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-200 shrink-0">
             {serviceInitial(editForm.service_name || expense.service_name)}
@@ -53,17 +53,17 @@ export default function ExpenseInlineEditRow({
           </div>
         </div>
 
-        <div className="space-y-3 min-w-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
-            <EditField label="Service name">
-              <input
-                type="text"
-                value={editForm.service_name}
-                onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
-                className={editInputClass}
-              />
-            </EditField>
+        <div className="space-y-3 min-w-0 overflow-hidden">
+          <EditField label="Service name">
+            <input
+              type="text"
+              value={editForm.service_name}
+              onChange={(e) => setEditForm({ ...editForm, service_name: e.target.value })}
+              className={editInputClass}
+            />
+          </EditField>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
             <EditField label="Amount">
               <div className="flex gap-2 min-w-0">
                 <select
@@ -87,7 +87,7 @@ export default function ExpenseInlineEditRow({
               </div>
             </EditField>
 
-            <EditField label="Billing period" className="sm:col-span-2 lg:col-span-1">
+            <EditField label="Billing period">
               <input
                 type="text"
                 placeholder="e.g. Jan 2026"
@@ -98,7 +98,7 @@ export default function ExpenseInlineEditRow({
             </EditField>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 min-w-0">
             <EditField label="Date paid">
               <input
                 type="date"
