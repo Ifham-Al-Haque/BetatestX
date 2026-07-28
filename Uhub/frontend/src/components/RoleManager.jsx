@@ -33,6 +33,13 @@ const RoleManager = ({ user, onRoleUpdate }) => {
       permissions: ['Home & Calendar', 'Slice of Life', 'Team Chat', 'User Profile', 'HR View', 'IT Requests', 'Sim Cards', 'Payment Calendar', 'Upcoming Payments', 'Vouchers', 'Todo List']
     },
     { 
+      value: 'finance_viewer', 
+      label: 'Finance Viewer', 
+      description: 'Read-focused finance role with home, calendar, profile, HR view (employees read-only), complaints, suggestions, IT requests, payment calendar, upcoming payments, analytics, tasks, and reports',
+      color: 'bg-teal-100 text-teal-800 border-teal-200',
+      permissions: ['Home & Calendar', 'User Profile', 'Employees (view)', 'Complaints', 'Suggestions', 'IT Requests', 'Payment Calendar', 'Upcoming Payments', 'Analytics', 'Task Management', 'My Tasks', 'Reports']
+    },
+    { 
       value: 'it_management', 
       label: 'IT Management', 
       description: 'IT management role with access to home, slice of life, communication, HR view, IT requests, request inbox, assets, sim cards, payment calendar, upcoming payments, analytics, and todo list',

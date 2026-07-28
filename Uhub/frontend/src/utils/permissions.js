@@ -16,6 +16,7 @@ export const canPerformEmployeeOperation = (userRole, operation) => {
     hr_manager: ['read'], // HR Managers can only read
     driver_management: ['read'],
     employee: ['read'],
+    finance_viewer: ['read'],
     viewer: ['read']
   };
 

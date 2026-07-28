@@ -6,11 +6,21 @@ import { useEffect, useRef } from "react";
 
 const isDev = process.env.NODE_ENV === "development";
 
-export default function ProtectedRoute({ children, requiredFeature = null, requiredRole = null, minRoleLevel = null }) {
+export default function ProtectedRoute({
+  children,
+  requiredFeature = null,
+  requiredFeatures = null,
+  requiredRole = null,
+  minRoleLevel = null,
+}) {
   const { user, userProfile, loading } = useAuth();
   const { userRole, roleInfo, hasFeatureAccess, hasRoleLevel } = useRoleAccess();
   const navigate = useNavigate();
   const hasNavigated = useRef(false);
+
+  const featureList = requiredFeatures || (requiredFeature ? [requiredFeature] : null);
+  const hasRequiredFeatureAccess =
+    !featureList || featureList.some((feature) => hasFeatureAccess(feature));
 
   if (isDev) {
     console.log("ProtectedRoute Debug:", {
@@ -19,7 +29,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
       requiredFeature,
       requiredRole,
       minRoleLevel,
-      hasFeatureAccess: requiredFeature ? hasFeatureAccess(requiredFeature) : "N/A",
+      hasFeatureAccess: featureList ? hasRequiredFeatureAccess : 'N/A',
     });
   }
 
@@ -43,10 +53,10 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
     }
 
     // Check feature-based access
-    if (requiredFeature && !hasFeatureAccess(requiredFeature)) {
+    if (featureList && !hasRequiredFeatureAccess) {
       if (isDev) {
         console.log("ProtectedRoute: Feature access denied", {
-          requiredFeature,
+          requiredFeatures: featureList,
           userRole,
           pathname: window.location.pathname,
         });
@@ -77,7 +87,7 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
       }, 0);
       return;
     }
-  }, [loading, user, userProfile, userRole, requiredFeature, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate, redirectToRolePage]);
+  }, [loading, user, userProfile, userRole, featureList, hasRequiredFeatureAccess, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate, redirectToRolePage]);
 
   // Reset navigation flag when user changes
   useEffect(() => {
@@ -101,8 +111,8 @@ export default function ProtectedRoute({ children, requiredFeature = null, requi
   }
 
   // If no user or access denied, don't render children
-  if (!user || 
-      (requiredFeature && !hasFeatureAccess(requiredFeature)) ||
+  if (!user ||
+      (featureList && !hasRequiredFeatureAccess) ||
       (requiredRole && userRole !== requiredRole) ||
       (minRoleLevel && !hasRoleLevel(minRoleLevel))) {
     return null;

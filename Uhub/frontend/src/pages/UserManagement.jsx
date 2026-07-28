@@ -75,6 +75,7 @@ export default function UserManagement() {
     { value: 'admin', label: 'Administrator', color: 'bg-gradient-to-r from-red-500 to-pink-500', icon: Shield, bgColor: 'bg-red-50', textColor: 'text-red-700' },
     { value: 'data_operator', label: 'Data Operator', color: 'bg-gradient-to-r from-orange-500 to-amber-500', icon: Briefcase, bgColor: 'bg-orange-50', textColor: 'text-orange-700' },
     { value: 'finance', label: 'Finance', color: 'bg-gradient-to-r from-emerald-500 to-green-500', icon: Briefcase, bgColor: 'bg-emerald-50', textColor: 'text-emerald-700' },
+    { value: 'finance_viewer', label: 'Finance Viewer', color: 'bg-gradient-to-r from-teal-500 to-emerald-500', icon: Briefcase, bgColor: 'bg-teal-50', textColor: 'text-teal-700' },
     { value: 'it_management', label: 'IT Management', color: 'bg-gradient-to-r from-cyan-500 to-blue-500', icon: Briefcase, bgColor: 'bg-cyan-50', textColor: 'text-cyan-700' },
     { value: 'iot_management', label: 'IOT Management', color: 'bg-gradient-to-r from-cyan-500 to-teal-500', icon: Cpu, bgColor: 'bg-cyan-50', textColor: 'text-cyan-700' },
     { value: 'manager', label: 'Manager', color: 'bg-gradient-to-r from-blue-500 to-indigo-500', icon: Briefcase, bgColor: 'bg-blue-50', textColor: 'text-blue-700' },

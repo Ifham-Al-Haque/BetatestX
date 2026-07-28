@@ -238,7 +238,7 @@ function App() {
                         } />
 
                         <Route path="/employees" element={
-                          <ProtectedRoute requiredFeature="employees">
+                          <ProtectedRoute requiredFeatures={['employees', 'employee_records']}>
                             <Layout>
                               <Employees />
                             </Layout>
@@ -247,7 +247,7 @@ function App() {
                         
                         {/* Employee Profile Route */}
                         <Route path="/employee/:id" element={
-                          <ProtectedRoute requiredFeature="employees">
+                          <ProtectedRoute requiredFeatures={['employees', 'employee_records']}>
                             <Layout>
                               <EmployeeProfile />
                             </Layout>

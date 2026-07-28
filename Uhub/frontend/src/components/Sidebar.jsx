@@ -95,7 +95,7 @@ const NAVIGATION_PANELS = [
     title: 'HR Panel',
     icon: UserCheck,
     items: [
-      { label: 'Employees', path: '/employees', icon: Users, feature: 'employees' },
+      { label: 'Employees', path: '/employees', icon: Users, feature: 'employees', altFeatures: ['employee_records'] },
       { label: 'Payroll', path: '/payroll', icon: Calculator, feature: 'payroll' },
       { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
       { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },
@@ -316,7 +316,9 @@ const Sidebar = () => {
       if (!userRole || userRole === 'loading') return [];
       return panel.items.filter((item) => {
         if (!item.feature) return true;
-        return hasFeatureAccess(userRole, item.feature);
+        if (hasFeatureAccess(userRole, item.feature)) return true;
+        if (item.altFeatures?.some((feature) => hasFeatureAccess(userRole, feature))) return true;
+        return false;
       });
     },
     [userRole]
