@@ -21,6 +21,7 @@ import CashFlowSummary from "../components/analytics/CashFlowSummary";
 import AnalyticsFiltersPanel from "../components/analytics/AnalyticsFiltersPanel";
 import IndividualServiceTrends from "../components/analytics/IndividualServiceTrends";
 import MissingBillingPeriodPanel from "../components/analytics/MissingBillingPeriodPanel";
+import MonthlyExpenseDetailCard from "../components/analytics/MonthlyExpenseDetailCard";
 import { downloadChartPng } from "../components/analytics/chartExport";
 import { canonicalServiceName, normalizeServiceLabel, parseAmountValue, canonicalDepartmentName, DEPARTMENT_CHART_COLORS } from "../components/analytics/chartUtils";
 import { getDepartmentLabel } from "../config/departments";
@@ -35,6 +36,11 @@ import {
   getExpensesMissingBillingPeriod,
 } from "../utils/analyticsHelpers";
 import { exportExpensesCsv, formatCurrency, getExpenseAmount } from "../utils/expenseHelpers";
+import {
+  buildMonthlyServiceBreakdown,
+  shortLabelToDate,
+  countBreakdownItems,
+} from "../utils/monthlyBreakdownHelpers";
 
 // Enhanced color scheme for charts with gradients
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
@@ -543,14 +549,11 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
   const [zoomedMonth, setZoomedMonth] = useState(null);
   const [zoomedService, setZoomedService] = useState(null);
   const [hoveredBarKey, setHoveredBarKey] = useState(null);
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  const parseMonthKey = (monthStr) => {
-    const [month, year] = monthStr.split(' ');
-    const monthIndex = monthNames.indexOf(month);
-    const fullYear = 2000 + parseInt(year, 10);
-    return new Date(fullYear, monthIndex);
-  };
+  const { services, paymentDetailsMap } = useMemo(
+    () => buildMonthlyServiceBreakdown(expenses),
+    [expenses]
+  );
 
   const getServiceGradientId = (serviceName) =>
     `monthly-bar-gradient-${String(serviceName || 'service').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
@@ -572,85 +575,6 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
       setZoomedService(service.service_name);
     }
   };
-
-  // Generate services data from real expense data
-  const services = useMemo(() => {
-    if (!expenses.length) return [];
-
-    const serviceMap = {};
-    expenses.forEach(expense => {
-      if (expense.service_name && expense.amount_aed != null && expense.amount_aed !== '' && expense.date_paid) {
-        const service = canonicalServiceName(expense.service_name);
-        
-        const date = new Date(expense.date_paid);
-        // Ensure consistent month key format: "MMM YY" (e.g., "Jan 24")
-        const monthKey = `${date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}`;
-        
-        if (!serviceMap[service]) {
-          serviceMap[service] = {
-            id: Date.now() + Math.random(), // Generate unique ID
-            service_name: service,
-            category: expense.department || 'Uncategorized',
-            service_status: expense.service_status || 'Active',
-            monthly_spending: {},
-            transactions: 0
-          };
-        }
-        
-        if (!serviceMap[service].monthly_spending[monthKey]) {
-          serviceMap[service].monthly_spending[monthKey] = 0;
-        }
-        serviceMap[service].monthly_spending[monthKey] += parseFloat(expense.amount_aed) || 0;
-        serviceMap[service].transactions += 1;
-      }
-    });
-
-    // Sort monthly spending chronologically for each service
-    Object.values(serviceMap).forEach(service => {
-      const sortedMonths = Object.entries(service.monthly_spending)
-        .sort(([monthA], [monthB]) => parseMonthKey(monthA) - parseMonthKey(monthB));
-      
-      // Rebuild monthly_spending object with sorted order
-      const sortedSpending = {};
-      sortedMonths.forEach(([month, amount]) => {
-        sortedSpending[month] = amount;
-      });
-      service.monthly_spending = sortedSpending;
-      service.totalSpent = Object.values(sortedSpending).reduce((sum, amount) => sum + (amount || 0), 0);
-      service.activeMonths = Object.keys(sortedSpending).length;
-    });
-
-    return Object.values(serviceMap).sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
-  }, [expenses]);
-
-  const paymentDetailsMap = useMemo(() => {
-    if (!expenses.length) return {};
-
-    const detailsMap = {};
-    expenses.forEach((expense) => {
-      if (!expense.date_paid || expense.amount_aed == null || expense.amount_aed === '') return;
-
-      const normalizedService = canonicalServiceName(expense.service_name || '');
-      if (!normalizedService) return;
-
-      const expenseDate = new Date(expense.date_paid);
-      if (Number.isNaN(expenseDate.getTime())) return;
-
-      const monthKey = `${expenseDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}`;
-      const key = `${normalizedService}__${monthKey}`;
-      if (!detailsMap[key]) detailsMap[key] = [];
-
-      detailsMap[key].push({
-        payment_date: expense.date_paid,
-        due_date: expense.invoice_due_date || expense.date_paid,
-        invoice_date: expense.invoice_generation_date || expense.date_paid,
-        amount: parseFloat(expense.amount_aed) || 0,
-        invoice_number: expense.invoice_number || `INV-${expense.id}`
-      });
-    });
-
-    return detailsMap;
-  }, [expenses]);
 
   const getPaymentDetails = (serviceName, month) => {
     return paymentDetailsMap[`${serviceName}__${month}`] || [];
@@ -732,7 +656,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                         month,
                         amount: amount || 0
                       }))
-                      .sort((a, b) => parseMonthKey(a.month) - parseMonthKey(b.month))}
+                      .sort((a, b) => shortLabelToDate(a.month) - shortLabelToDate(b.month))}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <defs>
@@ -755,12 +679,25 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                     <Tooltip 
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
+                          const monthPayments = getPaymentDetails(service.service_name, label);
+                          const breakdownCount = monthPayments.filter((p) => p.hasBreakdown).length;
+                          const subItemCount = countBreakdownItems(monthPayments);
+
                           return (
-                            <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
+                            <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-w-xs">
                               <p className="font-semibold text-gray-800 dark:text-white">{label}</p>
                               <p className="text-sm text-blue-600">
                                 AED {payload[0].value?.toLocaleString()}
                               </p>
+                              {monthPayments.length > 0 && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  {monthPayments.length} expense{monthPayments.length !== 1 ? 's' : ''}
+                                  {breakdownCount > 0
+                                    ? ` · ${subItemCount} line item${subItemCount !== 1 ? 's' : ''}`
+                                    : ' · total only'}
+                                </p>
+                              )}
+                              <p className="text-xs text-blue-500 mt-1">Click bar for details</p>
                             </div>
                           );
                         }
@@ -779,7 +716,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                        animationEasing="ease-out"
                      >
                       {Object.entries(service.monthly_spending || {})
-                        .sort(([monthA], [monthB]) => parseMonthKey(monthA) - parseMonthKey(monthB))
+                        .sort(([monthA], [monthB]) => shortLabelToDate(monthA) - shortLabelToDate(monthB))
                         .map(([month]) => {
                           const isHovered = hoveredBarKey === `${service.service_name}__${month}`;
                           return (
@@ -859,41 +796,23 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                        {(() => {
                          const paymentDetails = getPaymentDetails(service.service_name, zoomedMonth);
                          if (paymentDetails.length > 0) {
+                           const withBreakdown = paymentDetails.filter((p) => p.hasBreakdown).length;
+                           const lineItemCount = countBreakdownItems(paymentDetails);
+
                            return (
                              <div className="space-y-4">
-                               {paymentDetails.map((payment, index) => (
-                                 <div key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-                                     <div>
-                                       <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Invoice #</p>
-                                       <p className="font-semibold text-gray-900 dark:text-white">{payment.invoice_number}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Amount</p>
-                                       <p className="font-semibold text-blue-600 dark:text-blue-400">
-                                         AED {payment.amount?.toLocaleString()}
-                                       </p>
-                                     </div>
-                                     <div>
-                                       <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Invoice Date</p>
-                                       <p className="font-semibold text-gray-900 dark:text-white">
-                                         {new Date(payment.invoice_date).toLocaleDateString()}
-                                       </p>
-                                     </div>
-                                     <div>
-                                       <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Due Date</p>
-                                       <p className="font-semibold text-gray-900 dark:text-white">
-                                         {new Date(payment.due_date).toLocaleDateString()}
-                                       </p>
-                                     </div>
-                                     <div>
-                                       <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">Payment Date</p>
-                                       <p className="font-semibold text-gray-900 dark:text-white">
-                                         {new Date(payment.payment_date).toLocaleDateString()}
-                                       </p>
-                                     </div>
-                                   </div>
-                                 </div>
+                               {withBreakdown > 0 && (
+                                 <p className="text-sm text-blue-700 dark:text-blue-300">
+                                   {withBreakdown} of {paymentDetails.length} expense
+                                   {paymentDetails.length !== 1 ? 's' : ''} include a spending breakdown
+                                   ({lineItemCount} line item{lineItemCount !== 1 ? 's' : ''} total).
+                                 </p>
+                               )}
+                               {paymentDetails.map((payment) => (
+                                 <MonthlyExpenseDetailCard
+                                   key={payment.expenseId || `${payment.invoice_number}-${payment.payment_date}`}
+                                   payment={payment}
+                                 />
                                ))}
                              </div>
                            );
@@ -919,10 +838,12 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                {/* Monthly Details */}
                <div className="space-y-3">
                 {Object.entries(service.monthly_spending || {})
-                  .sort(([monthA], [monthB]) => parseMonthKey(monthA) - parseMonthKey(monthB))
+                  .sort(([monthA], [monthB]) => shortLabelToDate(monthA) - shortLabelToDate(monthB))
                   .map(([month, amount]) => {
                   const paymentDetails = getPaymentDetails(service.service_name, month);
                   const isZoomed = zoomedMonth === month && zoomedService === service.service_name;
+                  const breakdownExpenses = paymentDetails.filter((p) => p.hasBreakdown).length;
+                  const lineItemCount = countBreakdownItems(paymentDetails);
                   
                   return (
                     <div key={month} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden shadow-sm">
@@ -943,8 +864,17 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
                           </div>
                           <div className="flex items-center space-x-2">
                             <span className="text-sm text-gray-500 dark:text-gray-400">
-                              {paymentDetails.length} payment{paymentDetails.length !== 1 ? 's' : ''}
+                              {paymentDetails.length} expense{paymentDetails.length !== 1 ? 's' : ''}
                             </span>
+                            {breakdownExpenses > 0 ? (
+                              <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                                {lineItemCount} sub-item{lineItemCount !== 1 ? 's' : ''}
+                              </span>
+                            ) : paymentDetails.length > 0 ? (
+                              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                total only
+                              </span>
+                            ) : null}
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               isZoomed 
                                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200' 
