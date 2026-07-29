@@ -59,7 +59,7 @@ const normalizeExpenseBreakdowns = (expenseId, breakdowns = []) =>
       sort_order: index,
       updated_at: new Date().toISOString(),
     }))
-    .filter((item) => item.label && Number.isFinite(item.amount) && item.amount > 0);
+    .filter((item) => item.label && Number.isFinite(item.amount) && item.amount !== 0);
 
 const saveExpenseBreakdowns = async (expenseId, breakdowns) => {
   if (!Array.isArray(breakdowns)) return null;

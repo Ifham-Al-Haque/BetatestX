@@ -3,6 +3,7 @@ import {
   formatCurrency,
   getBreakdownRemaining,
   getBreakdownTotal,
+  getBreakdownItemAmount,
 } from '../../utils/expenseHelpers';
 
 export default function ExpenseBreakdownView({ expense, compact = false }) {
@@ -37,7 +38,8 @@ export default function ExpenseBreakdownView({ expense, compact = false }) {
 
       <div className="space-y-2">
         {breakdowns.map((item, index) => {
-          const amount = parseFloat(item.amount) || 0;
+          const amount = getBreakdownItemAmount(item);
+          const isCredit = amount < 0;
           const percentage = totalAmount > 0 ? (amount / totalAmount) * 100 : 0;
 
           return (
@@ -47,6 +49,11 @@ export default function ExpenseBreakdownView({ expense, compact = false }) {
                   <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                     {item.label}
                   </p>
+                  {isCredit && (
+                    <p className="text-[11px] font-medium text-sky-700 dark:text-sky-300 mt-0.5">
+                      Credit / waiver
+                    </p>
+                  )}
                   {item.notes && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
                       {item.notes}
@@ -54,7 +61,11 @@ export default function ExpenseBreakdownView({ expense, compact = false }) {
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
+                  <p className={`text-sm font-semibold tabular-nums ${
+                    isCredit
+                      ? 'text-sky-700 dark:text-sky-300'
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
                     {formatCurrency(amount, currency)}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -62,12 +73,14 @@ export default function ExpenseBreakdownView({ expense, compact = false }) {
                   </p>
                 </div>
               </div>
-              <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mt-2">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
-                  style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
-                />
-              </div>
+              {!isCredit && (
+                <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden mt-2">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                    style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}

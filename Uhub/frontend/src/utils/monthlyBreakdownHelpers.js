@@ -27,7 +27,10 @@ export function shortLabelToDate(monthLabel) {
 
 function buildPaymentDetail(expense) {
   const breakdowns = (expense.breakdowns || []).filter(
-    (item) => item?.label?.trim() && parseFloat(item.amount) > 0
+    (item) =>
+      item?.label?.trim() &&
+      Number.isFinite(parseFloat(item.amount)) &&
+      parseFloat(item.amount) !== 0
   );
   const amount = getExpenseAmount(expense);
 

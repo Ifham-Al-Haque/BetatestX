@@ -20,6 +20,13 @@ export const getExpenseAmount = (expense) =>
 export const getBreakdownTotal = (breakdowns = []) =>
   breakdowns.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
+export const getBreakdownItemAmount = (item) => parseFloat(item?.amount) || 0;
+
+export const isValidBreakdownAmount = (amount) => {
+  const value = Number(amount);
+  return Number.isFinite(value) && value !== 0;
+};
+
 export const getBreakdownRemaining = (expenseAmount, breakdowns = []) =>
   Math.round(((parseFloat(expenseAmount) || 0) - getBreakdownTotal(breakdowns)) * 100) / 100;
 
@@ -32,8 +39,8 @@ export const validateExpenseBreakdowns = (expenseAmount, breakdowns = []) => {
     if (!String(item.label || '').trim()) {
       return 'Each breakdown item needs a name.';
     }
-    if (!Number.isFinite(Number(item.amount)) || Number(item.amount) <= 0) {
-      return `Enter a valid amount for "${item.label}".`;
+    if (!isValidBreakdownAmount(item.amount)) {
+      return `Enter a non-zero amount for "${item.label}". Use a negative value for credits or waivers.`;
     }
   }
 

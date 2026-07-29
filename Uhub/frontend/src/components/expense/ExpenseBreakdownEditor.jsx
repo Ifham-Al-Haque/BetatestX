@@ -87,13 +87,15 @@ export default function ExpenseBreakdownEditor({
                   </label>
                   <input
                     type="number"
-                    min="0"
                     step="0.01"
                     value={item.amount ?? ''}
                     onChange={(event) => updateItem(index, 'amount', event.target.value)}
-                    placeholder="0.00"
+                    placeholder="0.00 (use minus for credits)"
                     className={inputClass}
                   />
+                  <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                    Use a negative value for credits, waivers, or charge reversals.
+                  </p>
                 </div>
                 <button
                   type="button"
