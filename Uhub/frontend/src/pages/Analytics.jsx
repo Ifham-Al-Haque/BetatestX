@@ -24,6 +24,7 @@ import MissingBillingPeriodPanel from "../components/analytics/MissingBillingPer
 import MonthlyExpenseDetailCard from "../components/analytics/MonthlyExpenseDetailCard";
 import { downloadChartPng } from "../components/analytics/chartExport";
 import { canonicalServiceName, normalizeServiceLabel, parseAmountValue, canonicalDepartmentName, DEPARTMENT_CHART_COLORS } from "../components/analytics/chartUtils";
+import { hasFeatureAccess } from "../components/RoleBasedRoute";
 import { getDepartmentLabel } from "../config/departments";
 import {
   DEFAULT_ANALYTICS_FILTERS,
@@ -2347,9 +2348,10 @@ const TopExpenseCategories = ({ data }) => {
 export default function Analytics() {
   const { user, userProfile } = useAuth();
   
-  // For admin users, show all expenses. For other users, show only their expenses
-  const isAdmin = userProfile?.role === 'admin';
-  const expenseFilters = isAdmin ? {} : { userId: user?.id };
+  const userRole = userProfile?.role;
+  // Analytics roles (finance_viewer, it_management, managers, etc.) need org-wide expense data.
+  const canViewOrgWideExpenses = hasFeatureAccess(userRole, 'analytics');
+  const expenseFilters = canViewOrgWideExpenses ? {} : { userId: user?.id };
   
   const { data: expenses = [], isLoading, error } = useAllExpenses(expenseFilters);
   const { data: paymentEvents = [] } = usePaymentEvents();
