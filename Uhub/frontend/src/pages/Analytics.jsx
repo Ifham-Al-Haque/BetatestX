@@ -22,6 +22,7 @@ import AnalyticsFiltersPanel from "../components/analytics/AnalyticsFiltersPanel
 import IndividualServiceTrends from "../components/analytics/IndividualServiceTrends";
 import MissingBillingPeriodPanel from "../components/analytics/MissingBillingPeriodPanel";
 import MonthlyExpenseDetailCard from "../components/analytics/MonthlyExpenseDetailCard";
+import MonthlyBreakdownExportPanel from "../components/analytics/MonthlyBreakdownExportPanel";
 import { downloadChartPng } from "../components/analytics/chartExport";
 import { canonicalServiceName, normalizeServiceLabel, parseAmountValue, canonicalDepartmentName, DEPARTMENT_CHART_COLORS } from "../components/analytics/chartUtils";
 import { hasFeatureAccess } from "../components/RoleBasedRoute";
@@ -545,7 +546,7 @@ const OverviewQuickLinks = ({ onNavigate }) => (
 );
 
 // Monthly Breakdown Charts Component
-const MonthlyBreakdownCharts = ({ expenses }) => {
+const MonthlyBreakdownCharts = ({ expenses, onToast }) => {
   const [expandedService, setExpandedService] = useState(null);
   const [zoomedMonth, setZoomedMonth] = useState(null);
   const [zoomedService, setZoomedService] = useState(null);
@@ -582,7 +583,16 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <MonthlyBreakdownExportPanel
+        services={services}
+        paymentDetailsMap={paymentDetailsMap}
+        zoomedMonth={zoomedMonth}
+        expandedService={expandedService}
+        onToast={onToast}
+      />
+
+      <div className="space-y-8">
       {services.map((service, serviceIndex) => (
         <motion.div
           key={service.id}
@@ -895,6 +905,7 @@ const MonthlyBreakdownCharts = ({ expenses }) => {
           </AnimatePresence>
         </motion.div>
       ))}
+      </div>
     </div>
   );
 };
@@ -2873,7 +2884,7 @@ export default function Analytics() {
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">Click on any service bar to see detailed monthly breakdown with payment information</p>
                   <div id="chart-monthly-breakdown">
-                    <MonthlyBreakdownCharts expenses={effectiveExpenses} />
+                    <MonthlyBreakdownCharts expenses={effectiveExpenses} onToast={setExportToast} />
                   </div>
                 </div>
               </motion.div>

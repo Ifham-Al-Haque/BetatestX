@@ -117,3 +117,153 @@ export function countBreakdownItems(paymentDetails = []) {
     return sum + count;
   }, 0);
 }
+
+export function getAvailableMonthLabels(services = []) {
+  const months = new Set();
+  services.forEach((service) => {
+    Object.keys(service.monthly_spending || {}).forEach((month) => months.add(month));
+  });
+  return Array.from(months).sort((a, b) => shortLabelToDate(a) - shortLabelToDate(b));
+}
+
+export function getMonthsForReportScope(scope, availableMonths = [], selectedMonth = null) {
+  const sorted = [...availableMonths].sort((a, b) => shortLabelToDate(a) - shortLabelToDate(b));
+  if (!sorted.length) return [];
+
+  if (scope === 'last-3-months') {
+    return sorted.slice(-3);
+  }
+
+  const month =
+    selectedMonth && sorted.includes(selectedMonth) ? selectedMonth : sorted[sorted.length - 1];
+  return month ? [month] : [];
+}
+
+function formatExportDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
+}
+
+export function buildMonthlyBreakdownReport({
+  services = [],
+  paymentDetailsMap = {},
+  months = [],
+  serviceFilter = null,
+}) {
+  const filteredServices = serviceFilter
+    ? services.filter((service) => service.service_name === serviceFilter)
+    : services;
+
+  const summaryRows = [];
+  const expenseRows = [];
+  const lineRows = [];
+  let grandTotal = 0;
+
+  filteredServices.forEach((service) => {
+    months.forEach((month) => {
+      const monthTotal = service.monthly_spending?.[month];
+      if (monthTotal == null) return;
+
+      const payments = paymentDetailsMap[`${service.service_name}__${month}`] || [];
+      grandTotal += monthTotal;
+
+      summaryRows.push({
+        service: service.service_name,
+        category: service.category || 'Uncategorized',
+        month,
+        total: monthTotal,
+        expenseCount: payments.length,
+        lineItemCount: countBreakdownItems(payments),
+        status: service.service_status || 'Active',
+      });
+
+      payments.forEach((payment) => {
+        expenseRows.push({
+          service: service.service_name,
+          month,
+          invoiceNumber: payment.invoice_number,
+          billingPeriod: payment.billing_period || month,
+          total: payment.amount,
+          currency: payment.currency || 'AED',
+          paymentDate: formatExportDate(payment.payment_date),
+          dueDate: formatExportDate(payment.due_date),
+          hasBreakdown: payment.hasBreakdown,
+        });
+
+        if (payment.hasBreakdown) {
+          payment.breakdowns.forEach((item) => {
+            const amount = parseFloat(item.amount) || 0;
+            lineRows.push({
+              service: service.service_name,
+              month,
+              invoiceNumber: payment.invoice_number,
+              label: item.label,
+              amount,
+              type: amount < 0 ? 'Credit / waiver' : 'Charge',
+              notes: item.notes?.trim() || '',
+            });
+          });
+
+          const unallocated = getBreakdownRemaining(payment.amount, payment.breakdowns);
+          if (unallocated > 0.009) {
+            lineRows.push({
+              service: service.service_name,
+              month,
+              invoiceNumber: payment.invoice_number,
+              label: 'Unallocated',
+              amount: unallocated,
+              type: 'Unallocated',
+              notes: 'Remaining amount not assigned to a breakdown item',
+            });
+          } else if (unallocated < -0.009) {
+            lineRows.push({
+              service: service.service_name,
+              month,
+              invoiceNumber: payment.invoice_number,
+              label: 'Over-allocated',
+              amount: Math.abs(unallocated),
+              type: 'Over-allocated',
+              notes: 'Breakdown items exceed the expense total',
+            });
+          }
+        } else {
+          lineRows.push({
+            service: service.service_name,
+            month,
+            invoiceNumber: payment.invoice_number,
+            label: '(Full expense total — no sub-breakdown)',
+            amount: payment.amount,
+            type: 'Total only',
+            notes: '',
+          });
+        }
+      });
+    });
+  });
+
+  return {
+    summaryRows,
+    expenseRows,
+    lineRows,
+    months,
+    services: filteredServices,
+    serviceFilter,
+    grandTotal,
+    generatedAt: new Date(),
+  };
+}
+
+export function getDefaultReportMonth(availableMonths = [], zoomedMonth = null) {
+  if (zoomedMonth && availableMonths.includes(zoomedMonth)) return zoomedMonth;
+  if (!availableMonths.length) return '';
+  return availableMonths[availableMonths.length - 1];
+}
+
+export function buildReportFileSlug(months = []) {
+  if (!months.length) return 'monthly-breakdown';
+  if (months.length === 1) {
+    return `monthly-breakdown-${months[0].replace(/\s+/g, '-')}`;
+  }
+  return `monthly-breakdown-${months[0].replace(/\s+/g, '-')}-to-${months[months.length - 1].replace(/\s+/g, '-')}`;
+}

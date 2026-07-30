@@ -21,6 +21,7 @@ export default function ProtectedRoute({
   const featureList = requiredFeatures || (requiredFeature ? [requiredFeature] : null);
   const hasRequiredFeatureAccess =
     !featureList || featureList.some((feature) => hasFeatureAccess(feature));
+  const isAccessLoading = loading || (!!user && userRole === 'loading');
 
   if (isDev) {
     console.log("ProtectedRoute Debug:", {
@@ -35,7 +36,7 @@ export default function ProtectedRoute({
 
   // Handle all navigation logic in useEffect hooks
   useEffect(() => {
-    if (loading || hasNavigated.current) return;
+    if (isAccessLoading || hasNavigated.current) return;
 
     // If no user, redirect to login
     if (!user) {
@@ -87,7 +88,7 @@ export default function ProtectedRoute({
       }, 0);
       return;
     }
-  }, [loading, user, userProfile, userRole, featureList, hasRequiredFeatureAccess, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate, redirectToRolePage]);
+  }, [isAccessLoading, user, userProfile, userRole, featureList, hasRequiredFeatureAccess, requiredRole, minRoleLevel, hasFeatureAccess, hasRoleLevel, navigate, redirectToRolePage]);
 
   // Reset navigation flag when user changes
   useEffect(() => {
@@ -95,7 +96,7 @@ export default function ProtectedRoute({
   }, [user]);
 
   // If still loading, show loading screen
-  if (loading) {
+  if (isAccessLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)" }}>
         <motion.div

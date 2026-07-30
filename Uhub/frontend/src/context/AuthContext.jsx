@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import activityService from "../services/activityService";
 
@@ -18,9 +18,16 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const currentUserIdRef = useRef(null);
+  const currentRoleRef = useRef(null);
 
   // Cache for user profiles to avoid repeated database calls
   const [profileCache, setProfileCache] = useState(new Map());
+
+  useEffect(() => {
+    currentUserIdRef.current = user?.id || null;
+    currentRoleRef.current = role;
+  }, [user?.id, role]);
 
   const getUserProfile = async (userId) => {
     try {
@@ -548,27 +555,25 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           console.log("✅ User authenticated");
           setUser(session.user);
+          currentUserIdRef.current = session.user.id;
           setRole('loading'); // Set loading state instead of default role
+          currentRoleRef.current = 'loading';
           
-          // Fetch profile in background (non-blocking)
+          // Keep the auth loading screen visible until permissions are known.
           console.log("🔄 Starting profile fetch for authenticated user");
-          getUserProfile(session.user.id)
-            .then(profile => {
-              if (!isMounted) return;
-              setUserProfile(profile);
-              // Use the role from the user account, not from employee record
-              const detectedRole = profile?.role || 'employee';
-              setRole(detectedRole);
-              console.log("✅ Role set to:", detectedRole);
-            })
-            .catch(error => {
-              if (!isMounted) return;
-              console.warn("⚠️ Profile fetch failed:", error);
-              console.error("❌ Profile fetch error details:", error);
-              // Keep default role
-            });
+          const profile = await getUserProfile(session.user.id);
+          if (!isMounted) return;
+
+          setUserProfile(profile);
+          // Use the role from the UHub user account, not from the employee record.
+          const detectedRole = profile?.role || 'employee';
+          setRole(detectedRole);
+          currentRoleRef.current = detectedRole;
+          console.log("✅ Role set to:", detectedRole);
         } else {
           console.log("❌ No active session found");
+          currentUserIdRef.current = null;
+          currentRoleRef.current = null;
         }
       } catch (error) {
         if (!isMounted) return;
@@ -592,29 +597,52 @@ export const AuthProvider = ({ children }) => {
         console.log("🔄 Auth state change:", event);
         
         if (event === 'SIGNED_IN' && session?.user) {
+          const isSameResolvedUser =
+            currentUserIdRef.current === session.user.id &&
+            currentRoleRef.current &&
+            currentRoleRef.current !== 'loading';
+
           setUser(session.user);
-          setRole('loading'); // Set loading state instead of default role
+          currentUserIdRef.current = session.user.id;
+
+          // Supabase may emit SIGNED_IN again when an existing tab regains focus.
+          // Preserve the rendered app for the same user instead of blanking the
+          // protected route while its profile is refreshed.
+          if (!isSameResolvedUser) {
+            setLoading(true);
+            setRole('loading');
+            currentRoleRef.current = 'loading';
+          }
           
           // Fetch profile in background
           console.log("🔄 Auth state change - Starting profile fetch");
           getUserProfile(session.user.id)
             .then(profile => {
-              if (!isMounted) return;
+              if (!isMounted || currentUserIdRef.current !== session.user.id) return;
               setUserProfile(profile);
-              // Use the role from the user account, not from employee record
+              // Use the role from the UHub user account, not from the employee record.
               const detectedRole = profile?.role || 'employee';
               setRole(detectedRole);
+              currentRoleRef.current = detectedRole;
               console.log("✅ Auth state change - Role set to:", detectedRole);
             })
             .catch(error => {
               if (!isMounted) return;
               console.warn("Profile fetch failed:", error);
               console.error("❌ Auth state change - Profile fetch error details:", error);
+            })
+            .finally(() => {
+              if (isMounted && !isSameResolvedUser) {
+                setLoading(false);
+              }
             });
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setUserProfile(null);
           setRole(null);
+          setLoading(false);
+          currentUserIdRef.current = null;
+          currentRoleRef.current = null;
           setProfileCache(new Map());
         }
       }
