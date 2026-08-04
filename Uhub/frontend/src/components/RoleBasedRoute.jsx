@@ -36,11 +36,11 @@ export const ROLE_PERMISSIONS = {
   finance_viewer: {
     level: 3,
     name: 'Finance Viewer',
-    description: 'Read-focused finance role with access to home, calendar, profile, HR view (employees read-only), complaints, suggestions, IT requests, payment calendar, upcoming payments, analytics, tasks, and reports',
+    description: 'Read-focused finance role with access to home, calendar, profile, HR view (employees read-only), complaints, suggestions, IT requests, SIM cards (view-only), payment calendar, upcoming payments, analytics, tasks, and reports',
     color: 'text-teal-600',
     bgColor: 'bg-teal-50',
     icon: Shield,
-    access: ['main_panel', 'user_profile', 'hr_view_only', 'complaints', 'suggestions', 'it_requests', 'payment_calendar', 'upcoming_payments', 'analytics', 'todo_list', 'reports']
+    access: ['main_panel', 'user_profile', 'hr_view_only', 'complaints', 'suggestions', 'it_requests', 'simcards', 'payment_calendar', 'upcoming_payments', 'analytics', 'todo_list', 'reports']
   },
   it_management: {
     level: 2,
@@ -241,7 +241,7 @@ export const FEATURE_ACCESS = {
   
   // Asset Management Panel - Admin, HR Manager, and Manager (removed driver_management)
   assets: ['admin', 'hr_manager', 'manager', 'it_management'],
-  simcards: ['admin', 'hr_manager', 'manager', 'finance', 'it_management'], // Allow HR managers, managers, finance, and IT management to access SIM cards
+  simcards: ['admin', 'hr_manager', 'manager', 'finance', 'finance_viewer', 'it_management'], // Finance Viewer has view-only access; mutations are controlled separately
   vouchers: ['admin', 'finance'],
   
   // Financial Panel - Different access levels
@@ -390,12 +390,13 @@ export const getRoleNavigationAccess = (userRole) => {
       }
     },
     finance_viewer: {
-      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'financial', 'todo_list'],
+      panels: ['main', 'user_profile', 'hr_panel', 'it_services', 'asset_management', 'financial', 'todo_list'],
       items: {
         main: ['home', 'calendar_view'],
         user_profile: ['profile'],
         hr_panel: ['employee_records', 'complaints', 'suggestions'],
         it_services: ['it_requests'],
+        asset_management: ['simcards'],
         financial: ['payment_calendar', 'upcoming_payments', 'analytics'],
         todo_list: ['task_management', 'my_tasks', 'reports'],
       }

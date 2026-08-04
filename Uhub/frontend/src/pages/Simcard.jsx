@@ -592,34 +592,41 @@ export default function Simcard() {
   useEffect(() => {
     const editId = searchParams.get('edit');
     if (!editId || !simCards.length) return;
+    if (!canManage) {
+      setSearchParams({}, { replace: true });
+      return;
+    }
     const card = simCards.find((s) => String(s.id) === editId);
     if (card) {
       setEditingSimCard(card);
       setShowForm(true);
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, simCards, setSearchParams]);
+  }, [searchParams, simCards, setSearchParams, canManage]);
 
   const handleViewSimCard = useCallback((id) => {
     navigate(`/simcards/${id}`);
   }, [navigate]);
 
   const handleAddSimCard = () => {
+    if (!canManage) return;
     setEditingSimCard(null);
     setShowForm(true);
   };
 
   const handleEditSimCard = (simCard) => {
+    if (!canManage) return;
     setEditingSimCard(simCard);
     setShowForm(true);
   };
 
   const handleDeleteSimCard = (simCardId) => {
+    if (!canDelete) return;
     setDeleteConfirmId(simCardId);
   };
 
   const confirmDelete = () => {
-    if (!deleteConfirmId) return;
+    if (!deleteConfirmId || !canDelete) return;
     deleteSimCard.mutate(deleteConfirmId, {
       onSuccess: () => {
         success('Deleted', 'SIM card removed successfully.');
@@ -633,6 +640,7 @@ export default function Simcard() {
   };
 
   const handleSubmitSimCard = (formData) => {
+    if (!canManage) return;
     const simCardData = {
       ...formData,
       user_id: user?.id,
@@ -819,17 +827,19 @@ export default function Simcard() {
                     )}
                   </div>
 
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setShowDepartmentManager(true)}
-                    className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium border transition-all ${
-                      isDark ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Building className="w-4 h-4" />
-                    Departments
-                  </motion.button>
+                  {canManage && (
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => setShowDepartmentManager(true)}
+                      className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium border transition-all ${
+                        isDark ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Building className="w-4 h-4" />
+                      Departments
+                    </motion.button>
+                  )}
 
                   {canAddSimCard() && (
                     <motion.button
@@ -1157,7 +1167,7 @@ export default function Simcard() {
 
           {/* Delete confirmation */}
           <AnimatePresence>
-            {deleteConfirmId && (
+            {deleteConfirmId && canDelete && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -1200,7 +1210,7 @@ export default function Simcard() {
 
           {/* SIM Card Form Modal */}
           <AnimatePresence>
-            {showForm && (
+            {showForm && canManage && (
               <SimCardForm
                 simCard={editingSimCard}
                 onClose={handleCloseForm}
@@ -1213,7 +1223,7 @@ export default function Simcard() {
 
         {/* Department Manager Modal */}
         <DepartmentManager
-          isOpen={showDepartmentManager}
+          isOpen={showDepartmentManager && canManage}
           onClose={() => setShowDepartmentManager(false)}
           onDepartmentsChange={(updatedDepartments) => {
             // You can implement logic here to update the departments globally

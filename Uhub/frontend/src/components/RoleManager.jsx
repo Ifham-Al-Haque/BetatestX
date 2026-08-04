@@ -35,9 +35,9 @@ const RoleManager = ({ user, onRoleUpdate }) => {
     { 
       value: 'finance_viewer', 
       label: 'Finance Viewer', 
-      description: 'Read-focused finance role with home, calendar, profile, HR view (employees read-only), complaints, suggestions, IT requests, payment calendar, upcoming payments, analytics, tasks, and reports',
+      description: 'Read-focused finance role with home, calendar, profile, HR view (employees read-only), complaints, suggestions, IT requests, SIM cards (view-only), payment calendar, upcoming payments, analytics, tasks, and reports',
       color: 'bg-teal-100 text-teal-800 border-teal-200',
-      permissions: ['Home & Calendar', 'User Profile', 'Employees (view)', 'Complaints', 'Suggestions', 'IT Requests', 'Payment Calendar', 'Upcoming Payments', 'Analytics', 'Task Management', 'My Tasks', 'Reports']
+      permissions: ['Home & Calendar', 'User Profile', 'Employees (view)', 'Complaints', 'Suggestions', 'IT Requests', 'SIM Cards (view-only)', 'Payment Calendar', 'Upcoming Payments', 'Analytics', 'Task Management', 'My Tasks', 'Reports']
     },
     { 
       value: 'it_management', 
