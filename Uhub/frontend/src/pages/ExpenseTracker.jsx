@@ -233,6 +233,7 @@ export default function ExpenseTracker() {
           amount_aed: editForm.amount_aed,
           currency: editForm.currency,
           months: editForm.months,
+          billing_type: editForm.billing_type || null,
           service_status: editForm.service_status,
           department: editForm.department,
           date_paid: editForm.date_paid,

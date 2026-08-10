@@ -15,6 +15,7 @@ import {
   ChevronUp,
   X,
   Layers3,
+  CalendarClock,
 } from 'lucide-react';
 import { DEPARTMENTS, getDepartmentLabel } from '../../config/departments';
 import {
@@ -22,6 +23,10 @@ import {
   formatCurrency,
   getBreakdownRemaining,
   getBreakdownTotal,
+  BILLING_TYPE_OPTIONS,
+  getBillingTypeLabel,
+  getBillingPeriodFromPaymentDate,
+  getBillingExplanation,
 } from '../../utils/expenseHelpers';
 import ExpenseBreakdownEditor from './ExpenseBreakdownEditor';
 
@@ -116,6 +121,20 @@ function ExpensePreview({ form, receiptFile }) {
         <div>
           <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Amount</p>
           <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{amountLabel}</p>
+        </div>
+
+        <div className="rounded-xl border border-blue-200/80 dark:border-blue-900/50 bg-blue-50/70 dark:bg-blue-900/15 p-3">
+          <p className="text-xs text-blue-600 dark:text-blue-300 flex items-center gap-1 mb-1">
+            <CalendarClock className="w-3.5 h-3.5" />
+            Billing coverage
+          </p>
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+            {getBillingTypeLabel(form.billing_type)}
+            {form.months ? ` · ${form.months}` : ''}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {getBillingExplanation(form.date_paid, form.billing_type)}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -231,7 +250,8 @@ export default function ExpenseFormPanel({
     if (form.service_name?.trim()) done += 1;
     if (form.amount_aed && parseFloat(form.amount_aed) > 0) done += 1;
     if (form.date_paid) done += 1;
-    return { done, total: 3, percent: Math.round((done / 3) * 100) };
+    if (form.billing_type) done += 1;
+    return { done, total: 4, percent: Math.round((done / 4) * 100) };
   }, [form]);
 
   const dateWarning = useMemo(() => {
@@ -243,11 +263,19 @@ export default function ExpenseFormPanel({
   }, [form.date_paid, form.invoice_due_date]);
 
   const handleDatePaidChange = (value) => {
-    const next = { ...form, date_paid: value };
-    if (value && !form.months) {
-      next.months = new Date(value).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    }
-    setForm(next);
+    setForm({
+      ...form,
+      date_paid: value,
+      months: getBillingPeriodFromPaymentDate(value, form.billing_type),
+    });
+  };
+
+  const handleBillingTypeChange = (billingType) => {
+    setForm({
+      ...form,
+      billing_type: billingType,
+      months: getBillingPeriodFromPaymentDate(form.date_paid, billingType),
+    });
   };
 
   const handleReceiptChange = (e) => {
@@ -308,7 +336,7 @@ export default function ExpenseFormPanel({
                 />
               </Field>
 
-              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 <Field label="Amount" required>
                   <div className="flex gap-2 min-w-0">
                     <select
@@ -335,8 +363,28 @@ export default function ExpenseFormPanel({
                 </Field>
 
                 <Field
-                  label="Billing period"
-                  hint="Which month or period this expense covers"
+                  label="Billing type"
+                  required
+                  hint="Whether payment covers this month or the previous month"
+                >
+                  <select
+                    value={form.billing_type || ''}
+                    onChange={(event) => handleBillingTypeChange(event.target.value)}
+                    required
+                    className={inputClass}
+                  >
+                    <option value="">Select billing type</option>
+                    {BILLING_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} — {option.shortLabel}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field
+                  label="Service month"
+                  hint="Automatically suggested; edit it for invoice exceptions"
                 >
                   <input
                     type="text"
@@ -346,6 +394,18 @@ export default function ExpenseFormPanel({
                     className={inputClass}
                   />
                 </Field>
+
+                <div className="sm:col-span-2 xl:col-span-3 flex items-start gap-2 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-900/15 px-4 py-3">
+                  <CalendarClock className="w-4 h-4 text-blue-600 dark:text-blue-300 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      {getBillingTypeLabel(form.billing_type)}
+                    </p>
+                    <p className="text-xs text-blue-700/80 dark:text-blue-300/80 mt-0.5">
+                      {getBillingExplanation(form.date_paid, form.billing_type)}
+                    </p>
+                  </div>
+                </div>
               </div>
             </FormSection>
 

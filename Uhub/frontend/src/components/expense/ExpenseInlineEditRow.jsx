@@ -1,7 +1,11 @@
 import { motion } from 'framer-motion';
 import { Save, X, Layers3 } from 'lucide-react';
 import { DEPARTMENTS } from '../../config/departments';
-import { STATUS_OPTIONS } from '../../utils/expenseHelpers';
+import {
+  STATUS_OPTIONS,
+  BILLING_TYPE_OPTIONS,
+  getBillingPeriodFromPaymentDate,
+} from '../../utils/expenseHelpers';
 import {
   editInputClass,
   editSelectClass,
@@ -63,7 +67,7 @@ export default function ExpenseInlineEditRow({
             />
           </EditField>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-0">
             <EditField label="Amount">
               <div className="flex gap-2 min-w-0">
                 <select
@@ -87,7 +91,27 @@ export default function ExpenseInlineEditRow({
               </div>
             </EditField>
 
-            <EditField label="Billing period">
+            <EditField label="Billing type">
+              <select
+                value={editForm.billing_type || ''}
+                onChange={(e) => {
+                  const billingType = e.target.value;
+                  setEditForm({
+                    ...editForm,
+                    billing_type: billingType || null,
+                    months: getBillingPeriodFromPaymentDate(editForm.date_paid, billingType),
+                  });
+                }}
+                className={editSelectClass}
+              >
+                <option value="">Not specified</option>
+                {BILLING_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </EditField>
+
+            <EditField label="Service month">
               <input
                 type="text"
                 placeholder="e.g. Jan 2026"
@@ -103,7 +127,13 @@ export default function ExpenseInlineEditRow({
               <input
                 type="date"
                 value={editForm.date_paid || ''}
-                onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  date_paid: e.target.value,
+                  months: editForm.billing_type
+                    ? getBillingPeriodFromPaymentDate(e.target.value, editForm.billing_type)
+                    : editForm.months,
+                })}
                 className={editInputClass}
               />
             </EditField>

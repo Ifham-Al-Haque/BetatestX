@@ -71,7 +71,7 @@ export default function ExpenseImportPanel({
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                 <tr>
-                  {['Service', 'Amount', 'Date Paid', 'Gen. Date', 'Due Date', 'Department', 'Status', 'Issues'].map((h) => (
+                  {['Service', 'Amount', 'Date Paid', 'Billing', 'Gen. Date', 'Due Date', 'Department', 'Status', 'Issues'].map((h) => (
                     <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                       {h}
                     </th>
@@ -89,6 +89,11 @@ export default function ExpenseImportPanel({
                       {item.expense.amount_aed ? `${item.expense.currency || 'AED'} ${item.expense.amount_aed}` : '—'}
                     </td>
                     <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.date_paid || '—'}</td>
+                    <td className="px-3 py-2 text-gray-900 dark:text-white">
+                      {item.expense.billing_type
+                        ? `${item.expense.billing_type === 'post_charge' ? 'Post-charge' : 'Pre-charge'} · ${item.expense.months || '—'}`
+                        : '—'}
+                    </td>
                     <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.invoice_generation_date || '—'}</td>
                     <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.invoice_due_date || '—'}</td>
                     <td className="px-3 py-2 text-gray-900 dark:text-white">{item.expense.department || '—'}</td>

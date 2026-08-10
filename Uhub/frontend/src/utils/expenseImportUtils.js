@@ -3,6 +3,7 @@
  * Maps flexible column names to the expense schema used by the API.
  */
 import * as XLSX from 'xlsx';
+import { getBillingPeriodFromPaymentDate } from './expenseHelpers';
 
 // Possible header names (case-insensitive) mapped to expense field names
 const COLUMN_ALIASES = {
@@ -10,6 +11,7 @@ const COLUMN_ALIASES = {
   amount_aed: ['amount', 'amount aed', 'amount_aed', 'amount (aed)', 'aed'],
   currency: ['currency', 'curr'],
   months: ['months', 'month', 'period'],
+  billing_type: ['billing type', 'billing_type', 'charge type', 'payment timing'],
   service_status: ['status', 'service status', 'service_status', 'state'],
   department: ['department', 'dept'],
   date_paid: ['date paid', 'date_paid', 'payment date', 'paid date'],
@@ -156,6 +158,22 @@ function parseStatus(value) {
   return 'active';
 }
 
+function parseBillingType(value) {
+  if (value == null || value === '') return '';
+  const normalized = String(value).trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const aliases = {
+    pre_charge: 'pre_charge',
+    prepaid: 'pre_charge',
+    advance: 'pre_charge',
+    current_month: 'pre_charge',
+    post_charge: 'post_charge',
+    postpaid: 'post_charge',
+    arrears: 'post_charge',
+    previous_month: 'post_charge',
+  };
+  return aliases[normalized] || null;
+}
+
 /**
  * Map a row of key-value pairs (with flexible keys) to an expense object for the API.
  * @param {Record<string, string>} row - Object keyed by normalized field names (e.g. service_name)
@@ -180,12 +198,20 @@ export function mapRowToExpense(row) {
   }
   if (row.currency != null && get('currency')) expense.currency = get('currency').toUpperCase() || 'AED';
   if (row.months != null) expense.months = get('months');
+  if (row.billing_type != null) {
+    const billingType = parseBillingType(row.billing_type);
+    if (billingType) expense.billing_type = billingType;
+    else if (get('billing_type')) errors.push('Billing type must be Pre-charge or Post-charge');
+  }
   if (row.service_status != null) expense.service_status = parseStatus(row.service_status);
   if (row.department != null) expense.department = get('department');
   if (row.date_paid != null) expense.date_paid = parseDate(row.date_paid);
   if (row.invoice_number != null) expense.invoice_number = get('invoice_number');
   if (row.invoice_generation_date != null) expense.invoice_generation_date = parseDate(row.invoice_generation_date);
   if (row.invoice_due_date != null) expense.invoice_due_date = parseDate(row.invoice_due_date);
+  if (!expense.months && expense.date_paid && expense.billing_type) {
+    expense.months = getBillingPeriodFromPaymentDate(expense.date_paid, expense.billing_type);
+  }
 
   if (!expense.service_name) errors.push('Service name is required');
   if (!expense.amount_aed || expense.amount_aed === '') errors.push('Amount is required');
@@ -272,6 +298,7 @@ export function getExpenseImportTemplateCsv() {
     'Amount (AED)',
     'Currency',
     'Months',
+    'Billing Type',
     'Status',
     'Department',
     'Date Paid',
@@ -284,6 +311,7 @@ export function getExpenseImportTemplateCsv() {
     '500',
     'AED',
     'Jan 2024',
+    'Pre-charge',
     'active',
     'TECHNOLOGY',
     '2024-01-15',

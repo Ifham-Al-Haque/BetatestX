@@ -1,4 +1,5 @@
 import { getDepartmentLabel, getDepartmentColor } from '../../config/departments';
+import { getBillingTypeLabel } from '../../utils/expenseHelpers';
 
 export const COLUMN_DEFS = [
   { key: 'service_name', label: 'Service', align: 'left', locked: true },
@@ -7,6 +8,7 @@ export const COLUMN_DEFS = [
   { key: 'invoice_due_date', label: 'Due Date', align: 'left', defaultVisible: true },
   { key: 'amount_aed', label: 'Amount', align: 'right', locked: true },
   { key: 'date_paid', label: 'Date Paid', align: 'left', defaultVisible: true },
+  { key: 'billing_type', label: 'Billing', align: 'left', defaultVisible: true },
   { key: 'department', label: 'Department', align: 'left', defaultVisible: true },
   { key: 'service_status', label: 'Status', align: 'left', defaultVisible: true },
 ];
@@ -124,6 +126,28 @@ export function StatusBadge({ status }) {
     <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${styles[status] || styles.inactive}`}>
       {status}
     </span>
+  );
+}
+
+export function BillingTypeBadge({ billingType, billingPeriod }) {
+  if (!billingType) {
+    return <span className="text-xs text-gray-400 dark:text-gray-500">Not specified</span>;
+  }
+
+  const isPostCharge = billingType === 'post_charge';
+  const style = isPostCharge
+    ? 'bg-purple-100 text-purple-800 ring-purple-200 dark:bg-purple-900/40 dark:text-purple-200 dark:ring-purple-800'
+    : 'bg-sky-100 text-sky-800 ring-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:ring-sky-800';
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ring-1 ${style}`}>
+        {getBillingTypeLabel(billingType)}
+      </span>
+      {billingPeriod && (
+        <span className="text-[11px] text-gray-500 dark:text-gray-400">{billingPeriod}</span>
+      )}
+    </div>
   );
 }
 

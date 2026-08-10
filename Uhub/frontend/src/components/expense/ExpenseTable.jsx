@@ -25,6 +25,7 @@ import ExpenseBreakdownView from './ExpenseBreakdownView';
 import {
   COLUMN_DEFS,
   StatusBadge,
+  BillingTypeBadge,
   DepartmentBadge,
   formatDate,
   formatServiceName,
@@ -284,6 +285,14 @@ export default function ExpenseTable({
 
       case 'date_paid':
         return formatDate(expense.date_paid);
+
+      case 'billing_type':
+        return (
+          <BillingTypeBadge
+            billingType={expense.billing_type}
+            billingPeriod={expense.months}
+          />
+        );
 
       case 'department':
         return <DepartmentBadge department={expense.department} />;

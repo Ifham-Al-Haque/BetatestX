@@ -14,6 +14,48 @@ export const STATUS_OPTIONS = [
   { value: 'final', label: 'Final' },
 ];
 
+export const BILLING_TYPE_OPTIONS = [
+  {
+    value: 'pre_charge',
+    label: 'Pre-charge',
+    shortLabel: 'Current month',
+    description: 'Payment covers service usage for the payment month.',
+  },
+  {
+    value: 'post_charge',
+    label: 'Post-charge',
+    shortLabel: 'Previous month',
+    description: 'Payment covers service usage from the previous month.',
+  },
+];
+
+export const getBillingTypeLabel = (value) =>
+  BILLING_TYPE_OPTIONS.find((option) => option.value === value)?.label || 'Not specified';
+
+export const getBillingPeriodFromPaymentDate = (datePaid, billingType) => {
+  if (!datePaid) return '';
+  const paymentDate = new Date(`${datePaid}T00:00:00`);
+  if (Number.isNaN(paymentDate.getTime())) return '';
+
+  if (billingType === 'post_charge') {
+    paymentDate.setDate(1);
+    paymentDate.setMonth(paymentDate.getMonth() - 1);
+  }
+
+  return paymentDate.toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+export const getBillingExplanation = (datePaid, billingType) => {
+  if (!datePaid || !billingType) return '';
+  const paidMonth = getBillingPeriodFromPaymentDate(datePaid, 'pre_charge');
+  const coveredMonth = getBillingPeriodFromPaymentDate(datePaid, billingType);
+
+  return `Paid in ${paidMonth} for ${coveredMonth} service usage.`;
+};
+
 export const getExpenseAmount = (expense) =>
   parseFloat(expense.amount_aed || expense.amount || 0);
 
@@ -91,6 +133,7 @@ export const filterExpenses = (expenses, filters) => {
         expense.department?.toLowerCase().includes(searchTerm) ||
         expense.invoice_number?.toLowerCase().includes(searchTerm) ||
         expense.months?.toLowerCase().includes(searchTerm) ||
+        getBillingTypeLabel(expense.billing_type).toLowerCase().includes(searchTerm) ||
         expense.notes?.toLowerCase().includes(searchTerm) ||
         expense.breakdowns?.some(
           (item) =>
@@ -163,6 +206,7 @@ export const exportExpensesCsv = (expenses) => {
     'Department',
     'Status',
     'Months',
+    'Billing Type',
     'Notes',
     'Breakdown',
     'Breakdown Total',
@@ -180,6 +224,7 @@ export const exportExpensesCsv = (expenses) => {
     e.department || '',
     e.service_status || '',
     e.months || '',
+    getBillingTypeLabel(e.billing_type),
     e.notes || '',
     (e.breakdowns || [])
       .map((item) => `${item.label}: ${item.amount}`)
@@ -208,6 +253,7 @@ export const EMPTY_EXPENSE_FORM = {
   amount_aed: '',
   currency: 'AED',
   months: '',
+  billing_type: 'pre_charge',
   service_status: 'active',
   department: '',
   date_paid: '',
@@ -218,11 +264,14 @@ export const EMPTY_EXPENSE_FORM = {
   breakdowns: [],
 };
 
-export const getDefaultExpenseForm = () => ({
-  ...EMPTY_EXPENSE_FORM,
-  date_paid: new Date().toISOString().slice(0, 10),
-  months: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-});
+export const getDefaultExpenseForm = () => {
+  const datePaid = new Date().toISOString().slice(0, 10);
+  return {
+    ...EMPTY_EXPENSE_FORM,
+    date_paid: datePaid,
+    months: getBillingPeriodFromPaymentDate(datePaid, 'pre_charge'),
+  };
+};
 
 export const EMPTY_FILTERS = {
   search: '',

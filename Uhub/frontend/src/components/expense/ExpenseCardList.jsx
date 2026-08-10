@@ -15,9 +15,15 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { DEPARTMENTS } from '../../config/departments';
-import { formatCurrency, STATUS_OPTIONS } from '../../utils/expenseHelpers';
+import {
+  formatCurrency,
+  STATUS_OPTIONS,
+  BILLING_TYPE_OPTIONS,
+  getBillingPeriodFromPaymentDate,
+} from '../../utils/expenseHelpers';
 import {
   StatusBadge,
+  BillingTypeBadge,
   DepartmentBadge,
   formatDate,
   formatServiceName,
@@ -116,10 +122,33 @@ export default function ExpenseCardList({
                     onChange={(e) => setEditForm({ ...editForm, months: e.target.value })}
                     className={editInputClass}
                   />
+                  <select
+                    value={editForm.billing_type || ''}
+                    onChange={(e) => {
+                      const billingType = e.target.value;
+                      setEditForm({
+                        ...editForm,
+                        billing_type: billingType || null,
+                        months: getBillingPeriodFromPaymentDate(editForm.date_paid, billingType),
+                      });
+                    }}
+                    className={editSelectClass}
+                  >
+                    <option value="">Billing type not specified</option>
+                    {BILLING_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
                   <input
                     type="date"
                     value={editForm.date_paid}
-                    onChange={(e) => setEditForm({ ...editForm, date_paid: e.target.value })}
+                    onChange={(e) => setEditForm({
+                      ...editForm,
+                      date_paid: e.target.value,
+                      months: editForm.billing_type
+                        ? getBillingPeriodFromPaymentDate(e.target.value, editForm.billing_type)
+                        : editForm.months,
+                    })}
                     className={editInputClass}
                   />
                   <select
@@ -187,6 +216,12 @@ export default function ExpenseCardList({
 
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     {show('service_status') && <StatusBadge status={expense.service_status} />}
+                    {show('billing_type') && (
+                      <BillingTypeBadge
+                        billingType={expense.billing_type}
+                        billingPeriod={expense.months}
+                      />
+                    )}
                     {overdue && show('invoice_due_date') && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full">
                         <AlertCircle className="w-3 h-3" />
