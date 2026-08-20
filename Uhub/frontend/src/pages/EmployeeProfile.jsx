@@ -21,6 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import { canEditEmployees } from "../utils/permissions";
 import { normalizeAccessList, toDbAccessList, ensureAccessEntryIds, newAccessEntryId } from "../utils/accessList";
 import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
+import EmployeeAttendancePanel from "../components/attendance/EmployeeAttendancePanel";
 
 const accessCardClass =
   "rounded-xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/40 dark:bg-indigo-950/20 overflow-hidden";
@@ -668,6 +669,7 @@ export default function EmployeeProfile() {
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'skills', label: 'Skills', icon: Award },
     { id: 'leave', label: 'Leave', icon: CalendarDays },
+    { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
 
@@ -1995,6 +1997,19 @@ export default function EmployeeProfile() {
     );
   };
 
+  const renderAttendance = () => (
+    <div className="space-y-6">
+      <TabBanner
+        icon={Clock}
+        title="Attendance"
+        subtitle="Clock in / out from the linked UHub user account"
+        gradient="from-blue-700 via-indigo-700 to-violet-700 dark:from-blue-800 dark:via-indigo-800 dark:to-violet-800"
+        borderClass="border-indigo-600/30"
+      />
+      <EmployeeAttendancePanel employeeId={employee.id} />
+    </div>
+  );
+
   const renderLeave = () => (
     <div className="space-y-6">
       <TabBanner
@@ -2174,6 +2189,8 @@ export default function EmployeeProfile() {
         return renderSkills();
       case 'leave':
         return renderLeave();
+      case 'attendance':
+        return renderAttendance();
       case 'analytics':
         return renderAnalytics();
       default:
