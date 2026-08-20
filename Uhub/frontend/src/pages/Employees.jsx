@@ -32,6 +32,9 @@ import {
   X,
   LayoutGrid,
   BarChart3,
+  Mail,
+  MapPin,
+  Hash,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
@@ -44,8 +47,39 @@ const PERFORMANCE_LABELS = {
   needs_improvement: "Needs Improvement (<2.5)",
 };
 
+const DEPT_PALETTE = [
+  "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-700",
+  "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-700",
+  "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-700",
+  "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700",
+  "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-700",
+  "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-700",
+  "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-700",
+  "bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-700",
+];
+
+const formatStatus = (status) => {
+  const value = String(status || "active").replace(/_/g, " ");
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+};
+
+const hashToIndex = (value, size) => {
+  const text = String(value || "");
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) % 2147483647;
+  }
+  return Math.abs(hash) % size;
+};
+
 function PaginationBar({ currentPage, totalPages, pageSize, totalCount, onPageChange }) {
   if (totalPages <= 1) return null;
+
+  const firstPage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+  const pageNumbers = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, index) => firstPage + index
+  );
 
   return (
     <div className="px-6 md:px-8 py-6 border-t border-slate-200 dark:border-gray-700 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-gray-800/80 dark:to-gray-900/80">
@@ -63,7 +97,7 @@ function PaginationBar({ currentPage, totalPages, pageSize, totalCount, onPageCh
           <span className="font-bold text-slate-900 dark:text-white">{totalCount}</span>{" "}
           <span className="font-medium">results</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
           <button
             type="button"
             onClick={() => onPageChange(currentPage - 1)}
@@ -72,9 +106,8 @@ function PaginationBar({ currentPage, totalPages, pageSize, totalCount, onPageCh
           >
             Previous
           </button>
-          <div className="flex items-center gap-2">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const page = i + 1;
+          <div className="hidden sm:flex items-center gap-2">
+            {pageNumbers.map((page) => {
               return (
                 <button
                   key={page}
@@ -107,11 +140,18 @@ function PaginationBar({ currentPage, totalPages, pageSize, totalCount, onPageCh
 
 function Employees() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortKey, setSortKey] = useState("full_name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [viewMode, setViewMode] = useState("grid");
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return window.localStorage.getItem("uhub-employees-view") === "table" ? "table" : "grid";
+    } catch {
+      return "grid";
+    }
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [showDepartmentOverview, setShowDepartmentOverview] = useState(false);
   const [activeStatFilter, setActiveStatFilter] = useState("");
@@ -140,14 +180,25 @@ function Employees() {
     () => ({
       department: filters.department,
       location: filters.location,
+      performance: filters.performance,
+      employment: filters.employment,
+      sortKey,
+      sortOrder,
     }),
-    [filters.department, filters.location]
+    [
+      filters.department,
+      filters.location,
+      filters.performance,
+      filters.employment,
+      sortKey,
+      sortOrder,
+    ]
   );
 
   const { data: employeesData, isLoading, error, refetch, isFetching } = useEmployees(
     currentPage,
     pageSize,
-    search,
+    debouncedSearch,
     queryFilters
   );
   const { data: summaryStats, isLoading: statsLoading } = useEmployeeSummaryStats();
@@ -190,38 +241,35 @@ function Employees() {
     [archiveEmployeeMutation, success, showError, refetch]
   );
 
-  const filteredAndSortedEmployees = useMemo(() => {
-    let filtered = employees;
-
-    if (filters.performance) {
-      filtered = filtered.filter((emp) => {
-        const rating = Number(emp.performance_rating || 0);
-        if (filters.performance === "excellent") return rating >= 4.5;
-        if (filters.performance === "good") return rating >= 3.5 && rating < 4.5;
-        if (filters.performance === "average") return rating >= 2.5 && rating < 3.5;
-        if (filters.performance === "needs_improvement") return rating < 2.5;
-        return true;
-      });
-    }
-
-    if (filters.employment === "active") {
-      filtered = filtered.filter(
-        (emp) =>
-          !emp.termination_date &&
-          String(emp.status || "active").toLowerCase() !== "inactive"
-      );
-    }
-
-    return filtered.sort((a, b) => {
-      const valA = a[sortKey]?.toLowerCase?.() || "";
-      const valB = b[sortKey]?.toLowerCase?.() || "";
-      return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    });
-  }, [employees, filters.performance, filters.employment, sortKey, sortOrder]);
+  const filteredAndSortedEmployees = employees;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.department, filters.location, filters.performance, filters.employment]);
+  }, [
+    filters.department,
+    filters.location,
+    filters.performance,
+    filters.employment,
+    sortKey,
+    sortOrder,
+  ]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("uhub-employees-view", viewMode);
+    } catch {
+      // Ignore storage errors in private browsing.
+    }
+  }, [viewMode]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setCurrentPage(1);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     const loadFilterOptions = async () => {
@@ -250,7 +298,7 @@ function Employees() {
   const handleExport = useCallback(async () => {
     try {
       setExporting(true);
-      const rows = await apiService.employees.exportData(search, queryFilters);
+      const rows = await apiService.employees.exportData(search.trim(), queryFilters);
       if (!rows.length) {
         showError("Export Failed", "No employee records match the current filters.");
         return;
@@ -268,24 +316,17 @@ function Employees() {
 
   const handlePageChange = useCallback((page) => {
     setCurrentPage(page);
+    window.requestAnimationFrame(() => {
+      document.getElementById("employee-results")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }, []);
 
   const handleSearch = useCallback((value) => {
     setSearch(value);
-    setCurrentPage(1);
   }, []);
-
-  const handleSort = useCallback(
-    (key) => {
-      if (sortKey === key) {
-        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-      } else {
-        setSortKey(key);
-        setSortOrder("asc");
-      }
-    },
-    [sortKey, sortOrder]
-  );
 
   const clearFilters = useCallback(() => {
     setFilters({
@@ -387,7 +428,7 @@ function Employees() {
     };
     return (
       colors[department] ||
-      "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+      DEPT_PALETTE[hashToIndex(department, DEPT_PALETTE.length)]
     );
   };
 
@@ -397,7 +438,17 @@ function Employees() {
     if (filters.performance)
       chips.push({ key: "performance", label: PERFORMANCE_LABELS[filters.performance] || filters.performance });
     if (filters.location) chips.push({ key: "location", label: filters.location });
-    if (filters.employment === "active") chips.push({ key: "employment", label: "Active only" });
+    if (filters.employment) {
+      const employmentLabels = {
+        active: "Active employees",
+        inactive: "Inactive employees",
+        pending: "Pending employees",
+      };
+      chips.push({
+        key: "employment",
+        label: employmentLabels[filters.employment] || filters.employment,
+      });
+    }
     return chips;
   }, [filters]);
 
@@ -442,7 +493,7 @@ function Employees() {
     const imageKey = `${employee.id}-${imageUrl}`;
     const hasError = imageErrorsRef.current.has(imageKey);
     const unsafeBlob = isBlobUrlUnsafeForCurrentPage(imageUrl);
-    const sizeClass = size === "lg" ? "h-20 w-20 text-2xl ring-4" : "h-12 w-12 text-lg ring-2";
+    const sizeClass = size === "lg" ? "h-16 w-16 text-xl ring-4" : "h-12 w-12 text-lg ring-2";
 
     if (!imageUrl || hasError || unsafeBlob) {
       return (
@@ -517,28 +568,29 @@ function Employees() {
                   type="button"
                   onClick={() => refetch()}
                   disabled={isFetching}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white transition-all disabled:opacity-60"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white transition-all disabled:opacity-60"
+                  title="Refresh"
                 >
                   <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
-                  Refresh
+                  <span className="hidden sm:inline">Refresh</span>
                 </button>
                 {canViewOrgChart && (
                   <button
                     type="button"
                     onClick={() => navigate("/organizational-hierarchy")}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white transition-all"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white transition-all"
                   >
                     <Network className="w-4 h-4" />
-                    Org Chart
+                    <span className="hidden sm:inline">Org Chart</span>
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => navigate("/employee-history")}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white transition-all"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white transition-all"
                 >
                   <Archive className="w-4 h-4" />
-                  History
+                  <span className="hidden sm:inline">History</span>
                 </button>
                 {canAddEmployee() && (
                   <button
@@ -647,8 +699,9 @@ function Employees() {
           )}
         </AnimatePresence>
 
-        {/* Search, filters, view toggle */}
+        {/* Search, filters, sort */}
         <motion.div
+          id="employee-results"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -663,8 +716,19 @@ function Employees() {
                   placeholder="Search by name, ID, department, phone, location…"
                   value={search}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  className="w-full pl-12 pr-11 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    aria-label="Clear search"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
@@ -704,6 +768,11 @@ function Employees() {
                 >
                   <Filter className="w-4 h-4" />
                   Filters
+                  {activeFilterChips.length > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-blue-600 text-white text-xs">
+                      {activeFilterChips.length}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -749,7 +818,7 @@ function Employees() {
                   exit={{ opacity: 0, height: 0 }}
                   className="border-t border-gray-200 dark:border-gray-700 pt-5 overflow-hidden"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Department</label>
                       <select
@@ -797,48 +866,61 @@ function Employees() {
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Employment Status</label>
+                      <select
+                        value={filters.employment}
+                        onChange={(e) => {
+                          setFilters((prev) => ({ ...prev, employment: e.target.value }));
+                          setActiveStatFilter(e.target.value === "active" ? "active" : "");
+                        }}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    </div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </motion.div>
 
-        {/* Results bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 md:p-5 shadow-sm border border-gray-200/60 dark:border-gray-700/60 mb-6"
-        >
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Showing</span>
-              <span className="font-semibold text-gray-900 dark:text-white">{filteredAndSortedEmployees.length}</span>
-              <span className="text-gray-500 dark:text-gray-400">on this page of</span>
-              <span className="font-semibold text-gray-900 dark:text-white">{totalCount}</span>
-              <span className="text-gray-500 dark:text-gray-400">employees</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={sortKey}
-                onChange={(e) => handleSort(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
-              >
-                <option value="full_name">Sort by Name</option>
-                <option value="department">Sort by Department</option>
-                <option value="position">Sort by Position</option>
-                <option value="hire_date">Sort by Hire Date</option>
-                <option value="performance_rating">Sort by Performance</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                title={`Sort ${sortOrder === "asc" ? "descending" : "ascending"}`}
-              >
-                {sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700/70">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Showing</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{filteredAndSortedEmployees.length}</span>
+                <span className="text-gray-500 dark:text-gray-400">on this page of</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{totalCount}</span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  {activeFilterChips.length || debouncedSearch ? "matching employees" : "employees"}
+                </span>
+                {isFetching && !isLoading && (
+                  <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                >
+                  <option value="full_name">Sort by Name</option>
+                  <option value="department">Sort by Department</option>
+                  <option value="position">Sort by Position</option>
+                  <option value="hire_date">Sort by Hire Date</option>
+                  <option value="performance_rating">Sort by Performance</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  title={`Sort ${sortOrder === "asc" ? "descending" : "ascending"}`}
+                >
+                  {sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -866,156 +948,175 @@ function Employees() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl border border-gray-200/60 dark:border-gray-700/60 shadow-sm overflow-hidden"
+                className={isFetching && !isLoading ? "opacity-70 transition-opacity" : "transition-opacity"}
               >
                 {filteredAndSortedEmployees.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 px-6">
-                    <div className="rounded-full bg-gray-100 dark:bg-gray-700/60 p-4 mb-4">
-                      <Users className="w-10 h-10 text-gray-400" />
+                  <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl bg-white/80 dark:bg-gray-800/80 border border-gray-200/60 dark:border-gray-700/60">
+                    <div className="rounded-full bg-blue-50 dark:bg-blue-900/20 p-4 mb-4">
+                      <Users className="w-10 h-10 text-blue-400" />
                     </div>
                     <p className="text-base font-medium text-gray-700 dark:text-gray-300">No employees match your filters</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Try adjusting search or filters.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Try adjusting search or filters to see more people.</p>
+                    {(activeFilterChips.length > 0 || search) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearch("");
+                          clearFilters();
+                        }}
+                        className="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                      >
+                        Clear search and filters
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <div className="p-5 md:p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                      {filteredAndSortedEmployees.map((employee, index) => (
-                        <motion.div
-                          key={employee.id}
-                          initial={{ opacity: 0, y: 16 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.28) }}
-                          whileHover={{ y: -4 }}
-                          role={canViewEmployee() ? "button" : undefined}
-                          tabIndex={canViewEmployee() ? 0 : undefined}
-                          onClick={() => canViewEmployee() && navigate(`/employee/${employee.id}`)}
-                          onKeyDown={(e) => {
-                            if (canViewEmployee() && (e.key === "Enter" || e.key === " ")) {
-                              e.preventDefault();
-                              navigate(`/employee/${employee.id}`);
-                            }
-                          }}
-                          className={`w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700/60 overflow-hidden transition-all duration-300 hover:border-blue-200 dark:hover:border-blue-800/50 hover:shadow-lg ${
-                            canViewEmployee() ? "cursor-pointer" : ""
-                          }`}
-                        >
-                          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-5 pt-5 pb-6 border-b border-gray-200/70 dark:border-gray-700/60">
-                            <div className="flex items-start justify-between gap-3 mb-4">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                    {filteredAndSortedEmployees.map((employee, index) => (
+                      <motion.div
+                        key={employee.id}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.28) }}
+                        whileHover={{ y: -4 }}
+                        role={canViewEmployee() ? "button" : undefined}
+                        tabIndex={canViewEmployee() ? 0 : undefined}
+                        onClick={() => canViewEmployee() && navigate(`/employee/${employee.id}`)}
+                        onKeyDown={(e) => {
+                          if (canViewEmployee() && (e.key === "Enter" || e.key === " ")) {
+                            e.preventDefault();
+                            navigate(`/employee/${employee.id}`);
+                          }
+                        }}
+                        className={`w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200/70 dark:border-gray-700/60 overflow-hidden transition-all duration-300 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl ${
+                          canViewEmployee() ? "cursor-pointer" : ""
+                        }`}
+                      >
+                        <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+                        <div className="p-5">
+                          <div className="flex items-start gap-3 mb-4">
+                            <div className="shrink-0">{renderEmployeeAvatar(employee, "lg")}</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <h3 className="text-base font-semibold text-gray-900 dark:text-white leading-snug line-clamp-2">
                                   {employee.full_name || employee.name || "Unknown"}
                                 </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                                  {employee.designation || employee.position || "No Position"}
-                                </p>
+                                <span className={`inline-flex px-2 py-0.5 text-[11px] font-medium rounded-full border flex-shrink-0 ${getStatusColor(employee.status)}`}>
+                                  {formatStatus(employee.status)}
+                                </span>
                               </div>
-                              <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border flex-shrink-0 ${getStatusColor(employee.status)}`}>
-                                {employee.status || "active"}
-                              </span>
-                            </div>
-                            <div className="flex justify-center">{renderEmployeeAvatar(employee, "lg")}</div>
-                          </div>
-
-                          <div className="p-4 space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="text-gray-500 w-14 shrink-0">ID</span>
-                              <span className="font-medium text-gray-900 dark:text-gray-200 truncate">{employee.employee_id || "N/A"}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 shrink-0">Dept</span>
-                              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-lg border truncate ${getDepartmentColor(employee.department)}`}>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-0.5">
+                                {employee.designation || employee.position || "No Position"}
+                              </p>
+                              <span className={`inline-flex mt-2 px-2 py-0.5 text-xs font-medium rounded-lg border truncate max-w-full ${getDepartmentColor(employee.department)}`}>
                                 {employee.department || "Unassigned"}
                               </span>
                             </div>
-                            {employee.reporting_manager?.full_name && (
-                              <div className="flex items-center gap-2 text-sm min-w-0">
-                                <span className="text-gray-500 w-14 shrink-0">Reports</span>
-                                <span className="truncate text-gray-700 dark:text-gray-300">{employee.reporting_manager.full_name}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 text-sm min-w-0">
-                              <span className="text-gray-500 w-14 shrink-0">Email</span>
-                              <span className="truncate text-gray-600 dark:text-gray-400">{employee.email || "N/A"}</span>
-                            </div>
-                            {employee.performance_rating > 0 && (
-                              <div className="flex items-center gap-2 pt-1">
-                                <span className="text-gray-500 w-14 shrink-0 text-sm">Rating</span>
-                                <div className="flex items-center gap-0.5">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                      key={star}
-                                      className={`w-3.5 h-3.5 ${
-                                        star <= employee.performance_rating
-                                          ? "text-amber-400 fill-current"
-                                          : "text-gray-300 dark:text-gray-600"
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                          </div>
 
-                            {(canViewEmployee() || canEditEmployee() || canDeleteEmployee()) && (
-                              <div
-                                className="flex items-center gap-1.5 pt-3 mt-2 border-t border-gray-100 dark:border-gray-700/70"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                              >
-                                {canViewEmployee() && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/employee/${employee.id}`)}
-                                    className="flex-1 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                    View
-                                  </button>
-                                )}
-                                {canEditEmployee() && (
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/employee/${employee.id}/edit`)}
-                                    className="flex-1 py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                    Edit
-                                  </button>
-                                )}
-                                {canDeleteEmployee() && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleArchive(employee.id, employee.full_name || employee.name)}
-                                      disabled={archiveEmployeeMutation.isLoading}
-                                      className="flex-1 py-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                                    >
-                                      <Archive className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDelete(employee.id)}
-                                      disabled={deleteEmployeeMutation.isLoading}
-                                      className="flex-1 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-sm font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                                    >
-                                      <Trash className="w-4 h-4" />
-                                    </button>
-                                  </>
-                                )}
+                          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Hash className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                              <span className="truncate font-medium text-gray-800 dark:text-gray-200">{employee.employee_id || "No ID"}</span>
+                            </div>
+                            {employee.location && (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                <span className="truncate">{employee.location}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Mail className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                              <span className="truncate">{employee.email || "No email"}</span>
+                            </div>
+                            {employee.reporting_manager?.full_name && (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <UserCheck className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                                <span className="truncate">Reports to {employee.reporting_manager.full_name}</span>
+                              </div>
+                            )}
+                            {employee.performance_rating > 0 && (
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`w-3.5 h-3.5 ${
+                                      star <= employee.performance_rating
+                                        ? "text-amber-400 fill-current"
+                                        : "text-gray-300 dark:text-gray-600"
+                                    }`}
+                                  />
+                                ))}
                               </div>
                             )}
                           </div>
-                        </motion.div>
-                      ))}
-                    </div>
+
+                          {(canViewEmployee() || canEditEmployee() || canDeleteEmployee()) && (
+                            <div
+                              className="flex items-center gap-1.5 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700/70"
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              {canViewEmployee() && (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/employee/${employee.id}`)}
+                                  className="flex-1 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View
+                                </button>
+                              )}
+                              {canEditEmployee() && (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/employee/${employee.id}/edit`)}
+                                  className="flex-1 py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  Edit
+                                </button>
+                              )}
+                              {canDeleteEmployee() && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleArchive(employee.id, employee.full_name || employee.name)}
+                                    disabled={archiveEmployeeMutation.isLoading}
+                                    className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg disabled:opacity-50"
+                                    title="Archive employee"
+                                  >
+                                    <Archive className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(employee.id)}
+                                    disabled={deleteEmployeeMutation.isLoading}
+                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg disabled:opacity-50"
+                                    title="Delete employee"
+                                  >
+                                    <Trash className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
                 )}
-                <PaginationBar
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  pageSize={pageSize}
-                  totalCount={totalCount}
-                  onPageChange={handlePageChange}
-                />
+                {totalPages > 1 && (
+                  <div className="mt-6 rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-700/60 bg-white/90 dark:bg-gray-800/90">
+                    <PaginationBar
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      pageSize={pageSize}
+                      totalCount={totalCount}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
@@ -1048,15 +1149,30 @@ function Employees() {
                     <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
                       {filteredAndSortedEmployees.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                            No employees match your filters.
+                          <td colSpan={5} className="px-6 py-12 text-center">
+                            <p className="text-gray-600 dark:text-gray-300 font-medium">No employees match your filters.</p>
+                            {(activeFilterChips.length > 0 || search) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSearch("");
+                                  clearFilters();
+                                }}
+                                className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                Clear search and filters
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ) : (
                         filteredAndSortedEmployees.map((employee) => (
                           <tr
                             key={employee.id}
-                            className="hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-colors group"
+                            onClick={() => canViewEmployee() && navigate(`/employee/${employee.id}`)}
+                            className={`hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-colors group ${
+                              canViewEmployee() ? "cursor-pointer" : ""
+                            }`}
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center min-w-0">
@@ -1087,10 +1203,10 @@ function Employees() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(employee.status)}`}>
-                                {employee.status || "active"}
+                                {formatStatus(employee.status)}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                               {(canViewEmployee() || canEditEmployee() || canDeleteEmployee()) ? (
                                 <div className="flex items-center gap-1">
                                   {canViewEmployee() && (

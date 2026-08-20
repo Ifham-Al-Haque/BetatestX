@@ -116,6 +116,66 @@ export const apiService = {
       // Backward compatibility: previous signature used 4th arg as includeArchived boolean.
       const resolvedFilters = typeof filters === 'boolean' ? {} : (filters || {});
       const resolvedIncludeArchived = typeof filters === 'boolean' ? filters : includeArchived;
+      const allowedSortKeys = new Set([
+        'full_name',
+        'department',
+        'position',
+        'hire_date',
+        'performance_rating',
+        'created_at',
+      ]);
+      const sortKey = allowedSortKeys.has(resolvedFilters.sortKey)
+        ? resolvedFilters.sortKey
+        : 'full_name';
+      const sortAscending = resolvedFilters.sortOrder !== 'desc';
+
+      const applyListFilters = (baseQuery) => {
+        let filteredQuery = baseQuery;
+
+        if (!resolvedIncludeArchived) {
+          filteredQuery = filteredQuery.eq('is_archived', false);
+        }
+
+        if (search) {
+          const safeSearch = String(search).replace(/[,%()]/g, ' ').trim();
+          if (safeSearch) {
+            filteredQuery = filteredQuery.or(
+              `full_name.ilike.*${safeSearch}*,department.ilike.*${safeSearch}*,position.ilike.*${safeSearch}*,designation.ilike.*${safeSearch}*,employee_id.ilike.*${safeSearch}*,email.ilike.*${safeSearch}*,phone.ilike.*${safeSearch}*,location.ilike.*${safeSearch}*`
+            );
+          }
+        }
+
+        if (resolvedFilters.department) {
+          filteredQuery = filteredQuery.eq('department', resolvedFilters.department);
+        }
+
+        if (resolvedFilters.location) {
+          filteredQuery = filteredQuery.eq('location', resolvedFilters.location);
+        }
+
+        if (resolvedFilters.performance === 'excellent') {
+          filteredQuery = filteredQuery.gte('performance_rating', 4.5);
+        } else if (resolvedFilters.performance === 'good') {
+          filteredQuery = filteredQuery.gte('performance_rating', 3.5).lt('performance_rating', 4.5);
+        } else if (resolvedFilters.performance === 'average') {
+          filteredQuery = filteredQuery.gte('performance_rating', 2.5).lt('performance_rating', 3.5);
+        } else if (resolvedFilters.performance === 'needs_improvement') {
+          filteredQuery = filteredQuery.or('performance_rating.lt.2.5,performance_rating.is.null');
+        }
+
+        if (resolvedFilters.employment === 'active') {
+          filteredQuery = filteredQuery
+            .is('termination_date', null)
+            .or('status.neq.inactive,status.is.null');
+        } else if (resolvedFilters.employment === 'inactive') {
+          filteredQuery = filteredQuery.or('status.eq.inactive,termination_date.not.is.null');
+        } else if (resolvedFilters.employment === 'pending') {
+          filteredQuery = filteredQuery.eq('status', 'pending');
+        }
+
+        return filteredQuery;
+      };
+
       let query = supabase
         .from('employees')
         .select(`
@@ -142,24 +202,9 @@ export const apiService = {
             employee_id
           )
         `)
-        .order('created_at', { ascending: false });
+        .order(sortKey, { ascending: sortAscending, nullsFirst: false });
 
-      // Exclude archived employees by default
-      if (!resolvedIncludeArchived) {
-        query = query.eq('is_archived', false);
-      }
-
-      if (search) {
-        query = query.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
-      }
-
-      if (resolvedFilters.department) {
-        query = query.eq('department', resolvedFilters.department);
-      }
-
-      if (resolvedFilters.location) {
-        query = query.eq('location', resolvedFilters.location);
-      }
+      query = applyListFilters(query);
 
       const from = (page - 1) * limit;
       const to = from + limit - 1;
@@ -168,24 +213,11 @@ export const apiService = {
       let countQuery = supabase
         .from('employees')
         .select('*', { count: 'exact', head: true });
-      
-      if (!resolvedIncludeArchived) {
-        countQuery = countQuery.eq('is_archived', false);
-      }
-      
-      if (search) {
-        countQuery = countQuery.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
-      }
 
-      if (resolvedFilters.department) {
-        countQuery = countQuery.eq('department', resolvedFilters.department);
-      }
+      countQuery = applyListFilters(countQuery);
 
-      if (resolvedFilters.location) {
-        countQuery = countQuery.eq('location', resolvedFilters.location);
-      }
-      
-      const { count: totalCount } = await countQuery;
+      const { count: totalCount, error: countError } = await countQuery;
+      if (countError) throw countError;
 
       // Then get the paginated data
       const { data, error } = await query.range(from, to);
@@ -263,7 +295,12 @@ export const apiService = {
         .order('full_name', { ascending: true });
 
       if (search) {
-        query = query.or(`full_name.ilike.*${search}*,department.ilike.*${search}*,position.ilike.*${search}*,employee_id.ilike.*${search}*,phone.ilike.*${search}*,location.ilike.*${search}*`);
+        const safeSearch = String(search).replace(/[,%()]/g, ' ').trim();
+        if (safeSearch) {
+          query = query.or(
+            `full_name.ilike.*${safeSearch}*,department.ilike.*${safeSearch}*,position.ilike.*${safeSearch}*,designation.ilike.*${safeSearch}*,employee_id.ilike.*${safeSearch}*,email.ilike.*${safeSearch}*,phone.ilike.*${safeSearch}*,location.ilike.*${safeSearch}*`
+          );
+        }
       }
 
       if (resolvedFilters.department) {
@@ -272,6 +309,26 @@ export const apiService = {
 
       if (resolvedFilters.location) {
         query = query.eq('location', resolvedFilters.location);
+      }
+
+      if (resolvedFilters.performance === 'excellent') {
+        query = query.gte('performance_rating', 4.5);
+      } else if (resolvedFilters.performance === 'good') {
+        query = query.gte('performance_rating', 3.5).lt('performance_rating', 4.5);
+      } else if (resolvedFilters.performance === 'average') {
+        query = query.gte('performance_rating', 2.5).lt('performance_rating', 3.5);
+      } else if (resolvedFilters.performance === 'needs_improvement') {
+        query = query.or('performance_rating.lt.2.5,performance_rating.is.null');
+      }
+
+      if (resolvedFilters.employment === 'active') {
+        query = query
+          .is('termination_date', null)
+          .or('status.neq.inactive,status.is.null');
+      } else if (resolvedFilters.employment === 'inactive') {
+        query = query.or('status.eq.inactive,termination_date.not.is.null');
+      } else if (resolvedFilters.employment === 'pending') {
+        query = query.eq('status', 'pending');
       }
 
       const { data, error } = await query;
