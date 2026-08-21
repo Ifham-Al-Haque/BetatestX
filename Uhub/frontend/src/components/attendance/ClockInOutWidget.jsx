@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { LogIn, LogOut, AlertCircle, MapPin, Loader2 } from 'lucide-react';
+import { LogIn, LogOut, AlertCircle, MapPin, Loader2, ClipboardEdit } from 'lucide-react';
+import RegularizeAttendanceModal from './RegularizeAttendanceModal';
 import { useToast } from '../../context/ToastContext';
 import attendanceService, {
   dubaiDateString,
@@ -68,6 +69,7 @@ const ClockInOutWidget = ({ variant = 'light', onChanged }) => {
   const [schemaMissing, setSchemaMissing] = useState(false);
   const [today, setToday] = useState(null);
   const [loadError, setLoadError] = useState('');
+  const [regularizeOpen, setRegularizeOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -227,12 +229,34 @@ const ClockInOutWidget = ({ variant = 'light', onChanged }) => {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
               Clock out
             </button>
+            <button
+              type="button"
+              onClick={() => setRegularizeOpen(true)}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold ${
+                isDark
+                  ? 'bg-white/10 text-white hover:bg-white/15'
+                  : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
+              }`}
+            >
+              <ClipboardEdit className="w-4 h-4" />
+              Regularize
+            </button>
           </div>
           <p className={`text-[11px] mt-3 ${muted}`}>
-            Allow location when asked so HR can see where this punch was made.
+            Allow location when asked so HR can see where this punch was made. Use Regularize if a punch was missed or is wrong — HR must approve it.
           </p>
         </>
       )}
+      <RegularizeAttendanceModal
+        open={regularizeOpen}
+        onClose={() => setRegularizeOpen(false)}
+        defaultDate={dubaiDateString()}
+        defaultDay={day}
+        onSubmitted={() => {
+          setRegularizeOpen(false);
+          onChanged?.();
+        }}
+      />
     </div>
   );
 };

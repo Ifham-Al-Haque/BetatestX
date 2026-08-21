@@ -889,6 +889,84 @@ class NotificationService {
       throw error;
     }
   }
+
+  async notifyRegularizationSubmitted(request) {
+    try {
+      const dateLabel = request.work_date || '';
+      const name = request.requester_name || request.requester_email || 'A UHub user';
+      const actionUrl = '/attendance?tab=regularization';
+      const payload = {
+        type: 'attendance_regularization',
+        title: 'Attendance regularization request',
+        message: `${name} asked to regularize ${dateLabel}`,
+        data: {
+          request_id: request.id,
+          work_date: request.work_date,
+          requester_id: request.user_id,
+        },
+        priority: 'high',
+        actionUrl,
+        actionLabel: 'Review request',
+        emailSubject: `Attendance regularization: ${name}`,
+        emailHeading: 'New regularization request',
+        emailLines: [
+          { label: 'Requester', value: name },
+          { label: 'Date', value: dateLabel },
+          { label: 'Reason', value: request.reason },
+        ],
+        emailAccentColor: '#4f46e5',
+      };
+      const result = await notifyUhubUsersByRoles(this, HR_NOTIFY_ROLES, payload);
+      if (!result.users) {
+        await this.createNotificationsForRole({ role: 'hr_manager', ...payload });
+        await this.createNotificationsForRole({ role: 'admin', ...payload });
+      }
+      return result.inApp + result.push;
+    } catch (error) {
+      console.error('Error notifying regularization submit:', error);
+      return 0;
+    }
+  }
+
+  async notifyRegularizationReviewed(request, decision) {
+    try {
+      const approved = decision === 'approved';
+      const dateLabel = request.work_date || '';
+      const personId = request.requester_auth_id || request.user_id;
+      if (personId) {
+        await notifyUhubUser(this, {
+          personId,
+          type: 'attendance_regularization_update',
+          title: approved ? 'Regularization approved' : 'Regularization rejected',
+          message: approved
+            ? `HR approved your attendance regularization for ${dateLabel}`
+            : `HR rejected your attendance regularization for ${dateLabel}`,
+          data: {
+            request_id: request.id,
+            work_date: request.work_date,
+            status: decision,
+            review_notes: request.review_notes,
+          },
+          priority: 'high',
+          actionUrl: '/home',
+          actionLabel: 'Open time clock',
+          emailSubject: approved
+            ? `Regularization approved: ${dateLabel}`
+            : `Regularization rejected: ${dateLabel}`,
+          emailLines: [
+            { label: 'Date', value: dateLabel },
+            { label: 'Decision', value: approved ? 'Approved' : 'Rejected' },
+            { label: 'HR note', value: request.review_notes },
+          ],
+          emailAccentColor: approved ? '#059669' : '#e11d48',
+        });
+      }
+      return 1;
+    } catch (error) {
+      console.error('Error notifying regularization review:', error);
+      return 0;
+    }
+  }
 }
 
 const notificationService = new NotificationService();

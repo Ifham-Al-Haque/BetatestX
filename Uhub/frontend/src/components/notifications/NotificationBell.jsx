@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Check, Trash2, AlertCircle, Lightbulb, Calendar, CreditCard, MessageSquare } from 'lucide-react';
+import { Bell, X, Check, Trash2, AlertCircle, Lightbulb, Calendar, CreditCard, MessageSquare, Clock } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 
 const NotificationBell = () => {
@@ -42,6 +42,10 @@ const NotificationBell = () => {
         return <MessageSquare className="w-5 h-5 text-teal-600" />;
       case 'fleet_task_assigned':
         return <MessageSquare className="w-5 h-5 text-indigo-600" />;
+      case 'attendance_regularization':
+      case 'attendance_regularization_update':
+      case 'attendance_issue':
+        return <Clock className="w-5 h-5 text-indigo-600" />;
       case 'calendar':
         return <Calendar className="w-5 h-5 text-green-500" />;
       case 'payment':
@@ -72,6 +76,9 @@ const NotificationBell = () => {
       case 'it_request_assigned':
         return 'border-teal-200 bg-teal-50';
       case 'fleet_task_assigned':
+        return 'border-indigo-200 bg-indigo-50';
+      case 'attendance_regularization':
+      case 'attendance_regularization_update':
         return 'border-indigo-200 bg-indigo-50';
       case 'calendar':
         return 'border-green-200 bg-green-50';

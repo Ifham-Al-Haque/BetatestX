@@ -83,6 +83,8 @@ const EnhancedNotificationContainer = () => {
       case 'calendar_event':
         return <Calendar {...iconProps} className="w-5 h-5 text-indigo-500" />;
       case 'attendance_issue':
+      case 'attendance_regularization':
+      case 'attendance_regularization_update':
         return <Clock {...iconProps} className="w-5 h-5 text-pink-500" />;
       case 'payment_due':
         return <CreditCard {...iconProps} className="w-5 h-5 text-red-600" />;

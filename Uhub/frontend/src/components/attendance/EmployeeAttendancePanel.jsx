@@ -170,12 +170,13 @@ const EmployeeAttendancePanel = ({ employeeId }) => {
                 <th className="text-left px-5 py-2 font-medium">In</th>
                 <th className="text-left px-5 py-2 font-medium">Out</th>
                 <th className="text-left px-5 py-2 font-medium">Hours</th>
+                <th className="text-left px-5 py-2 font-medium">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {days.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-5 py-6 text-gray-500 text-center">
+                  <td colSpan={5} className="px-5 py-6 text-gray-500 text-center">
                     No punches this month.
                   </td>
                 </tr>
@@ -186,6 +187,7 @@ const EmployeeAttendancePanel = ({ employeeId }) => {
                     <td className="px-5 py-2.5">{formatDubaiTime(d.clock_in)}</td>
                     <td className="px-5 py-2.5">{formatDubaiTime(d.clock_out)}</td>
                     <td className="px-5 py-2.5">{formatHours(d.total_hours)}</td>
+                    <td className="px-5 py-2.5 capitalize text-gray-600">{d.source || 'app'}</td>
                   </tr>
                 ))
               )}

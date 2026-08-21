@@ -33,6 +33,21 @@ export function formatDubaiDate(value) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
+export function formatDubaiTimeInput(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    const raw = String(value);
+    return raw.length >= 5 ? raw.slice(0, 5) : raw;
+  }
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: ATTENDANCE_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(d);
+}
+
 export function formatHours(hours) {
   if (hours == null || hours === '') return '—';
   const n = Number(hours);
@@ -122,6 +137,7 @@ function stripUnknownColumnPayload(row) {
     lng,
     accuracy,
     location_label,
+    employee_record_id,
     ...rest
   } = row;
   return rest;
@@ -239,6 +255,7 @@ async function clockViaTable(punchType, location) {
       source: 'app',
       user_email: me.email,
       user_full_name: displayName,
+      employee_record_id: isUuid(me.employee_id) ? me.employee_id : null,
       clock_in_lat: location.lat,
       clock_in_lng: location.lng,
       clock_in_accuracy: location.accuracy,
@@ -390,6 +407,14 @@ export const attendanceService = {
       .eq('employee_id', employeeId)
       .maybeSingle();
     if (byLink.data) userRow = byLink.data;
+    if (!userRow && employee.auth_user_id) {
+      const byAuth = await supabase
+        .from('users')
+        .select('id, email, full_name, employee_id, auth_user_id')
+        .eq('auth_user_id', employee.auth_user_id)
+        .maybeSingle();
+      if (byAuth.data) userRow = byAuth.data;
+    }
     if (!userRow && employee.email) {
       const byEmail = await supabase
         .from('users')
@@ -406,22 +431,154 @@ export const attendanceService = {
       .lte('work_date', to)
       .order('work_date', { ascending: false });
 
-    if (userRow?.id) daysQuery = daysQuery.eq('user_id', userRow.id);
-    else if (employee.email) daysQuery = daysQuery.ilike('user_email', employee.email);
-    else return { linked: false, days: [] };
+    if (userRow?.id) {
+      daysQuery = daysQuery.or(`user_id.eq.${userRow.id},employee_record_id.eq.${employeeId}`);
+    } else {
+      daysQuery = daysQuery.eq('employee_record_id', employeeId);
+    }
 
-    const { data: days, error: daysError } = await daysQuery;
+    let { data: days, error: daysError } = await daysQuery;
+    if (daysError && /employee_record_id/i.test(daysError.message || '')) {
+      if (!userRow?.id) {
+        return { linked: Boolean(userRow?.id), days: [] };
+      }
+      const retry = await supabase
+        .from('user_attendance_days')
+        .select('*')
+        .eq('user_id', userRow.id)
+        .gte('work_date', from)
+        .lte('work_date', to)
+        .order('work_date', { ascending: false });
+      days = retry.data;
+      daysError = retry.error;
+    }
     if (daysError) throw daysError;
 
     const linked = Boolean(userRow?.id || (days && days.length));
     return {
       linked,
-      linked_how: userRow?.id ? 'user lookup' : 'email on attendance',
+      linked_how: userRow?.id ? 'user lookup' : days?.length ? 'employee_record_id' : null,
       user_id: userRow?.id || days?.[0]?.user_id || null,
-      user_email: userRow?.email || employee.email,
-      user_full_name: userRow?.full_name || employee.full_name,
+      user_email: userRow?.email || days?.[0]?.user_email || employee.email,
+      user_full_name: userRow?.full_name || days?.[0]?.user_full_name || employee.full_name,
       days: days || [],
     };
+  },
+
+  async submitRegularization({
+    workDate,
+    requestType = 'wrong_time',
+    requestedClockIn,
+    requestedClockOut,
+    reason,
+  }) {
+    const me = await getMyUhubUser();
+    if (!me?.id) throw new Error('No UHub user account is linked to this login');
+    if (!workDate) throw new Error('Choose a date to regularize');
+    if (!String(reason || '').trim()) throw new Error('Please explain why you need this regularization');
+    if (!requestedClockIn && !requestedClockOut) {
+      throw new Error('Provide at least a requested clock-in or clock-out time');
+    }
+
+    const { data: day } = await supabase
+      .from('user_attendance_days')
+      .select('id, employee_record_id')
+      .eq('user_id', me.id)
+      .eq('work_date', workDate)
+      .maybeSingle();
+
+    const row = {
+      user_id: me.id,
+      work_date: workDate,
+      day_id: day?.id || null,
+      request_type: requestType,
+      requested_clock_in: requestedClockIn || null,
+      requested_clock_out: requestedClockOut || null,
+      reason: String(reason).trim(),
+      status: 'pending',
+      assigned_role: 'hr_manager',
+      requester_email: me.email,
+      requester_name: me.full_name || (me.email ? me.email.split('@')[0] : 'User'),
+      requester_auth_id: me.auth_user_id || null,
+      employee_record_id: isUuid(me.employee_id) ? me.employee_id : day?.employee_record_id || null,
+    };
+
+    let { data, error } = await supabase
+      .from('attendance_regularization_requests')
+      .insert(row)
+      .select('*')
+      .single();
+    if (error && /column|schema cache/i.test(`${error.message} ${error.details || ''}`)) {
+      const {
+        requester_auth_id,
+        employee_record_id,
+        requester_email,
+        requester_name,
+        assigned_role,
+        ...rest
+      } = row;
+      const retry = await supabase
+        .from('attendance_regularization_requests')
+        .insert(rest)
+        .select('*')
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+    if (error) {
+      if (/unique|duplicate/i.test(error.message || '')) {
+        throw new Error('You already have a pending regularization for this date');
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  async getMyRegularizations() {
+    const me = await getMyUhubUser();
+    if (!me?.id) return [];
+    const { data, error } = await supabase
+      .from('attendance_regularization_requests')
+      .select('*')
+      .eq('user_id', me.id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getRegularizationQueue(status = 'pending') {
+    let query = supabase
+      .from('attendance_regularization_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (status && status !== 'all') query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async cancelRegularization(id) {
+    const { data, error } = await supabase
+      .from('attendance_regularization_requests')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', 'pending')
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async reviewRegularization(id, decision, notes = '') {
+    const rpc = await supabase.rpc('review_attendance_regularization', {
+      p_id: id,
+      p_decision: decision,
+      p_notes: notes || null,
+    });
+    if (rpc.error) throw rpc.error;
+    return parseRpcJson(rpc.data);
   },
 
   monthRange,

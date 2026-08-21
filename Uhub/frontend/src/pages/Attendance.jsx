@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, Clock, RefreshCw, Users } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Calendar, ClipboardList, Clock, RefreshCw, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ClockInOutWidget from '../components/attendance/ClockInOutWidget';
 import AttendanceCalendar from '../components/attendance/AttendanceCalendar';
+import RegularizationInbox from '../components/attendance/RegularizationInbox';
 import attendanceService, {
   dubaiDateString,
   formatDubaiTime,
@@ -14,6 +15,8 @@ import attendanceService, {
 
 const Attendance = () => {
   const today = dubaiDateString();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'regularization' ? 'regularization' : 'board';
   const [loading, setLoading] = useState(true);
   const [schemaMissing, setSchemaMissing] = useState(false);
   const [rows, setRows] = useState([]);
@@ -92,6 +95,7 @@ const Attendance = () => {
                 <h1 className="text-3xl font-bold mb-2">Attendance</h1>
                 <p className="text-blue-100 max-w-xl">
                   Clock times are stored on each UHub user account and shown on the linked employee record.
+                  Regularization requests are assigned to HR for approval.
                 </p>
               </div>
               <button
@@ -102,6 +106,24 @@ const Attendance = () => {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
+            </div>
+            <div className="flex gap-2 mb-5">
+              {[
+                { id: 'board', label: 'Timesheet', icon: Clock },
+                { id: 'regularization', label: 'Regularization', icon: ClipboardList },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSearchParams(t.id === 'board' ? {} : { tab: t.id })}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ${
+                    tab === t.id ? 'bg-white text-indigo-700' : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                >
+                  <t.icon className="w-4 h-4" />
+                  {t.label}
+                </button>
+              ))}
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
@@ -122,8 +144,10 @@ const Attendance = () => {
         {schemaMissing && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
             Attendance functions are not visible to the app yet. Run{' '}
-            <code className="text-xs bg-amber-100 px-1 rounded">upgrade_user_attendance_location.sql</code> in
-            the Supabase SQL editor (this also reloads the API), then refresh.
+            <code className="text-xs bg-amber-100 px-1 rounded">upgrade_user_attendance_location.sql</code>
+            {' '}and{' '}
+            <code className="text-xs bg-amber-100 px-1 rounded">create_attendance_regularization.sql</code>
+            {' '}in the Supabase SQL editor, then refresh.
           </div>
         )}
         {loadError && !schemaMissing && (
@@ -132,6 +156,10 @@ const Attendance = () => {
           </div>
         )}
 
+        {tab === 'regularization' ? (
+          <RegularizationInbox refreshKey={refreshKey} />
+        ) : (
+          <>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-1">
             <ClockInOutWidget onChanged={() => setRefreshKey((k) => k + 1)} />
@@ -202,6 +230,9 @@ const Attendance = () => {
                         ) : (
                           <span className="text-gray-400">Not linked</span>
                         )}
+                        {r.source === 'regularized' ? (
+                          <div className="text-xs text-indigo-600 mt-0.5">Regularized</div>
+                        ) : null}
                       </td>
                     </tr>
                   ))
@@ -210,6 +241,8 @@ const Attendance = () => {
             </table>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
