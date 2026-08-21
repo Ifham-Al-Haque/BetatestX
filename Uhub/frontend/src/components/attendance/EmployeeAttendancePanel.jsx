@@ -8,28 +8,44 @@ import attendanceService, {
 } from '../../services/attendanceService';
 import AttendanceCalendar from './AttendanceCalendar';
 
-const EmployeeAttendancePanel = ({ employeeId }) => {
+const EmployeeAttendancePanel = ({ employeeId, employee = null }) => {
   const [loading, setLoading] = useState(true);
   const [schemaMissing, setSchemaMissing] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [payload, setPayload] = useState(null);
   const [cursor, setCursor] = useState(() => attendanceService.monthRange());
   const [selectedDate, setSelectedDate] = useState(null);
+
+  const hintEmail = employee?.email || '';
+  const hintStaffCode = employee?.employee_id || '';
+  const hintAuth = employee?.auth_user_id || '';
 
   useEffect(() => {
     let cancelled = false;
     if (!employeeId) return undefined;
     setLoading(true);
+    const hint = employeeId
+      ? {
+          id: employeeId,
+          email: hintEmail || undefined,
+          employee_id: hintStaffCode || undefined,
+          auth_user_id: hintAuth || undefined,
+          full_name: employee?.full_name || employee?.name,
+        }
+      : null;
     attendanceService
-      .getForEmployee(employeeId, cursor.from, cursor.to)
+      .getForEmployee(employeeId, cursor.from, cursor.to, hint)
       .then((data) => {
         if (!cancelled) {
           setPayload(data);
           setSchemaMissing(false);
+          setLoadError('');
         }
       })
       .catch((err) => {
         if (!cancelled) {
           if (isAttendanceSchemaMissing(err)) setSchemaMissing(true);
+          else setLoadError(err.message || 'Could not load attendance');
           setPayload(null);
         }
       })
@@ -39,7 +55,7 @@ const EmployeeAttendancePanel = ({ employeeId }) => {
     return () => {
       cancelled = true;
     };
-  }, [employeeId, cursor.from, cursor.to]);
+  }, [employeeId, hintEmail, hintStaffCode, hintAuth, cursor.from, cursor.to]);
 
   const days = Array.isArray(payload?.days) ? payload.days : [];
   const selected = useMemo(
@@ -59,6 +75,14 @@ const EmployeeAttendancePanel = ({ employeeId }) => {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
         Attendance tables are not set up yet. Run <code>create_user_attendance.sql</code> in Supabase.
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800 text-sm">
+        {loadError}
       </div>
     );
   }

@@ -2007,7 +2007,7 @@ export default function EmployeeProfile() {
         gradient="from-blue-700 via-indigo-700 to-violet-700 dark:from-blue-800 dark:via-indigo-800 dark:to-violet-800"
         borderClass="border-indigo-600/30"
       />
-      <EmployeeAttendancePanel employeeId={employee.id} />
+      <EmployeeAttendancePanel employeeId={employee.id} employee={employee} />
     </div>
   );
 

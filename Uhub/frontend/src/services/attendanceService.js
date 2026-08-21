@@ -85,12 +85,14 @@ export function mapsUrl(lat, lng) {
 export function isAttendanceSchemaMissing(error) {
   if (!error) return false;
   const msg = `${error.message || ''} ${error.details || ''}`;
+  const aboutAttendance =
+    /user_attendance|clock_user_attendance|get_attendance|get_my_attendance|get_user_attendance/i.test(msg);
   return (
     error.code === 'PGRST202' ||
     error.code === '42883' ||
     error.code === '42P01' ||
-    /does not exist/i.test(msg) ||
-    /could not find the function/i.test(msg)
+    (aboutAttendance && /does not exist|could not find/i.test(msg)) ||
+    /could not find the function public\.(clock_user_attendance|get_attendance|get_my_attendance|get_user_attendance)/i.test(msg)
   );
 }
 
@@ -237,6 +239,13 @@ function isOwnEmployeeRecord(me, employee, employeeId, authUserId) {
 }
 
 async function loadDaysForUser(userId, from, to) {
+  const rpc = await supabase.rpc('get_user_attendance_days', {
+    p_user_id: userId,
+    p_from: from,
+    p_to: to,
+  });
+  if (!rpc.error && Array.isArray(rpc.data)) return rpc.data.map(mapDayRow);
+
   const { data, error } = await supabase
     .from('user_attendance_days')
     .select('*')
@@ -246,6 +255,31 @@ async function loadDaysForUser(userId, from, to) {
     .order('work_date', { ascending: false });
   if (error) throw error;
   return (data || []).map(mapDayRow);
+}
+
+async function fetchEmployeeLite(employeeId) {
+  const attempts = [
+    'id, email, full_name, name, employee_id, auth_user_id',
+    'id, email, full_name, employee_id, auth_user_id',
+    'id, email, full_name, employee_id',
+    'id, email, employee_id',
+    '*',
+  ];
+  let lastError = null;
+  for (const cols of attempts) {
+    const { data, error } = await supabase
+      .from('employees')
+      .select(cols)
+      .eq('id', employeeId)
+      .maybeSingle();
+    if (!error && data) return data;
+    lastError = error;
+    if (error && !/column|does not exist|schema cache/i.test(`${error.message} ${error.details || ''}`)) {
+      throw error;
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
 }
 
 function mapDayRow(row) {
@@ -413,13 +447,10 @@ export const attendanceService = {
     return data || [];
   },
 
-  async getForEmployee(employeeId, from, to) {
-    const { data: employee, error: empError } = await supabase
-      .from('employees')
-      .select('id, email, full_name, employee_id, auth_user_id')
-      .eq('id', employeeId)
-      .maybeSingle();
-    if (empError) throw empError;
+  async getForEmployee(employeeId, from, to, employeeHint = null) {
+    const employee = employeeHint?.id
+      ? employeeHint
+      : await fetchEmployeeLite(employeeId);
     if (!employee) return { linked: false, days: [] };
 
     let me = null;
@@ -440,15 +471,19 @@ export const attendanceService = {
     }
 
     if (isOwnEmployeeRecord(me, employee, employeeId, authId) && me?.id) {
-      const days = await loadDaysForUser(me.id, from, to);
-      return {
-        linked: true,
-        linked_how: 'own UHub account',
-        user_id: me.id,
-        user_email: me.email || employee.email,
-        user_full_name: me.full_name || employee.full_name,
-        days,
-      };
+      try {
+        const days = await loadDaysForUser(me.id, from, to);
+        return {
+          linked: true,
+          linked_how: 'own UHub account',
+          user_id: me.id,
+          user_email: me.email || employee.email,
+          user_full_name: me.full_name || employee.full_name || employee.name,
+          days,
+        };
+      } catch {
+        // Continue to RPC / other lookups if own-day load fails.
+      }
     }
 
     const rpc = await supabase.rpc('get_attendance_for_employee', {
@@ -468,11 +503,11 @@ export const attendanceService = {
       }
     }
 
-    let userRow = me && isOwnEmployeeRecord(me, employee, employeeId) ? me : null;
+    let userRow = me && isOwnEmployeeRecord(me, employee, employeeId, authId) ? me : null;
     if (!userRow) {
       const byLink = await supabase
         .from('users')
-        .select('id, email, full_name, employee_id, auth_user_id')
+        .select('id, email, employee_id, auth_user_id')
         .eq('employee_id', employeeId)
         .maybeSingle();
       if (byLink.data) userRow = byLink.data;
@@ -480,7 +515,7 @@ export const attendanceService = {
     if (!userRow && employee.auth_user_id) {
       const byAuth = await supabase
         .from('users')
-        .select('id, email, full_name, employee_id, auth_user_id')
+        .select('id, email, employee_id, auth_user_id')
         .eq('auth_user_id', employee.auth_user_id)
         .maybeSingle();
       if (byAuth.data) userRow = byAuth.data;
@@ -488,7 +523,7 @@ export const attendanceService = {
     if (!userRow && employee.email) {
       const byEmail = await supabase
         .from('users')
-        .select('id, email, full_name, employee_id, auth_user_id')
+        .select('id, email, employee_id, auth_user_id')
         .ilike('email', employee.email)
         .maybeSingle();
       if (byEmail.data) userRow = byEmail.data;
@@ -496,7 +531,7 @@ export const attendanceService = {
     if (!userRow && employee.employee_id) {
       const byCode = await supabase
         .from('users')
-        .select('id, email, full_name, employee_id, auth_user_id')
+        .select('id, email, employee_id, auth_user_id')
         .eq('employee_id', employee.employee_id)
         .maybeSingle();
       if (byCode.data) userRow = byCode.data;
