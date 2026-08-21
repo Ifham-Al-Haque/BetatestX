@@ -81,6 +81,7 @@ const RequestInbox = safeLazy(() => import('./pages/RequestInbox'), 'RequestInbo
 const CSPA = safeLazy(() => import('./pages/CSPA'), 'CSPA');
 const Complaints = safeLazy(() => import('./pages/Complaints'), 'Complaints');
 const Attendance = safeLazy(() => import('./pages/Attendance'), 'Attendance');
+const Leave = safeLazy(() => import('./pages/Leave'), 'Leave');
 const CalendarView = safeLazy(() => import('./pages/CalendarView'), 'CalendarView');
 const Analytics = safeLazy(() => import('./pages/Analytics'), 'Analytics');
 const FleetManagement = safeLazy(() => import('./pages/FleetManagement'), 'FleetManagement');
@@ -218,6 +219,14 @@ function App() {
                           <ProtectedRoute requiredFeature="attendance">
                             <Layout>
                               <Attendance />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/leave" element={
+                          <ProtectedRoute requiredFeature="leave">
+                            <Layout>
+                              <Leave />
                             </Layout>
                           </ProtectedRoute>
                         } />

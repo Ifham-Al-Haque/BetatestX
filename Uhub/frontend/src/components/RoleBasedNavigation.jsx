@@ -241,6 +241,13 @@ const NAVIGATION_ITEMS = {
     roles: ['admin', 'manager', 'hr_manager', 'cs_manager', 'employee'],
     description: 'Attendance tracking and management'
   },
+  leave: {
+    path: '/leave',
+    label: 'Leave',
+    icon: Calendar,
+    roles: ['admin', 'hr_manager'],
+    description: 'Leave requests and HR approval'
+  },
 
   attendance_upload: {
     path: '/attendance-upload',
@@ -629,6 +636,7 @@ export const RoleBasedActions = () => {
       case 'hr_manager':
         return [
           { label: 'Attendance', path: '/attendance', icon: Calendar },
+          { label: 'Leave', path: '/leave', icon: Calendar },
           { label: 'Complaints', path: '/complaints', icon: AlertTriangle },
           { label: 'Suggestions', path: '/suggestions', icon: Lightbulb },
           { label: 'Surveys', path: '/surveys', icon: FileText },

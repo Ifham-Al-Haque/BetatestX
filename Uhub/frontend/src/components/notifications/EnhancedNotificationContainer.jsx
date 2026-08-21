@@ -85,6 +85,8 @@ const EnhancedNotificationContainer = () => {
       case 'attendance_issue':
       case 'attendance_regularization':
       case 'attendance_regularization_update':
+      case 'leave_request':
+      case 'leave_request_update':
         return <Clock {...iconProps} className="w-5 h-5 text-pink-500" />;
       case 'payment_due':
         return <CreditCard {...iconProps} className="w-5 h-5 text-red-600" />;

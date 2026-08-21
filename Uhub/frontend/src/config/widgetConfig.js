@@ -84,6 +84,7 @@ export const widgetConfig = [
       { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding', description: 'Offboard staff' },
       { label: 'Employee History', path: '/employee-history', icon: Archive, feature: 'employees', description: 'View archived employees' },
       { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance', description: 'Track attendance' },
+      { label: 'Leave', path: '/leave', icon: ClipboardList, feature: 'leave', description: 'Approve leave requests' },
       { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints', description: 'Issue tracking' },
       { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox', description: 'HR complaints triage' },
       { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions', description: 'Submit & vote on ideas' },

@@ -100,7 +100,7 @@ const config = {
     hr_manager: {
       name: 'hr_manager',
       displayName: 'HR Manager',
-      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'employees', 'attendance', 'hr_operations', 'payroll', 'payroll_calculator', 'epr', 'analytics', 'todo_list'],
+      permissions: ['home', 'calendar_view', 'slice_of_life', 'communication', 'user_profile', 'hr_view', 'it_requests', 'employees', 'attendance', 'leave', 'hr_operations', 'payroll', 'payroll_calculator', 'epr', 'analytics', 'todo_list'],
     },
     cs_manager: {
       name: 'cs_manager',

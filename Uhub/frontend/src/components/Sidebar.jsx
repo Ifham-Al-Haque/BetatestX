@@ -100,6 +100,7 @@ const NAVIGATION_PANELS = [
       { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
       { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },
       { label: 'Attendance', path: '/attendance', icon: Calendar, feature: 'attendance' },
+      { label: 'Leave', path: '/leave', icon: Calendar, feature: 'leave' },
       { label: 'Complaints', path: '/complaints', icon: AlertTriangle, feature: 'complaints' },
       { label: 'Complaints Inbox', path: '/complaints-inbox', icon: Inbox, feature: 'complaints_inbox' },
       { label: 'Suggestions', path: '/suggestions', icon: Lightbulb, feature: 'suggestions' },

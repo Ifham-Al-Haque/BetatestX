@@ -967,6 +967,83 @@ class NotificationService {
       return 0;
     }
   }
+
+  async notifyLeaveSubmitted(request) {
+    try {
+      const name = request.requester_name || request.requester_email || 'A UHub user';
+      const actionUrl = '/leave';
+      const payload = {
+        type: 'leave_request',
+        title: 'Leave request submitted',
+        message: `${name} requested ${request.leave_type} leave (${request.start_date} → ${request.end_date})`,
+        data: {
+          request_id: request.id,
+          leave_type: request.leave_type,
+          requester_id: request.user_id,
+        },
+        priority: 'high',
+        actionUrl,
+        actionLabel: 'Review leave',
+        emailSubject: `Leave request: ${name}`,
+        emailHeading: 'New leave request',
+        emailLines: [
+          { label: 'Requester', value: name },
+          { label: 'Type', value: request.leave_type },
+          { label: 'From', value: request.start_date },
+          { label: 'To', value: request.end_date },
+          { label: 'Reason', value: request.reason },
+        ],
+        emailAccentColor: '#0d9488',
+      };
+      const result = await notifyUhubUsersByRoles(this, HR_NOTIFY_ROLES, payload);
+      if (!result.users) {
+        await this.createNotificationsForRole({ role: 'hr_manager', ...payload });
+        await this.createNotificationsForRole({ role: 'admin', ...payload });
+      }
+      return result.inApp + result.push;
+    } catch (error) {
+      console.error('Error notifying leave submit:', error);
+      return 0;
+    }
+  }
+
+  async notifyLeaveReviewed(request, decision) {
+    try {
+      const approved = decision === 'approved';
+      const personId = request.requester_auth_id || request.user_id;
+      if (personId) {
+        await notifyUhubUser(this, {
+          personId,
+          type: 'leave_request_update',
+          title: approved ? 'Leave approved' : 'Leave rejected',
+          message: approved
+            ? `HR approved your ${request.leave_type} leave (${request.start_date})`
+            : `HR rejected your ${request.leave_type} leave (${request.start_date})`,
+          data: {
+            request_id: request.id,
+            status: decision,
+            review_notes: request.review_notes,
+          },
+          priority: 'high',
+          actionUrl: '/home',
+          actionLabel: 'Open leave',
+          emailSubject: approved ? 'Leave approved' : 'Leave rejected',
+          emailLines: [
+            { label: 'Type', value: request.leave_type },
+            { label: 'From', value: request.start_date },
+            { label: 'To', value: request.end_date },
+            { label: 'Decision', value: approved ? 'Approved' : 'Rejected' },
+            { label: 'HR note', value: request.review_notes },
+          ],
+          emailAccentColor: approved ? '#059669' : '#e11d48',
+        });
+      }
+      return 1;
+    } catch (error) {
+      console.error('Error notifying leave review:', error);
+      return 0;
+    }
+  }
 }
 
 const notificationService = new NotificationService();

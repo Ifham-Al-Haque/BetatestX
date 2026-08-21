@@ -22,6 +22,7 @@ import { canEditEmployees } from "../utils/permissions";
 import { normalizeAccessList, toDbAccessList, ensureAccessEntryIds, newAccessEntryId } from "../utils/accessList";
 import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
 import EmployeeAttendancePanel from "../components/attendance/EmployeeAttendancePanel";
+import EmployeeLeavePanel from "../components/leave/EmployeeLeavePanel";
 
 const accessCardClass =
   "rounded-xl border border-indigo-200/80 dark:border-indigo-800/50 bg-indigo-50/40 dark:bg-indigo-950/20 overflow-hidden";
@@ -2015,35 +2016,11 @@ export default function EmployeeProfile() {
       <TabBanner
         icon={CalendarDays}
         title="Leave Management"
-        subtitle="Time off, balances, and leave history"
+        subtitle="Time off, balances, and leave history for this employee record"
         gradient="from-teal-700 via-cyan-700 to-blue-700 dark:from-teal-800 dark:via-cyan-800 dark:to-blue-800"
         borderClass="border-teal-600/30"
       />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: 'Annual Leave', value: '—', icon: Calendar, iconCls: 'text-teal-600 dark:text-teal-400', valueCls: 'text-teal-600 dark:text-teal-400' },
-          { label: 'Sick Leave', value: '—', icon: Heart, iconCls: 'text-rose-600 dark:text-rose-400', valueCls: 'text-rose-600 dark:text-rose-400' },
-          { label: 'Pending Requests', value: '0', icon: Clock3, iconCls: 'text-blue-600 dark:text-blue-400', valueCls: 'text-blue-600 dark:text-blue-400' },
-        ].map((stat, i) => (
-          <MetricTile key={stat.label} {...stat} delay={0.05 * i} />
-        ))}
-      </div>
-      <SurfaceCard delay={0.15} className="p-6">
-        <CardHeaderRow
-          icon={CalendarDays}
-          title="Leave History"
-          subtitle="Requests and approvals"
-          iconBg="bg-teal-100 dark:bg-teal-900/30"
-          iconColor="text-teal-600 dark:text-teal-400"
-        />
-        <EmptyState
-          icon={CalendarDays}
-          title="No leave records available"
-          description="Leave balances and request history will appear here when leave management is connected."
-          iconWrap="bg-teal-100 dark:bg-teal-900/30"
-          iconColor="text-teal-500 dark:text-teal-400"
-        />
-      </SurfaceCard>
+      <EmployeeLeavePanel employeeId={employee.id} />
     </div>
   );
 

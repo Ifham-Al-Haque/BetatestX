@@ -206,6 +206,7 @@ export const FEATURE_ACCESS = {
   suggestions: ['admin', 'data_operator', 'finance', 'finance_viewer', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   suggestions_inbox: ['admin', 'hr_manager'],
   attendance: ['admin', 'hr_manager'],
+  leave: ['admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   /** Import / calculate payroll tool — Admin and HR Manager only */
   payroll_calculator: ['admin', 'hr_manager'],
@@ -343,7 +344,7 @@ export const getRoleNavigationAccess = (userRole) => {
         main: ['home', 'dashboard', 'calendar_view'],
         admin: ['admin_dashboard', 'user_management'],
         user_profile: ['profile', 'settings'],
-        hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'payroll', 'payroll_calculator', 'epr'],
+        hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'leave', 'payroll', 'payroll_calculator', 'epr'],
         customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
         it_services: ['it_requests', 'it_assets', 'it_tickets', 'request_inbox', 'it_tools'],
         operation: ['fleet_records', 'fleet_lifecycle', 'udrive_fleetio', 'driver_records', 'driver_documents', 'breakdowns', 'operation_roster', 'delivery_management', 'delivery_tracking', 'delivery_routes'],
@@ -478,7 +479,7 @@ export const getRoleNavigationAccess = (userRole) => {
     items: {
       main: ['home', 'dashboard', 'calendar_view', 'organizational_hierarchy'],
       user_profile: ['profile', 'settings'],
-      hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'payroll', 'payroll_calculator', 'epr'],
+      hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'leave', 'payroll', 'payroll_calculator', 'epr'],
       it_services: ['it_requests'],
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],

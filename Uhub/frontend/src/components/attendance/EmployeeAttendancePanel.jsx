@@ -71,10 +71,11 @@ const EmployeeAttendancePanel = ({ employeeId }) => {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center">
         <Unlink className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-        <h3 className="text-base font-semibold text-gray-900">No UHub user linked</h3>
+        <h3 className="text-base font-semibold text-gray-900">No UHub attendance on this profile</h3>
         <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-          Clock in / out is stored on the UHub account. Link this employee record to a UHub user
-          (same email, or set the user&apos;s employee link) to show attendance here.
+          Clock in / out is stored on your UHub login. It appears here when this employee record
+          matches that account (same email, or the UHub user&apos;s employee link). Clock in from
+          Home first, then refresh this tab.
         </p>
       </div>
     );

@@ -45,6 +45,8 @@ const NotificationBell = () => {
       case 'attendance_regularization':
       case 'attendance_regularization_update':
       case 'attendance_issue':
+      case 'leave_request':
+      case 'leave_request_update':
         return <Clock className="w-5 h-5 text-indigo-600" />;
       case 'calendar':
         return <Calendar className="w-5 h-5 text-green-500" />;
@@ -79,6 +81,8 @@ const NotificationBell = () => {
         return 'border-indigo-200 bg-indigo-50';
       case 'attendance_regularization':
       case 'attendance_regularization_update':
+      case 'leave_request':
+      case 'leave_request_update':
         return 'border-indigo-200 bg-indigo-50';
       case 'calendar':
         return 'border-green-200 bg-green-50';

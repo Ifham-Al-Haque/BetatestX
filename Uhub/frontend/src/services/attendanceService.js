@@ -216,6 +216,38 @@ async function getMyUhubUser() {
   return data;
 }
 
+function sameText(a, b) {
+  if (a == null || b == null || a === '' || b === '') return false;
+  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+
+function isOwnEmployeeRecord(me, employee, employeeId, authUserId) {
+  if (!employee) return false;
+  if (authUserId && employee.auth_user_id && String(employee.auth_user_id) === String(authUserId)) {
+    return true;
+  }
+  if (!me) return false;
+  if (isUuid(me.employee_id) && String(me.employee_id) === String(employeeId)) return true;
+  if (sameText(me.employee_id, employee.employee_id)) return true;
+  if (me.auth_user_id && employee.auth_user_id && String(me.auth_user_id) === String(employee.auth_user_id)) {
+    return true;
+  }
+  if (sameText(me.email, employee.email)) return true;
+  return false;
+}
+
+async function loadDaysForUser(userId, from, to) {
+  const { data, error } = await supabase
+    .from('user_attendance_days')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('work_date', from)
+    .lte('work_date', to)
+    .order('work_date', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(mapDayRow);
+}
+
 function mapDayRow(row) {
   if (!row) return row;
   return {
@@ -382,16 +414,6 @@ export const attendanceService = {
   },
 
   async getForEmployee(employeeId, from, to) {
-    const rpc = await supabase.rpc('get_attendance_for_employee', {
-      p_employee_id: employeeId,
-      p_from: from,
-      p_to: to,
-    });
-    if (!rpc.error) {
-      const parsed = parseRpcJson(rpc.data);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
-    }
-
     const { data: employee, error: empError } = await supabase
       .from('employees')
       .select('id, email, full_name, employee_id, auth_user_id')
@@ -400,13 +422,61 @@ export const attendanceService = {
     if (empError) throw empError;
     if (!employee) return { linked: false, days: [] };
 
-    let userRow = null;
-    const byLink = await supabase
-      .from('users')
-      .select('id, email, full_name, employee_id, auth_user_id')
-      .eq('employee_id', employeeId)
-      .maybeSingle();
-    if (byLink.data) userRow = byLink.data;
+    let me = null;
+    let authId = null;
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      authId = authData?.user?.id || null;
+      if (authId) {
+        const mine = await supabase
+          .from('users')
+          .select('id, email, employee_id, auth_user_id')
+          .eq('auth_user_id', authId)
+          .maybeSingle();
+        me = mine.data || null;
+      }
+    } catch {
+      me = null;
+    }
+
+    if (isOwnEmployeeRecord(me, employee, employeeId, authId) && me?.id) {
+      const days = await loadDaysForUser(me.id, from, to);
+      return {
+        linked: true,
+        linked_how: 'own UHub account',
+        user_id: me.id,
+        user_email: me.email || employee.email,
+        user_full_name: me.full_name || employee.full_name,
+        days,
+      };
+    }
+
+    const rpc = await supabase.rpc('get_attendance_for_employee', {
+      p_employee_id: employeeId,
+      p_from: from,
+      p_to: to,
+    });
+    if (!rpc.error) {
+      const parsed = parseRpcJson(rpc.data);
+      if (parsed?.linked && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const days = Array.isArray(parsed.days)
+          ? parsed.days
+          : typeof parsed.days === 'string'
+            ? (() => { try { return JSON.parse(parsed.days); } catch { return []; } })()
+            : [];
+        return { ...parsed, days };
+      }
+    }
+
+    let userRow = me && isOwnEmployeeRecord(me, employee, employeeId) ? me : null;
+    if (!userRow) {
+      const byLink = await supabase
+        .from('users')
+        .select('id, email, full_name, employee_id, auth_user_id')
+        .eq('employee_id', employeeId)
+        .maybeSingle();
+      if (byLink.data) userRow = byLink.data;
+    }
     if (!userRow && employee.auth_user_id) {
       const byAuth = await supabase
         .from('users')
@@ -423,46 +493,50 @@ export const attendanceService = {
         .maybeSingle();
       if (byEmail.data) userRow = byEmail.data;
     }
+    if (!userRow && employee.employee_id) {
+      const byCode = await supabase
+        .from('users')
+        .select('id, email, full_name, employee_id, auth_user_id')
+        .eq('employee_id', employee.employee_id)
+        .maybeSingle();
+      if (byCode.data) userRow = byCode.data;
+    }
 
-    let daysQuery = supabase
+    if (userRow?.id) {
+      try {
+        const days = await loadDaysForUser(userRow.id, from, to);
+        return {
+          linked: true,
+          linked_how: 'user lookup',
+          user_id: userRow.id,
+          user_email: userRow.email || employee.email,
+          user_full_name: userRow.full_name || employee.full_name,
+          days,
+        };
+      } catch {
+        // Fall through to employee_record_id if RLS blocks another user's rows.
+      }
+    }
+
+    const byEmpCol = await supabase
       .from('user_attendance_days')
       .select('*')
+      .eq('employee_record_id', employeeId)
       .gte('work_date', from)
       .lte('work_date', to)
       .order('work_date', { ascending: false });
-
-    if (userRow?.id) {
-      daysQuery = daysQuery.or(`user_id.eq.${userRow.id},employee_record_id.eq.${employeeId}`);
-    } else {
-      daysQuery = daysQuery.eq('employee_record_id', employeeId);
+    if (!byEmpCol.error && byEmpCol.data?.length) {
+      return {
+        linked: true,
+        linked_how: 'employee_record_id',
+        user_id: byEmpCol.data[0].user_id,
+        user_email: byEmpCol.data[0].user_email || employee.email,
+        user_full_name: byEmpCol.data[0].user_full_name || employee.full_name,
+        days: byEmpCol.data.map(mapDayRow),
+      };
     }
 
-    let { data: days, error: daysError } = await daysQuery;
-    if (daysError && /employee_record_id/i.test(daysError.message || '')) {
-      if (!userRow?.id) {
-        return { linked: Boolean(userRow?.id), days: [] };
-      }
-      const retry = await supabase
-        .from('user_attendance_days')
-        .select('*')
-        .eq('user_id', userRow.id)
-        .gte('work_date', from)
-        .lte('work_date', to)
-        .order('work_date', { ascending: false });
-      days = retry.data;
-      daysError = retry.error;
-    }
-    if (daysError) throw daysError;
-
-    const linked = Boolean(userRow?.id || (days && days.length));
-    return {
-      linked,
-      linked_how: userRow?.id ? 'user lookup' : days?.length ? 'employee_record_id' : null,
-      user_id: userRow?.id || days?.[0]?.user_id || null,
-      user_email: userRow?.email || days?.[0]?.user_email || employee.email,
-      user_full_name: userRow?.full_name || days?.[0]?.user_full_name || employee.full_name,
-      days: days || [],
-    };
+    return { linked: false, days: [] };
   },
 
   async submitRegularization({
