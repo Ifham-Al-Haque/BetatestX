@@ -143,6 +143,14 @@ const EmployeeAttendancePanel = ({ employeeId }) => {
                 <dt className="text-gray-500">Hours</dt>
                 <dd className="font-medium text-gray-900">{formatHours(selected.total_hours)}</dd>
               </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">In location</dt>
+                <dd className="font-medium text-gray-900 text-right">{selected.clock_in_label || '—'}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">Out location</dt>
+                <dd className="font-medium text-gray-900 text-right">{selected.clock_out_label || '—'}</dd>
+              </div>
             </dl>
           ) : (
             <p className="text-sm text-gray-500">Choose a highlighted day to see clock times.</p>

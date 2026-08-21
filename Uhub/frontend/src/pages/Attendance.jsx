@@ -21,6 +21,7 @@ const Attendance = () => {
   const [monthRows, setMonthRows] = useState([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -29,12 +30,17 @@ const Attendance = () => {
         attendanceService.getOverview(today, today),
         attendanceService.getOverview(cursor.from, cursor.to),
       ]);
-      setRows(todayData);
-      setMonthRows(monthData);
+      setRows(Array.isArray(todayData) ? todayData : []);
+      setMonthRows(Array.isArray(monthData) ? monthData : []);
       setSchemaMissing(false);
+      setLoadError('');
     } catch (err) {
       if (isAttendanceSchemaMissing(err)) setSchemaMissing(true);
-      else setRows([]);
+      else {
+        setRows([]);
+        setMonthRows([]);
+        setLoadError(err.message || 'Could not load attendance');
+      }
     } finally {
       setLoading(false);
     }
@@ -115,8 +121,14 @@ const Attendance = () => {
 
         {schemaMissing && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
-            Run <code className="text-xs bg-amber-100 px-1 rounded">create_user_attendance.sql</code> in the
-            Supabase SQL editor to create the attendance tables, then refresh this page.
+            Attendance functions are not visible to the app yet. Run{' '}
+            <code className="text-xs bg-amber-100 px-1 rounded">upgrade_user_attendance_location.sql</code> in
+            the Supabase SQL editor (this also reloads the API), then refresh.
+          </div>
+        )}
+        {loadError && !schemaMissing && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800 text-sm">
+            {loadError}
           </div>
         )}
 
@@ -152,20 +164,21 @@ const Attendance = () => {
                   <th className="text-left px-6 py-3 font-medium">Clock in</th>
                   <th className="text-left px-6 py-3 font-medium">Clock out</th>
                   <th className="text-left px-6 py-3 font-medium">Hours</th>
+                  <th className="text-left px-6 py-3 font-medium">Location</th>
                   <th className="text-left px-6 py-3 font-medium">Employee record</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                       Loading attendance…
                     </td>
                   </tr>
                 ) : (selectedDate === today ? rows : selectedRows).length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                      No clock records for this day.
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      No clock records for this day. Use Clock in on the left (or Home) to create the first punch.
                     </td>
                   </tr>
                 ) : (
@@ -178,6 +191,9 @@ const Attendance = () => {
                       <td className="px-6 py-3">{formatDubaiTime(r.clock_in)}</td>
                       <td className="px-6 py-3">{formatDubaiTime(r.clock_out)}</td>
                       <td className="px-6 py-3">{formatHours(r.total_hours)}</td>
+                      <td className="px-6 py-3 text-gray-600 max-w-[220px]">
+                        {r.clock_in_label || r.clock_out_label || '—'}
+                      </td>
                       <td className="px-6 py-3">
                         {isUuid(r.employee_record_id) ? (
                           <Link to={`/employee/${r.employee_record_id}`} className="text-blue-600 hover:underline">
