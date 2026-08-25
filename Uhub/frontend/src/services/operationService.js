@@ -2,12 +2,18 @@ import { supabase } from '../supabaseClient';
 
 class OperationService {
   async getOverviewStats() {
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const monthEnd = monthEndDate.toISOString().slice(0, 10);
+
     const results = await Promise.allSettled([
       supabase.from('fleet_vehicles').select('id, status', { count: 'exact', head: false }),
       supabase
-        .from('fleet_vehicles_enhanced')
+        .from('fleet_vehicles')
         .select('id', { count: 'exact', head: true })
-        .neq('onboarding_status', 'Completed'),
+        .gte('registration_expiry', monthStart)
+        .lte('registration_expiry', monthEnd),
       supabase
         .from('fleet_incidents')
         .select('id', { count: 'exact', head: true })
@@ -26,7 +32,7 @@ class OperationService {
     return {
       totalVehicles: vehicles.length,
       maintenanceVehicles: maintenanceCount,
-      onboardingInProgress: results[1].status === 'fulfilled' ? results[1].value.count || 0 : 0,
+      mulkiyaExpiringThisMonth: results[1].status === 'fulfilled' ? results[1].value.count || 0 : 0,
       activeBreakdowns: results[2].status === 'fulfilled' ? results[2].value.count || 0 : 0,
       activeDrivers: results[3].status === 'fulfilled' ? results[3].value.count || 0 : 0,
       openTickets: results[4].status === 'fulfilled' ? results[4].value.count || 0 : 0,

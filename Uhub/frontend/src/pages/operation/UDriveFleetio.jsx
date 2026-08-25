@@ -8,6 +8,7 @@ import {
   Car,
   CalendarClock,
   ChevronRight,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { hasFeatureAccess } from '../../components/RoleBasedRoute';
@@ -20,6 +21,13 @@ const MODULES = [
     description: 'Live overview: PM due, expiring documents, open tickets, and fleet stats.',
     path: '/operation/fleetio/dashboard',
     icon: LayoutDashboard,
+    feature: 'udrive_fleetio',
+  },
+  {
+    title: 'Mulkiya',
+    description: 'Registration cards, photos, and which cars expire in which month.',
+    path: '/operation/fleetio/mulkiya',
+    icon: FileText,
     feature: 'udrive_fleetio',
   },
   {

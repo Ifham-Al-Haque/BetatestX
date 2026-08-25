@@ -34,10 +34,8 @@ const FleetManagement = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     status: '',
-    department_id: '',
     make: ''
   });
-  const [departments, setDepartments] = useState([]);
   const [statistics, setStatistics] = useState({
     total_vehicles: 0,
     active_vehicles: 0,
@@ -93,18 +91,6 @@ const FleetManagement = ({
     }
   }, [searchTerm, filters, excludeSampleData, success, showError]);
 
-  const loadDepartments = useCallback(async () => {
-    try {
-      console.log('Loading departments...');
-      const data = await fleetService.getDepartments();
-      console.log('Loaded departments:', data?.length, 'departments');
-      setDepartments(data || []);
-    } catch (error) {
-      console.error('Error loading departments:', error);
-      showError('Failed to load departments');
-    }
-  }, [showError]);
-
   const loadStatistics = useCallback(async () => {
     try {
       console.log('Loading fleet statistics...');
@@ -126,9 +112,8 @@ const FleetManagement = ({
 
   useEffect(() => {
     loadFleetData();
-    loadDepartments();
     loadStatistics();
-  }, [loadFleetData, loadDepartments, loadStatistics]);
+  }, [loadFleetData, loadStatistics]);
 
   useEffect(() => {
     if (searchTerm || Object.values(filters).some(f => f)) {
@@ -208,7 +193,6 @@ const FleetManagement = ({
   const clearFilters = () => {
     setFilters({
       status: '',
-      department_id: '',
       make: ''
     });
     setSearchTerm('');
@@ -504,24 +488,10 @@ const FleetManagement = ({
                       className="px-4 py-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 bg-white/80 backdrop-blur-sm focus:bg-white transition-all duration-300 shadow-lg focus:shadow-xl appearance-none pr-10 min-w-[140px]"
                     >
                       <option value="">All Status</option>
-                      <option value="Active">🟢 Active</option>
-                      <option value="Maintenance">🟡 Maintenance</option>
-                      <option value="Out of Service">🔴 Out of Service</option>
-                      <option value="Retired">⚫ Retired</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  </div>
-                
-                  <div className="relative">
-                    <select
-                      value={filters.department_id}
-                      onChange={(e) => setFilters(prev => ({ ...prev, department_id: e.target.value }))}
-                      className="px-4 py-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 bg-white/80 backdrop-blur-sm focus:bg-white transition-all duration-300 shadow-lg focus:shadow-xl appearance-none pr-10 min-w-[140px]"
-                    >
-                      <option value="">All Departments</option>
-                      {departments.map(dept => (
-                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                      ))}
+                      <option value="Active">Active</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Out of Service">Out of Service</option>
+                      <option value="Retired">Retired</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -927,8 +897,8 @@ const FleetManagement = ({
                                       <span className="text-sm font-medium">{vehicle.year || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-sm text-gray-600">Department:</span>
-                                      <span className="text-sm font-medium">{vehicle.departments?.name || 'Not assigned'}</span>
+                                      <span className="text-sm text-gray-600">Owned by:</span>
+                                      <span className="text-sm font-medium">{vehicle.owned_by || 'Not specified'}</span>
                                     </div>
                                     <div className="flex justify-between">
                                       <span className="text-sm text-gray-600">Last Service:</span>

@@ -127,6 +127,7 @@ const FleetRecordProfile = safeLazy(() => import('./pages/operation/FleetRecordP
 const BreakdownsPage = safeLazy(() => import('./pages/Breakdowns'), 'BreakdownsPage');
 const FleetPmSchedules = safeLazy(() => import('./pages/operation/FleetPmSchedules'), 'FleetPmSchedules');
 const OperationTeamAllocation = safeLazy(() => import('./pages/operation/OperationTeamAllocation'), 'OperationTeamAllocation');
+const FleetMulkiya = safeLazy(() => import('./pages/operation/FleetMulkiya'), 'FleetMulkiya');
 
 function App() {
   return (
@@ -781,6 +782,13 @@ function App() {
                           <ProtectedRoute requiredFeature="udrive_fleetio">
                             <Layout>
                               <FleetDashboard />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/operation/fleetio/mulkiya" element={
+                          <ProtectedRoute requiredFeature="udrive_fleetio">
+                            <Layout>
+                              <FleetMulkiya />
                             </Layout>
                           </ProtectedRoute>
                         } />

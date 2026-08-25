@@ -122,6 +122,7 @@ export const widgetConfig = [
       { label: 'Fleet Record', path: '/operation/fleet-records', icon: Car, feature: 'fleet_records', description: 'Vehicle profiles' },
       { label: 'Fleet Offboarding', path: '/operation/fleet-lifecycle', icon: CheckSquare, feature: 'fleet_lifecycle', description: 'Retire fleet vehicles' },
       { label: 'UDrive Fleetio', path: '/operation/fleetio', icon: Database, feature: 'udrive_fleetio', description: 'Maintenance-focused fleet ops' },
+      { label: 'Team Allocation', path: '/operation/team-allocation', icon: LayoutGrid, feature: 'operation_roster', description: 'Drag-and-drop teams' },
       { label: 'Driver & Team Records', path: '/operation/drivers', icon: Car, feature: 'driver_records', description: 'Drivers and teams' },
       { label: 'Schedule & Roster', path: '/operation/roster', icon: Calendar, feature: 'operation_roster', description: 'Team schedules' },
       { label: 'Breakdowns', path: '/operation/breakdowns', icon: AlertTriangle, feature: 'breakdowns', description: 'Track breakdowns' }

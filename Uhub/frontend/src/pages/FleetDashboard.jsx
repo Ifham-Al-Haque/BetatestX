@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Car, AlertTriangle, FileText, Wrench, DollarSign, TrendingUp, Calendar, Shield, ChevronRight
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import fleetService from '../services/fleetService';
 import fleetPmService from '../services/fleetPmService';
 import { useToast } from '../context/ToastContext';
 import FleetioLayout from '../components/operation/FleetioLayout';
+import OperationStatCard from '../components/operation/OperationStatCard';
+import { summarizeMulkiya, expiryStatus, EXPIRY_STYLES } from '../utils/mulkiyaExpiryUtils';
 
 const FleetDashboard = () => {
   const navigate = useNavigate();
@@ -21,10 +22,10 @@ const FleetDashboard = () => {
     avg_fuel_efficiency: 0,
   });
   const [upcomingMaintenance, setUpcomingMaintenance] = useState([]);
-  const [expiringDocs, setExpiringDocs] = useState([]);
   const [openTickets, setOpenTickets] = useState([]);
   const [costData, setCostData] = useState({ perVehicle: [], fleet: { totalMileage: 0, totalCost: 0, costPerMile: null } });
   const [pmDueSoon, setPmDueSoon] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -33,17 +34,17 @@ const FleetDashboard = () => {
       const [
         statsRes,
         upcoming,
-        expiring,
         tickets,
         cost,
         pmDue,
+        vehicleList,
       ] = await Promise.allSettled([
         fleetService.getFleetStatistics().catch(() => null),
         fleetService.getUpcomingMaintenance(),
-        fleetService.getExpiringDocuments(),
         fleetService.getMaintenanceTickets({ status: 'Open' }).then((t) => t.slice(0, 10)).catch(() => []),
         fleetService.getCostPerMileAndTCO(),
         fleetPmService.getDueSoon(30).catch(() => []),
+        fleetService.getVehicles({ excludeSampleData: true }).catch(() => []),
       ]);
 
       setStats(statsRes.status === 'fulfilled' && statsRes.value ? statsRes.value : {
@@ -51,10 +52,10 @@ const FleetDashboard = () => {
         total_mileage: 0, avg_fuel_efficiency: 0,
       });
       setUpcomingMaintenance(upcoming.status === 'fulfilled' ? (upcoming.value || []) : []);
-      setExpiringDocs(expiring.status === 'fulfilled' ? (expiring.value || []) : []);
       setOpenTickets(Array.isArray(tickets.value) ? tickets.value : []);
       setCostData(cost.status === 'fulfilled' && cost.value ? cost.value : { perVehicle: [], fleet: { totalMileage: 0, totalCost: 0, costPerMile: null } });
       setPmDueSoon(Array.isArray(pmDue.value) ? pmDue.value : []);
+      setVehicles(vehicleList.status === 'fulfilled' ? (vehicleList.value || []) : []);
     } catch (e) {
       showError('Failed to load fleet dashboard');
     } finally {
@@ -63,6 +64,8 @@ const FleetDashboard = () => {
   }, [showError]);
 
   useEffect(() => { load(); }, [load]);
+
+  const mulkiya = useMemo(() => summarizeMulkiya(vehicles), [vehicles]);
 
   if (loading) {
     return (
@@ -80,80 +83,22 @@ const FleetDashboard = () => {
       description="Live overview: PM due, expiring documents, open tickets, and fleet statistics."
       icon={Car}
     >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Vehicles</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total_vehicles ?? 0}</p>
-              </div>
-              <Car className="w-10 h-10 text-blue-500" />
-            </div>
-            <button onClick={() => navigate('/operation/fleet-records')} className="mt-2 text-sm text-blue-600 hover:underline flex items-center">
-              View fleet <ChevronRight className="w-4 h-4" />
-            </button>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="bg-white rounded-lg shadow p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-green-600">{stats.active_vehicles ?? 0}</p>
-              </div>
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg shadow p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">In Maintenance</p>
-                <p className="text-2xl font-bold text-amber-600">{stats.maintenance_vehicles ?? 0}</p>
-              </div>
-              <Wrench className="w-10 h-10 text-amber-500" />
-            </div>
-            <button onClick={() => navigate('/operation/fleetio/maintenance')} className="mt-2 text-sm text-blue-600 hover:underline flex items-center">
-              View maintenance <ChevronRight className="w-4 h-4" />
-            </button>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="bg-white rounded-lg shadow p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Cost per mile (fleet)</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {costData.fleet?.costPerMile != null
-                    ? `AED ${costData.fleet.costPerMile.toFixed(2)}`
-                    : '—'}
-                </p>
-              </div>
-              <DollarSign className="w-10 h-10 text-gray-400" />
-            </div>
-          </motion.div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Link to="/operation/fleet-records">
+            <OperationStatCard label="Total vehicles" value={stats.total_vehicles ?? 0} tone="blue" icon={Car} sub="View fleet" />
+          </Link>
+          <OperationStatCard label="Active" value={stats.active_vehicles ?? 0} tone="green" icon={Car} />
+          <Link to="/operation/fleetio/maintenance">
+            <OperationStatCard label="In maintenance" value={stats.maintenance_vehicles ?? 0} tone="yellow" icon={Wrench} sub="View tickets" />
+          </Link>
+          <Link to="/operation/fleetio/mulkiya">
+            <OperationStatCard label="Mulkiya this month" value={mulkiya.thisMonth} tone="indigo" icon={FileText} sub={mulkiya.expired ? `${mulkiya.expired} already expired` : 'Registration expiry'} />
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow overflow-hidden"
-          >
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center">
               <AlertTriangle className="w-5 h-5 text-amber-500 mr-2" />
               <h2 className="text-lg font-semibold text-gray-900">Upcoming Maintenance (30 days)</h2>
             </div>
@@ -176,43 +121,60 @@ const FleetDashboard = () => {
                 </button>
               )}
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow overflow-hidden"
-          >
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center">
-              <Shield className="w-5 h-5 text-red-500 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">Expiring Documents (30 days)</h2>
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center">
+                <Shield className="w-5 h-5 text-indigo-500 mr-2" />
+                <h2 className="text-lg font-semibold text-gray-900">Mulkiya expiry</h2>
+              </div>
+              <button onClick={() => navigate('/operation/fleetio/mulkiya')} className="text-sm text-indigo-600 hover:underline flex items-center">
+                Open graph <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-            <div className="p-6 max-h-64 overflow-y-auto">
-              {expiringDocs.length === 0 ? (
-                <p className="text-gray-500">No documents expiring in the next 30 days.</p>
+            <div className="p-6">
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className={`rounded-lg border px-3 py-2 text-center ${EXPIRY_STYLES.expired.badge}`}>
+                  <p className="text-lg font-bold">{mulkiya.expired}</p>
+                  <p className="text-[11px]">Expired</p>
+                </div>
+                <div className={`rounded-lg border px-3 py-2 text-center ${EXPIRY_STYLES.this_month.badge}`}>
+                  <p className="text-lg font-bold">{mulkiya.thisMonth}</p>
+                  <p className="text-[11px]">This month</p>
+                </div>
+                <div className={`rounded-lg border px-3 py-2 text-center ${EXPIRY_STYLES.next_30.badge}`}>
+                  <p className="text-lg font-bold">{mulkiya.next30}</p>
+                  <p className="text-[11px]">Next 30 days</p>
+                </div>
+              </div>
+              {vehicles.filter((v) => ['expired', 'this_month', 'next_30'].includes(expiryStatus(v.registration_expiry))).slice(0, 6).length === 0 ? (
+                <p className="text-sm text-gray-500">No Mulkiya expiring soon. Add registration expiry on the Fleet Record.</p>
               ) : (
                 <ul className="space-y-2">
-                  {expiringDocs.slice(0, 10).map((v) => (
-                    <li key={v.id} className="flex justify-between text-sm">
-                      <span>{v.vehicle_number} – {v.make} {v.model}</span>
-                      <span className="text-gray-600">
-                        Ins: {v.insurance_expiry ? new Date(v.insurance_expiry).toLocaleDateString() : '—'} |
-                        Reg: {v.registration_expiry ? new Date(v.registration_expiry).toLocaleDateString() : '—'}
-                      </span>
-                    </li>
-                  ))}
+                  {vehicles
+                    .filter((v) => ['expired', 'this_month', 'next_30'].includes(expiryStatus(v.registration_expiry)))
+                    .sort((a, b) => String(a.registration_expiry).localeCompare(String(b.registration_expiry)))
+                    .slice(0, 6)
+                    .map((v) => {
+                      const st = expiryStatus(v.registration_expiry);
+                      return (
+                        <li key={v.id} className="flex justify-between text-sm gap-2">
+                          <span className="truncate">{v.vehicle_number} – {v.make} {v.model}</span>
+                          <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border ${EXPIRY_STYLES[st].badge}`}>
+                            {v.registration_expiry ? new Date(v.registration_expiry).toLocaleDateString() : '—'}
+                          </span>
+                        </li>
+                      );
+                    })}
                 </ul>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow overflow-hidden"
-          >
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center">
               <FileText className="w-5 h-5 text-blue-500 mr-2" />
               <h2 className="text-lg font-semibold text-gray-900">Open Maintenance Tickets</h2>
@@ -236,13 +198,9 @@ const FleetDashboard = () => {
                 </button>
               )}
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-lg shadow overflow-hidden"
-          >
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center">
               <Calendar className="w-5 h-5 text-purple-500 mr-2" />
               <h2 className="text-lg font-semibold text-gray-900">PM Due Soon (30 days)</h2>
@@ -261,14 +219,10 @@ const FleetDashboard = () => {
                 </ul>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-8 bg-white rounded-lg shadow overflow-hidden"
-        >
+        <div className="mt-8 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center">
             <TrendingUp className="w-5 h-5 text-green-500 mr-2" />
             <h2 className="text-lg font-semibold text-gray-900">Total Cost of Ownership (summary)</h2>
@@ -291,7 +245,7 @@ const FleetDashboard = () => {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
     </FleetioLayout>
   );
 };

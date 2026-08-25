@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import {
-  Car, UserX, Plus, Search, Filter, Calendar, FileText, TrendingUp, ChevronRight,
-  Eye, Edit, Trash, Download, AlertTriangle, Clock, CheckSquare
+  Car, UserX, Plus, Search, Filter, Eye, AlertTriangle, Clock, CheckSquare, TrendingUp, ChevronRight
 } from 'lucide-react';
 import fleetService from '../services/fleetService';
 import fleetOffboardingService, { OFFBOARDING_REASONS } from '../services/fleetOffboardingService';
 import { useToast } from '../context/ToastContext';
+import OperationStatCard from '../components/operation/OperationStatCard';
 
 const FleetOffboarding = ({ embedded = false }) => {
   const { userProfile } = useAuth();
@@ -151,36 +150,31 @@ const FleetOffboarding = ({ embedded = false }) => {
 
   if (loading && offboardingRecords.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading Fleet Offboarding Data...</p>
-        </div>
+      <div className="flex justify-center py-16">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className={embedded ? 'bg-gray-50' : 'min-h-screen bg-gray-50'}>
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${embedded ? 'py-6' : 'py-8'}`}>
+    <div className={embedded ? '' : 'min-h-screen bg-gray-50'}>
+      <div className={embedded ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'}>
         {!embedded && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <UserX className="w-8 h-8 mr-3 text-red-600" />
-                Fleet Offboarding
-              </h1>
-              <p className="text-gray-600 mt-2">Manage fleet vehicle offboarding processes and asset returns</p>
-            </div>
-            <button
-              onClick={handleStartOffboarding}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg flex items-center transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Start Fleet Offboarding
-            </button>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <UserX className="w-7 h-7 mr-3 text-red-600" />
+              Fleet Offboarding
+            </h1>
+            <p className="text-gray-600 mt-1 text-sm">Retire vehicles from the active fleet</p>
           </div>
+          <button
+            onClick={handleStartOffboarding}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center text-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Start Offboarding
+          </button>
         </div>
         )}
         {embedded && (
@@ -195,51 +189,11 @@ const FleetOffboarding = ({ embedded = false }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-100">
-                <Car className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Offboarding</p>
-                <p className="text-2xl font-bold text-gray-900">{statistics.total}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-100">
-                <CheckSquare className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">{statistics.completed}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-yellow-100">
-                <TrendingUp className="w-6 h-6 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-2xl font-bold text-gray-900">{statistics.in_progress}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-orange-100">
-                <AlertTriangle className="w-6 h-6 text-orange-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Not Started / On Hold</p>
-                <p className="text-2xl font-bold text-gray-900">{statistics.not_started + statistics.on_hold}</p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <OperationStatCard label="Total offboarding" value={statistics.total} tone="red" icon={Car} />
+          <OperationStatCard label="Completed" value={statistics.completed} tone="green" icon={CheckSquare} />
+          <OperationStatCard label="In progress" value={statistics.in_progress} tone="blue" icon={TrendingUp} />
+          <OperationStatCard label="Not started / on hold" value={statistics.not_started + statistics.on_hold} tone="yellow" icon={AlertTriangle} />
         </div>
 
         <div className="bg-white rounded-lg shadow mb-6">
@@ -303,11 +257,9 @@ const FleetOffboarding = ({ embedded = false }) => {
                 {offboardingRecords.map((record) => {
                   const StatusIcon = getStatusIcon(record.status);
                   return (
-                    <motion.div
+                    <div
                       key={record.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                      className="border border-gray-200 rounded-xl p-5 hover:border-red-200 hover:shadow-sm transition-shadow"
                     >
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center space-x-4">
@@ -363,7 +315,7 @@ const FleetOffboarding = ({ embedded = false }) => {
                         </button>
                         <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
