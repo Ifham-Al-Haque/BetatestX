@@ -7,11 +7,13 @@ import AttendanceCalendar from '../components/attendance/AttendanceCalendar';
 import RegularizationInbox from '../components/attendance/RegularizationInbox';
 import attendanceService, {
   dubaiDateString,
+  formatDubaiDate,
   formatDubaiTime,
   formatHours,
   isAttendanceSchemaMissing,
   isUuid,
 } from '../services/attendanceService';
+import leaveService, { leaveCoverage, leaveTypeMeta } from '../services/leaveService';
 
 const Attendance = () => {
   const today = dubaiDateString();
@@ -25,16 +27,22 @@ const Attendance = () => {
   const [selectedDate, setSelectedDate] = useState(today);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadError, setLoadError] = useState('');
+  const [staleOpen, setStaleOpen] = useState([]);
+  const [onLeaveToday, setOnLeaveToday] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [todayData, monthData] = await Promise.all([
+      const [todayData, monthData, stale, leaveToday] = await Promise.all([
         attendanceService.getOverview(today, today),
         attendanceService.getOverview(cursor.from, cursor.to),
+        attendanceService.getStaleOpen().catch(() => []),
+        leaveService.getOnLeave(today).catch(() => []),
       ]);
       setRows(Array.isArray(todayData) ? todayData : []);
       setMonthRows(Array.isArray(monthData) ? monthData : []);
+      setStaleOpen(Array.isArray(stale) ? stale : []);
+      setOnLeaveToday(Array.isArray(leaveToday) ? leaveToday : []);
       setSchemaMissing(false);
       setLoadError('');
     } catch (err) {
@@ -54,9 +62,9 @@ const Attendance = () => {
   }, [load, refreshKey]);
 
   const present = rows.filter((r) => r.clock_in).length;
-  const complete = rows.filter((r) => r.status === 'complete').length;
   const open = rows.filter((r) => r.status === 'open').length;
   const monthHours = monthRows.reduce((sum, r) => sum + (Number(r.total_hours) || 0), 0);
+  const allDayLeave = onLeaveToday.filter((r) => leaveCoverage(r) === 'all_day');
 
   const calendarDays = useMemo(() => {
     const byDate = {};
@@ -125,11 +133,12 @@ const Attendance = () => {
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {[
                 { label: 'Clocked in today', value: present, icon: Users },
-                { label: 'Still open', value: open, icon: Clock },
-                { label: 'Completed today', value: complete, icon: Calendar },
+                { label: 'Still open today', value: open, icon: Clock },
+                { label: 'Forgot clock-out', value: staleOpen.length, icon: ClipboardList },
+                { label: 'All-day leave', value: allDayLeave.length, icon: Calendar },
                 { label: 'Hours this month', value: formatHours(monthHours), icon: Clock },
               ].map((s) => (
                 <div key={s.label} className="rounded-xl bg-white/10 border border-white/20 p-4">
@@ -177,6 +186,48 @@ const Attendance = () => {
           </div>
         </div>
 
+        {tab === 'board' && staleOpen.length > 0 ? (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
+            <div className="px-6 py-3 border-b border-amber-200">
+              <h2 className="text-sm font-semibold text-amber-950">Forgot clock-out (previous days)</h2>
+              <p className="text-xs text-amber-800 mt-0.5">
+                These days were never closed. Ask the person to Regularize — we do not invent a clock-out time.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="text-xs uppercase text-amber-800/80">
+                  <tr>
+                    <th className="text-left px-6 py-2 font-medium">UHub user</th>
+                    <th className="text-left px-6 py-2 font-medium">Date</th>
+                    <th className="text-left px-6 py-2 font-medium">Clock in</th>
+                    <th className="text-left px-6 py-2 font-medium">Profile</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-100">
+                  {staleOpen.slice(0, 12).map((r) => (
+                    <tr key={r.id}>
+                      <td className="px-6 py-2">
+                        <div className="font-medium text-gray-900">{r.user_full_name}</div>
+                        <div className="text-gray-500">{r.user_email}</div>
+                      </td>
+                      <td className="px-6 py-2">{formatDubaiDate(r.work_date)}</td>
+                      <td className="px-6 py-2">{formatDubaiTime(r.clock_in)}</td>
+                      <td className="px-6 py-2">
+                        {isUuid(r.employee_record_id) ? (
+                          <Link to={`/employee/${r.employee_record_id}`} className="text-blue-600 hover:underline">
+                            View
+                          </Link>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
@@ -210,11 +261,21 @@ const Attendance = () => {
                     </td>
                   </tr>
                 ) : (
-                  (selectedDate === today ? rows : selectedRows).map((r) => (
+                  (selectedDate === today ? rows : selectedRows).map((r) => {
+                    const leaveHit = selectedDate === today
+                      ? onLeaveToday.find((l) => String(l.user_id) === String(r.user_id))
+                      : null;
+                    return (
                     <tr key={r.id} className="hover:bg-gray-50">
                       <td className="px-6 py-3">
                         <div className="font-medium text-gray-900">{r.user_full_name}</div>
                         <div className="text-gray-500">{r.user_email}</div>
+                        {leaveHit ? (
+                          <div className="text-xs text-teal-700 mt-0.5">
+                            {leaveTypeMeta(leaveHit.leave_type).label}
+                            {leaveCoverage(leaveHit) === 'all_day' ? ' · should not be clocked in' : ''}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-6 py-3">{formatDubaiTime(r.clock_in)}</td>
                       <td className="px-6 py-3">{formatDubaiTime(r.clock_out)}</td>
@@ -235,7 +296,8 @@ const Attendance = () => {
                         ) : null}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

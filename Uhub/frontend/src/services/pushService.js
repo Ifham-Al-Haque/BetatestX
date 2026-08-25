@@ -68,6 +68,7 @@ async function linkWebUser(OneSignal, userId) {
   const currentExternalId = OneSignal.User?.externalId ?? null;
 
   if (currentExternalId === uid && linkedExternalUserId === uid) {
+    await requestWebPushPermission(OneSignal);
     return;
   }
 
@@ -78,11 +79,23 @@ async function linkWebUser(OneSignal, userId) {
 
   if ((OneSignal.User?.externalId ?? null) === uid) {
     linkedExternalUserId = uid;
+    await requestWebPushPermission(OneSignal);
     return;
   }
 
   await OneSignal.login(uid);
   linkedExternalUserId = uid;
+  await requestWebPushPermission(OneSignal);
+}
+
+async function requestWebPushPermission(OneSignal) {
+  try {
+    const alreadyGranted = OneSignal.Notifications?.permission === true;
+    if (alreadyGranted) return;
+    await OneSignal.Notifications.requestPermission();
+  } catch (err) {
+    console.warn('OneSignal permission prompt skipped:', err?.message || err);
+  }
 }
 
 async function unlinkWebUser(OneSignal) {
@@ -150,6 +163,11 @@ export async function setExternalUserId(userId) {
         }
         await OneSignal.login(uid);
         linkedExternalUserId = uid;
+        try {
+          OneSignal.Notifications.requestPermission(true);
+        } catch {
+          /* native prompt is best-effort */
+        }
       });
     });
   }
@@ -161,6 +179,8 @@ export async function setExternalUserId(userId) {
   });
 }
 
+// Only used when switching to a different UHub user on this device.
+// Do not call this on normal sign-out — that would stop alerts while they are away.
 export async function clearExternalUserId() {
   if (!ONESIGNAL_APP_ID || typeof window === 'undefined') return;
   linkedExternalUserId = null;
@@ -172,22 +192,65 @@ export async function clearExternalUserId() {
   return enqueueIdentityOp(() => deferOneSignal((OneSignal) => unlinkWebUser(OneSignal)));
 }
 
+function toAbsoluteUrl(url) {
+  if (!url) return undefined;
+  if (/^https?:\/\//i.test(url)) return url;
+  const origin =
+    (typeof window !== 'undefined' && window.location?.origin) ||
+    process.env.REACT_APP_APP_URL ||
+    '';
+  if (!origin) return url;
+  return `${origin}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
+async function invokeSendPush(body) {
+  const { data, error } = await supabase.functions.invoke('send-push', { body });
+  if (!error && data?.ok) return { success: true, recipients: data?.recipients ?? 0 };
+  return {
+    success: false,
+    message: error?.message || data?.error || 'Push not sent (deploy send-push function & set ONESIGNAL_REST_API_KEY).',
+  };
+}
+
 // Send a push to a user (by auth id / external id) via the secure Edge Function.
 export async function sendPushToUser(externalUserId, { title, message, url } = {}) {
   if (!externalUserId || !title) return { success: false, message: 'Missing target or title' };
   try {
-    const { data, error } = await supabase.functions.invoke('send-push', {
-      body: { externalUserId, title, message, url },
+    return await invokeSendPush({
+      externalUserId,
+      title,
+      message,
+      url: toAbsoluteUrl(url),
     });
-    if (!error && data?.ok) return { success: true };
-    return {
-      success: false,
-      message: error?.message || data?.error || 'Push not sent (deploy send-push function & set ONESIGNAL_REST_API_KEY).',
-    };
   } catch (err) {
     return { success: false, message: err?.message };
   }
 }
 
-const pushService = { isPushConfigured, initWebPush, setExternalUserId, clearExternalUserId, sendPushToUser };
+// Send a push to every active UHub user in the given roles.
+// Recipients are resolved server-side (service role), so employee submitters
+// can still alert HR/IT even when RLS hides those users from the browser.
+export async function sendPushToRoles(roles, { title, message, url } = {}) {
+  const uniqueRoles = [...new Set((roles || []).filter(Boolean))];
+  if (!uniqueRoles.length || !title) return { success: false, message: 'Missing roles or title' };
+  try {
+    return await invokeSendPush({
+      roles: uniqueRoles,
+      title,
+      message,
+      url: toAbsoluteUrl(url),
+    });
+  } catch (err) {
+    return { success: false, message: err?.message };
+  }
+}
+
+const pushService = {
+  isPushConfigured,
+  initWebPush,
+  setExternalUserId,
+  clearExternalUserId,
+  sendPushToUser,
+  sendPushToRoles,
+};
 export default pushService;

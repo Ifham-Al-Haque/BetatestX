@@ -1,7 +1,14 @@
 import { supabase } from '../supabaseClient';
-import { dubaiDateString, formatDubaiDate, isAttendanceSchemaMissing, isUuid } from './attendanceService';
+import {
+  dubaiDateString,
+  dubaiYear,
+  formatDubaiDate,
+  isAttendanceSchemaMissing,
+  isOwnEmployeeRecord,
+  isUuid,
+} from './attendanceService';
 
-export { dubaiDateString, formatDubaiDate, isAttendanceSchemaMissing, isUuid };
+export { dubaiDateString, dubaiYear, formatDubaiDate, isAttendanceSchemaMissing, isUuid };
 
 export const LEAVE_TYPES = [
   { code: 'annual', label: 'Annual Leave', unit: 'days', default_quota: 30, deducts_from: null },
@@ -25,6 +32,16 @@ export function formatLeaveUnits(units, unit = 'days') {
   if (n === 0.5) return '½ day';
   if (n === 1) return '1 day';
   return `${n} days`;
+}
+
+export function leaveCoverage(request) {
+  if (!request) return 'all_day';
+  if (request.leave_type === 'short') return 'hours';
+  if (request.leave_type === 'wfh') return 'wfh';
+  if (request.leave_type === 'half_day' || request.session === 'morning' || request.session === 'afternoon') {
+    return 'half';
+  }
+  return 'all_day';
 }
 
 export function remainingOf(balance) {
@@ -104,7 +121,7 @@ export const leaveService = {
     return data?.length ? data : LEAVE_TYPES;
   },
 
-  async getMyBalances(year = new Date().getFullYear()) {
+  async getMyBalances(year = dubaiYear()) {
     const me = await getMyUhubUser();
     if (!me?.id) return { user: null, balances: [], year };
     await supabase.rpc('ensure_leave_balances', { p_user_id: me.id, p_year: year });
@@ -131,7 +148,28 @@ export const leaveService = {
     return data || [];
   },
 
-  async getForEmployee(employeeId, year = new Date().getFullYear()) {
+  async getForEmployee(employeeId, year = dubaiYear(), employeeHint = null) {
+    const rpc = await supabase.rpc('get_leave_for_employee', {
+      p_employee_id: employeeId,
+      p_year: year,
+    });
+    if (!rpc.error) {
+      const parsed = parseRpcJson(rpc.data);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const balances = Array.isArray(parsed.balances)
+          ? parsed.balances
+          : typeof parsed.balances === 'string'
+            ? (() => { try { return JSON.parse(parsed.balances); } catch { return []; } })()
+            : [];
+        const requests = Array.isArray(parsed.requests)
+          ? parsed.requests
+          : typeof parsed.requests === 'string'
+            ? (() => { try { return JSON.parse(parsed.requests); } catch { return []; } })()
+            : [];
+        return { ...parsed, balances, requests, year: parsed.year || year };
+      }
+    }
+
     const [bal, req] = await Promise.all([
       supabase.from('leave_balances').select('*').eq('employee_id', employeeId).eq('year', year),
       supabase
@@ -151,11 +189,33 @@ export const leaveService = {
     let requests = req.data || [];
 
     if (!balances.length && !requests.length) {
-      const { data: userRow } = await supabase
-        .from('users')
-        .select('id')
-        .eq('employee_id', employeeId)
-        .maybeSingle();
+      let userRow = null;
+      const byLink = await supabase.from('users').select('id').eq('employee_id', employeeId).maybeSingle();
+      userRow = byLink.data;
+      if (!userRow && employeeHint?.auth_user_id) {
+        const byAuth = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_user_id', employeeHint.auth_user_id)
+          .maybeSingle();
+        userRow = byAuth.data;
+      }
+      if (!userRow && employeeHint?.email) {
+        const byEmail = await supabase
+          .from('users')
+          .select('id')
+          .ilike('email', employeeHint.email)
+          .maybeSingle();
+        userRow = byEmail.data;
+      }
+      if (!userRow && employeeHint?.employee_id) {
+        const byCode = await supabase
+          .from('users')
+          .select('id')
+          .eq('employee_id', employeeHint.employee_id)
+          .maybeSingle();
+        userRow = byCode.data;
+      }
       if (userRow?.id) {
         const [b2, r2] = await Promise.all([
           supabase.from('leave_balances').select('*').eq('user_id', userRow.id).eq('year', year),
@@ -228,11 +288,12 @@ export const leaveService = {
     return parseRpcJson(rpc.data);
   },
 
-  async isSelfEmployee(employeeId) {
+  async isSelfEmployee(employeeId, employeeHint = null) {
     const me = await getMyUhubUser();
     if (!me) return false;
     if (isUuid(me.employee_id) && String(me.employee_id) === String(employeeId)) return true;
-    return false;
+    const { data: authData } = await supabase.auth.getUser();
+    return isOwnEmployeeRecord(me, employeeHint, employeeId, authData?.user?.id);
   },
 };
 

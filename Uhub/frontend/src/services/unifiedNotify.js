@@ -278,28 +278,72 @@ export async function notifyUhubUser(service, {
   return { inApp, push, email, user };
 }
 
-/** Notify every UHub user holding any of the given roles. */
+/**
+ * Notify every UHub user holding any of the given roles.
+ * In-app rows go through create_notifications_for_role (SECURITY DEFINER).
+ * Push and email are resolved in Edge Functions with the service role, so an
+ * employee submitter can still reach HR/IT when RLS hides those users.
+ */
 export async function notifyUhubUsersByRoles(service, roles, options) {
-  const users = await getUhubUsersByRoles(roles);
-  const results = await Promise.allSettled(
-    users.map((u) =>
-      notifyUhubUser(service, {
-        ...options,
-        personId: u.auth_user_id || u.id,
-      })
-    )
-  );
+  const uniqueRoles = [...new Set((roles || []).filter(Boolean))];
+  if (uniqueRoles.length === 0) return { users: 0, inApp: 0, push: 0, email: 0 };
+
+  const {
+    type,
+    title,
+    message,
+    data = {},
+    priority = 'medium',
+    actionUrl = null,
+    actionLabel = null,
+    emailSubject = null,
+    emailHeading = null,
+    emailIntro = null,
+    emailLines = [],
+    emailAccentColor = '#0d9488',
+    channels = { inApp: true, push: true, email: true },
+  } = options || {};
 
   let inApp = 0;
-  let push = 0;
-  let email = 0;
-  results.forEach((r) => {
-    if (r.status === 'fulfilled') {
-      if (r.value.inApp) inApp += 1;
-      if (r.value.push) push += 1;
-      if (r.value.email) email += 1;
-    }
-  });
+  if (channels.inApp !== false) {
+    const counts = await Promise.all(
+      uniqueRoles.map((role) =>
+        service.createNotificationsForRole({
+          role,
+          type,
+          title,
+          message,
+          data,
+          priority,
+          actionUrl,
+          actionLabel,
+        })
+      )
+    );
+    inApp = counts.reduce((sum, n) => sum + (Number(n) || 0), 0);
+  } else if (channels.push !== false) {
+    uniqueRoles.forEach((role) => {
+      service._dispatchPushToRole(role, { title, message, actionUrl });
+    });
+  }
 
-  return { users: users.length, inApp, push, email };
+  let email = 0;
+  if (channels.email !== false && title) {
+    const html = buildTicketEmailHtml({
+      heading: emailHeading || title,
+      intro: emailIntro || message,
+      lines: emailLines,
+      accentColor: emailAccentColor,
+      actionUrl,
+      actionLabel,
+    });
+    try {
+      const r = await emailService.sendToRoles(uniqueRoles, emailSubject || title, html);
+      if (r?.success) email = r.recipients || uniqueRoles.length;
+    } catch (e) {
+      console.warn('notifyUhubUsersByRoles email failed:', e?.message);
+    }
+  }
+
+  return { users: inApp, inApp, push: inApp || uniqueRoles.length, email };
 }

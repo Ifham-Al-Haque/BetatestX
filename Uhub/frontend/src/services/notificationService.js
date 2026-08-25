@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { sendPushToUser } from './pushService';
+import { sendPushToUser, sendPushToRoles } from './pushService';
 import {
   IT_NOTIFY_ROLES,
   HR_NOTIFY_ROLES,
@@ -37,18 +37,11 @@ class NotificationService {
     }
   }
 
-  // Best-effort push to every user holding a given role.
+  // Best-effort push to every user holding a given role (resolved server-side).
   async _dispatchPushToRole(role, { title, message, actionUrl } = {}) {
     if (!role || !title) return;
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('auth_user_id')
-        .eq('role', role);
-      if (error || !data) return;
-      data.forEach((u) => {
-        if (u.auth_user_id) this._dispatchPush(u.auth_user_id, { title, message, actionUrl });
-      });
+      sendPushToRoles([role], { title, message, url: actionUrl || undefined }).catch(() => {});
     } catch {
       /* noop */
     }
@@ -917,10 +910,6 @@ class NotificationService {
         emailAccentColor: '#4f46e5',
       };
       const result = await notifyUhubUsersByRoles(this, HR_NOTIFY_ROLES, payload);
-      if (!result.users) {
-        await this.createNotificationsForRole({ role: 'hr_manager', ...payload });
-        await this.createNotificationsForRole({ role: 'admin', ...payload });
-      }
       return result.inApp + result.push;
     } catch (error) {
       console.error('Error notifying regularization submit:', error);
@@ -996,10 +985,6 @@ class NotificationService {
         emailAccentColor: '#0d9488',
       };
       const result = await notifyUhubUsersByRoles(this, HR_NOTIFY_ROLES, payload);
-      if (!result.users) {
-        await this.createNotificationsForRole({ role: 'hr_manager', ...payload });
-        await this.createNotificationsForRole({ role: 'admin', ...payload });
-      }
       return result.inApp + result.push;
     } catch (error) {
       console.error('Error notifying leave submit:', error);

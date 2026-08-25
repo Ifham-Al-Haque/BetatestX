@@ -2,13 +2,61 @@ import { supabase } from '../supabaseClient';
 
 export const ATTENDANCE_TZ = 'Asia/Dubai';
 
+/** YYYY-MM-DD in Dubai timezone (for attendance / leave dates). */
 export function dubaiDateString(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: ATTENDANCE_TZ,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(date);
+  }).format(d);
+}
+
+export function dubaiAddDays(ymd, delta) {
+  const raw = String(ymd || dubaiDateString()).slice(0, 10);
+  const [y, m, day] = raw.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1, day + Number(delta || 0)));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+export function isDubaiWeekend(ymd) {
+  const raw = String(ymd || '').slice(0, 10);
+  const [y, m, day] = raw.split('-').map(Number);
+  if (!y || !m || !day) return false;
+  const dow = new Date(Date.UTC(y, m - 1, day)).getUTCDay();
+  return dow === 0 || dow === 6;
+}
+
+function normalizeMissedDays(value) {
+  if (!value) return [];
+  const rows = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? (() => { try { return JSON.parse(value); } catch { return []; } })()
+      : [];
+  return rows
+    .map((row) => {
+      const workDate = String(row?.work_date || row?.d || row || '').slice(0, 10);
+      return workDate ? { work_date: workDate } : null;
+    })
+    .filter(Boolean);
+}
+
+function computeMissedDays(today, punchedDates, blockingLeave = []) {
+  const missed = [];
+  for (let i = 1; i <= 14; i += 1) {
+    const ymd = dubaiAddDays(today, -i);
+    if (isDubaiWeekend(ymd)) continue;
+    if (punchedDates.has(ymd)) continue;
+    const onFullLeave = blockingLeave.some(
+      (r) => r.blocks_clock && r.start_date <= ymd && r.end_date >= ymd
+    );
+    if (onFullLeave) continue;
+    missed.push({ work_date: ymd });
+  }
+  return missed;
 }
 
 export function formatDubaiTime(value) {
@@ -86,13 +134,13 @@ export function isAttendanceSchemaMissing(error) {
   if (!error) return false;
   const msg = `${error.message || ''} ${error.details || ''}`;
   const aboutAttendance =
-    /user_attendance|clock_user_attendance|get_attendance|get_my_attendance|get_user_attendance/i.test(msg);
+    /user_attendance|clock_user_attendance|get_attendance|get_my_attendance|get_user_attendance|get_leave_for_employee|get_stale_open|leave_requests|leave_balances/i.test(msg);
   return (
     error.code === 'PGRST202' ||
     error.code === '42883' ||
     error.code === '42P01' ||
     (aboutAttendance && /does not exist|could not find/i.test(msg)) ||
-    /could not find the function public\.(clock_user_attendance|get_attendance|get_my_attendance|get_user_attendance)/i.test(msg)
+    /could not find the function public\.(clock_user_attendance|get_attendance|get_my_attendance|get_user_attendance|get_leave_for_employee|get_stale_open)/i.test(msg)
   );
 }
 
@@ -223,7 +271,11 @@ function sameText(a, b) {
   return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 }
 
-function isOwnEmployeeRecord(me, employee, employeeId, authUserId) {
+export function dubaiYear(date = new Date()) {
+  return Number(dubaiDateString(date).slice(0, 4));
+}
+
+export function isOwnEmployeeRecord(me, employee, employeeId, authUserId) {
   if (!employee) return false;
   if (authUserId && employee.auth_user_id && String(employee.auth_user_id) === String(authUserId)) {
     return true;
@@ -297,6 +349,21 @@ async function clockViaTable(punchType, location) {
   if (!me?.id) throw new Error('No UHub user account is linked to this login');
 
   const workDate = dubaiDateString();
+  if (punchType === 'in') {
+    const { data: leaveRows } = await supabase
+      .from('leave_requests')
+      .select('leave_type')
+      .eq('user_id', me.id)
+      .eq('status', 'approved')
+      .lte('start_date', workDate)
+      .gte('end_date', workDate);
+    const blocked = (leaveRows || []).find((r) => !['wfh', 'short', 'half_day'].includes(r.leave_type));
+    if (blocked) {
+      throw new Error(
+        `You are on approved ${blocked.leave_type} leave today. Clock-in is blocked — regularize with HR if this is a mistake.`
+      );
+    }
+  }
   const nowIso = new Date().toISOString();
   const displayName = me.full_name || (me.email ? me.email.split('@')[0] : 'User');
 
@@ -405,13 +472,78 @@ export const attendanceService = {
     const rpc = await supabase.rpc('get_my_attendance_today');
     if (!rpc.error) {
       const parsed = parseRpcJson(rpc.data);
-      if (parsed?.day || parsed?.user_id) return parsed;
+      if (parsed && typeof parsed === 'object') {
+        return {
+          ...parsed,
+          stale_open: Array.isArray(parsed.stale_open) ? parsed.stale_open : [],
+          on_leave: Array.isArray(parsed.on_leave) ? parsed.on_leave : [],
+          missed_days: normalizeMissedDays(parsed.missed_days),
+        };
+      }
     }
 
     const me = await getMyUhubUser();
     const workDate = dubaiDateString();
-    if (!me?.id) return { user_id: null, work_date: workDate, day: null };
+    if (!me?.id) return { user_id: null, work_date: workDate, day: null, stale_open: [], on_leave: [], missed_days: [] };
 
+    const from = dubaiAddDays(workDate, -14);
+    const [{ data, error }, stale, leaveRange, punched] = await Promise.all([
+      supabase
+        .from('user_attendance_days')
+        .select('*')
+        .eq('user_id', me.id)
+        .eq('work_date', workDate)
+        .maybeSingle(),
+      supabase
+        .from('user_attendance_days')
+        .select('*')
+        .eq('user_id', me.id)
+        .is('clock_out', null)
+        .not('clock_in', 'is', null)
+        .lt('work_date', workDate)
+        .order('work_date', { ascending: false }),
+      supabase
+        .from('leave_requests')
+        .select('id, leave_type, session, start_time, end_time, units, unit, start_date, end_date')
+        .eq('user_id', me.id)
+        .eq('status', 'approved')
+        .lte('start_date', workDate)
+        .gte('end_date', from),
+      supabase
+        .from('user_attendance_days')
+        .select('work_date, clock_in')
+        .eq('user_id', me.id)
+        .gte('work_date', from)
+        .lt('work_date', workDate),
+    ]);
+    if (error && !isAttendanceSchemaMissing(error)) throw error;
+    const onLeave = (leaveRange.data || [])
+      .filter((r) => r.start_date <= workDate && r.end_date >= workDate)
+      .map((r) => ({
+        ...r,
+        blocks_clock: !['wfh', 'short', 'half_day'].includes(r.leave_type),
+      }));
+    const punchedDates = new Set(
+      (punched.data || []).filter((r) => r.clock_in).map((r) => String(r.work_date).slice(0, 10))
+    );
+    const blocking = (leaveRange.data || []).map((r) => ({
+      start_date: String(r.start_date).slice(0, 10),
+      end_date: String(r.end_date).slice(0, 10),
+      blocks_clock: !['wfh', 'short', 'half_day'].includes(r.leave_type),
+    }));
+    return {
+      user_id: me.id,
+      work_date: workDate,
+      day: data || null,
+      stale_open: stale.data || [],
+      on_leave: onLeave,
+      missed_days: computeMissedDays(workDate, punchedDates, blocking),
+    };
+  },
+
+  async getMyDay(workDate) {
+    const me = await getMyUhubUser();
+    if (!me?.id || !workDate) return null;
     const { data, error } = await supabase
       .from('user_attendance_days')
       .select('*')
@@ -419,7 +551,23 @@ export const attendanceService = {
       .eq('work_date', workDate)
       .maybeSingle();
     if (error && !isAttendanceSchemaMissing(error)) throw error;
-    return { user_id: me.id, work_date: workDate, day: data || null };
+    return data || null;
+  },
+
+  async getStaleOpen() {
+    const rpc = await supabase.rpc('get_stale_open_attendance');
+    if (!rpc.error) return rpc.data || [];
+    const today = dubaiDateString();
+    const { data, error } = await supabase
+      .from('user_attendance_days')
+      .select('*')
+      .is('clock_out', null)
+      .not('clock_in', 'is', null)
+      .lt('work_date', today)
+      .order('work_date', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return data || [];
   },
 
   async getOverview(from, to) {
@@ -584,9 +732,20 @@ export const attendanceService = {
     const me = await getMyUhubUser();
     if (!me?.id) throw new Error('No UHub user account is linked to this login');
     if (!workDate) throw new Error('Choose a date to regularize');
+    const today = dubaiDateString();
+    if (workDate > today) throw new Error('You can only regularize today or a past day');
+    if (workDate < dubaiAddDays(today, -30)) {
+      throw new Error('Regularization is limited to the last 30 days. Ask HR if you need an older date.');
+    }
     if (!String(reason || '').trim()) throw new Error('Please explain why you need this regularization');
     if (!requestedClockIn && !requestedClockOut) {
       throw new Error('Provide at least a requested clock-in or clock-out time');
+    }
+    if (
+      ['forgot_punch', 'missed_clock_in'].includes(requestType) &&
+      !requestedClockIn
+    ) {
+      throw new Error('Enter the clock-in time for the day you missed');
     }
 
     const { data: day } = await supabase

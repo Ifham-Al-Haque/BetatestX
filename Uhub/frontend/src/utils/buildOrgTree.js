@@ -138,12 +138,42 @@ export const getFocusRoot = (map, focusId) => {
   return map.get(String(focusId)) || null;
 };
 
+/** IDs of managers to collapse on first load for large orgs. */
+export const getSmartInitialCollapsed = (treeData, directReportThreshold = 4) => {
+  const { map, managerIds, roots } = treeData || {};
+  if (!map || !managerIds?.length) return new Set();
+
+  const collapsed = new Set();
+  managerIds.forEach((id) => {
+    const node = map.get(String(id));
+    if (node && node.directReports.length >= directReportThreshold) {
+      collapsed.add(String(id));
+    }
+  });
+
+  // If one main root with many direct reports, keep root expanded but collapse its heavy branches
+  if (roots?.length === 1 && roots[0].directReports.length >= directReportThreshold) {
+    roots[0].directReports.forEach((child) => {
+      if (child.directReports.length >= 3) collapsed.add(String(child.id));
+    });
+    collapsed.delete(String(roots[0].id));
+  }
+
+  return collapsed;
+};
+
 /** Data-quality signals for HR review. */
 export const computeOrgHealth = (employees = [], treeData) => {
   const { brokenLinks = [], roots = [], stats = {} } = treeData || {};
   const noDepartment = employees.filter((e) => !e.department?.trim()).length;
-  const noManager = employees.filter((e) => !e.reporting_manager_id).length;
-  const multipleTopLevel = roots.length > 1 ? roots.length : 0;
+  const legitimateTopLevel = roots.filter((r) => !r.brokenManager).length;
+  const noManager = employees.filter((e) => !e.reporting_manager_id && !roots.some((r) => String(r.id) === String(e.id))).length;
+  const multipleTopLevel = legitimateTopLevel > 1 ? legitimateTopLevel : 0;
+
+  const issues =
+    brokenLinks.length +
+    noDepartment +
+    (multipleTopLevel > 0 ? multipleTopLevel - 1 : 0);
 
   return {
     brokenLinks: brokenLinks.length,
@@ -151,6 +181,6 @@ export const computeOrgHealth = (employees = [], treeData) => {
     noManager,
     multipleTopLevel,
     total: stats.total || employees.length,
-    issues: brokenLinks.length + noDepartment + (multipleTopLevel > 1 ? multipleTopLevel - 1 : 0),
+    issues,
   };
 };

@@ -205,8 +205,8 @@ export const FEATURE_ACCESS = {
   complaints_inbox: ['admin', 'hr_manager'],
   suggestions: ['admin', 'data_operator', 'finance', 'finance_viewer', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
   suggestions_inbox: ['admin', 'hr_manager'],
-  attendance: ['admin', 'hr_manager'],
-  leave: ['admin', 'hr_manager'],
+  attendance: ['admin', 'super_admin', 'hr_manager'],
+  leave: ['admin', 'super_admin', 'hr_manager'],
   hr_operations: ['admin', 'hr_manager'],
   /** Import / calculate payroll tool — Admin and HR Manager only */
   payroll_calculator: ['admin', 'hr_manager'],

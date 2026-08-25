@@ -14,7 +14,7 @@ export const emailService = {
       });
       if (!error && data?.ok === true) {
         console.log('Email sent via Edge Function to:', to);
-        return { success: true, message: 'Email sent.' };
+        return { success: true, message: 'Email sent.', recipients: data?.recipients };
       }
       if (error) {
         console.warn('Edge Function send-email not available or failed:', error.message, '- logging email locally');
@@ -266,7 +266,34 @@ export const emailService = {
       </div>
     `;
     return emailService.sendNotification(userEmail, subject, body);
-  }
+  },
+
+  /**
+   * Email every active UHub user in the given roles.
+   * Recipients are resolved in the send-email Edge Function (service role),
+   * so employee submitters can still reach HR/IT when RLS hides those users.
+   */
+  sendToRoles: async (roles, subject, body) => {
+    const uniqueRoles = [...new Set((roles || []).filter(Boolean))];
+    if (!uniqueRoles.length || !subject) {
+      return { success: false, message: 'Missing roles or subject' };
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: { roles: uniqueRoles, subject, body },
+      });
+      if (!error && data?.ok === true) {
+        return { success: true, message: 'Email sent.', recipients: data?.recipients };
+      }
+      return {
+        success: false,
+        message: error?.message || data?.error || 'Email not sent (configure send-email Edge Function).',
+      };
+    } catch (error) {
+      console.error('Error sending role email notification:', error);
+      return { success: false, message: `Failed to send email: ${error.message}` };
+    }
+  },
 };
 
 /**

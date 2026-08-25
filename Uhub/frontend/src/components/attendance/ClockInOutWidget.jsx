@@ -4,6 +4,7 @@ import RegularizeAttendanceModal from './RegularizeAttendanceModal';
 import { useToast } from '../../context/ToastContext';
 import attendanceService, {
   dubaiDateString,
+  formatDubaiDate,
   formatDubaiTime,
   formatElapsedClock,
   formatHours,
@@ -11,6 +12,7 @@ import attendanceService, {
   mapsUrl,
   requestPunchLocation,
 } from '../../services/attendanceService';
+import { leaveTypeMeta } from '../../services/leaveService';
 
 function useLiveNow(enabled) {
   const [now, setNow] = useState(() => Date.now());
@@ -98,6 +100,17 @@ const ClockInOutWidget = ({ variant = 'light', onChanged }) => {
   const complete = Boolean(day?.clock_out);
   const now = useLiveNow(true);
   const isDark = variant === 'dark';
+  const staleOpen = Array.isArray(today?.stale_open) ? today.stale_open : [];
+  const onLeave = Array.isArray(today?.on_leave) ? today.on_leave : [];
+  const missedDays = Array.isArray(today?.missed_days) ? today.missed_days : [];
+  const blockingLeave = onLeave.find((r) => r.blocks_clock);
+  const partialLeave = !blockingLeave && onLeave[0];
+  const regularizeDate = staleOpen[0]?.work_date
+    ? String(staleOpen[0].work_date).slice(0, 10)
+    : missedDays[0]?.work_date
+      ? String(missedDays[0].work_date).slice(0, 10)
+      : dubaiDateString();
+  const regularizeDay = staleOpen[0] || null;
 
   const handleClock = async (type) => {
     setSaving(true);
@@ -210,10 +223,52 @@ const ClockInOutWidget = ({ variant = 'light', onChanged }) => {
 
           <LocationLine label={activeLocationLabel} lat={activeLat} lng={activeLng} isDark={isDark} />
 
+          {staleOpen.length > 0 ? (
+            <div className={`mt-4 rounded-xl border px-3 py-2.5 text-sm ${
+              isDark ? 'border-amber-300/30 bg-amber-400/10 text-amber-50' : 'border-amber-200 bg-amber-50 text-amber-900'
+            }`}
+            >
+              You did not clock out on {staleOpen.map((d) => formatDubaiDate(d.work_date)).join(', ')}.
+              Clock in today is still allowed — use Regularize so HR can close those days.
+            </div>
+          ) : null}
+
+          {missedDays.length > 0 ? (
+            <div className={`mt-4 rounded-xl border px-3 py-2.5 text-sm ${
+              isDark ? 'border-indigo-300/30 bg-indigo-400/10 text-indigo-50' : 'border-indigo-200 bg-indigo-50 text-indigo-950'
+            }`}
+            >
+              No punch for {missedDays.slice(0, 3).map((d) => formatDubaiDate(d.work_date)).join(', ')}
+              {missedDays.length > 3 ? ` and ${missedDays.length - 3} more` : ''}.
+              Regularize those days so HR can add the times you actually worked.
+            </div>
+          ) : null}
+
+          {blockingLeave ? (
+            <div className={`mt-4 rounded-xl border px-3 py-2.5 text-sm ${
+              isDark ? 'border-rose-300/30 bg-rose-400/10 text-rose-50' : 'border-rose-200 bg-rose-50 text-rose-900'
+            }`}
+            >
+              You are on approved {leaveTypeMeta(blockingLeave.leave_type).label.toLowerCase()} today.
+              Clock-in is blocked. If this is wrong, ask HR to reject the leave or use Regularize.
+            </div>
+          ) : null}
+
+          {partialLeave ? (
+            <div className={`mt-4 rounded-xl border px-3 py-2.5 text-sm ${
+              isDark ? 'border-teal-300/30 bg-teal-400/10 text-teal-50' : 'border-teal-200 bg-teal-50 text-teal-900'
+            }`}
+            >
+              {leaveTypeMeta(partialLeave.leave_type).label}
+              {partialLeave.session && partialLeave.session !== 'full' ? ` · ${partialLeave.session}` : ''}
+              {' '}is approved today. You can still clock in for the hours you work.
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-2 mt-4">
             <button
               type="button"
-              disabled={saving || clockedIn || complete}
+              disabled={saving || clockedIn || complete || Boolean(blockingLeave)}
               onClick={() => handleClock('in')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -243,17 +298,20 @@ const ClockInOutWidget = ({ variant = 'light', onChanged }) => {
             </button>
           </div>
           <p className={`text-[11px] mt-3 ${muted}`}>
-            Allow location when asked so HR can see where this punch was made. Use Regularize if a punch was missed or is wrong — HR must approve it.
+            Allow location when asked so HR can see where this punch was made. If you forgot to punch
+            in yesterday or another working day, tap Regularize, pick that date, and send it to HR.
           </p>
         </>
       )}
       <RegularizeAttendanceModal
         open={regularizeOpen}
         onClose={() => setRegularizeOpen(false)}
-        defaultDate={dubaiDateString()}
-        defaultDay={day}
+        defaultDate={regularizeDate}
+        defaultDay={regularizeDay}
+        missedDays={missedDays}
         onSubmitted={() => {
           setRegularizeOpen(false);
+          load();
           onChanged?.();
         }}
       />

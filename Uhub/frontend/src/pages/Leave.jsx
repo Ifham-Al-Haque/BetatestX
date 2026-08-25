@@ -9,6 +9,7 @@ import leaveService, {
   formatLeaveUnits,
   isAttendanceSchemaMissing,
   isUuid,
+  leaveCoverage,
   leaveTypeMeta,
 } from '../services/leaveService';
 
@@ -70,8 +71,10 @@ const Leave = () => {
                 <p className="text-2xl font-semibold mt-1">{pendingCount}</p>
               </div>
               <div className="rounded-xl bg-white/10 border border-white/20 p-4">
-                <p className="text-teal-100 text-xs">On leave today</p>
-                <p className="text-2xl font-semibold mt-1">{onLeave.length}</p>
+                <p className="text-teal-100 text-xs">All-day leave today</p>
+                <p className="text-2xl font-semibold mt-1">
+                  {onLeave.filter((r) => leaveCoverage(r) === 'all_day').length}
+                </p>
               </div>
             </div>
           </div>
@@ -116,6 +119,13 @@ const Leave = () => {
                       <td className="px-6 py-3">
                         {leaveTypeMeta(r.leave_type).label}
                         <div className="text-gray-500">{formatLeaveUnits(r.units, r.unit)}</div>
+                        {leaveCoverage(r) === 'hours' ? (
+                          <div className="text-xs text-teal-700">Partial day</div>
+                        ) : leaveCoverage(r) === 'half' ? (
+                          <div className="text-xs text-teal-700 capitalize">{r.session} half</div>
+                        ) : leaveCoverage(r) === 'wfh' ? (
+                          <div className="text-xs text-teal-700">Working from home</div>
+                        ) : null}
                       </td>
                       <td className="px-6 py-3">{formatDubaiDate(r.end_date)}</td>
                       <td className="px-6 py-3">

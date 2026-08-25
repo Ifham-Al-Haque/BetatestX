@@ -1,6 +1,6 @@
 /** Shared HR Panel constants for Complaints & Suggestions */
 
-export const HR_INBOX_ROLES = ['admin', 'hr_manager'];
+export const HR_INBOX_ROLES = ['admin', 'super_admin', 'hr_manager'];
 
 export const isHROrAdmin = (role) => HR_INBOX_ROLES.includes(role);
 

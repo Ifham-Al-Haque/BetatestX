@@ -1,18 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardEdit, Loader2, X } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import notificationService from '../../services/notificationService';
 import attendanceService, {
+  dubaiAddDays,
   dubaiDateString,
   formatDubaiDate,
   formatDubaiTimeInput,
 } from '../../services/attendanceService';
 
 export const REGULARIZATION_TYPES = [
+  { value: 'forgot_punch', label: 'Forgot to punch (missed the day)' },
   { value: 'missed_clock_in', label: 'Missed clock in' },
   { value: 'missed_clock_out', label: 'Missed clock out' },
   { value: 'wrong_time', label: 'Wrong time' },
-  { value: 'forgot_punch', label: 'Forgot to punch' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -23,26 +24,68 @@ function statusClass(status) {
   return 'bg-amber-50 text-amber-800';
 }
 
-const RegularizeAttendanceModal = ({ open, onClose, defaultDate, defaultDay, onSubmitted }) => {
+function ymd(value) {
+  return value ? String(value).slice(0, 10) : '';
+}
+
+const RegularizeAttendanceModal = ({
+  open,
+  onClose,
+  defaultDate,
+  defaultDay,
+  missedDays = [],
+  onSubmitted,
+}) => {
   const { success, error: showError } = useToast();
-  const [workDate, setWorkDate] = useState(defaultDate || dubaiDateString());
-  const [requestType, setRequestType] = useState('wrong_time');
+  const today = dubaiDateString();
+  const minDate = dubaiAddDays(today, -30);
+  const [workDate, setWorkDate] = useState(defaultDate || today);
+  const [requestType, setRequestType] = useState('forgot_punch');
   const [clockIn, setClockIn] = useState('');
   const [clockOut, setClockOut] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [mine, setMine] = useState([]);
 
+  const missed = useMemo(
+    () => (missedDays || []).map((d) => ymd(d.work_date || d)).filter(Boolean),
+    [missedDays]
+  );
+
   useEffect(() => {
     if (!open) return undefined;
-    setWorkDate(defaultDate || dubaiDateString());
-    setClockIn(formatDubaiTimeInput(defaultDay?.clock_in));
-    setClockOut(formatDubaiTimeInput(defaultDay?.clock_out));
+    const initial = ymd(defaultDate) || missed[0] || today;
+    setWorkDate(initial);
     setReason('');
-    setRequestType('wrong_time');
     attendanceService.getMyRegularizations().then(setMine).catch(() => setMine([]));
     return undefined;
-  }, [open, defaultDate, defaultDay]);
+  }, [open, defaultDate, missed, today]);
+
+  useEffect(() => {
+    if (!open || !workDate) return undefined;
+    let cancelled = false;
+    attendanceService.getMyDay(workDate).then((found) => {
+      if (cancelled) return;
+      if (!found?.clock_in) {
+        setRequestType('forgot_punch');
+        setClockIn('09:00');
+        setClockOut('18:00');
+        return;
+      }
+      setClockIn(formatDubaiTimeInput(found.clock_in));
+      setClockOut(formatDubaiTimeInput(found.clock_out));
+      setRequestType(found.clock_out ? 'wrong_time' : 'missed_clock_out');
+    }).catch(() => {
+      if (!cancelled) {
+        setRequestType('forgot_punch');
+        setClockIn('09:00');
+        setClockOut('18:00');
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, workDate]);
 
   if (!open) return null;
 
@@ -94,14 +137,37 @@ const RegularizeAttendanceModal = ({ open, onClose, defaultDate, defaultDay, onS
 
         <form onSubmit={submit} className="px-5 py-4 space-y-4">
           <p className="text-sm text-gray-600">
-            Use this if you missed a punch or the recorded time is wrong. HR reviews and approves
-            before the timesheet is updated.
+            Forgot to punch in yesterday or another working day? Pick that date, enter the times you
+            actually worked, and HR will update the timesheet after approval.
           </p>
+          {missed.length > 0 ? (
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-2">Days with no punch</p>
+              <div className="flex flex-wrap gap-2">
+                {missed.slice(0, 8).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setWorkDate(d)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                      workDate === d
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-indigo-50 text-indigo-800 border-indigo-100 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {formatDubaiDate(d)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <label className="block text-sm">
-            <span className="text-gray-600">Date</span>
+            <span className="text-gray-600">Date you missed</span>
             <input
               type="date"
               required
+              min={minDate}
+              max={today}
               value={workDate}
               onChange={(e) => setWorkDate(e.target.value)}
               className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
@@ -124,6 +190,7 @@ const RegularizeAttendanceModal = ({ open, onClose, defaultDate, defaultDay, onS
               <span className="text-gray-600">Requested clock in</span>
               <input
                 type="time"
+                required={requestType === 'forgot_punch' || requestType === 'missed_clock_in'}
                 value={clockIn}
                 onChange={(e) => setClockIn(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
@@ -139,6 +206,10 @@ const RegularizeAttendanceModal = ({ open, onClose, defaultDate, defaultDay, onS
               />
             </label>
           </div>
+          <p className="text-xs text-gray-500">
+            For a missed day, enter both times. Suggested office hours are 09:00–18:00 — change them
+            to what you actually worked.
+          </p>
           <label className="block text-sm">
             <span className="text-gray-600">Explanation</span>
             <textarea
@@ -146,7 +217,7 @@ const RegularizeAttendanceModal = ({ open, onClose, defaultDate, defaultDay, onS
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="What happened, and what should the record show?"
+              placeholder="e.g. Forgot to punch in yesterday, worked 9am to 6pm from the office"
               className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
             />
           </label>

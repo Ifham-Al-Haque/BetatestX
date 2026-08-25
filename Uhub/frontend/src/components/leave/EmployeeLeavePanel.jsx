@@ -16,7 +16,7 @@ function statusClass(status) {
   return 'bg-amber-50 text-amber-800';
 }
 
-const EmployeeLeavePanel = ({ employeeId }) => {
+const EmployeeLeavePanel = ({ employeeId, employee = null }) => {
   const [loading, setLoading] = useState(true);
   const [schemaMissing, setSchemaMissing] = useState(false);
   const [payload, setPayload] = useState(null);
@@ -27,8 +27,8 @@ const EmployeeLeavePanel = ({ employeeId }) => {
     if (!employeeId) return;
     setLoading(true);
     Promise.all([
-      leaveService.getForEmployee(employeeId),
-      leaveService.isSelfEmployee(employeeId),
+      leaveService.getForEmployee(employeeId, undefined, employee),
+      leaveService.isSelfEmployee(employeeId, employee),
     ])
       .then(([data, self]) => {
         setPayload(data);
@@ -45,7 +45,7 @@ const EmployeeLeavePanel = ({ employeeId }) => {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId]);
+  }, [employeeId, employee]);
 
   if (schemaMissing) {
     return (

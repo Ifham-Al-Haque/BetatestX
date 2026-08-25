@@ -2020,7 +2020,7 @@ export default function EmployeeProfile() {
         gradient="from-teal-700 via-cyan-700 to-blue-700 dark:from-teal-800 dark:via-cyan-800 dark:to-blue-800"
         borderClass="border-teal-600/30"
       />
-      <EmployeeLeavePanel employeeId={employee.id} />
+      <EmployeeLeavePanel employeeId={employee.id} employee={employee} />
     </div>
   );
 

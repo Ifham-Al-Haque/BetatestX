@@ -14,7 +14,6 @@ import OrgChartPro from '../components/OrgChartPro';
 import { useEmployees } from '../hooks/useEmployees';
 import { useAuth } from '../context/AuthContext';
 import { resolveEmployeePlacement } from '../config/departmentHierarchy';
-import { buildOrgTree } from '../utils/buildOrgTree';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const ORG_EDIT_ROLES = new Set(['admin', 'hr_manager']);
@@ -95,8 +94,6 @@ const OrganizationalHierarchy = () => {
     setShowEmployeeModal(true);
   };
 
-  const orgTreeStats = useMemo(() => buildOrgTree(employees || []).stats, [employees]);
-
   const showFullStats = viewMode !== 'chart';
 
   if (employeesLoading) {
@@ -108,8 +105,8 @@ const OrganizationalHierarchy = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className={`mx-auto px-4 sm:px-6 lg:px-8 py-6 ${viewMode === 'chart' ? 'max-w-[96rem]' : 'max-w-7xl'}`}>
         {/* Header */}
         <div className="mb-6 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 dark:border-gray-700/50 shadow-lg">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -219,26 +216,8 @@ const OrganizationalHierarchy = () => {
           )}
         </div>
 
-        {/* Compact stats on chart view / full cards elsewhere */}
-        {viewMode === 'chart' ? (
-          <div className="mb-6 flex flex-wrap gap-3">
-            {[
-              { label: 'Employees', value: employees?.length || 0, icon: Users },
-              { label: 'Managers', value: analytics?.metrics.managers || 0, icon: Crown },
-              { label: 'Departments', value: analytics?.metrics.departmentCount || 0, icon: Building },
-              { label: 'Levels', value: orgTreeStats.maxDepth || 0, icon: GitBranch },
-            ].map(({ label, value, icon: Icon }) => (
-              <div
-                key={label}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm text-sm"
-              >
-                <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span className="font-bold text-gray-900 dark:text-white">{value}</span>
-                <span className="text-gray-500 dark:text-gray-400">{label}</span>
-              </div>
-            ))}
-          </div>
-        ) : showFullStats && (
+        {/* Stats for Directory / Insights views only */}
+        {showFullStats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {[
               { label: 'Total Employees', value: employees?.length || 0, sub: `${filteredEmployees.length} shown`, icon: Users, iconClass: 'text-blue-600 dark:text-blue-400', bgClass: 'bg-blue-100 dark:bg-blue-900/30' },

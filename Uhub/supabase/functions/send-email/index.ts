@@ -1,10 +1,53 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6.9.16";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const ALLOWED_FANOUT_ROLES = new Set([
+  "admin",
+  "super_admin",
+  "hr_manager",
+  "it_management",
+  "it_manager",
+  "it_technician",
+  "it",
+]);
+
+function adminClient() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  return createClient(url, key);
+}
+
+function isActiveStatus(status: unknown) {
+  if (status == null || status === "") return true;
+  return String(status).toLowerCase() === "active";
+}
+
+async function resolveEmailsByRoles(roles: string[]): Promise<string[]> {
+  const allowed = [...new Set(roles.map(String).filter((r) => ALLOWED_FANOUT_ROLES.has(r)))];
+  if (allowed.length === 0) return [];
+
+  const { data, error } = await adminClient()
+    .from("users")
+    .select("email, status")
+    .in("role", allowed);
+
+  if (error) throw error;
+
+  const emails = new Set<string>();
+  for (const row of data || []) {
+    const email = String(row?.email ?? "").trim();
+    if (!email || !isActiveStatus(row.status)) continue;
+    emails.add(email);
+  }
+  return [...emails];
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -119,17 +162,29 @@ Deno.serve(async (req) => {
     const to = body?.to;
     const subject = body?.subject;
     const html = body?.body;
+    const roles = Array.isArray(body?.roles) ? body.roles.map(String) : [];
 
-    if (!to || !subject) {
-      return json({ ok: false, error: "Missing required fields: to, subject" }, 400);
+    if (!subject) {
+      return json({ ok: false, error: "Missing required field: subject" }, 400);
     }
 
-    const recipients = Array.isArray(to) ? to : [to];
+    const recipients = to == null ? [] : Array.isArray(to) ? to : [to];
     const cleanTo = recipients
       .map((e: unknown) => String(e ?? "").trim())
       .filter(Boolean);
+
+    if (roles.length > 0) {
+      const roleEmails = await resolveEmailsByRoles(roles);
+      for (const email of roleEmails) {
+        if (!cleanTo.includes(email)) cleanTo.push(email);
+      }
+    }
+
     if (cleanTo.length === 0) {
-      return json({ ok: false, error: "No valid recipients" }, 400);
+      if (roles.length > 0) {
+        return json({ ok: true, recipients: 0, skipped: true, provider: "none" });
+      }
+      return json({ ok: false, error: "Missing required fields: to or roles" }, 400);
     }
 
     const htmlBody = typeof html === "string" ? html : "";
@@ -152,7 +207,7 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: result.error }, 500);
     }
 
-    return json({ ok: true, provider: provider === "smtp" ? "smtp" : "resend" });
+    return json({ ok: true, provider: provider === "smtp" ? "smtp" : "resend", recipients: cleanTo.length });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("send-email error:", message);

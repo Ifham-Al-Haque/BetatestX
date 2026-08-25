@@ -1,29 +1,17 @@
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { setExternalUserId, clearExternalUserId } from '../services/pushService';
+import { setExternalUserId } from '../services/pushService';
 
-// Links the OneSignal device to the logged-in user (auth id) so pushes can be
-// targeted to them. No-ops unless OneSignal is configured.
+// Links this browser/phone to the UHub user (auth id) so OneSignal can deliver
+// leave/HR alerts even after they sign out. We do not unlink on logout — only
+// switch identity when a different person signs in on this device.
 const PushIdentity = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    let cancelled = false;
-
-    const syncIdentity = async () => {
-      if (cancelled) return;
-      if (user?.id) {
-        await setExternalUserId(user.id);
-      } else {
-        await clearExternalUserId();
-      }
-    };
-
-    syncIdentity();
-
-    return () => {
-      cancelled = true;
-    };
+    if (!user?.id) return undefined;
+    setExternalUserId(user.id).catch(() => {});
+    return undefined;
   }, [user?.id]);
 
   return null;
