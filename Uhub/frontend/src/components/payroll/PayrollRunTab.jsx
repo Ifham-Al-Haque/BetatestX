@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle, Download, FileUp, Lock,
-  PencilLine, Plus, Save, Trash2, X
+  PencilLine, Plus, Save, Search, Trash2, X
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useToast } from "../../context/ToastContext";
@@ -16,6 +16,7 @@ import {
   calcRowWithFormulas,
   validateFormulas,
 } from "../../utils/payrollFormula";
+import { formatPayrollCurrency } from "../../utils/payrollConstants";
 
 const FIELD_DEFS = [
   { key: "employee_id", label: "Employee ID", type: "text" },
@@ -114,6 +115,7 @@ export default function PayrollRunTab({ onBatchSaved }) {
   const [rows, setRows] = useState([]);
   const [showMapper, setShowMapper] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [rowSearch, setRowSearch] = useState("");
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [batchName, setBatchName] = useState("");
@@ -246,6 +248,16 @@ export default function PayrollRunTab({ onBatchSaved }) {
     }
     return acc;
   }, [rows, calcRow]);
+
+  const displayedRows = useMemo(() => {
+    const q = rowSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      [r.full_name, r.employee_id, r.department].some((v) =>
+        String(v || "").toLowerCase().includes(q)
+      )
+    );
+  }, [rows, rowSearch]);
 
   const handleManualAdd = () => {
     if (isLocked) return;
@@ -555,39 +567,34 @@ export default function PayrollRunTab({ onBatchSaved }) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-end gap-2 mb-6">
+      {isLocked && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/70 dark:border-emerald-800 text-sm text-emerald-800 dark:text-emerald-300">
+          <Lock className="w-4 h-4 shrink-0" />
+          This run is locked after saving. Import and row edits are disabled — start a new import to run another month.
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Import a spreadsheet or add rows, then save a batch. Formulas below drive Gross, Tax, and Net.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={downloadTemplate}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-all text-slate-700 dark:text-slate-200"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 text-slate-700 dark:text-slate-200 text-sm hover:shadow-sm"
           >
             <Download className="w-4 h-4" />
             Template
           </button>
           <button
             type="button"
-            onClick={exportCsv}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-all text-slate-700 dark:text-slate-200"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={exportXlsx}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-all text-slate-700 dark:text-slate-200"
-          >
-            <Download className="w-4 h-4" />
-            Export XLSX
-          </button>
-          <button
-            type="button"
             onClick={handlePickFile}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all disabled:opacity-60 disabled:hover:bg-blue-600"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-60"
             disabled={isLocked}
           >
             <FileUp className="w-4 h-4" />
-            Import CSV/Excel
+            Import
           </button>
           <input
             ref={fileInputRef}
@@ -599,7 +606,7 @@ export default function PayrollRunTab({ onBatchSaved }) {
           <button
             type="button"
             onClick={handleManualAdd}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 backdrop-blur-sm shadow-sm hover:shadow-md transition-all text-slate-700 dark:text-slate-200 disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 text-slate-700 dark:text-slate-200 text-sm disabled:opacity-60"
             disabled={isLocked}
           >
             <Plus className="w-4 h-4" />
@@ -607,14 +614,31 @@ export default function PayrollRunTab({ onBatchSaved }) {
           </button>
           <button
             type="button"
+            onClick={exportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 text-slate-700 dark:text-slate-200 text-sm"
+          >
+            <Download className="w-4 h-4" />
+            CSV
+          </button>
+          <button
+            type="button"
+            onClick={exportXlsx}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 text-slate-700 dark:text-slate-200 text-sm"
+          >
+            <Download className="w-4 h-4" />
+            XLSX
+          </button>
+          <button
+            type="button"
             onClick={openSave}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all disabled:opacity-60 disabled:hover:bg-emerald-600"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm disabled:opacity-60"
             disabled={rows.length === 0 || saving || formulaEditing}
             title={formulaEditing ? "Lock the formula before saving a batch" : undefined}
           >
             <Save className="w-4 h-4" />
             Save batch
           </button>
+        </div>
       </div>
 
       {/* Calculation formulas (lockable) */}
@@ -953,24 +977,29 @@ export default function PayrollRunTab({ onBatchSaved }) {
       </AnimatePresence>
 
       <div className="rounded-3xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 backdrop-blur-md shadow-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200/70 dark:border-gray-700/60 flex items-center justify-between gap-4">
-          <div className="text-sm text-slate-600 dark:text-slate-400">
-            Rows: <span className="font-semibold text-slate-900 dark:text-white">{rows.length}</span>
+        <div className="px-6 py-4 border-b border-slate-200/70 dark:border-gray-700/60 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={rowSearch}
+              onChange={(e) => setRowSearch(e.target.value)}
+              placeholder="Filter rows by name, ID, or department…"
+              className="pl-9 pr-3 py-2 w-72 max-w-full rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm"
+            />
           </div>
           <div className="flex flex-wrap items-center gap-4 text-sm">
-            <div className="text-slate-600 dark:text-slate-400">
-              Gross: <span className="font-semibold text-slate-900 dark:text-white">{totals.gross.toFixed(2)}</span>
-            </div>
-            <div className="text-slate-600 dark:text-slate-400">
-              Tax: <span className="font-semibold text-slate-900 dark:text-white">{totals.tax.toFixed(2)}</span>
-            </div>
-            <div className="text-slate-600 dark:text-slate-400">
-              Deductions:{" "}
-              <span className="font-semibold text-slate-900 dark:text-white">{totals.deductions.toFixed(2)}</span>
-            </div>
-            <div className="text-slate-600 dark:text-slate-400">
-              Net: <span className="font-semibold text-slate-900 dark:text-white">{totals.net.toFixed(2)}</span>
-            </div>
+            <span className="text-slate-500">
+              {displayedRows.length}/{rows.length} rows
+            </span>
+            <span className="text-slate-600 dark:text-slate-400">
+              Gross: <span className="font-semibold text-slate-900 dark:text-white">{formatPayrollCurrency(totals.gross)}</span>
+            </span>
+            <span className="text-slate-600 dark:text-slate-400">
+              Tax: <span className="font-semibold text-slate-900 dark:text-white">{formatPayrollCurrency(totals.tax)}</span>
+            </span>
+            <span className="text-slate-600 dark:text-slate-400">
+              Net: <span className="font-semibold text-blue-600">{formatPayrollCurrency(totals.net)}</span>
+            </span>
           </div>
         </div>
 
@@ -1003,8 +1032,14 @@ export default function PayrollRunTab({ onBatchSaved }) {
                     Import a CSV/Excel file or add a row to start calculating payroll.
                   </td>
                 </tr>
+              ) : displayedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={FIELD_DEFS.length + 4} className="px-6 py-10 text-center text-slate-500">
+                    No rows match “{rowSearch}”.
+                  </td>
+                </tr>
               ) : (
-                rows.map((r) => {
+                displayedRows.map((r) => {
                   const { gross, tax, net } = calcRow(r);
                   return (
                     <tr key={r.id} className="border-b border-slate-200/60 dark:border-gray-800/60">
@@ -1019,14 +1054,14 @@ export default function PayrollRunTab({ onBatchSaved }) {
                           />
                         </td>
                       ))}
-                      <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                        {gross.toFixed(2)}
+                      <td className="px-4 py-2.5 font-semibold text-emerald-600 whitespace-nowrap">
+                        {formatPayrollCurrency(gross)}
                       </td>
                       <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        {tax.toFixed(2)}
+                        {formatPayrollCurrency(tax)}
                       </td>
-                      <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                        {net.toFixed(2)}
+                      <td className="px-4 py-2.5 font-semibold text-blue-600 whitespace-nowrap">
+                        {formatPayrollCurrency(net)}
                       </td>
                       <td className="px-4 py-2.5">
                         <button

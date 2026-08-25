@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown, ChevronUp, History, Lock, Send,
-  Users, DollarSign, Calendar, Loader2
+  Users, DollarSign, Calendar, Loader2, Search, Download
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -20,6 +20,8 @@ export default function PayrollBatchHistoryTab({ refreshKey = 0, onPublished }) 
   const [batchRows, setBatchRows] = useState({});
   const [loadingRows, setLoadingRows] = useState(null);
   const [publishingId, setPublishingId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const canPublish = ['admin', 'hr_manager'].includes(userProfile?.role);
 
@@ -129,6 +131,53 @@ export default function PayrollBatchHistoryTab({ refreshKey = 0, onPublished }) 
     }
   };
 
+  const filteredBatches = batches.filter((b) => {
+    if (statusFilter === 'published' && !b.published_at) return false;
+    if (statusFilter === 'unpublished' && b.published_at) return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      String(b.name || '').toLowerCase().includes(q) ||
+      String(b.month || '').toLowerCase().includes(q) ||
+      String(b.year || '').includes(q)
+    );
+  });
+
+  const historyStats = {
+    batches: batches.length,
+    unpublished: batches.filter((b) => !b.published_at).length,
+    net: batches.reduce((sum, b) => sum + (Number(b.totals?.net) || 0), 0),
+    employees: batches.reduce((sum, b) => sum + (Number(b.row_count) || 0), 0),
+  };
+
+  const exportBatchRows = (batch, rows) => {
+    if (!rows?.length) {
+      showError('Nothing to export', 'Open the batch rows first, then export.');
+      return;
+    }
+    const headers = ['Employee ID', 'Full Name', 'Department', 'Gross', 'Tax', 'Deductions', 'Net'];
+    const escapeCsv = (v) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [
+      headers.join(','),
+      ...rows.map((r) =>
+        [r.employee_id, r.full_name, r.department, r.gross_salary, r.tax_amount, r.deductions, r.net_salary]
+          .map(escapeCsv)
+          .join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(batch.name || 'batch').replace(/\s+/g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    success('Exported', `${rows.length} row(s) exported.`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -151,7 +200,55 @@ export default function PayrollBatchHistoryTab({ refreshKey = 0, onPublished }) 
 
   return (
     <div className="space-y-4">
-      {batches.map((batch) => {
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Batches', value: historyStats.batches, icon: History, bg: 'from-blue-500 to-indigo-600' },
+          { label: 'Unpublished', value: historyStats.unpublished, icon: Send, bg: 'from-amber-500 to-orange-600' },
+          { label: 'Employees in batches', value: historyStats.employees, icon: Users, bg: 'from-violet-500 to-purple-600' },
+          { label: 'Combined net', value: formatPayrollCurrency(historyStats.net), icon: DollarSign, bg: 'from-emerald-500 to-teal-600' },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-2xl border border-slate-200/70 dark:border-gray-700/60 bg-white/80 dark:bg-gray-900/60 p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.bg} text-white`}>
+                <stat.icon className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500">{stat.label}</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-white truncate">{stat.value}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search batch, month, year…"
+            className="pl-9 pr-3 py-2 w-64 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+        >
+          <option value="all">All batches</option>
+          <option value="unpublished">Unpublished</option>
+          <option value="published">Published</option>
+        </select>
+      </div>
+
+      {filteredBatches.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-slate-200 dark:border-gray-700 p-8 text-center text-sm text-slate-500">
+          No batches match this search.
+        </div>
+      )}
+
+      {filteredBatches.map((batch) => {
         const totals = batch.totals || {};
         const isExpanded = expandedId === batch.id;
         const rows = batchRows[batch.id] || [];
@@ -222,6 +319,16 @@ export default function PayrollBatchHistoryTab({ refreshKey = 0, onPublished }) 
                     )}
                     {isExpanded ? 'Hide rows' : 'View rows'}
                   </button>
+                  {isExpanded && rows.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => exportBatchRows(batch, rows)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-600/30 text-emerald-700 dark:text-emerald-400 text-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export
+                    </button>
+                  )}
 
                   {canPublish && !batch.published_at && (
                     <button
