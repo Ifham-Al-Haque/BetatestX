@@ -8,7 +8,8 @@ import fleetPmService from '../services/fleetPmService';
 import { useToast } from '../context/ToastContext';
 import FleetioLayout from '../components/operation/FleetioLayout';
 import OperationStatCard from '../components/operation/OperationStatCard';
-import { summarizeMulkiya, expiryStatus, EXPIRY_STYLES } from '../utils/mulkiyaExpiryUtils';
+import { summarizeMulkiya, summarizeInsurance, expiryStatus, EXPIRY_STYLES } from '../utils/mulkiyaExpiryUtils';
+import { dispatchMulkiyaReminders } from '../services/mulkiyaReminderService';
 
 const FleetDashboard = () => {
   const navigate = useNavigate();
@@ -66,6 +67,15 @@ const FleetDashboard = () => {
   useEffect(() => { load(); }, [load]);
 
   const mulkiya = useMemo(() => summarizeMulkiya(vehicles), [vehicles]);
+  const insurance = useMemo(() => summarizeInsurance(vehicles), [vehicles]);
+
+  useEffect(() => {
+    if (!vehicles.length) return undefined;
+    const timer = setTimeout(() => {
+      dispatchMulkiyaReminders(vehicles).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [vehicles]);
 
   if (loading) {
     return (
@@ -127,25 +137,29 @@ const FleetDashboard = () => {
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center">
                 <Shield className="w-5 h-5 text-indigo-500 mr-2" />
-                <h2 className="text-lg font-semibold text-gray-900">Mulkiya expiry</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Mulkiya & insurance</h2>
               </div>
               <button onClick={() => navigate('/operation/fleetio/mulkiya')} className="text-sm text-indigo-600 hover:underline flex items-center">
                 Open graph <ChevronRight className="w-4 h-4" />
               </button>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className={`rounded-lg border px-3 py-2 text-center ${EXPIRY_STYLES.expired.badge}`}>
-                  <p className="text-lg font-bold">{mulkiya.expired}</p>
-                  <p className="text-[11px]">Expired</p>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700 mb-2">Mulkiya</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div><p className="text-lg font-bold text-red-700">{mulkiya.expired}</p><p className="text-[10px] text-gray-500">Expired</p></div>
+                    <div><p className="text-lg font-bold text-amber-700">{mulkiya.thisMonth}</p><p className="text-[10px] text-gray-500">This mo.</p></div>
+                    <div><p className="text-lg font-bold text-orange-700">{mulkiya.next30}</p><p className="text-[10px] text-gray-500">30 days</p></div>
+                  </div>
                 </div>
-                <div className={`rounded-lg border px-3 py-2 text-center ${EXPIRY_STYLES.this_month.badge}`}>
-                  <p className="text-lg font-bold">{mulkiya.thisMonth}</p>
-                  <p className="text-[11px]">This month</p>
-                </div>
-                <div className={`rounded-lg border px-3 py-2 text-center ${EXPIRY_STYLES.next_30.badge}`}>
-                  <p className="text-lg font-bold">{mulkiya.next30}</p>
-                  <p className="text-[11px]">Next 30 days</p>
+                <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-700 mb-2">Insurance</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div><p className="text-lg font-bold text-red-700">{insurance.expired}</p><p className="text-[10px] text-gray-500">Expired</p></div>
+                    <div><p className="text-lg font-bold text-amber-700">{insurance.thisMonth}</p><p className="text-[10px] text-gray-500">This mo.</p></div>
+                    <div><p className="text-lg font-bold text-orange-700">{insurance.next30}</p><p className="text-[10px] text-gray-500">30 days</p></div>
+                  </div>
                 </div>
               </div>
               {vehicles.filter((v) => ['expired', 'this_month', 'next_30'].includes(expiryStatus(v.registration_expiry))).slice(0, 6).length === 0 ? (

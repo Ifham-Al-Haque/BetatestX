@@ -12,10 +12,30 @@ const EMPTY = {
   make: '',
   model: '',
   year: String(new Date().getFullYear()),
-  mulkiya_number: '',
-  registration_expiry: '',
   owned_by: '',
+  registration_expiry: '',
+  insurance_expiry: '',
+  engine_number: '',
+  chassis_number: '',
+  mulkiya_number: '',
 };
+
+function formFromVehicle(vehicle) {
+  if (!vehicle) return { ...EMPTY };
+  return {
+    vehicle_number: vehicle.vehicle_number || '',
+    license_plate: vehicle.license_plate || '',
+    make: vehicle.make || '',
+    model: vehicle.model || '',
+    year: String(vehicle.year || vehicle.model_year || new Date().getFullYear()),
+    owned_by: vehicle.owned_by || '',
+    registration_expiry: toDateInput(vehicle.registration_expiry),
+    insurance_expiry: toDateInput(vehicle.insurance_expiry),
+    engine_number: vehicle.engine_number || vehicle.engine_no || '',
+    chassis_number: vehicle.vin || vehicle.chassis_number || '',
+    mulkiya_number: vehicle.mulkiya_number || '',
+  };
+}
 
 function toDateInput(value) {
   if (!value) return '';
@@ -40,16 +60,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
     if (vehicle) {
       setMode('existing');
       setExistingId(vehicle.id);
-      setForm({
-        vehicle_number: vehicle.vehicle_number || '',
-        license_plate: vehicle.license_plate || '',
-        make: vehicle.make || '',
-        model: vehicle.model || '',
-        year: String(vehicle.year || new Date().getFullYear()),
-        mulkiya_number: vehicle.mulkiya_number || '',
-        registration_expiry: toDateInput(vehicle.registration_expiry),
-        owned_by: vehicle.owned_by || '',
-      });
+      setForm(formFromVehicle(vehicle));
     } else {
       setMode('new');
       setExistingId('');
@@ -85,16 +96,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
 
   const applyExisting = (v) => {
     setExistingId(v.id);
-    setForm({
-      vehicle_number: v.vehicle_number || '',
-      license_plate: v.license_plate || '',
-      make: v.make || '',
-      model: v.model || '',
-      year: String(v.year || new Date().getFullYear()),
-      mulkiya_number: v.mulkiya_number || '',
-      registration_expiry: toDateInput(v.registration_expiry),
-      owned_by: v.owned_by || '',
-    });
+    setForm(formFromVehicle(v));
     setErrors({});
   };
 
@@ -136,8 +138,11 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
       else if (form.license_plate.trim().length > 20) next.license_plate = 'Max 20 characters';
       if (!form.make.trim()) next.make = 'Make is required';
       if (!form.model.trim()) next.model = 'Model is required';
+    } else if (!form.license_plate.trim()) {
+      next.license_plate = 'License plate is required';
     }
-    if (!form.registration_expiry) next.registration_expiry = 'Expiry date is required';
+    if (!form.registration_expiry) next.registration_expiry = 'Mulkiya expiry is required';
+    if (!form.insurance_expiry) next.insurance_expiry = 'Insurance expiry is required';
     if (!file && !vehicle?.mulkiya_document_url) {
       next.file = 'Attach the Mulkiya PDF or image.';
     }
@@ -179,7 +184,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
             </div>
             <div>
               <h2 className="text-lg font-semibold">{isEdit ? 'Update Mulkiya' : 'Add Mulkiya'}</h2>
-              <p className="text-xs text-indigo-100">Saved to Supabase on the fleet vehicle record</p>
+              <p className="text-xs text-indigo-100">Plate, vehicle, expiry, and identification as on the card</p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white" aria-label="Close">
@@ -270,22 +275,21 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                License plate {mode === 'new' && <span className="text-red-500">*</span>}
+                License plate <span className="text-red-500">*</span>
               </label>
               <input
                 name="license_plate"
                 value={form.license_plate}
                 onChange={handleChange}
-                disabled={mode === 'existing'}
                 maxLength={20}
-                className={`${inputBase} ${errors.license_plate ? 'border-red-300' : 'border-gray-300'} disabled:bg-gray-50`}
+                className={`${inputBase} ${errors.license_plate ? 'border-red-300' : 'border-gray-300'}`}
                 placeholder="e.g. A 12345"
               />
               {errors.license_plate && <p className="text-red-600 text-xs mt-1">{errors.license_plate}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Make {mode === 'new' && <span className="text-red-500">*</span>}
+                Car make {mode === 'new' && <span className="text-red-500">*</span>}
               </label>
               <input
                 name="make"
@@ -298,7 +302,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Model {mode === 'new' && <span className="text-red-500">*</span>}
+                Car model {mode === 'new' && <span className="text-red-500">*</span>}
               </label>
               <input
                 name="model"
@@ -310,7 +314,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
               {errors.model && <p className="text-red-600 text-xs mt-1">{errors.model}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Year</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Model year</label>
               <input
                 type="number"
                 name="year"
@@ -332,18 +336,8 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mulkiya number</label>
-              <input
-                name="mulkiya_number"
-                value={form.mulkiya_number}
-                onChange={handleChange}
-                className={`${inputBase} border-gray-300`}
-                placeholder="Registration card no."
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Mulkiya / registration expiry <span className="text-red-500">*</span>
+                Mulkiya expiry <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -355,6 +349,52 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
               {errors.registration_expiry && (
                 <p className="text-red-600 text-xs mt-1">{errors.registration_expiry}</p>
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Car insurance expiry <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="insurance_expiry"
+                value={form.insurance_expiry}
+                onChange={handleChange}
+                className={`${inputBase} ${errors.insurance_expiry ? 'border-red-300' : 'border-gray-300'}`}
+              />
+              {errors.insurance_expiry && (
+                <p className="text-red-600 text-xs mt-1">{errors.insurance_expiry}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Eng No</label>
+              <input
+                name="engine_number"
+                value={form.engine_number}
+                onChange={handleChange}
+                className={`${inputBase} border-gray-300 font-mono`}
+                placeholder="Engine number"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Chassis No</label>
+              <input
+                name="chassis_number"
+                value={form.chassis_number}
+                onChange={handleChange}
+                maxLength={17}
+                className={`${inputBase} border-gray-300 font-mono`}
+                placeholder="Chassis / VIN (17 chars)"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mulkiya number</label>
+              <input
+                name="mulkiya_number"
+                value={form.mulkiya_number}
+                onChange={handleChange}
+                className={`${inputBase} border-gray-300`}
+                placeholder="Registration card no. (optional)"
+              />
             </div>
           </div>
 

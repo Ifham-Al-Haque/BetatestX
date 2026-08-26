@@ -42,6 +42,10 @@ const TYPE_STYLES = {
     gradient: 'from-blue-600 to-indigo-600',
     icon: Wrench,
   },
+  fleet_expiry_reminder: {
+    gradient: 'from-amber-500 to-orange-600',
+    icon: AlertCircle,
+  },
   task_assigned: {
     gradient: 'from-emerald-600 to-green-600',
     icon: CheckCircle,

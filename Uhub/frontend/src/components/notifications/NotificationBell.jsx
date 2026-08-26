@@ -42,6 +42,8 @@ const NotificationBell = () => {
         return <MessageSquare className="w-5 h-5 text-teal-600" />;
       case 'fleet_task_assigned':
         return <MessageSquare className="w-5 h-5 text-indigo-600" />;
+      case 'fleet_expiry_reminder':
+        return <AlertCircle className="w-5 h-5 text-amber-600" />;
       case 'attendance_regularization':
       case 'attendance_regularization_update':
       case 'attendance_issue':
@@ -79,6 +81,8 @@ const NotificationBell = () => {
         return 'border-teal-200 bg-teal-50';
       case 'fleet_task_assigned':
         return 'border-indigo-200 bg-indigo-50';
+      case 'fleet_expiry_reminder':
+        return 'border-amber-200 bg-amber-50';
       case 'attendance_regularization':
       case 'attendance_regularization_update':
       case 'leave_request':

@@ -3,38 +3,57 @@ import { Link } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
-import { FileText, Car, AlertTriangle, Calendar, RefreshCw, Plus, Pencil } from 'lucide-react';
+import {
+  FileText, Car, AlertTriangle, Calendar, RefreshCw, Plus, Pencil, Shield, Search, Bell, Clock,
+} from 'lucide-react';
 import FleetioLayout from '../../components/operation/FleetioLayout';
 import OperationStatCard from '../../components/operation/OperationStatCard';
 import OperationEmptyState from '../../components/operation/OperationEmptyState';
 import AddMulkiyaModal from '../../components/fleet/AddMulkiyaModal';
 import fleetService from '../../services/fleetService';
+import { dispatchMulkiyaReminders } from '../../services/mulkiyaReminderService';
 import { useToast } from '../../context/ToastContext';
 import {
   buildMulkiyaMonthSeries,
+  buildInsuranceMonthSeries,
   summarizeMulkiya,
+  summarizeInsurance,
   expiryStatus,
   EXPIRY_STYLES,
   daysUntil,
   hasMulkiyaData,
   monthKey,
-  countByModel,
   vehicleModelLabel,
+  chassisNumber,
+  engineNumber,
+  modelYear,
+  formatShortDate,
+  collectExpiryReminders,
+  REMINDER_DAY_OPTIONS,
 } from '../../utils/mulkiyaExpiryUtils';
+
+const REMINDER_PREF_KEY = 'uhub.mulkiyaReminderDays';
 
 function isPdfUrl(url) {
   return url && !/\.(png|jpe?g|webp|gif)$/i.test(url);
 }
 
-function MonthTooltip({ active, payload }) {
+function daysCopy(days) {
+  if (days == null) return '';
+  if (days < 0) return `${Math.abs(days)}d overdue`;
+  if (days === 0) return 'Today';
+  return `${days}d left`;
+}
+
+function MonthTooltip({ active, payload, noun = 'cars' }) {
   if (!active || !payload?.[0]) return null;
   const row = payload[0].payload;
   const models = row.byModel || [];
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2.5 min-w-[200px] max-w-[280px]">
+    <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 min-w-[200px] max-w-[280px]">
       <p className="text-sm font-semibold text-gray-900">{row.label}</p>
       <p className="text-xs text-indigo-700 font-medium mb-2">
-        {row.count} car{row.count === 1 ? '' : 's'} expiring
+        {row.count} {noun} expiring
       </p>
       {models.length > 0 && (
         <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -50,64 +69,155 @@ function MonthTooltip({ active, payload }) {
   );
 }
 
-const MulkiyaCard = ({ vehicle, onEdit }) => {
-  const status = expiryStatus(vehicle.registration_expiry);
+function ExpiryBar({ label, date, accent }) {
+  const status = expiryStatus(date);
   const style = EXPIRY_STYLES[status] || EXPIRY_STYLES.none;
-  const days = daysUntil(vehicle.registration_expiry);
+  const days = daysUntil(date);
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 text-[11px]">
+        <span className="font-medium text-gray-600">{label}</span>
+        <span className={`px-1.5 py-0.5 rounded-full border ${style.badge}`}>
+          {date ? daysCopy(days) : 'No date'}
+        </span>
+      </div>
+      <p className="text-xs text-gray-800 mt-0.5 tabular-nums">{formatShortDate(date)}</p>
+      <div className="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: days == null ? '0%' : `${Math.max(8, Math.min(100, days < 0 ? 100 : (days / 365) * 100))}%`,
+            background: accent || style.bar,
+            opacity: days != null && days < 0 ? 1 : 0.85,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value, mono }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">{label}</p>
+      <p className={`text-xs text-gray-800 truncate ${mono ? 'font-mono' : 'font-medium'}`}>{value || '—'}</p>
+    </div>
+  );
+}
+
+function UaePlate({ plate }) {
+  return (
+    <div className="inline-flex items-stretch rounded-md overflow-hidden border-2 border-slate-800 shadow-sm max-w-full">
+      <div className="w-7 bg-white border-r border-slate-300 flex flex-col overflow-hidden shrink-0">
+        <div className="h-1.5 bg-red-600" />
+        <div className="flex-1 flex items-center justify-center bg-white">
+          <span className="text-[8px] font-black text-green-700 leading-none">UAE</span>
+        </div>
+        <div className="h-1.5 bg-black" />
+      </div>
+      <div className="bg-white px-2.5 py-1 min-w-[6rem]">
+        <p className="text-[11px] font-black tracking-[0.16em] text-slate-900 uppercase text-center truncate">
+          {plate || 'NO PLATE'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+const MulkiyaCard = ({ vehicle, onEdit }) => {
+  const mulkiyaStatus = expiryStatus(vehicle.registration_expiry);
+  const insuranceStatus = expiryStatus(vehicle.insurance_expiry);
+  const urgent = mulkiyaStatus === 'expired' || insuranceStatus === 'expired';
   const img = vehicle.mulkiya_document_url || vehicle.fleet_image_url;
   const pdf = isPdfUrl(vehicle.mulkiya_document_url);
-  const model = vehicleModelLabel(vehicle);
+  const year = modelYear(vehicle);
 
   return (
-    <div className="group rounded-xl border border-gray-200 overflow-hidden hover:border-indigo-300 hover:shadow-md transition-all bg-white">
-      <Link to={`/operation/fleet-records/${vehicle.id}`} className="block">
-        <div className="h-36 bg-slate-100 flex items-center justify-center overflow-hidden">
+    <div className={`rounded-2xl border overflow-hidden bg-white hover:border-indigo-300 transition-colors ${
+      urgent ? 'border-red-200' : 'border-gray-200'
+    }`}>
+      <div className={`h-1 ${urgent ? 'bg-red-500' : 'bg-gradient-to-r from-indigo-500 to-teal-500'}`} />
+      <div className="flex">
+        <Link to={`/operation/fleet-records/${vehicle.id}`} className="w-24 shrink-0 bg-slate-100">
           {img && !pdf ? (
-            <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform" />
+            <img src={img} alt="" className="w-full h-full object-cover min-h-[8rem]" />
           ) : (
-            <div className="text-center text-slate-400">
-              <FileText className="w-10 h-10 mx-auto mb-1" />
-              <p className="text-xs">{pdf ? 'PDF attached' : 'No photo'}</p>
+            <div className="h-full min-h-[8rem] flex items-center justify-center text-slate-400">
+              <FileText className="w-7 h-7" />
             </div>
           )}
-        </div>
-      </Link>
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-2">
-          <Link to={`/operation/fleet-records/${vehicle.id}`} className="min-w-0">
-            <p className="font-semibold text-gray-900 text-sm truncate">{model}</p>
-            <p className="text-xs text-gray-500">{vehicle.vehicle_number} · {vehicle.license_plate}</p>
-          </Link>
-          <div className="flex items-center gap-1 shrink-0">
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${style.badge}`}>
-              {style.label}
-            </span>
+        </Link>
+        <div className="flex-1 min-w-0 p-3">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="min-w-0">
+              <UaePlate plate={vehicle.license_plate} />
+              <p className="text-sm font-semibold text-gray-900 mt-1.5 truncate">
+                {vehicle.make || '—'} {vehicle.model || ''}
+                {year ? <span className="text-gray-500 font-medium"> · {year}</span> : null}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => onEdit(vehicle)}
-              className="p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 shrink-0"
               title="Edit Mulkiya"
-              aria-label="Edit Mulkiya"
             >
-              <Pencil className="w-3.5 h-3.5" />
+              <Pencil className="w-4 h-4" />
             </button>
           </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-3">
+            <Field label="Owned by" value={vehicle.owned_by} />
+            <Field label="Model year" value={year} />
+            <Field label="Eng No" value={engineNumber(vehicle)} mono />
+            <Field label="Chassis No" value={chassisNumber(vehicle)} mono />
+          </div>
+          <div className="space-y-2">
+            <ExpiryBar label="Mulkiya expiry" date={vehicle.registration_expiry} accent="#4f46e5" />
+            <ExpiryBar label="Insurance expiry" date={vehicle.insurance_expiry} accent="#0f766e" />
+          </div>
         </div>
-        <p className="text-xs text-gray-600 mt-2">
-          Expiry {vehicle.registration_expiry ? new Date(vehicle.registration_expiry).toLocaleDateString() : '—'}
-          {days != null && (
-            <span className="text-gray-400">
-              {' '}· {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
-            </span>
-          )}
-        </p>
-        {vehicle.mulkiya_number && (
-          <p className="text-xs text-gray-400 mt-1 truncate">No. {vehicle.mulkiya_number}</p>
-        )}
       </div>
     </div>
   );
 };
+
+function ExpiryChart({ title, hint, series, selectedKey, active, color, activeColor, activeBorder, onSelectBar, tooltipNoun }) {
+  return (
+    <div className={`bg-white rounded-2xl border p-5 ${active ? (activeBorder || 'border-indigo-300') : 'border-gray-200'}`}>
+      <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+      <p className="text-xs text-gray-500 mb-4">{hint}</p>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={series} margin={{ top: 22, right: 8, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#6b7280' }} interval={0} angle={-35} textAnchor="end" height={52} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} />
+            <Tooltip content={<MonthTooltip noun={tooltipNoun} />} cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }} />
+            <Bar
+              dataKey="count"
+              radius={[6, 6, 0, 0]}
+              cursor="pointer"
+              onClick={(data) => {
+                const key = data?.key || data?.payload?.key;
+                if (key) onSelectBar(key);
+              }}
+            >
+              {series.map((entry) => (
+                <Cell key={entry.key} fill={entry.key === selectedKey && active ? activeColor : color} />
+              ))}
+              <LabelList
+                dataKey="count"
+                position="top"
+                formatter={(value) => (value > 0 ? value : '')}
+                style={{ fontSize: 10, fontWeight: 600, fill: '#334155' }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
 
 const FleetMulkiya = () => {
   const { success, error: showError } = useToast();
@@ -117,6 +227,11 @@ const FleetMulkiya = () => {
   const [listMode, setListMode] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
+  const [reminderDays, setReminderDays] = useState(() => {
+    const stored = Number(localStorage.getItem(REMINDER_PREF_KEY));
+    return REMINDER_DAY_OPTIONS.includes(stored) ? stored : 30;
+  });
 
   const load = useCallback(async ({ quiet } = {}) => {
     if (!quiet) setLoading(true);
@@ -136,8 +251,6 @@ const FleetMulkiya = () => {
     load();
   }, [load]);
 
-  const summary = useMemo(() => summarizeMulkiya(vehicles), [vehicles]);
-  const series = useMemo(() => buildMulkiyaMonthSeries(vehicles, 12, { pastMonths: 3 }), [vehicles]);
   const withMulkiya = useMemo(
     () =>
       vehicles
@@ -146,42 +259,68 @@ const FleetMulkiya = () => {
     [vehicles]
   );
 
-  const selected = selectedMonth
-    ? series.find((s) => s.key === selectedMonth)
-    : series.find((s) => s.count > 0) || series[0];
+  const reminders = useMemo(
+    () => collectExpiryReminders(withMulkiya, { daysBefore: reminderDays }),
+    [withMulkiya, reminderDays]
+  );
 
-  const listVehicles = listMode === 'all' ? withMulkiya : (selected?.vehicles || []);
-  const modelGroups = useMemo(() => countByModel(listVehicles), [listVehicles]);
+  useEffect(() => {
+    if (!withMulkiya.length) return undefined;
+    const timer = setTimeout(() => {
+      dispatchMulkiyaReminders(withMulkiya, { daysBefore: reminderDays }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [withMulkiya, reminderDays]);
 
-  const openAdd = () => {
-    setEditing(null);
-    setModalOpen(true);
-  };
+  const mulkiyaSummary = useMemo(() => summarizeMulkiya(vehicles), [vehicles]);
+  const insuranceSummary = useMemo(() => summarizeInsurance(vehicles), [vehicles]);
+  const mulkiyaSeries = useMemo(() => buildMulkiyaMonthSeries(vehicles, 10, { pastMonths: 2 }), [vehicles]);
+  const insuranceSeries = useMemo(() => buildInsuranceMonthSeries(vehicles, 10, { pastMonths: 2 }), [vehicles]);
 
-  const openEdit = (v) => {
-    setEditing(v);
-    setModalOpen(true);
-  };
+  const selectedSeries = listMode === 'insurance' ? insuranceSeries : mulkiyaSeries;
+  const selected = selectedMonth ? selectedSeries.find((s) => s.key === selectedMonth) : null;
+
+  const listVehicles = useMemo(() => {
+    let base = withMulkiya;
+    if (listMode === 'mulkiya' && selectedMonth) base = selected?.vehicles || [];
+    else if (listMode === 'insurance' && selectedMonth) base = selected?.vehicles || [];
+    else if (listMode === 'mulkiya') base = withMulkiya.filter((v) => v.registration_expiry);
+    else if (listMode === 'insurance') base = withMulkiya.filter((v) => v.insurance_expiry);
+    const q = query.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter((v) => {
+      const blob = [
+        v.license_plate, v.make, v.model, v.owned_by, v.vehicle_number,
+        engineNumber(v), chassisNumber(v), modelYear(v),
+      ].join(' ').toLowerCase();
+      return blob.includes(q);
+    });
+  }, [listMode, withMulkiya, selected, selectedMonth, query]);
+
+  const openAdd = () => { setEditing(null); setModalOpen(true); };
+  const openEdit = (v) => { setEditing(v); setModalOpen(true); };
 
   const handleSaved = (saved) => {
-    success(editing ? 'Mulkiya updated in Supabase' : 'Mulkiya saved in Supabase');
+    success(editing ? 'Mulkiya updated' : 'Mulkiya saved');
     const key = monthKey(saved?.registration_expiry);
     if (key) {
       setSelectedMonth(key);
-      setListMode('month');
+      setListMode('mulkiya');
     } else {
       setListMode('all');
     }
     load({ quiet: true });
   };
 
+  const onReminderDays = (value) => {
+    const next = Number(value);
+    setReminderDays(next);
+    localStorage.setItem(REMINDER_PREF_KEY, String(next));
+  };
+
   if (loading) {
     return (
-      <FleetioLayout
-        title="Mulkiya"
-        description="Registration cards and expiry by month."
-        icon={FileText}
-      >
+      <FleetioLayout title="Mulkiya" description="Registration, insurance, and expiry reminders." icon={FileText}>
         <div className="flex justify-center py-16">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
         </div>
@@ -189,180 +328,172 @@ const FleetMulkiya = () => {
     );
   }
 
+  const expiredReminders = reminders.filter((r) => r.bucket === 'expired').length;
+  const upcomingReminders = reminders.length - expiredReminders;
+
   return (
     <FleetioLayout
       title="Mulkiya"
-      description="Upload registration cards to Supabase, then review expiry dates and how many cars expire each month."
+      description="License, ownership, Mulkiya and insurance expiry — with reminders before due dates."
       icon={FileText}
       actions={
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
+          <button type="button" onClick={load} className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
-          <button
-            type="button"
-            onClick={openAdd}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-          >
+          <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
             <Plus className="w-4 h-4" />
             Add Mulkiya
           </button>
         </div>
       }
     >
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 mb-6">
-        Add 3–4 Mulkiya here to test the dashboard. Files and expiry dates are stored on the fleet vehicle in Supabase.
-        SharePoint sync can replace this manual step later without changing the graphs.
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <OperationStatCard label="With expiry date" value={summary.withDate} tone="blue" icon={Calendar} />
-        <OperationStatCard label="Expired" value={summary.expired} tone="red" icon={AlertTriangle} />
-        <OperationStatCard label="This month" value={summary.thisMonth} tone="yellow" icon={FileText} />
-        <OperationStatCard label="Next 30 days" value={summary.next30} tone="indigo" icon={Car} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Cars expiring by month</h2>
-          <p className="text-xs text-gray-500 mb-4">
-            Hover a bar for the count by car model. Click to filter the list.
-          </p>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={series} margin={{ top: 22, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} interval={0} angle={-35} textAnchor="end" height={56} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} />
-                <Tooltip content={<MonthTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.08)' }} />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]} cursor="pointer" onClick={(data) => {
-                  const key = data?.key || data?.payload?.key;
-                  if (key) {
-                    setSelectedMonth(key);
-                    setListMode('month');
-                  }
-                }}>
-                  {series.map((entry) => (
-                    <Cell
-                      key={entry.key}
-                      fill={entry.key === selected?.key && listMode === 'month' ? '#4f46e5' : '#93c5fd'}
-                    />
-                  ))}
-                  <LabelList
-                    dataKey="count"
-                    position="top"
-                    formatter={(value) => (value > 0 ? value : '')}
-                    style={{ fontSize: 11, fontWeight: 600, fill: '#4338ca' }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+      <div className={`rounded-2xl border p-4 mb-6 ${expiredReminders ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+          <div className="flex items-start gap-3">
+            <div className={`p-2 rounded-xl ${expiredReminders ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>
+              <Bell className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Expiry reminders</h2>
+              <p className="text-xs text-gray-600 mt-0.5">
+                {reminders.length === 0
+                  ? `Nothing due in the next ${reminderDays} days.`
+                  : `${expiredReminders} expired · ${upcomingReminders} due within ${reminderDays} days. Operation and admin get a bell alert for items due in 7 days or already expired.`}
+              </p>
+            </div>
           </div>
+          <label className="flex items-center gap-2 text-xs text-gray-600">
+            Alert window
+            <select
+              value={reminderDays}
+              onChange={(e) => onReminderDays(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm"
+            >
+              {REMINDER_DAY_OPTIONS.map((d) => (
+                <option key={d} value={d}>{d} days before</option>
+              ))}
+            </select>
+          </label>
         </div>
-
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">By model</h2>
-          <p className="text-sm text-gray-600 mb-3">
-            {selected?.count
-              ? <><span className="font-semibold text-indigo-700">{selected.count}</span> car{selected.count === 1 ? '' : 's'} expire in <span className="font-semibold">{selected.label}</span>.</>
-              : <>No cars expire in {selected?.label}.</>}
-          </p>
-          {(selected?.byModel || []).length > 0 ? (
-            <div className="space-y-1.5 max-h-52 overflow-y-auto mb-4">
-              {selected.byModel.map((m) => (
-                <div key={m.model} className="flex items-center justify-between gap-2 text-sm px-3 py-2 rounded-lg border border-gray-100 bg-slate-50">
-                  <span className="truncate font-medium text-gray-800">{m.model}</span>
-                  <span className="shrink-0 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
-                    {m.count} {m.count === 1 ? 'car' : 'cars'}
+        {reminders.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+            {reminders.slice(0, 12).map((item) => (
+              <button
+                key={`${item.id}-${item.kind}`}
+                type="button"
+                onClick={() => openEdit(item.vehicle)}
+                className="text-left px-3 py-2 rounded-xl bg-white border border-white/80 hover:border-indigo-200"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold tracking-wide text-slate-800">{item.license_plate || item.vehicle_number}</span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${EXPIRY_STYLES[item.days < 0 ? 'expired' : item.days <= 7 ? 'next_30' : 'this_month'].badge}`}>
+                    {item.label} · {daysCopy(item.days)}
                   </span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400 mb-4">Click a month on the graph to see models.</p>
-          )}
-          <div className="space-y-2">
-            {['expired', 'this_month', 'next_30'].map((key) => (
-              <div key={key} className={`flex items-center justify-between text-sm px-3 py-2 rounded-lg border ${EXPIRY_STYLES[key].badge}`}>
-                <span>{EXPIRY_STYLES[key].label}</span>
-                <span className="font-semibold">
-                  {key === 'expired' ? summary.expired : key === 'this_month' ? summary.thisMonth : summary.next30}
-                </span>
-              </div>
+                <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                  {vehicleModelLabel(item.vehicle)} · {formatShortDate(item.date)}
+                </p>
+              </button>
             ))}
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <OperationStatCard label="Mulkiya expired" value={mulkiyaSummary.expired} tone="red" icon={AlertTriangle} sub={`${mulkiyaSummary.next30} in next 30 days`} />
+        <OperationStatCard label="Mulkiya this month" value={mulkiyaSummary.thisMonth} tone="yellow" icon={Calendar} />
+        <OperationStatCard label="Insurance expired" value={insuranceSummary.expired} tone="red" icon={Shield} sub={`${insuranceSummary.next30} in next 30 days`} />
+        <OperationStatCard label="Insurance this month" value={insuranceSummary.thisMonth} tone="indigo" icon={Clock} />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-8">
+        <ExpiryChart
+          title="Mulkiya expiry by month"
+          hint="Click a bar to list cars whose registration card expires that month."
+          series={mulkiyaSeries}
+          selectedKey={listMode === 'mulkiya' ? selectedMonth : null}
+          active={listMode === 'mulkiya'}
+          color="#93c5fd"
+          activeColor="#4f46e5"
+          activeBorder="border-indigo-300 ring-1 ring-indigo-100"
+          tooltipNoun="Mulkiya"
+          onSelectBar={(key) => { setSelectedMonth(key); setListMode('mulkiya'); }}
+        />
+        <ExpiryChart
+          title="Insurance expiry by month"
+          hint="Same calendar for car insurance on these records — teal bars, independent of Mulkiya."
+          series={insuranceSeries}
+          selectedKey={listMode === 'insurance' ? selectedMonth : null}
+          active={listMode === 'insurance'}
+          color="#99f6e4"
+          activeColor="#0f766e"
+          activeBorder="border-teal-300 ring-1 ring-teal-100"
+          tooltipNoun="policies"
+          onSelectBar={(key) => { setSelectedMonth(key); setListMode('insurance'); }}
+        />
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200">
         <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-gray-900">
-            {listMode === 'all'
-              ? `All Mulkiya — ${listVehicles.length}`
-              : `${selected?.label || 'Vehicles'} — ${listVehicles.length} vehicle${listVehicles.length === 1 ? '' : 's'}`}
-          </h2>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setListMode('all')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
-                listMode === 'all' ? 'bg-indigo-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              All records
-            </button>
-            <button
-              type="button"
-              onClick={() => setListMode('month')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
-                listMode === 'month' ? 'bg-indigo-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Selected month
-            </button>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">
+              {listMode === 'all'
+                ? `All records — ${listVehicles.length}`
+                : selectedMonth && selected
+                  ? `${listMode === 'insurance' ? 'Insurance' : 'Mulkiya'} · ${selected.label} — ${listVehicles.length}`
+                  : `${listMode === 'insurance' ? 'Insurance' : 'Mulkiya'} records — ${listVehicles.length}`}
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">Plate, make, model, year, owner, both expiries, engine and chassis.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search plate, make, chassis…"
+                className="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg w-52"
+              />
+            </div>
+            {['all', 'mulkiya', 'insurance'].map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setListMode(mode);
+                  if (mode === 'all') setSelectedMonth(null);
+                }}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg capitalize ${
+                  listMode === mode ? 'bg-indigo-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {mode === 'all' ? 'All records' : mode}
+              </button>
+            ))}
           </div>
         </div>
         {listVehicles.length === 0 ? (
           <OperationEmptyState
-            icon={FileText}
-            title={listMode === 'all' ? 'No Mulkiya saved yet' : 'No Mulkiya expiring this month'}
+            icon={Car}
+            title={listMode === 'all' ? 'No Mulkiya saved yet' : 'No vehicles in this month'}
             description={
               listMode === 'all'
-                ? 'Add a Mulkiya with plate, expiry date, and the registration card file. It will appear here and on the graph.'
-                : 'Select another month on the graph, or add a Mulkiya with an expiry in this month.'
+                ? 'Add a record with plate, make, model, year, owner, Mulkiya expiry, insurance expiry, engine and chassis numbers.'
+                : 'Pick another month on the matching graph, or switch back to all records.'
             }
             action={
-              <button
-                type="button"
-                onClick={openAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
+              <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
                 <Plus className="w-4 h-4" />
                 Add Mulkiya
               </button>
             }
           />
         ) : (
-          <div className="p-5 space-y-6">
-            {modelGroups.map((group) => (
-              <div key={group.model}>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">{group.model}</h3>
-                  <span className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-100">
-                    {group.count} expir{group.count === 1 ? 'y' : 'ies'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {group.vehicles.map((v) => (
-                    <MulkiyaCard key={v.id} vehicle={v} onEdit={openEdit} />
-                  ))}
-                </div>
-              </div>
+          <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {listVehicles.map((v) => (
+              <MulkiyaCard key={v.id} vehicle={v} onEdit={openEdit} />
             ))}
           </div>
         )}
