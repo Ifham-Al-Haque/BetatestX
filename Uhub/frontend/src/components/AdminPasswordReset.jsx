@@ -74,7 +74,7 @@ export default function AdminPasswordReset({ embedded = false }) {
           }]);
         } else {
           setSearchResults([]);
-          warning('User Not Found', `No user found with email: ${targetEmail}`);
+          showError('User Not Found', `No user found with email: ${targetEmail}`);
         }
       } else if (authUser) {
         // Get additional info from users table if exists
