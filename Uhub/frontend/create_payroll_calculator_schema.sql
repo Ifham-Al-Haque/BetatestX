@@ -54,35 +54,7 @@ create table if not exists public.payroll_batch_rows (
 create index if not exists payroll_batch_rows_batch_id_idx
   on public.payroll_batch_rows (batch_id);
 
--- RLS (basic, adjust as needed)
+-- Enable RLS. Apply staff-only policies by running restrict_payroll_rls.sql.
 alter table public.payroll_batches enable row level security;
 alter table public.payroll_batch_rows enable row level security;
-
--- Allow authenticated users to read/write (tighten to HR roles if desired)
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'payroll_batches' and policyname = 'payroll_batches_auth_all'
-  ) then
-    create policy payroll_batches_auth_all
-      on public.payroll_batches
-      for all
-      to authenticated
-      using (true)
-      with check (true);
-  end if;
-
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'payroll_batch_rows' and policyname = 'payroll_batch_rows_auth_all'
-  ) then
-    create policy payroll_batch_rows_auth_all
-      on public.payroll_batch_rows
-      for all
-      to authenticated
-      using (true)
-      with check (true);
-  end if;
-end $$;
 

@@ -67,15 +67,23 @@ export default function LoginEnhanced() {
         .from("users")
         .select("role, status")
         .eq("auth_user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (userData) {
         setUserRole(userData.role);
-        if (userData.status === 'inactive') {
+        if (userData.status && String(userData.status).toLowerCase() === 'inactive') {
           setErrorMsg("Your account is inactive. Please contact your administrator.");
           await supabase.auth.signOut();
           return;
         }
+      } else {
+        const { data: claimed } = await supabase.rpc('claim_uhub_account');
+        if (!claimed?.success) {
+          setErrorMsg(claimed?.error || "No UHub account is set up for this login. Ask an administrator to invite you.");
+          await supabase.auth.signOut();
+          return;
+        }
+        setUserRole(claimed.user?.role || null);
       }
 
       // Log successful login activity

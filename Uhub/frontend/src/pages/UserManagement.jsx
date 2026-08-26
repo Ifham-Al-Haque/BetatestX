@@ -151,13 +151,13 @@ export default function UserManagement() {
           
           success(
             "Password Reset Initiated",
-            `A password reset link has been sent to ${editingUser.email}. Please instruct the user to check their email and set their password using the reset link. Suggested new password: "${userFormData.password}"`
+            `A password reset link has been sent to ${editingUser.email}. Ask the user to open that email and choose their own password.`
           );
         } catch (resetErr) {
           console.error('Password reset error:', resetErr);
           success(
             "Password Reset Instructions",
-            `To reset the password for ${editingUser.email}:\n\n1. Go to Supabase Dashboard\n2. Navigate to Authentication → Users\n3. Find user ${editingUser.email}\n4. Click "Reset Password"\n5. Share the reset link with the user\n\nSuggested password: "${userFormData.password}"`
+            `To reset the password for ${editingUser.email}, use Authentication → Users in the Supabase dashboard, or send a reset email from this page.`
           );
         }
         

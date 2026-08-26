@@ -143,44 +143,35 @@ const InvitationAccept = () => {
 
     setAccepting(true);
     try {
-      // First, create the user account using the invitation
-      const { data: acceptData, error: acceptError } = await supabase
-        .rpc('accept_invitation', {
-          invitation_token: token,
-          user_password: formData.password,
-          user_full_name: formData.full_name,
-          user_phone: formData.phone || null,
-          user_location: formData.location || null
-        });
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: invitation.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.full_name,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      const { data: acceptData, error: acceptError } = await supabase.rpc('accept_invitation', {
+        invitation_token: token,
+        user_full_name: formData.full_name,
+        user_phone: formData.phone || null,
+        user_location: formData.location || null,
+      });
 
       if (acceptError) throw acceptError;
 
-      if (acceptData.success) {
-        // Account created successfully in the database
-        // Now sign up the user with Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: invitation.email,
-          password: formData.password,
-          options: {
-            data: {
-              full_name: formData.full_name,
-              role: invitation.role,
-              user_id: acceptData.data.user_id,
-              employee_id: acceptData.data.employee_id
-            }
-          }
-        });
-
-        if (authError) {
-          // If auth signup fails, we should clean up the database records
-          console.warn('Auth signup failed, but database records were created:', authError);
-          // For now, we'll still show success since the account exists in the database
+      if (acceptData?.success) {
+        if (authData?.session) {
+          await supabase.rpc('claim_uhub_account');
         }
-
         success('Success', 'Account created successfully! You can now log in.');
         navigate('/login');
       } else {
-        showError('Error', acceptData.error || 'Failed to create account');
+        showError('Error', acceptData?.error || 'Failed to create account');
       }
     } catch (err) {
       console.error('Accept invitation error:', err);

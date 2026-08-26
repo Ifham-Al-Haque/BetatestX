@@ -1,9 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(
-  'https://qtugowosurgecytgswuo.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0dWdvd29zdXJnZWN5dGdzd3VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4MDI4OTUsImV4cCI6MjA2NTM3ODg5NX0.x4gN4YO9xalo9y506l_mf6pzK_Km-SCVf9fuJxjyMLM'
-);
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Set SUPABASE_URL and SUPABASE_ANON_KEY (or REACT_APP_* equivalents) before running this script.');
+}
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Sample data based on the chart image showing expenses from Jan 2024 to Jul 2025
 const sampleExpenses = [

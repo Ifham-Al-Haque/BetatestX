@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 
 export default function InvitationSignup() {
   const [password, setPassword] = useState("");
@@ -23,7 +22,8 @@ export default function InvitationSignup() {
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { acceptInvitation } = useAuth();
+
+  useEffect(() => {
 
   useEffect(() => {
     const initializeFromUrlTokens = async () => {
@@ -100,30 +100,30 @@ export default function InvitationSignup() {
     setLoading(true);
 
     try {
-      // Accept invitation and set password
-      const result = await acceptInvitation(token, password);
-      
-      if (result.success) {
-        // Update user profile with full name
-        const { error: profileError } = await supabase
-          .from("employees")
-          .update({
-            full_name: fullName,
-            status: "active"
-          })
-          .eq("id", result.user.id);
-
-        if (profileError) {
-          console.error("Error updating profile:", profileError);
-        }
-
-        setSuccessMsg("Account created successfully! Redirecting to dashboard...");
-        
-        // Redirect to dashboard after 2 seconds
-        setTimeout(() => {
-          navigate("/");
-        }, 2000);
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { error: pwError } = await supabase.auth.updateUser({ password });
+        if (pwError) throw pwError;
       }
+
+      const { data: acceptData, error: acceptError } = await supabase.rpc("accept_invitation", {
+        invitation_token: token,
+        user_full_name: fullName,
+      });
+      if (acceptError) throw acceptError;
+      if (acceptData && acceptData.success === false) {
+        throw new Error(acceptData.error || "Failed to accept invitation");
+      }
+
+      const { data: claimed } = await supabase.rpc("claim_uhub_account");
+      if (claimed && claimed.success === false) {
+        console.warn("claim_uhub_account:", claimed.error);
+      }
+
+      setSuccessMsg("Account created successfully! Redirecting to dashboard...");
+      setTimeout(() => {
+        navigate("/");
+      }, 2000);
     } catch (error) {
       console.error("Error creating account:", error);
       setErrorMsg("Failed to create account: " + error.message);

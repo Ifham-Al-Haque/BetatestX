@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 
 const RoleDebug = () => {
-  const { user, userProfile, role, refreshProfile, setUserRole, checkDatabaseHealth, createSimpleProfile } = useAuth();
+  const { user, userProfile, role, refreshProfile } = useAuth();
   const [debugInfo, setDebugInfo] = React.useState({});
 
   const checkUserRole = async () => {
@@ -64,25 +64,19 @@ const RoleDebug = () => {
   };
 
   const forceAdminRole = () => {
-    console.log('🔧 Force setting admin role...');
-    setUserRole('admin');
+    console.warn('Force-admin is disabled. Roles come only from public.users.');
   };
 
   const forceEmployeeRole = () => {
-    console.log('🔧 Force setting employee role...');
-    setUserRole('employee');
+    console.warn('Force-employee is disabled. Roles come only from public.users.');
   };
 
   const checkDatabase = async () => {
-    console.log('🔍 Checking database health...');
-    const health = await checkDatabaseHealth();
-    setDebugInfo(health);
-    console.log('Database health:', health);
+    await checkUserRole();
   };
 
   const handleCreateSimpleProfile = () => {
-    console.log('🔧 Creating simple profile...');
-    createSimpleProfile(user?.email);
+    console.warn('Client-side profile creation is disabled.');
   };
 
   if (!user) {

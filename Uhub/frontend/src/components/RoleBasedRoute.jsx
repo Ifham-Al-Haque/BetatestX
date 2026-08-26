@@ -829,7 +829,7 @@ export const useRoleAccess = () => {
   const { user, userProfile, role } = useAuth();
   
   // Get role from AuthContext role state first, then fallback to userProfile, then user
-  const userRole = role || userProfile?.role || user?.role;
+  const userRole = (role && role !== 'loading' ? role : null) || userProfile?.role || null;
   
   // Debug logging
   console.log('🔍 useRoleAccess:', {

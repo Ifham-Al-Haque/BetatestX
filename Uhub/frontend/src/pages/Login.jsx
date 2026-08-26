@@ -40,92 +40,29 @@ export default function Login() {
         .from("users")
         .select("role, status")
         .eq("auth_user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (userData) {
-        redirectToRolePage(userData.role);
-      } else {
-        // User not in users table, check if it's an admin user
-        const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
-        if (adminEmails.includes(user.email)) {
-          // First check if employee already exists
-          const { data: existingEmployee } = await supabase
-            .from("employees")
-            .select("id, full_name, department, position, status")
-            .eq("email", user.email)
-            .maybeSingle();
-          
-          let employeeId;
-          if (existingEmployee) {
-            console.log("Found existing employee record:", existingEmployee);
-            employeeId = existingEmployee.id;
-          } else {
-            // Create new employee record
-            const { data: newEmployee } = await supabase.from("employees").upsert({
-              full_name: user.email.split('@')[0],
-              email: user.email,
-              department: "IT",
-              position: "System Administrator",
-              employee_id: `EMP_${Date.now()}` // Generate unique employee ID
-            }).select().single();
-            
-            if (newEmployee) {
-              employeeId = newEmployee.id;
-            }
-          }
-          
-          if (employeeId) {
-            // Now create user record linking to the employee
-            await supabase.from("users").upsert({
-              auth_user_id: user.id,
-              employee_id: employeeId,
-              email: user.email,
-              role: "admin",
-              status: "active"
-            });
-          }
-          redirectToRolePage("admin");
-        } else {
-          // Regular user, create basic profile
-          // First check if employee already exists
-          const { data: existingEmployee } = await supabase
-            .from("employees")
-            .select("id, full_name, department, position, status")
-            .eq("email", user.email)
-            .maybeSingle();
-          
-          let employeeId;
-          if (existingEmployee) {
-            console.log("Found existing employee record:", existingEmployee);
-            employeeId = existingEmployee.id;
-          } else {
-            // Create new employee record
-            const { data: newEmployee } = await supabase.from("employees").upsert({
-              full_name: user.email.split("@")[0],
-              email: user.email,
-              department: "Unassigned",
-              position: "Employee",
-              employee_id: `EMP_${Date.now()}` // Generate unique employee ID
-            }).select().single();
-            
-            if (newEmployee) {
-              employeeId = newEmployee.id;
-            }
-          }
-          
-          if (employeeId) {
-            // Now create user record linking to the employee
-            await supabase.from("users").upsert({
-              auth_user_id: user.id,
-              employee_id: employeeId,
-              email: user.email,
-              role: "employee",
-              status: "active"
-            });
-          }
-          redirectToRolePage("employee");
+        if (userData.status && String(userData.status).toLowerCase() !== "active") {
+          setErrorMsg("Your account is inactive. Please contact an administrator.");
+          await supabase.auth.signOut();
+          return;
         }
+        redirectToRolePage(userData.role);
+        return;
       }
+
+      const { data: claimed } = await supabase.rpc("claim_uhub_account");
+      if (claimed?.success && claimed.user?.role) {
+        redirectToRolePage(claimed.user.role);
+        return;
+      }
+
+      setErrorMsg(
+        claimed?.error ||
+          "No UHub account is set up for this login. Ask an administrator to invite you."
+      );
+      await supabase.auth.signOut();
     } catch (error) {
       console.error("Error checking user role:", error);
       error("Role Check Error", "Failed to determine user role. Please contact support.");

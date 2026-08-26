@@ -5,4 +5,4 @@ export const canManageSimCards = (role) => MANAGE_ROLES.has(role);
 export const canDeleteSimCards = (role) => DELETE_ROLES.has(role);
 
 export const resolveUserRole = (user, userProfile) =>
-  user?.user_metadata?.role || userProfile?.role || '';
+  userProfile?.role || '';

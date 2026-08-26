@@ -46,20 +46,6 @@ create index if not exists payrolls_batch_id_idx on public.payrolls (batch_id);
 create index if not exists payrolls_month_year_idx
   on public.payrolls (year, month);
 
--- RLS (basic, tighten to HR/admin roles if desired)
+-- Enable RLS. Apply staff-only policies by running restrict_payroll_rls.sql
+-- (do not add USING (true) policies here).
 alter table public.payrolls enable row level security;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'payrolls' and policyname = 'payrolls_auth_all'
-  ) then
-    create policy payrolls_auth_all
-      on public.payrolls
-      for all
-      to authenticated
-      using (true)
-      with check (true);
-  end if;
-end $$;

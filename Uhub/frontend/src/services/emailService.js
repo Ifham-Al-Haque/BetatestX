@@ -1,5 +1,8 @@
 // Email notification service for IT requests
-import { supabase } from '../supabaseClient'; // Assuming supabaseClient is configured
+import { supabase } from '../supabaseClient';
+import { escapeHtml } from '../utils/security';
+
+const safe = (value) => escapeHtml(value ?? '');
 
 export const emailService = {
   // Send basic email notification (tries Supabase Edge Function 'send-email' first, then logs)
@@ -42,15 +45,15 @@ export const emailService = {
         </div>
         <div style="padding: 20px; background: #f8f9fa;">
           <h2>Status Change Notification</h2>
-          <p><strong>Request Number:</strong> ${request.request_number || `#${request.id}`}</p>
-          <p><strong>Title:</strong> ${request.title}</p>
-          <p><strong>Previous Status:</strong> ${oldStatus.replace('_', ' ').toUpperCase()}</p>
-          <p><strong>New Status:</strong> <span style="color: #10b981; font-weight: bold;">${newStatus.replace('_', ' ').toUpperCase()}</span></p>
+          <p><strong>Request Number:</strong> ${safe(request.request_number || `#${request.id}`)}</p>
+          <p><strong>Title:</strong> ${safe(request.title)}</p>
+          <p><strong>Previous Status:</strong> ${safe(oldStatus).replace('_', ' ').toUpperCase()}</p>
+          <p><strong>New Status:</strong> <span style="color: #10b981; font-weight: bold;">${safe(newStatus).replace('_', ' ').toUpperCase()}</span></p>
           <p><strong>Updated At:</strong> ${new Date().toLocaleString()}</p>
           ${request.resolution_notes ? `
             <p><strong>Resolution Notes:</strong></p>
             <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-              ${request.resolution_notes}
+              ${safe(request.resolution_notes)}
             </div>
           ` : ''}
           <div style="text-align: center; margin: 20px 0;">
@@ -71,7 +74,7 @@ export const emailService = {
 
   // Send request created notification
   sendRequestCreated: async (request, recipientEmail) => {
-    const subject = `New IT Request Created: ${request.title}`;
+    const subject = `New IT Request Created: ${safe(request.title)}`;
     const body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e1e5e9; border-radius: 8px; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #1f6feb 0%, #a855f7 100%); padding: 20px; text-align: center;">
@@ -79,15 +82,15 @@ export const emailService = {
         </div>
         <div style="padding: 20px; background: #f8f9fa;">
           <h2>Request Details</h2>
-          <p><strong>Request Number:</strong> ${request.request_number || `#${request.id}`}</p>
-          <p><strong>Title:</strong> ${request.title}</p>
-          <p><strong>Priority:</strong> ${request.priority?.name || 'Unknown'}</p>
-          <p><strong>Category:</strong> ${request.category?.name || 'Unknown'}</p>
-          <p><strong>Status:</strong> ${request.status}</p>
+          <p><strong>Request Number:</strong> ${safe(request.request_number || `#${request.id}`)}</p>
+          <p><strong>Title:</strong> ${safe(request.title)}</p>
+          <p><strong>Priority:</strong> ${safe(request.priority?.name || 'Unknown')}</p>
+          <p><strong>Category:</strong> ${safe(request.category?.name || 'Unknown')}</p>
+          <p><strong>Status:</strong> ${safe(request.status)}</p>
           <p><strong>Created:</strong> ${new Date(request.created_at).toLocaleString()}</p>
           <p><strong>Description:</strong></p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-            ${request.description}
+            ${safe(request.description)}
           </div>
           <div style="text-align: center; margin: 20px 0;">
             <a href="${window.location.origin}/it-requests?view=${request.id}" style="background: #1f6feb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
@@ -106,7 +109,7 @@ export const emailService = {
 
   // Send assignment notification
   sendAssignmentNotification: async (request, assigneeEmail, assignedBy) => {
-    const subject = `IT Request Assigned: ${request.title}`;
+    const subject = `IT Request Assigned: ${safe(request.title)}`;
     const body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e1e5e9; border-radius: 8px; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #1f6feb 0%, #a855f7 100%); padding: 20px; text-align: center;">
@@ -114,11 +117,11 @@ export const emailService = {
         </div>
         <div style="padding: 20px; background: #f8f9fa;">
           <h2>Assignment Notification</h2>
-          <p><strong>Request Number:</strong> ${request.request_number || `#${request.id}`}</p>
-          <p><strong>Title:</strong> ${request.title}</p>
-          <p><strong>Assigned To:</strong> ${request.assignee?.full_name || 'You'}</p>
-          <p><strong>Priority:</strong> ${request.priority?.name || 'Unknown'}</p>
-          <p><strong>Assigned By:</strong> ${assignedBy.full_name || assignedBy.email}</p>
+          <p><strong>Request Number:</strong> ${safe(request.request_number || `#${request.id}`)}</p>
+          <p><strong>Title:</strong> ${safe(request.title)}</p>
+          <p><strong>Assigned To:</strong> ${safe(request.assignee?.full_name || 'You')}</p>
+          <p><strong>Priority:</strong> ${safe(request.priority?.name || 'Unknown')}</p>
+          <p><strong>Assigned By:</strong> ${safe(assignedBy.full_name || assignedBy.email)}</p>
           <p><strong>Assigned At:</strong> ${new Date().toLocaleString()}</p>
           <div style="text-align: center; margin: 20px 0;">
             <a href="${window.location.origin}/it-requests?view=${request.id}" style="background: #1f6feb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
@@ -138,7 +141,7 @@ export const emailService = {
   // Send SLA warning notification
   sendSLAWarning: async (request, recipientEmail) => {
     const timeRemaining = emailService.calculateTimeRemaining(request);
-    const subject = `SLA Warning: ${request.title}`;
+    const subject = `SLA Warning: ${safe(request.title)}`;
     const body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e1e5e9; border-radius: 8px; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); padding: 20px; text-align: center;">
@@ -146,11 +149,11 @@ export const emailService = {
         </div>
         <div style="padding: 20px; background: #f8f9fa;">
           <h2>⚠️ SLA Warning</h2>
-          <p><strong>Request Number:</strong> ${request.request_number || `#${request.id}`}</p>
-          <p><strong>Title:</strong> ${request.title}</p>
-          <p><strong>Priority:</strong> ${request.priority?.name || 'Unknown'}</p>
-          <p><strong>Time Remaining:</strong> <span style="color: #ef4444; font-weight: bold;">${timeRemaining}</span></p>
-          <p><strong>Assigned To:</strong> ${request.assignee?.full_name || 'Unassigned'}</p>
+          <p><strong>Request Number:</strong> ${safe(request.request_number || `#${request.id}`)}</p>
+          <p><strong>Title:</strong> ${safe(request.title)}</p>
+          <p><strong>Priority:</strong> ${safe(request.priority?.name || 'Unknown')}</p>
+          <p><strong>Time Remaining:</strong> <span style="color: #ef4444; font-weight: bold;">${safe(timeRemaining)}</span></p>
+          <p><strong>Assigned To:</strong> ${safe(request.assignee?.full_name || 'Unassigned')}</p>
           <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <p style="margin: 0; color: #92400e;"><strong>Action Required:</strong> Please prioritize this request to meet SLA requirements.</p>
           </div>
@@ -222,11 +225,11 @@ export const emailService = {
         </div>
         <div style="padding: 24px; background: #f8fafc;">
           <p style="margin: 0 0 16px 0; color: #374151;">You have been assigned a new task.</p>
-          <p style="margin: 0 0 8px 0;"><strong>Task:</strong> ${task.title || 'Untitled'}</p>
-          ${task.description ? `<p style="margin: 0 0 8px 0;"><strong>Description:</strong></p><div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 12px;">${task.description}</div>` : ''}
-          <p style="margin: 0 0 4px 0;"><strong>Assigned by:</strong> ${assignedByName || 'A colleague'}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Task:</strong> ${safe(task.title || 'Untitled')}</p>
+          ${task.description ? `<p style="margin: 0 0 8px 0;"><strong>Description:</strong></p><div style="background: white; padding: 12px; border-radius: 6px; margin-bottom: 12px;">${safe(task.description)}</div>` : ''}
+          <p style="margin: 0 0 4px 0;"><strong>Assigned by:</strong> ${safe(assignedByName || 'A colleague')}</p>
           ${task.due_date ? `<p style="margin: 0 0 4px 0;"><strong>Due date:</strong> ${new Date(task.due_date).toLocaleDateString()}</p>` : ''}
-          ${task.priority ? `<p style="margin: 0 0 16px 0;"><strong>Priority:</strong> ${task.priority}</p>` : ''}
+          ${task.priority ? `<p style="margin: 0 0 16px 0;"><strong>Priority:</strong> ${safe(task.priority)}</p>` : ''}
           <div style="text-align: center; margin: 20px 0;">
             <a href="${taskUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">View task in Uhub</a>
           </div>
@@ -256,7 +259,7 @@ export const emailService = {
         </div>
         <div style="padding: 24px; background: #f8fafc;">
           <p style="margin: 0 0 8px 0; color: #374151;">You successfully logged in to your Uhub account.</p>
-          <p style="margin: 0 0 8px 0;"><strong>Account:</strong> ${userEmail}</p>
+          <p style="margin: 0 0 8px 0;"><strong>Account:</strong> ${safe(userEmail)}</p>
           <p style="margin: 0 0 16px 0;"><strong>Time:</strong> ${timeStr}</p>
           <p style="margin: 0; color: #6b7280; font-size: 14px;">If this wasn’t you, please change your password and contact your administrator.</p>
         </div>

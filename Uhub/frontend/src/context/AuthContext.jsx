@@ -12,6 +12,11 @@ export const useAuth = () => {
   return context;
 };
 
+const roleFromProfile = (profile) => {
+  if (!profile || profile.inactive || profile.status === "unprovisioned") return null;
+  return profile.role || null;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -20,8 +25,6 @@ export const AuthProvider = ({ children }) => {
   const [authChecked, setAuthChecked] = useState(false);
   const currentUserIdRef = useRef(null);
   const currentRoleRef = useRef(null);
-
-  // Cache for user profiles to avoid repeated database calls
   const [profileCache, setProfileCache] = useState(new Map());
 
   useEffect(() => {
@@ -29,420 +32,98 @@ export const AuthProvider = ({ children }) => {
     currentRoleRef.current = role;
   }, [user?.id, role]);
 
+  const buildProfile = async (userId, authUser, userData) => {
+    const status = userData?.status || "active";
+    if (status && String(status).toLowerCase() !== "active") {
+      return {
+        id: userData.id,
+        usersTableId: userData.id,
+        employeeId: userData.employee_id ?? null,
+        auth_user_id: userId,
+        email: authUser.email,
+        role: null,
+        status,
+        inactive: true,
+        full_name: authUser.email.split("@")[0],
+        department: "Unassigned",
+        position: "Employee",
+      };
+    }
+
+    let employeeData = null;
+    if (userData.employee_id) {
+      const { data } = await supabase
+        .from("employees")
+        .select("id, full_name, department, position, status")
+        .eq("id", userData.employee_id)
+        .maybeSingle();
+      employeeData = data;
+    }
+
+    const profile = {
+      id: employeeData?.id || userId,
+      usersTableId: userData.id,
+      employeeId: employeeData?.id ?? userData.employee_id ?? null,
+      auth_user_id: userId,
+      email: authUser.email,
+      role: userData.role || null,
+      status,
+      full_name: employeeData?.full_name || authUser.email.split("@")[0],
+      department: employeeData?.department || "Unassigned",
+      position: employeeData?.position || "Employee",
+    };
+    setProfileCache((prev) => new Map(prev.set(userId, profile)));
+    return profile;
+  };
+
   const getUserProfile = async (userId) => {
     try {
-      console.log("Fetching profile for user ID:", userId);
-      
-      // Get current user's email from Supabase Auth
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        console.error("Auth error:", authError);
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError || !authUser?.email) {
+        console.error("Auth error or missing email:", authError);
         return null;
       }
-      
-      if (!authUser || !authUser.email) {
-        console.error("No auth user or email found");
-        return null;
-      }
-      
-      console.log("Auth user email:", authUser.email);
-      
-      // Check if user exists in users table (for Uhub application roles only)
-      console.log("🔍 Checking users table for auth_user_id:", userId);
+
+      const cached = profileCache.get(userId);
+      if (cached?.role) return cached;
+
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("id, role, status, employee_id, email, auth_user_id")
         .eq("auth_user_id", userId)
         .maybeSingle();
-      
-      if (userError) {
-        console.error("❌ Error fetching user data:", userError);
-        return null;
-      }
-      
-      console.log("📋 User data found:", userData);
-      
-      if (userData) {
-        console.log("✅ User data found in database:", userData);
-        
-        // Check if user is linked to an employee record
-        if (userData.employee_id) {
-          console.log("🔗 User is linked to employee record, fetching employee data...");
-          
-          // Fetch employee data from employees table (for Udrive Company data)
-          const { data: employeeData, error: employeeError } = await supabase
-            .from("employees")
-            .select("id, full_name, department, position, status")
-            .eq("id", userData.employee_id)
-            .single();
-            
-          if (employeeError) {
-            console.error("❌ Error fetching employee data:", employeeError);
-            // Fallback to user data only
-            const profile = {
-              id: userId,
-              usersTableId: userData.id,
-              employeeId: userData.employee_id,
-              auth_user_id: userId,
-              email: authUser.email,
-              role: userData.role,
-              status: userData.status,
-              full_name: authUser.email.split('@')[0],
-              department: 'Unassigned',
-              position: 'Employee'
-            };
-            console.log("⚠️ Created profile with fallback data:", profile);
-            setProfileCache(prev => new Map(prev.set(userId, profile)));
-            return profile;
-          }
-          
-          // Create profile with employee data (Udrive Company data)
-          const profile = {
-            id: employeeData.id,
-            usersTableId: userData.id,
-            employeeId: employeeData.id,
-            auth_user_id: userId,
-            email: authUser.email,
-            role: userData.role,
-            status: userData.status,
-            full_name: employeeData.full_name,
-            department: employeeData.department,
-            position: employeeData.position
-          };
-          console.log("✅ Created profile with employee data:", profile);
-          setProfileCache(prev => new Map(prev.set(userId, profile)));
-          return profile;
-        }
-        
-        // User exists but not linked to employee - create basic profile
-        if (userData.role) {
-          console.log("🎯 Creating basic profile from users table data (no employee link)");
-          const profile = {
-            id: userId,
-            usersTableId: userData.id,
-            employeeId: userData.employee_id ?? null,
-            auth_user_id: userId,
-            email: authUser.email,
-            role: userData.role,
-            status: userData.status,
-            full_name: authUser.email.split('@')[0],
-            department: 'Unassigned',
-            position: 'Employee'
-          };
-          console.log("✅ Created basic profile:", profile);
-          setProfileCache(prev => new Map(prev.set(userId, profile)));
-          return profile;
-        }
-        
-        // If we reach here, user exists but employee_id is null or employee not found
-        console.log("⚠️ User found but employee_id missing or invalid, will try to fix existing employee record");
-        
-        // Try to find existing employee record by email
-        let existingEmployee = null;
-        try {
-          const { data: employeeData, error: findEmployeeError } = await supabase
-            .from("employees")
-            .select("id, full_name, department, position, status")
-            .eq("email", authUser.email)
-            .maybeSingle();
-            
-          if (findEmployeeError) {
-            console.error("❌ Error finding existing employee:", findEmployeeError);
-            console.log("🔄 Will create new employee record due to database error");
-          } else if (employeeData) {
-            existingEmployee = employeeData;
-            console.log("✅ Found existing employee record:", existingEmployee);
-            
-            // Update the user record to link to the existing employee
-            const { error: updateUserError } = await supabase
-              .from("users")
-              .update({ employee_id: existingEmployee.id })
-              .eq("auth_user_id", userId);
-              
-            if (updateUserError) {
-              console.error("❌ Error updating user record:", updateUserError);
-            } else {
-              console.log("✅ Updated user record to link to existing employee");
-              
-              // Create profile from existing employee data
-              const profile = {
-                id: existingEmployee.id,
-                usersTableId: userData.id,
-                employeeId: existingEmployee.id,
-                auth_user_id: userId,
-                email: authUser.email,
-                role: userData.role,
-                status: userData.status,
-                full_name: existingEmployee.full_name,
-                department: existingEmployee.department,
-                position: existingEmployee.position
-              };
-              console.log("🎯 Created profile from existing employee:", profile);
-              setProfileCache(prev => new Map(prev.set(userId, profile)));
-              return profile;
-            }
-          }
-        } catch (employeeLookupError) {
-          console.error("❌ Exception during employee lookup:", employeeLookupError);
-          console.log("🔄 Will create new employee record due to exception");
-        }
-        
-        console.log("🔄 Will create new profile since existing employee not found or lookup failed");
-      } else {
-        console.log("⚠️ No user data found, will create new profile");
-      }
-      
 
-      
-      // If no user record found, check if it's an admin user
-      const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
-      if (adminEmails.includes(authUser.email)) {
-        console.log("👑 Admin user detected, creating admin profile...");
-        
-        // First check if employee already exists
-        console.log("🔍 Checking if employee already exists...");
-        let existingEmployee = null;
-        let employeeId;
-        let newEmployee = null; // Declare newEmployee variable
-        
-        try {
-          const { data: employeeData, error: findError } = await supabase
-            .from("employees")
-            .select("id, full_name, department, position, status")
-            .eq("email", authUser.email)
-            .maybeSingle();
-            
-          if (findError) {
-            console.error("❌ Error checking existing employee:", findError);
-            console.log("🔄 Will create new employee record due to database error");
-          } else if (employeeData) {
-            existingEmployee = employeeData;
-            console.log("✅ Found existing employee record:", existingEmployee);
-            employeeId = existingEmployee.id;
-          }
-        } catch (employeeLookupError) {
-          console.error("❌ Exception during employee lookup:", employeeLookupError);
-          console.log("🔄 Will create new employee record due to exception");
-        }
-        
-        if (!employeeId) {
-          // Create new employee record
-          console.log("🔧 Creating new employee record...");
-          try {
-            const { data: createdEmployee, error: createEmployeeError } = await supabase
-              .from("employees")
-              .upsert({
-                full_name: authUser.email.split('@')[0],
-                email: authUser.email,
-                department: "IT",
-                position: "System Administrator",
-                employee_id: `EMP_${Date.now()}` // Generate unique employee ID
-              })
-              .select()
-              .single();
-            
-            if (createEmployeeError) {
-              console.error("❌ Error creating employee record:", createEmployeeError);
-              return null;
-            }
-            
-            if (createdEmployee) {
-              console.log("✅ New employee record created:", createdEmployee);
-              employeeId = createdEmployee.id;
-              newEmployee = createdEmployee; // Assign to the declared variable
-            } else {
-              console.error("❌ Failed to create employee record");
-              return null;
-            }
-          } catch (createEmployeeException) {
-            console.error("❌ Exception creating employee record:", createEmployeeException);
-            return null;
-          }
-        }
-        
-        // Now create or update user record linking to the employee
-        console.log("🔧 Creating/updating user record...");
-        const { data: newUser, error: createUserError } = await supabase
-          .from("users")
-          .upsert({
-            auth_user_id: userId,
-            employee_id: employeeId,
-            email: authUser.email,
-            role: "admin",
-            status: "active"
-          })
-          .select()
-          .single();
-        
-        if (createUserError) {
-          console.error("❌ Error creating user record:", createUserError);
-          return null;
-        }
-        
-        if (newUser) {
-          console.log("✅ Admin profile created:", newUser);
-          
-          // Get employee details for the profile
-          const employeeDetails = existingEmployee || newEmployee;
-          const profile = {
-            id: employeeId,
-            usersTableId: newUser.id,
-            employeeId: employeeId,
-            auth_user_id: userId,
-            email: authUser.email,
-            role: newUser.role,
-            status: newUser.status,
-            full_name: employeeDetails.full_name,
-            department: employeeDetails.department,
-            position: employeeDetails.position
-          };
-          console.log("🎯 Final admin profile:", profile);
-          setProfileCache(prev => new Map(prev.set(userId, profile)));
-          return profile;
-        }
-      } else {
-        // Regular user, create basic profile
-        console.log("👤 Creating basic employee profile for regular user...");
-        
-        // First check if employee already exists
-        console.log("🔍 Checking if employee already exists...");
-        const { data: existingEmployee, error: findError } = await supabase
-          .from("employees")
-          .select("id, full_name, department, position, status")
-          .eq("email", authUser.email)
-          .maybeSingle();
-          
-        if (findError) {
-          console.error("❌ Error checking existing employee:", findError);
-          console.error("❌ Error details:", {
-            message: findError.message,
-            details: findError.details,
-            hint: findError.hint,
-            code: findError.code
-          });
-          return null;
-        }
-        
-        let employeeId;
-        let newEmployee = null; // Declare newEmployee variable
-        
-        if (existingEmployee) {
-          console.log("✅ Found existing employee record:", existingEmployee);
-          employeeId = existingEmployee.id;
-        } else {
-          // Create new employee record
-          console.log("🔧 Creating new employee record...");
-          const { data: createdEmployee, error: createEmployeeError } = await supabase
-            .from("employees")
-            .insert({
-              full_name: authUser.email.split('@')[0],
-              email: authUser.email,
-              department: "Unassigned",
-              position: "Employee",
-              employee_id: `EMP_${Date.now()}` // Generate unique employee ID
-            })
-            .select()
-            .single();
-          
-          if (createEmployeeError) {
-            console.error("❌ Error creating employee record:", createEmployeeError);
-            console.error("❌ Error details:", {
-              message: createEmployeeError.message,
-              details: createEmployeeError.details,
-              hint: createEmployeeError.hint,
-              code: createEmployeeError.code
-            });
-            return null;
-          }
-          
-          if (createdEmployee) {
-            console.log("✅ New employee record created:", createdEmployee);
-            employeeId = createdEmployee.id;
-            newEmployee = createdEmployee; // Assign to the declared variable
-          } else {
-            console.error("❌ Failed to create employee record");
-            return null;
-          }
-        }
-        
-        // Now create or update user record linking to the employee
-        console.log("🔧 Creating/updating user record...");
-        const { data: newUser, error: createUserError } = await supabase
-          .from("users")
-          .upsert({
-            auth_user_id: userId,
-            employee_id: employeeId,
-            email: authUser.email,
-            role: "employee",
-            status: "active"
-          })
-          .select()
-          .single();
-        
-        if (createUserError) {
-          console.error("❌ Error creating user record:", createUserError);
-          console.error("❌ Error details:", {
-            message: createUserError.message,
-            details: createUserError.details,
-            hint: createUserError.hint,
-            code: createUserError.code
-          });
-          return null;
-        }
-        
-        if (newUser) {
-          console.log("✅ Employee profile created:", newUser);
-          
-          // Get employee details for the profile
-          const employeeDetails = existingEmployee || newEmployee;
-          const profile = {
-            id: employeeId,
-            usersTableId: newUser.id,
-            employeeId: employeeId,
-            auth_user_id: userId,
-            email: authUser.email,
-            role: newUser.role,
-            status: newUser.status,
-            full_name: employeeDetails.full_name,
-            department: employeeDetails.department,
-            position: employeeDetails.position
-          };
-          console.log("🎯 Final employee profile:", profile);
-          setProfileCache(prev => new Map(prev.set(userId, profile)));
-          return profile;
-        }
-      }
-      
-      // Fallback: If all database operations fail, create a basic profile
-      console.log("🔄 Creating fallback profile due to database issues...");
-      try {
-        // Check if user is admin based on email patterns or specific admin emails
-        const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
-        const isAdmin = adminEmails.includes(authUser.email) || 
-                       authUser.email.includes('admin') || 
-                       authUser.email.includes('manager') ||
-                       authUser.email.endsWith('@udrive.ae'); // All @udrive.ae emails get admin access as fallback
-        
-        const fallbackProfile = {
-          id: `fallback_${Date.now()}`,
-          auth_user_id: userId,
-          email: authUser.email,
-          role: isAdmin ? 'admin' : 'employee',
-          status: 'active',
-          full_name: isAdmin ? authUser.email.split('@')[0] : authUser.email.split('@')[0],
-          department: isAdmin ? 'IT' : 'Unassigned',
-          position: isAdmin ? 'System Administrator' : 'Employee'
-        };
-        
-        console.log("🎯 Fallback profile created:", fallbackProfile);
-        console.log("✅ This should resolve the 'No Role' issue and show sidebar panels");
-        setProfileCache(prev => new Map(prev.set(userId, fallbackProfile)));
-        return fallbackProfile;
-      } catch (fallbackError) {
-        console.error("❌ Even fallback profile creation failed:", fallbackError);
+      if (userError) {
+        console.error("Error fetching UHub user:", userError);
         return null;
       }
+
+      if (userData?.role) {
+        return buildProfile(userId, authUser, userData);
+      }
+
+      const { data: claimed, error: claimError } = await supabase.rpc("claim_uhub_account");
+      if (claimError) {
+        console.warn("claim_uhub_account failed:", claimError.message);
+      } else if (claimed?.success && claimed.user?.role) {
+        return buildProfile(userId, authUser, claimed.user);
+      } else if (claimed && claimed.success === false) {
+        console.warn("No provisioned UHub account:", claimed.error);
+      }
+
+      return {
+        id: userId,
+        auth_user_id: userId,
+        email: authUser.email,
+        role: null,
+        status: "unprovisioned",
+        full_name: authUser.email.split("@")[0],
+        department: "Unassigned",
+        position: "Employee",
+      };
     } catch (error) {
       console.error("Error in getUserProfile:", error);
       return null;
@@ -451,100 +132,54 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     try {
-      console.log("🔄 Starting sign out process...");
-      
-      // Log logout activity before signing out
       try {
         await activityService.logLogout();
       } catch (activityError) {
         console.warn("Failed to log logout activity:", activityError);
       }
-      
+
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error("❌ Error signing out:", error);
-        console.warn("Sign Out Error: Failed to sign out. Please try again.");
-        throw error; // Re-throw the error so the calling component can handle it
-      } else {
-        console.log("✅ Supabase sign out successful, clearing local state...");
-        setUser(null);
-        setUserProfile(null);
-        setRole(null);
-        // Clear cache on sign out
-        setProfileCache(new Map());
-        console.log("✅ User signed out successfully, local state cleared");
-      }
-    } catch (error) {
-      console.error("❌ Error in signOut:", error);
-      throw error; // Re-throw the error so the calling component can handle it
-    }
-  }, []);
-
-  const sendInvitation = useCallback(async (email, role = 'employee') => {
-    try {
-      const { data, error } = await supabase
-        .from("access_requests")
-        .insert({
-          email,
-          role,
-          status: "pending",
-          requested_at: new Date().toISOString()
-        })
-        .select();
-
-      if (error) {
-        console.error("Error sending invitation:", error);
+        console.error("Error signing out:", error);
         throw error;
       }
-
-      return data;
+      setUser(null);
+      setUserProfile(null);
+      setRole(null);
+      setProfileCache(new Map());
     } catch (error) {
-      console.error("Error in sendInvitation:", error);
+      console.error("Error in signOut:", error);
       throw error;
     }
   }, []);
 
-  const acceptInvitation = useCallback(async (invitationId) => {
-    try {
-      const { data, error } = await supabase
-        .from("access_requests")
-        .update({ status: "accepted" })
-        .eq("id", invitationId)
-        .select();
-
-      if (error) {
-        console.error("Error accepting invitation:", error);
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Error in acceptInvitation:", error);
-      throw error;
-    }
+  const sendInvitation = useCallback(async (email, inviteRole = "employee") => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error("Not authenticated");
+    const { data, error } = await supabase.rpc("invite_user", {
+      invite_email: email,
+      invite_role: inviteRole,
+    });
+    if (error) throw error;
+    if (data && data.success === false) throw new Error(data.error || "Failed to invite user");
+    return data;
   }, []);
 
   useEffect(() => {
     let isMounted = true;
     let authCheckInProgress = false;
-    
+
     const checkAuth = async () => {
-      // Prevent multiple simultaneous auth checks
-      if (authCheckInProgress) {
-        console.log("🔒 Auth check already in progress, skipping...");
-        return;
-      }
-      
+      if (authCheckInProgress) return;
       authCheckInProgress = true;
-      
+
       try {
-        console.log("🔍 Checking authentication status...");
-        
-        // Get current session without timeout (Supabase handles this)
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
         if (!isMounted) return;
-        
+
         if (error) {
           console.error("Error getting session:", error);
           setLoading(false);
@@ -553,25 +188,18 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (session?.user) {
-          console.log("✅ User authenticated");
           setUser(session.user);
           currentUserIdRef.current = session.user.id;
-          setRole('loading'); // Set loading state instead of default role
-          currentRoleRef.current = 'loading';
-          
-          // Keep the auth loading screen visible until permissions are known.
-          console.log("🔄 Starting profile fetch for authenticated user");
+          setRole("loading");
+          currentRoleRef.current = "loading";
+
           const profile = await getUserProfile(session.user.id);
           if (!isMounted) return;
-
           setUserProfile(profile);
-          // Use the role from the UHub user account, not from the employee record.
-          const detectedRole = profile?.role || 'employee';
+          const detectedRole = roleFromProfile(profile);
           setRole(detectedRole);
           currentRoleRef.current = detectedRole;
-          console.log("✅ Role set to:", detectedRole);
         } else {
-          console.log("❌ No active session found");
           currentUserIdRef.current = null;
           currentRoleRef.current = null;
         }
@@ -580,7 +208,6 @@ export const AuthProvider = ({ children }) => {
         console.error("Error in checkAuth:", error);
       } finally {
         if (!isMounted) return;
-        console.log("🏁 Auth check completed");
         setLoading(false);
         setAuthChecked(true);
         authCheckInProgress = false;
@@ -589,70 +216,59 @@ export const AuthProvider = ({ children }) => {
 
     checkAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
-        
-        console.log("🔄 Auth state change:", event);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          const isSameResolvedUser =
-            currentUserIdRef.current === session.user.id &&
-            currentRoleRef.current &&
-            currentRoleRef.current !== 'loading';
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
 
-          setUser(session.user);
-          currentUserIdRef.current = session.user.id;
+      if (event === "SIGNED_IN" && session?.user) {
+        const isSameResolvedUser =
+          currentUserIdRef.current === session.user.id &&
+          currentRoleRef.current &&
+          currentRoleRef.current !== "loading";
 
-          // Supabase may emit SIGNED_IN again when an existing tab regains focus.
-          // Preserve the rendered app for the same user instead of blanking the
-          // protected route while its profile is refreshed.
-          if (!isSameResolvedUser) {
-            setLoading(true);
-            setRole('loading');
-            currentRoleRef.current = 'loading';
-          }
-          
-          // Fetch profile in background
-          console.log("🔄 Auth state change - Starting profile fetch");
-          getUserProfile(session.user.id)
-            .then(profile => {
-              if (!isMounted || currentUserIdRef.current !== session.user.id) return;
-              setUserProfile(profile);
-              // Use the role from the UHub user account, not from the employee record.
-              const detectedRole = profile?.role || 'employee';
-              setRole(detectedRole);
-              currentRoleRef.current = detectedRole;
-              console.log("✅ Auth state change - Role set to:", detectedRole);
-            })
-            .catch(error => {
-              if (!isMounted) return;
-              console.warn("Profile fetch failed:", error);
-              console.error("❌ Auth state change - Profile fetch error details:", error);
-            })
-            .finally(() => {
-              if (isMounted && !isSameResolvedUser) {
-                setLoading(false);
-              }
-            });
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setUserProfile(null);
-          setRole(null);
-          setLoading(false);
-          currentUserIdRef.current = null;
-          currentRoleRef.current = null;
-          setProfileCache(new Map());
+        setUser(session.user);
+        currentUserIdRef.current = session.user.id;
+
+        if (!isSameResolvedUser) {
+          setLoading(true);
+          setRole("loading");
+          currentRoleRef.current = "loading";
         }
+
+        getUserProfile(session.user.id)
+          .then((profile) => {
+            if (!isMounted || currentUserIdRef.current !== session.user.id) return;
+            setUserProfile(profile);
+            const detectedRole = roleFromProfile(profile);
+            setRole(detectedRole);
+            currentRoleRef.current = detectedRole;
+          })
+          .catch((error) => {
+            if (!isMounted) return;
+            console.warn("Profile fetch failed:", error);
+          })
+          .finally(() => {
+            if (isMounted && !isSameResolvedUser) {
+              setLoading(false);
+            }
+          });
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+        setUserProfile(null);
+        setRole(null);
+        setLoading(false);
+        currentUserIdRef.current = null;
+        currentRoleRef.current = null;
+        setProfileCache(new Map());
       }
-    );
+    });
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Remove getUserProfile dependency to prevent infinite loops
+  }, []);
 
   const value = {
     user,
@@ -662,73 +278,14 @@ export const AuthProvider = ({ children }) => {
     authChecked,
     signOut,
     sendInvitation,
-    acceptInvitation,
     getUserProfile,
-    // Add a function to force refresh the profile
     refreshProfile: async () => {
       if (user?.id) {
         const profile = await getUserProfile(user.id);
-        if (profile) {
-          setUserProfile(profile);
-          setRole(profile.role || 'employee');
-          console.log("Role set to:", profile.role);
-        }
+        setUserProfile(profile);
+        setRole(roleFromProfile(profile));
       }
     },
-    // Add a function to manually set role (for debugging)
-    setUserRole: (newRole) => {
-      setRole(newRole);
-      console.log("Role manually set to:", newRole);
-    },
-    // Add a function to check database health
-    checkDatabaseHealth: async () => {
-      console.log("🔍 Checking database health...");
-      try {
-        // Test users table
-        const { data: usersTest, error: usersError } = await supabase
-          .from("users")
-          .select("count")
-          .limit(1);
-        console.log("Users table test:", usersError ? "❌ Failed" : "✅ OK", usersError);
-        
-        // Test employees table
-        const { data: employeesTest, error: employeesError } = await supabase
-          .from("employees")
-          .select("count")
-          .limit(1);
-        console.log("Employees table test:", employeesError ? "❌ Failed" : "✅ OK", employeesError);
-        
-        return {
-          users: !usersError,
-          employees: !employeesError,
-          usersError: usersError?.message,
-          employeesError: employeesError?.message
-        };
-      } catch (error) {
-        console.error("Database health check failed:", error);
-        return { error: error.message };
-      }
-    },
-    // Add a function to create profile without database operations (for testing)
-    createSimpleProfile: (email) => {
-      console.log("🔧 Creating simple profile for:", email);
-      const adminEmails = ['ifham@udrive.ae', 'saman@udrive.ae', 'talha@udrive.ae', 'services@udrive.ae'];
-      const simpleProfile = {
-        id: `simple_${Date.now()}`,
-        auth_user_id: user?.id,
-        email: email,
-        role: adminEmails.includes(email) ? 'admin' : 'employee',
-        status: 'active',
-        full_name: email.split('@')[0],
-        department: adminEmails.includes(email) ? 'IT' : 'Unassigned',
-        position: adminEmails.includes(email) ? 'System Administrator' : 'Employee'
-      };
-      
-      setUserProfile(simpleProfile);
-      setRole(simpleProfile.role);
-      console.log("✅ Simple profile created:", simpleProfile);
-      return simpleProfile;
-    }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -22,23 +22,8 @@ create table if not exists public.payroll_formulas (
 create index if not exists payroll_formulas_created_at_idx
   on public.payroll_formulas (created_at desc);
 
--- RLS (basic, tighten to HR/admin roles if desired)
+-- Enable RLS. Apply staff-only policies by running restrict_payroll_rls.sql.
 alter table public.payroll_formulas enable row level security;
-
-do $$
-begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'payroll_formulas' and policyname = 'payroll_formulas_auth_all'
-  ) then
-    create policy payroll_formulas_auth_all
-      on public.payroll_formulas
-      for all
-      to authenticated
-      using (true)
-      with check (true);
-  end if;
-end $$;
 
 -- Seed the default formula set (matches the previous hardcoded calculation)
 insert into public.payroll_formulas (gross_formula, tax_formula, net_formula, locked_by_name)

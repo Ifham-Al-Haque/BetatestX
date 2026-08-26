@@ -1095,7 +1095,6 @@ export const apiService = {
               password: userData.password,
               options: {
                 data: {
-                  role: userData.role,
                   full_name: userData.email.split('@')[0]
                 }
               }
