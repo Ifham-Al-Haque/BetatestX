@@ -149,7 +149,7 @@ const FleetDashboard = () => {
                 </div>
               </div>
               {vehicles.filter((v) => ['expired', 'this_month', 'next_30'].includes(expiryStatus(v.registration_expiry))).slice(0, 6).length === 0 ? (
-                <p className="text-sm text-gray-500">No Mulkiya expiring soon. Add registration expiry on the Fleet Record.</p>
+                <p className="text-sm text-gray-500">No Mulkiya expiring soon. Add one from the Mulkiya page.</p>
               ) : (
                 <ul className="space-y-2">
                   {vehicles

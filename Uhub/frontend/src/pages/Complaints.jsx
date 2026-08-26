@@ -51,30 +51,20 @@ const Complaints = () => {
 
   useEffect(() => {
     if (userProfile) {
-      console.log('UserProfile loaded:', userProfile);
       fetchData();
     }
   }, [userProfile]);
-
-  useEffect(() => {
-    console.log('User state:', user);
-    console.log('UserProfile state:', userProfile);
-  }, [user, userProfile]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      console.log('Fetching complaints for user:', user?.id, 'with role:', userProfile?.role);
-      
-      // Fetch real complaints from database
       const realComplaints = await complaintsApi.getComplaintsWithFilters(
         filters, 
         user?.id, 
         userProfile?.role
       );
       
-      console.log('Fetched complaints:', realComplaints);
       setComplaints(realComplaints);
     } catch (error) {
       console.error('Error fetching complaints:', error);

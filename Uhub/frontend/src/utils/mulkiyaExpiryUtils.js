@@ -46,6 +46,33 @@ export const EXPIRY_STYLES = {
   none: { badge: 'bg-gray-100 text-gray-600 border-gray-200', bar: '#94a3b8', label: 'No date' },
 };
 
+export function hasMulkiyaData(vehicle) {
+  if (!vehicle) return false;
+  return Boolean(
+    vehicle.registration_expiry || vehicle.mulkiya_number || vehicle.mulkiya_document_url
+  );
+}
+
+export function vehicleModelLabel(vehicle) {
+  if (!vehicle) return 'Unknown model';
+  const makeModel = [vehicle.make, vehicle.model].filter(Boolean).join(' ').trim();
+  return makeModel || vehicle.car_name?.trim() || 'Unknown model';
+}
+
+/** Group vehicles by make + model, largest groups first. */
+export function countByModel(vehicles = []) {
+  const map = {};
+  vehicles.forEach((v) => {
+    const model = vehicleModelLabel(v);
+    if (!map[model]) map[model] = { model, count: 0, vehicles: [] };
+    map[model].count += 1;
+    map[model].vehicles.push(v);
+  });
+  return Object.values(map).sort(
+    (a, b) => b.count - a.count || a.model.localeCompare(b.model)
+  );
+}
+
 export function summarizeMulkiya(vehicles = []) {
   const withDate = vehicles.filter((v) => v.registration_expiry);
   let expired = 0;
@@ -61,11 +88,14 @@ export function summarizeMulkiya(vehicles = []) {
   return { total: vehicles.length, withDate: withDate.length, expired, thisMonth, next30, missing };
 }
 
-/** Next `months` calendar months, with vehicle counts for registration_expiry. */
-export function buildMulkiyaMonthSeries(vehicles = [], months = 12) {
+/**
+ * Calendar months around today (past + future) with vehicle counts
+ * for registration / Mulkiya expiry.
+ */
+export function buildMulkiyaMonthSeries(vehicles = [], months = 12, { pastMonths = 3 } = {}) {
   const now = new Date();
   const series = [];
-  for (let i = 0; i < months; i += 1) {
+  for (let i = -pastMonths; i < months; i += 1) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const key = monthKey(d);
     series.push({
@@ -75,6 +105,7 @@ export function buildMulkiyaMonthSeries(vehicles = [], months = 12) {
       month: d.getMonth(),
       count: 0,
       vehicles: [],
+      byModel: [],
     });
   }
   const map = Object.fromEntries(series.map((s) => [s.key, s]));
@@ -84,6 +115,9 @@ export function buildMulkiyaMonthSeries(vehicles = [], months = 12) {
       map[key].count += 1;
       map[key].vehicles.push(v);
     }
+  });
+  series.forEach((row) => {
+    row.byModel = countByModel(row.vehicles);
   });
   return series;
 }

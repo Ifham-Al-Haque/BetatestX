@@ -109,8 +109,7 @@ export const widgetConfig = [
     icon: Headphones,
     color: 'from-orange-500 to-amber-600',
     items: [
-      { label: 'CSPA', path: '/cspa', icon: Headphones, feature: 'cspa', description: 'Customer support' },
-      { label: 'CS Tickets', path: '/tickets', icon: FileText, feature: 'cs_tickets', description: 'Manage tickets' }
+      { label: 'CSPA', path: '/cspa', icon: Headphones, feature: 'cspa', description: 'Customer support' }
     ]
   },
   {
@@ -147,7 +146,6 @@ export const widgetConfig = [
       { label: 'Expense Tracker', path: '/expenses', icon: BarChart3, feature: 'expense_tracker', description: 'Track expenses' },
       { label: 'Payment Calendar', path: '/payment-calendar', icon: Calendar, feature: 'payment_calendar', description: 'Payment schedule' },
       { label: 'Upcoming Payments', path: '/upcoming-payments', icon: Calendar, feature: 'upcoming_payments', description: 'Due payments' },
-      { label: 'Vouchers', path: '/vouchers', icon: FileText, feature: 'vouchers', description: 'Manage vouchers' },
       { label: 'Analytics', path: '/analytics', icon: BarChart3, feature: 'analytics', description: 'Financial analytics' }
     ]
   },
@@ -159,7 +157,6 @@ export const widgetConfig = [
     items: [
       { label: 'Events', path: '/events', icon: Calendar, feature: 'events', description: 'View events' },
       { label: 'Memories', path: '/memories', icon: Heart, feature: 'memories', description: 'View memories' },
-      { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections', description: 'View collections' },
       { label: 'Picture Upload', path: '/event-picture-upload', icon: Camera, feature: 'events', description: 'Upload photos' }
     ]
   },
@@ -197,10 +194,7 @@ export const widgetConfig = [
     icon: Sparkles,
     color: 'from-pink-500 to-rose-600',
     items: [
-      { label: 'Marketing Calendar', path: '/marketing-calendar', icon: Calendar, feature: 'marketing_calendar', description: 'Marketing schedule' },
-      { label: 'Marketing Dashboard', path: '/marketing-dashboard', icon: BarChart3, feature: 'marketing_dashboard', description: 'Marketing analytics' },
-      { label: 'Marketing Events', path: '/marketing-events', icon: Calendar, feature: 'marketing_events', description: 'Marketing events' },
-      { label: 'Marketing Analytics', path: '/marketing-analytics', icon: BarChart3, feature: 'marketing_analytics', description: 'View analytics' }
+      { label: 'Marketing Calendar', path: '/marketing-calendar', icon: Calendar, feature: 'marketing_calendar', description: 'Marketing schedule' }
     ]
   },
   {

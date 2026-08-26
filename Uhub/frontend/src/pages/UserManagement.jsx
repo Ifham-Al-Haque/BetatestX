@@ -31,7 +31,7 @@ const TABS = [
 ];
 
 export default function UserManagement() {
-  const { user } = useAuth();
+  const { role } = useAuth();
   const { success, error: showError } = useToast();
   
   const [showUserForm, setShowUserForm] = useState(false);
@@ -44,8 +44,7 @@ export default function UserManagement() {
   const [activeTab, setActiveTab] = useState('users');
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Check if current user is authorized admin (ifham@udrive.ae)
-  const isAuthorizedAdmin = user?.email === 'ifham@udrive.ae';
+  const isAuthorizedAdmin = role === 'admin';
   
   // Password strength indicator
   const getPasswordStrength = (password) => {

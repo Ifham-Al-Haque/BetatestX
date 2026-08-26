@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Edit, Trash, Search, Filter, FileText, Download, Calendar,
@@ -436,63 +437,14 @@ export default function Voucher() {
 
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   
-  // Sample data
-  const [vouchers, setVouchers] = useState([
-    {
-      id: 1,
-      voucher_number: "VCH-2024-001",
-      voucher_type: "Expense",
-      amount: "1250.00",
-      currency: "AED",
-      description: "Office supplies and stationery for IT department",
-      category: "Office Supplies",
-      department: "IT",
-      employee_name: "Ahmed Al Mansouri",
-      vendor_name: "Office Plus UAE",
-      issue_date: "2024-01-15",
-      status: "Paid",
-      approval_status: "Approved",
-      notes: "Urgent supplies needed for new project"
-    },
-    {
-      id: 2,
-      voucher_number: "VCH-2024-002",
-      voucher_type: "Reimbursement",
-      amount: "850.00",
-      currency: "AED",
-      description: "Travel expenses for client meeting in Dubai",
-      category: "Travel",
-      department: "Sales",
-      employee_name: "Fatima Hassan",
-      vendor_name: "",
-      issue_date: "2024-01-20",
-      status: "Pending",
-      approval_status: "Under Review",
-      notes: "Includes taxi, lunch, and parking fees"
-    },
-    {
-      id: 3,
-      voucher_number: "VCH-2024-003",
-      voucher_type: "Payment",
-      amount: "5000.00",
-      currency: "AED",
-      description: "Software license renewal for design tools",
-      category: "Software",
-      department: "Marketing",
-      employee_name: "",
-      vendor_name: "Adobe Systems",
-      issue_date: "2024-01-25",
-      status: "Approved",
-      approval_status: "Approved",
-      notes: "Annual subscription renewal"
-    }
-  ]);
+  // Vouchers are not persisted yet — do not show sample records as if they were real.
+  const [vouchers, setVouchers] = useState([]);
 
   // Filtered data
   const filteredVouchers = vouchers.filter(voucher => {
     const matchesSearch = voucher.voucher_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          voucher.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         voucher.employee_name.toLowerCase().includes(searchTerm.toLowerCase());
+                         (voucher.employee_name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || voucher.status === statusFilter;
     const matchesType = !typeFilter || voucher.voucher_type === typeFilter;
     const matchesCategory = !categoryFilter || voucher.category === categoryFilter;
@@ -588,16 +540,15 @@ export default function Voucher() {
                 Voucher Management
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2">
-                Manage company vouchers, track payments, and generate reports
+                Voucher tracking is not connected to the database yet. Use Expense Tracker for spend records.
               </p>
             </div>
-            <button
-              onClick={handleAddVoucher}
+            <Link
+              to="/expenses"
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              Create Voucher
-            </button>
+              Open Expense Tracker
+            </Link>
           </div>
 
           {/* Filters */}
@@ -765,7 +716,7 @@ export default function Voucher() {
                 <p className="text-sm text-gray-400 mt-2">
                   {searchTerm || statusFilter || typeFilter || categoryFilter || departmentFilter 
                     ? "Try adjusting your filters" 
-                    : "Create your first voucher to get started"}
+                    : "Voucher tracking is not available yet. Use Expense Tracker instead."}
                 </p>
               </div>
             ) : (

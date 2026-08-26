@@ -33,11 +33,11 @@ export default function OffboardingDetail({ record, onBack, onRefresh }) {
       setLoading(true);
       const [detailData, checklistData, assetData, accessData, commentsData, documentsData] = await Promise.all([
         onboardingOffboardingApi.offboarding.getById(record.record_id),
-        onboardingOffboardingApi.offboardingChecklist.getByOffboardingId(record.record_id),
-        onboardingOffboardingApi.assetTracking.getByOffboardingId(record.record_id),
-        onboardingOffboardingApi.accessRevocation.getByOffboardingId(record.record_id),
-        onboardingOffboardingApi.comments.getByEmployeeId(record.employee_id, 'offboarding'),
-        onboardingOffboardingApi.documents.getByEmployeeId(record.employee_id, 'offboarding')
+        onboardingOffboardingApi.offboardingChecklist.getByOffboardingId(record.record_id).catch(() => []),
+        onboardingOffboardingApi.assetTracking.getByOffboardingId(record.record_id).catch(() => []),
+        onboardingOffboardingApi.accessRevocation.getByOffboardingId(record.record_id).catch(() => []),
+        onboardingOffboardingApi.comments.getByEmployeeId(record.employee_id, 'offboarding').catch(() => []),
+        onboardingOffboardingApi.documents.getByEmployeeId(record.employee_id, 'offboarding').catch(() => [])
       ]);
       
       setOffboardingData(detailData);
@@ -51,6 +51,52 @@ export default function OffboardingDetail({ record, onBack, onRefresh }) {
       console.error('Error loading offboarding details:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChecklistToggle = async (item) => {
+    try {
+      const actorId = userProfile?.employeeId || null;
+      if (item.is_completed) {
+        await onboardingOffboardingApi.offboardingChecklist.markIncomplete(item.id);
+      } else {
+        await onboardingOffboardingApi.offboardingChecklist.markComplete(item.id, actorId);
+      }
+      const updated = await onboardingOffboardingApi.offboardingChecklist.getByOffboardingId(record.record_id);
+      setChecklistItems(updated || []);
+      onRefresh?.();
+      success('Success', item.is_completed ? 'Checklist item marked incomplete' : 'Checklist item completed');
+    } catch (err) {
+      showError('Error', 'Failed to update checklist item');
+    }
+  };
+
+  const handleAssetStatus = async (asset, return_status) => {
+    try {
+      await onboardingOffboardingApi.assetTracking.updateAsset(asset.id, {
+        return_status,
+        return_date: return_status === 'returned' ? new Date().toISOString().slice(0, 10) : null,
+      });
+      const updated = await onboardingOffboardingApi.assetTracking.getByOffboardingId(record.record_id);
+      setAssetTracking(updated || []);
+      success('Success', 'Asset return status updated');
+    } catch (err) {
+      showError('Error', 'Failed to update asset');
+    }
+  };
+
+  const handleAccessStatus = async (access, revocation_status) => {
+    try {
+      await onboardingOffboardingApi.accessRevocation.updateAccess(access.id, {
+        revocation_status,
+        revoked_by: userProfile?.employeeId || null,
+        revoked_at: revocation_status === 'revoked' ? new Date().toISOString() : null,
+      });
+      const updated = await onboardingOffboardingApi.accessRevocation.getByOffboardingId(record.record_id);
+      setAccessRevocation(updated || []);
+      success('Success', 'Access revocation status updated');
+    } catch (err) {
+      showError('Error', 'Failed to update access item');
     }
   };
 
@@ -350,13 +396,43 @@ export default function OffboardingDetail({ record, onBack, onRefresh }) {
               key="checklist"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-4"
+              className="space-y-3"
             >
               <h3 className="font-semibold text-gray-900">Offboarding Checklist</h3>
-              <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Checklist functionality coming soon...</p>
-              </div>
+              {checklistItems.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No checklist items yet</p>
+                </div>
+              ) : (
+                checklistItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleChecklistToggle(item)}
+                    className="w-full text-left bg-white border border-gray-200 rounded-lg p-4 hover:border-red-200 transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      {item.is_completed ? (
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-gray-400 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`font-medium ${item.is_completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                          {item.checklist_item}
+                        </p>
+                        {item.description && <p className="text-sm text-gray-500 mt-1">{item.description}</p>}
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
+                          {item.category && <span className="px-2 py-0.5 rounded-full bg-gray-100">{item.category}</span>}
+                          {item.priority && <span className="px-2 py-0.5 rounded-full bg-gray-100">{item.priority}</span>}
+                          {item.assigned_to_employee?.full_name && <span>Assigned: {item.assigned_to_employee.full_name}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
             </motion.div>
           )}
 
@@ -365,13 +441,34 @@ export default function OffboardingDetail({ record, onBack, onRefresh }) {
               key="assets"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-4"
+              className="space-y-3"
             >
               <h3 className="font-semibold text-gray-900">Asset Tracking</h3>
-              <div className="text-center py-8">
-                <Key className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Asset tracking functionality coming soon...</p>
-              </div>
+              {assetTracking.length === 0 ? (
+                <div className="text-center py-8">
+                  <Key className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No assets tracked for this offboarding yet</p>
+                </div>
+              ) : (
+                assetTracking.map((asset) => (
+                  <div key={asset.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium text-gray-900">{asset.asset_name}</p>
+                      <p className="text-sm text-gray-500">{asset.asset_type}{asset.asset_id ? ` · ${asset.asset_id}` : ''}</p>
+                    </div>
+                    <select
+                      value={asset.return_status || 'pending'}
+                      onChange={(e) => handleAssetStatus(asset, e.target.value)}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="returned">Returned</option>
+                      <option value="not_returned">Not returned</option>
+                      <option value="damaged">Damaged</option>
+                    </select>
+                  </div>
+                ))
+              )}
             </motion.div>
           )}
 
@@ -380,13 +477,34 @@ export default function OffboardingDetail({ record, onBack, onRefresh }) {
               key="access"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-4"
+              className="space-y-3"
             >
               <h3 className="font-semibold text-gray-900">Access Revocation</h3>
-              <div className="text-center py-8">
-                <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Access revocation functionality coming soon...</p>
-              </div>
+              {accessRevocation.length === 0 ? (
+                <div className="text-center py-8">
+                  <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No access items listed yet</p>
+                </div>
+              ) : (
+                accessRevocation.map((access) => (
+                  <div key={access.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium text-gray-900">{access.access_name}</p>
+                      <p className="text-sm text-gray-500">{access.access_type}</p>
+                    </div>
+                    <select
+                      value={access.revocation_status || 'pending'}
+                      onChange={(e) => handleAccessStatus(access, e.target.value)}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="revoked">Revoked</option>
+                      <option value="partially_revoked">Partially revoked</option>
+                      <option value="failed">Failed</option>
+                    </select>
+                  </div>
+                ))
+              )}
             </motion.div>
           )}
 
@@ -395,13 +513,25 @@ export default function OffboardingDetail({ record, onBack, onRefresh }) {
               key="documents"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="space-y-4"
+              className="space-y-3"
             >
               <h3 className="font-semibold text-gray-900">Documents</h3>
-              <div className="text-center py-8">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Document management functionality coming soon...</p>
-              </div>
+              {documents.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No offboarding documents uploaded yet</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {documents.map((document) => (
+                    <div key={document.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                      <FileText className="w-8 h-8 text-blue-600 mb-2" />
+                      <h4 className="font-medium text-gray-900">{document.document_name}</h4>
+                      <p className="text-sm text-gray-600">{document.document_type || document.document_category}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
         </div>

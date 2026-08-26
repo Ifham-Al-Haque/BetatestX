@@ -11,9 +11,7 @@ import { useToast } from '../../context/ToastContext';
 import onboardingOffboardingApi from '../../services/onboardingOffboardingApi';
 import OnboardingChecklist from './OnboardingChecklist';
 import StatusManager from './StatusManager';
-import { debugOnboardingTable, testStatusUpdate } from './StatusUpdateDebug';
 import { updateOnboardingStatus } from './StatusUpdateFallback';
-import StatusUpdateTest from './StatusUpdateTest';
 
 export default function OnboardingDetail({ record, onBack, onRefresh, onEdit, onDelete }) {
   const { userProfile } = useAuth();
@@ -522,11 +520,6 @@ export default function OnboardingDetail({ record, onBack, onRefresh, onEdit, on
                     <Clock className="w-8 h-8 text-yellow-600" />
                   </div>
                 </div>
-              </div>
-
-              {/* Debug Test Component - Remove this after fixing the issue */}
-              <div className="mt-6">
-                <StatusUpdateTest recordId={record.id || record.record_id} />
               </div>
             </motion.div>
           )}

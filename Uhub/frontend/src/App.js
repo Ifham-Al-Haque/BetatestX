@@ -106,7 +106,6 @@ const EventPictureUpload = safeLazy(() => import('./pages/EventPictureUpload'), 
 const UserWelcome = safeLazy(() => import('./pages/UserWelcome'), 'UserWelcome');
 const SubscribeNow = safeLazy(() => import('./pages/SubscribeNow'), 'SubscribeNow');
 const Collections = safeLazy(() => import('./pages/Collections'), 'Collections');
-const FleetOffboarding = safeLazy(() => import('./pages/FleetOffboarding'), 'FleetOffboarding');
 const FleetDeliveryChecklist = safeLazy(() => import('./pages/FleetDeliveryChecklist'), 'FleetDeliveryChecklist');
 const FleetMaintenanceRecord = safeLazy(() => import('./pages/FleetMaintenanceRecord'), 'FleetMaintenanceRecord');
 const FleetDriverCalendar = safeLazy(() => import('./pages/FleetDriverCalendar'), 'FleetDriverCalendar');
@@ -546,41 +545,17 @@ function App() {
                           </ProtectedRoute>
                         } />
 
-                        {/* CS Tickets */}
-                        <Route path="/tickets" element={
-                          <ProtectedRoute requiredFeature="cs_tickets">
-                            <Layout>
-                              <div className="p-8">
-                                <h1 className="text-2xl font-bold mb-4">CS Tickets</h1>
-                                <p>Customer service tickets functionality coming soon...</p>
-                              </div>
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
+                        {/* CS Tickets is not built — send leftover links to CSPA */}
+                        <Route path="/tickets" element={<Navigate to="/cspa" replace />} />
 
-                        {/* Fleet Records */}
-                        <Route path="/driver-operations" element={
-                          <ProtectedRoute requiredFeature="fleet_records">
-                            <Layout>
-                              <div className="p-8">
-                                <h1 className="text-2xl font-bold mb-4">Fleet Records</h1>
-                                <p>Fleet records functionality coming soon...</p>
-                              </div>
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
+                        {/* Legacy operation/fleet paths → working Operation pages */}
+                        <Route path="/driver-operations" element={<Navigate to="/operation/fleet-records" replace />} />
+                        <Route path="/breakdowns" element={<Navigate to="/operation/breakdowns" replace />} />
 
-                        {/* Breakdowns */}
-                        <Route path="/breakdowns" element={
-                          <ProtectedRoute requiredFeature="breakdowns">
-                            <Layout>
-                              <div className="p-8">
-                                <h1 className="text-2xl font-bold mb-4">Breakdowns</h1>
-                                <p>Breakdowns management functionality coming soon...</p>
-                              </div>
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
+                        {/* Marketing extras were never built — keep Calendar as the real page */}
+                        <Route path="/marketing-dashboard" element={<Navigate to="/marketing-calendar" replace />} />
+                        <Route path="/marketing-events" element={<Navigate to="/marketing-calendar" replace />} />
+                        <Route path="/marketing-analytics" element={<Navigate to="/marketing-calendar" replace />} />
 
                         {/* Sim Cards */}
                         <Route path="/simcards" element={
@@ -657,44 +632,6 @@ function App() {
                           <ProtectedRoute requiredFeature="reports">
                             <Layout>
                               <TaskReports />
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
-
-                        {/* Fleet Management Routes */}
-                        {/* Fleet onboarding removed — adding a vehicle in Fleet Records covers it. */}
-                        <Route path="/fleet-onboarding" element={
-                          <Navigate to="/operation/fleet-lifecycle" replace />
-                        } />
-
-                        <Route path="/fleet-offboarding" element={
-                          <ProtectedRoute requiredFeature="fleet_offboarding">
-                            <Layout>
-                              <FleetOffboarding />
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
-
-                        <Route path="/fleet-delivery-checklist" element={
-                          <ProtectedRoute requiredFeature="fleet_delivery_checklist">
-                            <Layout>
-                              <FleetDeliveryChecklist />
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
-
-                        <Route path="/fleet-maintenance-record" element={
-                          <ProtectedRoute requiredFeature="fleet_maintenance_record">
-                            <Layout>
-                              <FleetMaintenanceRecord />
-                            </Layout>
-                          </ProtectedRoute>
-                        } />
-
-                        <Route path="/fleet-driver-calendar" element={
-                          <ProtectedRoute requiredFeature="fleet_management">
-                            <Layout>
-                              <FleetDriverCalendar />
                             </Layout>
                           </ProtectedRoute>
                         } />
@@ -855,10 +792,6 @@ function App() {
                             </Layout>
                           </ProtectedRoute>
                         } />
-
-                        {/* Legacy operation/fleet paths → new Operation routes */}
-                        <Route path="/driver-operations" element={<Navigate to="/operation/fleet-records" replace />} />
-                        <Route path="/breakdowns" element={<Navigate to="/operation/breakdowns" replace />} />
 
                         {/* Catch all route - redirect to home for authenticated users */}
                         <Route path="*" element={

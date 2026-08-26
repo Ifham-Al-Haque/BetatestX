@@ -345,17 +345,17 @@ export const getRoleNavigationAccess = (userRole) => {
         admin: ['admin_dashboard', 'user_management'],
         user_profile: ['profile', 'settings'],
         hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'leave', 'payroll', 'payroll_calculator', 'epr'],
-        customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
+        customer_service: ['cspa'],
         it_services: ['it_requests', 'it_assets', 'it_tickets', 'request_inbox', 'it_tools'],
         operation: ['fleet_records', 'fleet_lifecycle', 'udrive_fleetio', 'driver_records', 'driver_documents', 'breakdowns', 'operation_roster', 'delivery_management', 'delivery_tracking', 'delivery_routes'],
-        asset_management: ['assets', 'simcards', 'vouchers'],
+        asset_management: ['assets', 'simcards'],
         financial: ['expenses', 'expense_tracker', 'payment_calendar', 'upcoming_payments'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
         subscribe_panel: ['subscribe_now', 'ltr_reporting'],
         collections_panel: ['collections'],
-        marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics'],
+        marketing_panel: ['marketing_calendar'],
         iot_panel: ['iot_record']
       }
     },
@@ -383,7 +383,7 @@ export const getRoleNavigationAccess = (userRole) => {
         hr_panel: ['employee_records', 'complaints', 'suggestions'],
         it_services: ['it_requests'],
         asset_management: ['simcards'],
-        financial: ['payment_calendar', 'upcoming_payments', 'vouchers'],
+        financial: ['payment_calendar', 'upcoming_payments'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
@@ -442,7 +442,7 @@ export const getRoleNavigationAccess = (userRole) => {
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],
       communication: ['communication'],
-      customer_service: ['cspa', 'cs_tickets', 'cs_requests'],
+      customer_service: ['cspa'],
       subscribe_panel: ['subscribe_now']
     }
   },
@@ -527,7 +527,7 @@ export const getRoleNavigationAccess = (userRole) => {
         it_services: ['it_requests'],
         operation: ['udrive_fleetio', 'fleet_delivery_checklist', 'fleet_maintenance_record'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories', 'collections'],
+        slice_of_life: ['events', 'memories'],
         communication: ['team_chat', 'communication'],
         subscribe_panel: ['subscribe_now', 'ltr_reporting']
       }
@@ -542,7 +542,7 @@ export const getRoleNavigationAccess = (userRole) => {
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],
       communication: ['communication'],
-      marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics'],
+      marketing_panel: ['marketing_calendar'],
       subscribe_panel: ['subscribe_now']
     }
   },
@@ -556,7 +556,7 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        marketing_panel: ['marketing_calendar', 'marketing_events'],
+        marketing_panel: ['marketing_calendar'],
         subscribe_panel: ['subscribe_now']
       }
     },
@@ -569,7 +569,7 @@ export const getRoleNavigationAccess = (userRole) => {
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
         slice_of_life: ['events', 'memories'],
         communication: ['communication'],
-        marketing_panel: ['marketing_calendar', 'marketing_dashboard', 'marketing_events', 'marketing_analytics']
+        marketing_panel: ['marketing_calendar']
       }
     },
     iot_management: {
@@ -580,7 +580,7 @@ export const getRoleNavigationAccess = (userRole) => {
         hr_panel: ['complaints', 'suggestions'],
         it_services: ['it_requests'],
         todo_list: ['todo_list', 'task_management', 'my_tasks'],
-        slice_of_life: ['events', 'memories', 'collections'],
+        slice_of_life: ['events', 'memories'],
         iot_panel: ['iot_record']
       }
     }

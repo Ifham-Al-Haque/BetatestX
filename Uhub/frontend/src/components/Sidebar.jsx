@@ -61,7 +61,6 @@ const NAVIGATION_PANELS = [
     items: [
       { label: 'Events', path: '/events', icon: Calendar, feature: 'events' },
       { label: 'Memories', path: '/memories', icon: Heart, feature: 'memories' },
-      { label: 'Collections', path: '/collections', icon: Folder, feature: 'collections' },
       { label: 'Picture Upload', path: '/event-picture-upload', icon: Camera, feature: 'events' }
     ]
   },
@@ -112,8 +111,7 @@ const NAVIGATION_PANELS = [
     title: 'Customer Service',
     icon: Headphones,
     items: [
-      { label: 'CSPA', path: '/cspa', icon: Headphones, feature: 'cspa' },
-      { label: 'CS Tickets', path: '/tickets', icon: FileText, feature: 'cs_tickets' }
+      { label: 'CSPA', path: '/cspa', icon: Headphones, feature: 'cspa' }
     ]
   },
   {
@@ -159,7 +157,6 @@ const NAVIGATION_PANELS = [
       { label: 'Expense Tracker', path: '/expenses', icon: BarChart3, feature: 'expense_tracker' },
       { label: 'Payment Calendar', path: '/payment-calendar', icon: Calendar, feature: 'payment_calendar' },
       { label: 'Upcoming Payments', path: '/upcoming-payments', icon: Calendar, feature: 'upcoming_payments' },
-      { label: 'Vouchers', path: '/vouchers', icon: FileText, feature: 'vouchers' },
       { label: 'Analytics', path: '/analytics', icon: BarChart3, feature: 'analytics' }
     ]
   },
@@ -195,10 +192,7 @@ const NAVIGATION_PANELS = [
     title: 'Marketing',
     icon: Sparkles,
     items: [
-      { label: 'Marketing Calendar', path: '/marketing-calendar', icon: Calendar, feature: 'marketing_calendar' },
-      { label: 'Marketing Dashboard', path: '/marketing-dashboard', icon: BarChart3, feature: 'marketing_dashboard' },
-      { label: 'Marketing Events', path: '/marketing-events', icon: Calendar, feature: 'marketing_events' },
-      { label: 'Marketing Analytics', path: '/marketing-analytics', icon: BarChart3, feature: 'marketing_analytics' }
+      { label: 'Marketing Calendar', path: '/marketing-calendar', icon: Calendar, feature: 'marketing_calendar' }
     ]
   },
   {
