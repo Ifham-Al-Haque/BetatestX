@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Car, Wrench, Fuel, AlertTriangle, Calendar, MapPin, DollarSign, ArrowLeft, FileText, LayoutGrid, PieChart, UserX, CheckCircle, Clock } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { X, Car, Wrench, Fuel, AlertTriangle, Calendar, DollarSign, FileText, LayoutGrid, PieChart, UserX, CheckCircle, Clock } from 'lucide-react';
 import fleetService from '../../services/fleetService';
 import fleetOffboardingService, { OFFBOARDING_REASONS } from '../../services/fleetOffboardingService';
 import FleetVehicleMediaSection from './FleetVehicleMediaSection';
 import FleetRecordOverview from './FleetRecordOverview';
 import FleetRecordEconomicsTab from './FleetRecordEconomicsTab';
 import StartFleetOffboardingModal from './StartFleetOffboardingModal';
-import { getCarDisplayName, formatFleetCurrency } from '../../utils/fleetRecordUtils';
+import UaePlate from './UaePlate';
+import { getCarDisplayName, formatFleetCurrency, statusBadgeClass } from '../../utils/fleetRecordUtils';
+import OperationBreadcrumb from '../operation/OperationBreadcrumb';
 
 const VehicleDetailsModal = ({
   isOpen,
@@ -65,21 +66,6 @@ const VehicleDetailsModal = ({
     return formatFleetCurrency(amount);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-100 text-green-800';
-      case 'Maintenance':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Out of Service':
-        return 'bg-red-100 text-red-800';
-      case 'Retired':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const getSeverityColor = (severity) => {
     switch (severity) {
       case 'Minor':
@@ -99,6 +85,13 @@ const VehicleDetailsModal = ({
   if (isPage && !vehicleId) return null;
 
   if (loading) {
+    if (isPage) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex justify-center py-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+        </div>
+      );
+    }
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-xl p-8">
@@ -112,6 +105,19 @@ const VehicleDetailsModal = ({
   }
 
   if (!vehicle) {
+    if (isPage) {
+      return (
+        <div className="min-h-screen bg-gray-50 px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <OperationBreadcrumb items={[{ label: 'Fleet Record', href: listPath }, { label: 'Not found' }]} />
+            <p className="text-gray-600">Vehicle not found.</p>
+            <button type="button" onClick={onClose} className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+              Back to Fleet Record
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-xl p-8">
@@ -130,31 +136,40 @@ const VehicleDetailsModal = ({
   }
 
   return (
-    <div className={isPage ? 'min-h-screen bg-gray-50 py-8 px-4' : 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'}>
-      <div className={isPage ? 'bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-6xl mx-auto overflow-y-auto' : 'bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto'}>
-        {/* Header */}
+    <div className={isPage ? 'min-h-screen bg-gray-50 py-6 px-4' : 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'}>
+      <div className={isPage ? 'w-full max-w-6xl mx-auto' : 'bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto'}>
+        {isPage && (
+          <OperationBreadcrumb
+            items={[
+              { label: 'Fleet Record', href: listPath },
+              { label: vehicle.license_plate || vehicle.vehicle_number || 'Vehicle' },
+            ]}
+          />
+        )}
+        <div className={isPage ? 'bg-white rounded-2xl border border-gray-200 overflow-hidden' : ''}>
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            {isPage && (
-              <Link to={listPath} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg" aria-label="Back">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            )}
-            <div className="w-16 h-16 rounded-xl overflow-hidden bg-blue-100 border border-gray-200 flex items-center justify-center shrink-0">
+          <div className="flex items-center space-x-4 min-w-0">
+            <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-100 border border-gray-200 flex items-center justify-center shrink-0">
               {vehicle.fleet_image_url ? (
                 <img src={vehicle.fleet_image_url} alt="" className="w-full h-full object-cover" />
               ) : (
-                <Car className="w-8 h-8 text-blue-600" />
+                <Car className="w-8 h-8 text-slate-400" />
               )}
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                {isPage ? 'Fleet Record — ' : ''}{getCarDisplayName(vehicle)} ({vehicle.vehicle_number})
+            <div className="min-w-0">
+              <UaePlate plate={vehicle.license_plate} />
+              <h2 className="text-xl font-semibold text-gray-900 mt-1.5 truncate">
+                {getCarDisplayName(vehicle)}
               </h2>
-              <p className="text-sm text-gray-500">
-                License: {vehicle.license_plate} • Status: {vehicle.status}
+              <p className="text-sm text-gray-500 truncate">
+                {vehicle.vehicle_number}
+                {vehicle.year ? ` · ${vehicle.year}` : ''}
+                {vehicle.employees?.full_name ? ` · ${vehicle.employees.full_name}` : ''}
               </p>
             </div>
+            <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(vehicle.status)}`}>
+              {vehicle.status}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             {(() => {
@@ -201,7 +216,6 @@ const VehicleDetailsModal = ({
               { id: 'maintenance', label: 'Maintenance', icon: Wrench },
               { id: 'fuel', label: 'Fuel Logs', icon: Fuel },
               { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
-              { id: 'details', label: 'All details', icon: Car },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -244,8 +258,9 @@ const VehicleDetailsModal = ({
           )}
 
           {/* Details Tab */}
-          {activeTab === 'details' && (
-            <div className="space-y-6">
+          {activeTab === 'overview' && (
+            <div className="mt-10 pt-8 border-t border-gray-200 space-y-6">
+              <h3 className="text-sm font-semibold text-gray-900">Record details</h3>
               {/* Vehicle Lifecycle */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -315,69 +330,24 @@ const VehicleDetailsModal = ({
                 </div>
               </div>
 
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Vehicle Number:</span>
-                      <span className="font-medium">{vehicle.vehicle_number}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Make & Model:</span>
-                      <span className="font-medium">{vehicle.make} {vehicle.model}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Year:</span>
-                      <span className="font-medium">{vehicle.year}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">License Plate:</span>
-                      <span className="font-medium">{vehicle.license_plate}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">VIN:</span>
-                      <span className="font-medium">{vehicle.vin || 'Not provided'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Color:</span>
-                      <span className="font-medium">{vehicle.color || 'Not specified'}</span>
-                    </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Service specs</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600">Transmission</div>
+                    <div className="font-medium">{vehicle.transmission || '—'}</div>
                   </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Technical Specifications</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Fuel Type:</span>
-                      <span className="font-medium">{vehicle.fuel_type}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Transmission:</span>
-                      <span className="font-medium">{vehicle.transmission}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Engine Size:</span>
-                      <span className="font-medium">{vehicle.engine_size || 'Not specified'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Mileage:</span>
-                      <span className="font-medium">{vehicle.mileage?.toLocaleString()} km</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Fuel Efficiency:</span>
-                      <span className="font-medium">
-                        {vehicle.fuel_efficiency ? `${vehicle.fuel_efficiency} km/l` : 'Not specified'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(vehicle.status)}`}>
-                        {vehicle.status}
-                      </span>
-                    </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Engine size</div>
+                    <div className="font-medium">{vehicle.engine_size || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Mileage</div>
+                    <div className="font-medium">{vehicle.mileage != null ? `${vehicle.mileage.toLocaleString()} km` : '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Fuel efficiency</div>
+                    <div className="font-medium">{vehicle.fuel_efficiency ? `${vehicle.fuel_efficiency} km/l` : '—'}</div>
                   </div>
                 </div>
               </div>
@@ -667,6 +637,7 @@ const VehicleDetailsModal = ({
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Save, FileText, Paperclip, Trash2, Search, Car } from 'lucide-react';
+import { X, Save, FileText, Paperclip, Trash2, Search, Car, ScanLine, Loader2 } from 'lucide-react';
 import { getCarDisplayName } from '../../utils/fleetRecordUtils';
 import { saveManualMulkiya } from '../../services/mulkiyaService';
+import { applyMulkiyaScan, extractMulkiyaFromFile } from '../../services/mulkiyaOcrService';
 
 const MULKIYA_MAX_BYTES = 10 * 1024 * 1024;
 const MULKIYA_ACCEPT = 'application/pdf,image/*';
@@ -54,6 +55,10 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
   const [previewUrl, setPreviewUrl] = useState('');
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState('');
+  const [scanWarnings, setScanWarnings] = useState([]);
+  const [scannedKeys, setScannedKeys] = useState([]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -70,6 +75,10 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
     setFile(null);
     setPreviewUrl('');
     setErrors({});
+    setScanNote('');
+    setScanWarnings([]);
+    setScannedKeys([]);
+    setScanning(false);
   }, [isOpen, vehicle]);
 
   useEffect(() => {
@@ -126,7 +135,50 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
     }
     setErrors((prev) => ({ ...prev, file: '' }));
     setFile(chosen);
+    runScan(chosen);
   };
+
+  const runScan = async (target = file, { overwrite = false } = {}) => {
+    if (!target) {
+      setErrors((prev) => ({ ...prev, scan: 'Attach the Mulkiya first.' }));
+      return;
+    }
+    setScanning(true);
+    setScanNote('');
+    setScanWarnings([]);
+    setErrors((prev) => ({ ...prev, scan: '' }));
+    try {
+      const result = await extractMulkiyaFromFile(target);
+      let filled = [];
+      setForm((prev) => {
+        const applied = applyMulkiyaScan(prev, result.fields, { overwrite });
+        filled = applied.filled;
+        return applied.form;
+      });
+      setScannedKeys(filled);
+      setScanWarnings(Array.isArray(result.warnings) ? result.warnings : []);
+      setScanNote(
+        filled.length === 0
+          ? 'Nothing new was filled — fields already had values, or the card was unreadable.'
+          : `Filled ${filled.length} field${filled.length === 1 ? '' : 's'} from the Mulkiya. Check them before saving.`
+      );
+    } catch (error) {
+      setScanNote('');
+      setScannedKeys([]);
+      setErrors((prev) => ({ ...prev, scan: error.message || 'Could not scan that Mulkiya.' }));
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const fieldClass = (name) =>
+    `${inputBase} ${
+      errors[name]
+        ? 'border-red-300'
+        : scannedKeys.includes(name)
+          ? 'border-emerald-400'
+          : 'border-gray-300'
+    }`;
 
   const validate = () => {
     const next = {};
@@ -257,6 +309,76 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
             </div>
           )}
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Mulkiya document (PDF or image)
+              {!(isEdit && vehicle?.mulkiya_document_url) && <span className="text-red-500"> *</span>}
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Attach a clear photo of the card. We read the print and fill plate, make, model, year, owner, expiry, engine and chassis — you still confirm before save.
+            </p>
+            {file ? (
+              <div className="space-y-2">
+                {previewUrl && (
+                  <img src={previewUrl} alt="" className="h-28 w-full object-cover rounded-lg border border-gray-200" />
+                )}
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5 border border-indigo-200 bg-indigo-50 rounded-lg">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                    <span className="text-xs text-gray-400 shrink-0">
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      setScanNote('');
+                      setScanWarnings([]);
+                      setScannedKeys([]);
+                    }}
+                    className="text-gray-400 hover:text-red-600"
+                    title="Remove file"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  disabled={scanning}
+                  onClick={() => runScan(file, { overwrite: scannedKeys.length > 0 })}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 disabled:opacity-60"
+                >
+                  {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+                  {scanning ? 'Reading card…' : scannedKeys.length ? 'Scan again and replace fields' : 'Scan Mulkiya'}
+                </button>
+              </div>
+            ) : (
+              <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40">
+                <Paperclip className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">Click to attach PDF or image (max 10 MB)</span>
+                <input type="file" accept={MULKIYA_ACCEPT} onChange={handleFile} className="hidden" />
+              </label>
+            )}
+            {!file && vehicle?.mulkiya_document_url && (
+              <a
+                href={vehicle.mulkiya_document_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-2"
+              >
+                <FileText className="w-3.5 h-3.5" /> View current document
+              </a>
+            )}
+            {scanNote && <p className="text-xs text-emerald-800 mt-2">{scanNote}</p>}
+            {scanWarnings.map((warning) => (
+              <p key={warning} className="text-xs text-amber-800 mt-1">{warning}</p>
+            ))}
+            {errors.file && <p className="text-red-600 text-xs mt-1">{errors.file}</p>}
+            {errors.scan && <p className="text-red-600 text-xs mt-1">{errors.scan}</p>}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -282,7 +404,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 value={form.license_plate}
                 onChange={handleChange}
                 maxLength={20}
-                className={`${inputBase} ${errors.license_plate ? 'border-red-300' : 'border-gray-300'}`}
+                className={`${fieldClass('license_plate')}`}
                 placeholder="e.g. A 12345"
               />
               {errors.license_plate && <p className="text-red-600 text-xs mt-1">{errors.license_plate}</p>}
@@ -295,7 +417,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 name="make"
                 value={form.make}
                 onChange={handleChange}
-                className={`${inputBase} ${errors.make ? 'border-red-300' : 'border-gray-300'}`}
+                className={`${fieldClass('make')}`}
                 placeholder="Toyota"
               />
               {errors.make && <p className="text-red-600 text-xs mt-1">{errors.make}</p>}
@@ -308,7 +430,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 name="model"
                 value={form.model}
                 onChange={handleChange}
-                className={`${inputBase} ${errors.model ? 'border-red-300' : 'border-gray-300'}`}
+                className={`${fieldClass('model')}`}
                 placeholder="Camry"
               />
               {errors.model && <p className="text-red-600 text-xs mt-1">{errors.model}</p>}
@@ -322,7 +444,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 onChange={handleChange}
                 min="1990"
                 max={new Date().getFullYear() + 1}
-                className={`${inputBase} border-gray-300`}
+                className={fieldClass('year')}
               />
             </div>
             <div>
@@ -331,7 +453,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 name="owned_by"
                 value={form.owned_by}
                 onChange={handleChange}
-                className={`${inputBase} border-gray-300`}
+                className={fieldClass('owned_by')}
                 placeholder="UDrive / leasing company"
               />
             </div>
@@ -344,7 +466,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 name="registration_expiry"
                 value={form.registration_expiry}
                 onChange={handleChange}
-                className={`${inputBase} ${errors.registration_expiry ? 'border-red-300' : 'border-gray-300'}`}
+                className={fieldClass('registration_expiry')}
               />
               {errors.registration_expiry && (
                 <p className="text-red-600 text-xs mt-1">{errors.registration_expiry}</p>
@@ -359,7 +481,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 name="insurance_expiry"
                 value={form.insurance_expiry}
                 onChange={handleChange}
-                className={`${inputBase} ${errors.insurance_expiry ? 'border-red-300' : 'border-gray-300'}`}
+                className={fieldClass('insurance_expiry')}
               />
               {errors.insurance_expiry && (
                 <p className="text-red-600 text-xs mt-1">{errors.insurance_expiry}</p>
@@ -371,7 +493,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 name="engine_number"
                 value={form.engine_number}
                 onChange={handleChange}
-                className={`${inputBase} border-gray-300 font-mono`}
+                className={`${fieldClass('engine_number')} font-mono`}
                 placeholder="Engine number"
               />
             </div>
@@ -382,7 +504,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 value={form.chassis_number}
                 onChange={handleChange}
                 maxLength={17}
-                className={`${inputBase} border-gray-300 font-mono`}
+                className={`${fieldClass('chassis_number')} font-mono`}
                 placeholder="Chassis / VIN (17 chars)"
               />
             </div>
@@ -392,58 +514,10 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 name="mulkiya_number"
                 value={form.mulkiya_number}
                 onChange={handleChange}
-                className={`${inputBase} border-gray-300`}
+                className={fieldClass('mulkiya_number')}
                 placeholder="Registration card no. (optional)"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Mulkiya document (PDF or image)
-              {!(isEdit && vehicle?.mulkiya_document_url) && <span className="text-red-500"> *</span>}
-            </label>
-            {file ? (
-              <div className="space-y-2">
-                {previewUrl && (
-                  <img src={previewUrl} alt="" className="h-28 w-full object-cover rounded-lg border border-gray-200" />
-                )}
-                <div className="flex items-center justify-between gap-3 px-3 py-2.5 border border-indigo-200 bg-indigo-50 rounded-lg">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span className="text-sm text-gray-700 truncate">{file.name}</span>
-                    <span className="text-xs text-gray-400 shrink-0">
-                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFile(null)}
-                    className="text-gray-400 hover:text-red-600"
-                    title="Remove file"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40">
-                <Paperclip className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Click to attach PDF or image (max 10 MB)</span>
-                <input type="file" accept={MULKIYA_ACCEPT} onChange={handleFile} className="hidden" />
-              </label>
-            )}
-            {!file && vehicle?.mulkiya_document_url && (
-              <a
-                href={vehicle.mulkiya_document_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline mt-2"
-              >
-                <FileText className="w-3.5 h-3.5" /> View current document
-              </a>
-            )}
-            {errors.file && <p className="text-red-600 text-xs mt-1">{errors.file}</p>}
           </div>
 
           {errors.submit && (
@@ -465,7 +539,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
           <button
             type="submit"
             form="add-mulkiya-form"
-            disabled={saving}
+            disabled={saving || scanning}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
