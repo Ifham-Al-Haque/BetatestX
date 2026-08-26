@@ -15,25 +15,33 @@ import {
   GripVertical,
   Search,
   Calendar,
+  Clock,
+  MapPin,
+  MoreVertical,
+  LayoutGrid,
+  UserCheck,
+  HeartPulse,
+  CalendarOff,
 } from 'lucide-react';
 import OperationSubLayout from '../../components/operation/OperationSubLayout';
 import OperationEmptyState from '../../components/operation/OperationEmptyState';
 import ConfirmDialog from '../../components/operation/ConfirmDialog';
+import OperationStatCard from '../../components/operation/OperationStatCard';
 import operationService from '../../services/operationService';
 import { useToast } from '../../context/ToastContext';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const COLORS = [
-  { key: 'blue', header: 'bg-blue-600', soft: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
-  { key: 'green', header: 'bg-green-600', soft: 'bg-green-50 border-green-200', dot: 'bg-green-500' },
-  { key: 'amber', header: 'bg-amber-500', soft: 'bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
-  { key: 'orange', header: 'bg-orange-600', soft: 'bg-orange-50 border-orange-200', dot: 'bg-orange-500' },
-  { key: 'indigo', header: 'bg-indigo-600', soft: 'bg-indigo-50 border-indigo-200', dot: 'bg-indigo-500' },
-  { key: 'purple', header: 'bg-purple-600', soft: 'bg-purple-50 border-purple-200', dot: 'bg-purple-500' },
-  { key: 'teal', header: 'bg-teal-600', soft: 'bg-teal-50 border-teal-200', dot: 'bg-teal-500' },
-  { key: 'red', header: 'bg-red-600', soft: 'bg-red-50 border-red-200', dot: 'bg-red-500' },
-  { key: 'gray', header: 'bg-gray-600', soft: 'bg-gray-50 border-gray-200', dot: 'bg-gray-500' },
+  { key: 'blue', header: 'from-blue-600 to-sky-500', soft: 'bg-sky-50/70', border: 'border-blue-200', ring: 'ring-blue-300', dot: 'bg-blue-500', avatar: 'bg-blue-100 text-blue-700' },
+  { key: 'green', header: 'from-emerald-600 to-teal-500', soft: 'bg-emerald-50/70', border: 'border-emerald-200', ring: 'ring-emerald-300', dot: 'bg-emerald-500', avatar: 'bg-emerald-100 text-emerald-700' },
+  { key: 'amber', header: 'from-amber-500 to-orange-400', soft: 'bg-amber-50/70', border: 'border-amber-200', ring: 'ring-amber-300', dot: 'bg-amber-500', avatar: 'bg-amber-100 text-amber-800' },
+  { key: 'orange', header: 'from-orange-600 to-red-400', soft: 'bg-orange-50/70', border: 'border-orange-200', ring: 'ring-orange-300', dot: 'bg-orange-500', avatar: 'bg-orange-100 text-orange-700' },
+  { key: 'indigo', header: 'from-indigo-600 to-violet-500', soft: 'bg-indigo-50/70', border: 'border-indigo-200', ring: 'ring-indigo-300', dot: 'bg-indigo-500', avatar: 'bg-indigo-100 text-indigo-700' },
+  { key: 'purple', header: 'from-purple-600 to-fuchsia-500', soft: 'bg-purple-50/70', border: 'border-purple-200', ring: 'ring-purple-300', dot: 'bg-purple-500', avatar: 'bg-purple-100 text-purple-700' },
+  { key: 'teal', header: 'from-teal-600 to-cyan-500', soft: 'bg-teal-50/70', border: 'border-teal-200', ring: 'ring-teal-300', dot: 'bg-teal-500', avatar: 'bg-teal-100 text-teal-700' },
+  { key: 'red', header: 'from-rose-600 to-pink-500', soft: 'bg-rose-50/70', border: 'border-rose-200', ring: 'ring-rose-300', dot: 'bg-rose-500', avatar: 'bg-rose-100 text-rose-700' },
+  { key: 'gray', header: 'from-slate-600 to-slate-500', soft: 'bg-slate-50', border: 'border-slate-200', ring: 'ring-slate-300', dot: 'bg-slate-500', avatar: 'bg-slate-100 text-slate-700' },
 ];
 
 const colorOf = (key) => COLORS.find((c) => c.key === key) || COLORS[0];
@@ -45,7 +53,56 @@ const STATUS_LABEL = {
   off: 'Off',
 };
 
+const STATUS_STYLE = {
+  annual_leave: { chip: 'bg-amber-100 text-amber-900', bar: 'border-l-[3px] border-l-amber-400' },
+  sick_leave: { chip: 'bg-rose-100 text-rose-800', bar: 'border-l-[3px] border-l-rose-400' },
+  off: { chip: 'bg-slate-100 text-slate-600', bar: 'border-l-[3px] border-l-slate-400' },
+};
+
 const emptyTeamForm = { name: '', team_type: '', shift_label: '', week_off: '', area: '', color: 'blue' };
+
+function initials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function DriverChip({
+  name,
+  subtitle,
+  avatarClass,
+  status,
+  isLead,
+  isDragging,
+  badges,
+  menu,
+  onDragStart,
+  onDragEnd,
+}) {
+  const statusStyle = STATUS_STYLE[status];
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={`group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm bg-white border border-gray-200/80 shadow-sm hover:shadow-md hover:border-gray-300 cursor-grab active:cursor-grabbing transition-all ${
+        statusStyle?.bar || ''
+      } ${isDragging ? 'opacity-40' : ''} ${isLead ? 'ring-1 ring-amber-200' : ''}`}
+    >
+      <GripVertical className="w-3.5 h-3.5 text-gray-300 shrink-0 group-hover:text-gray-500" />
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${avatarClass}`}>
+        {initials(name)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-gray-900 font-medium leading-tight">{name}</p>
+        {subtitle && <p className="truncate text-[11px] text-gray-400 leading-tight mt-0.5">{subtitle}</p>}
+      </div>
+      {badges}
+      {menu}
+    </div>
+  );
+}
 
 const normalizeName = (s) => (s || '').toString().trim().toLowerCase();
 
@@ -107,6 +164,7 @@ const OperationTeamAllocation = () => {
   const [dragOverPool, setDragOverPool] = useState(false);
   const [openMenuMemberId, setOpenMenuMemberId] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [draggingKey, setDraggingKey] = useState(null);
   const fileInputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -153,11 +211,27 @@ const OperationTeamAllocation = () => {
   }, [drivers, assignedDriverIds, search]);
 
   const totalAllocated = assignedDriverIds.size;
+  const onLeaveCount = useMemo(() => {
+    let n = 0;
+    teams.forEach((t) =>
+      (t.operation_team_members || []).forEach((m) => {
+        if (m.is_active !== false && m.member_status && m.member_status !== 'active') n += 1;
+      })
+    );
+    return n;
+  }, [teams]);
 
   // ---- Drag & drop -----------------------------------------------------------
   const handleDragStart = (e, payload) => {
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'move';
+    setDraggingKey(payload.fromMemberId || payload.driverId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingKey(null);
+    setDragOverTeamId(null);
+    setDragOverPool(false);
   };
 
   const readPayload = (e) => {
@@ -204,6 +278,7 @@ const OperationTeamAllocation = () => {
       showError(err?.message || 'Could not move driver');
     } finally {
       setBusy(false);
+      setDraggingKey(null);
     }
   };
 
@@ -221,6 +296,7 @@ const OperationTeamAllocation = () => {
       showError(err?.message || 'Could not unassign driver');
     } finally {
       setBusy(false);
+      setDraggingKey(null);
     }
   };
 
@@ -502,46 +578,115 @@ const OperationTeamAllocation = () => {
   };
 
   // ---- Render ----------------------------------------------------------------
-  const DriverChip = ({ name, draggablePayload, badges, menu, subtitle }) => (
-    <div
-      draggable
-      onDragStart={(e) => handleDragStart(e, draggablePayload)}
-      className="group flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm shadow-sm hover:shadow cursor-grab active:cursor-grabbing"
-    >
-      <GripVertical className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-gray-900 font-medium leading-tight">{name}</p>
-        {subtitle && <p className="truncate text-[11px] text-gray-400 leading-tight">{subtitle}</p>}
+  const renderMemberBadges = (m) => {
+    const isLead = m.role === 'team_lead';
+    const statusLabel = STATUS_LABEL[m.member_status];
+    if (!isLead && !statusLabel) return null;
+    return (
+      <div className="flex items-center gap-1 shrink-0">
+        {isLead && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">
+            <Crown className="w-3 h-3" />
+            Lead
+          </span>
+        )}
+        {statusLabel && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${STATUS_STYLE[m.member_status]?.chip || 'bg-amber-100 text-amber-900'}`}>
+            {statusLabel}
+          </span>
+        )}
       </div>
-      {badges}
-      {menu}
-    </div>
-  );
+    );
+  };
+
+  const renderMemberMenu = (team, m) => {
+    const isLead = m.role === 'team_lead';
+    return (
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => setOpenMenuMemberId(openMenuMemberId === m.id ? null : m.id)}
+          className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"
+          title="Member actions"
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+        {openMenuMemberId === m.id && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setOpenMenuMemberId(null)} />
+            <div className="absolute right-0 top-8 z-20 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 text-sm overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setLead(team.id, m.id)}
+                className="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center gap-2"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-600" />
+                {isLead ? 'Is team lead' : 'Make team lead'}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleStatus(m, 'annual_leave')}
+                className="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center gap-2"
+              >
+                <Plane className="w-3.5 h-3.5 text-amber-600" />
+                {m.member_status === 'annual_leave' ? 'Clear annual leave' : 'Annual leave'}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleStatus(m, 'sick_leave')}
+                className="w-full text-left px-3 py-2 hover:bg-rose-50 flex items-center gap-2"
+              >
+                <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
+                {m.member_status === 'sick_leave' ? 'Clear sick leave' : 'Sick leave'}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleStatus(m, 'off')}
+                className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2"
+              >
+                <CalendarOff className="w-3.5 h-3.5 text-slate-500" />
+                {m.member_status === 'off' ? 'Clear off' : 'Mark off'}
+              </button>
+              <button
+                type="button"
+                onClick={() => removeMember(m.id)}
+                className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 border-t border-gray-100 mt-1"
+              >
+                <UserMinus className="w-3.5 h-3.5" />
+                Remove from team
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <OperationSubLayout
+      maxWidth="max-w-[96rem]"
       breadcrumbs={[
         { label: 'Schedule & Roster', href: '/operation/roster' },
         { label: 'Team Allocation' },
       ]}
       title="Team Allocation"
-      description="Drag drivers into teams to build the weekly allocation. Set team leads, mark leave, and export to Excel."
-      icon={Users}
+      description="Build the weekly board: drag drivers into teams, set leads, mark leave, then export."
+      icon={LayoutGrid}
       actions={
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={load}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-1 bg-white"
+            className="px-3 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 flex items-center gap-1.5 bg-white"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${busy ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button
             type="button"
             onClick={triggerImport}
             disabled={importing}
-            className="px-3 py-2 text-sm border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-1 bg-white disabled:opacity-50"
+            className="px-3 py-2 text-sm border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 flex items-center gap-1.5 bg-white disabled:opacity-50"
           >
             <Upload className="w-4 h-4" />
             {importing ? 'Importing…' : 'Import Excel'}
@@ -557,15 +702,15 @@ const OperationTeamAllocation = () => {
             type="button"
             onClick={exportExcel}
             disabled={teams.length === 0}
-            className="px-3 py-2 text-sm border border-green-200 text-green-700 rounded-lg hover:bg-green-50 flex items-center gap-1 bg-white disabled:opacity-50"
+            className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-50 flex items-center gap-1.5 bg-white disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            Export Excel
+            Export
           </button>
           <button
             type="button"
             onClick={openCreateTeam}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1"
+            className="px-4 py-2 text-sm bg-teal-600 text-white rounded-xl hover:bg-teal-700 flex items-center gap-1.5 shadow-sm"
           >
             <Plus className="w-4 h-4" />
             New team
@@ -574,69 +719,97 @@ const OperationTeamAllocation = () => {
       }
     >
       {tablesMissing && (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
           Team allocation tables are not set up yet. Run{' '}
           <code className="text-xs bg-amber-100 px-1 rounded">operation_team_allocation_schema.sql</code> in Supabase.
         </div>
       )}
 
+      {!loading && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <OperationStatCard label="Teams" value={teams.length} tone="indigo" icon={LayoutGrid} />
+          <OperationStatCard label="Allocated" value={totalAllocated} tone="green" icon={UserCheck} sub={`${drivers.length} drivers in pool`} />
+          <OperationStatCard label="Unassigned" value={pool.length} tone="blue" icon={Users} />
+          <OperationStatCard label="On leave / off" value={onLeaveCount} tone="yellow" icon={Plane} />
+        </div>
+      )}
+
       {showTeamForm && (
-        <form onSubmit={submitTeam} className="mb-6 bg-white border border-gray-200 rounded-xl p-4">
-          <h3 className="font-medium text-gray-900 mb-3">{editingTeamId ? 'Edit team' : 'Create team'}</h3>
+        <form onSubmit={submitTeam} className="mb-6 bg-white border border-teal-100 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">{editingTeamId ? 'Edit team' : 'Create team'}</h3>
+            <span className="text-xs text-gray-400">Colour appears on the board header</span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <input
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              placeholder="Team name (e.g. DXB Morning Team 1)"
-              value={teamForm.name}
-              onChange={(e) => setTeamForm((f) => ({ ...f, name: e.target.value }))}
-              required
-            />
-            <input
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              placeholder="Schedule (e.g. 7 AM - 5 PM)"
-              value={teamForm.shift_label}
-              onChange={(e) => setTeamForm((f) => ({ ...f, shift_label: e.target.value }))}
-            />
-            <select
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              value={teamForm.week_off}
-              onChange={(e) => setTeamForm((f) => ({ ...f, week_off: e.target.value }))}
-            >
-              <option value="">Week off…</option>
-              {DAYS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-            <input
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              placeholder="Area (e.g. Marina To Business Bay)"
-              value={teamForm.area}
-              onChange={(e) => setTeamForm((f) => ({ ...f, area: e.target.value }))}
-            />
-            <input
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              placeholder="Team type (optional)"
-              value={teamForm.team_type}
-              onChange={(e) => setTeamForm((f) => ({ ...f, team_type: e.target.value }))}
-            />
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {COLORS.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => setTeamForm((f) => ({ ...f, color: c.key }))}
-                  className={`w-6 h-6 rounded-full ${c.dot} ${
-                    teamForm.color === c.key ? 'ring-2 ring-offset-2 ring-gray-400' : ''
-                  }`}
-                  aria-label={c.key}
-                />
-              ))}
+            <label className="text-xs font-medium text-gray-500">
+              Team name
+              <input
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900"
+                placeholder="e.g. DXB Morning Team 1"
+                value={teamForm.name}
+                onChange={(e) => setTeamForm((f) => ({ ...f, name: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="text-xs font-medium text-gray-500">
+              Schedule
+              <input
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900"
+                placeholder="e.g. 7 AM – 5 PM"
+                value={teamForm.shift_label}
+                onChange={(e) => setTeamForm((f) => ({ ...f, shift_label: e.target.value }))}
+              />
+            </label>
+            <label className="text-xs font-medium text-gray-500">
+              Week off
+              <select
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900"
+                value={teamForm.week_off}
+                onChange={(e) => setTeamForm((f) => ({ ...f, week_off: e.target.value }))}
+              >
+                <option value="">Select day…</option>
+                {DAYS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-medium text-gray-500">
+              Area
+              <input
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900"
+                placeholder="e.g. Marina to Business Bay"
+                value={teamForm.area}
+                onChange={(e) => setTeamForm((f) => ({ ...f, area: e.target.value }))}
+              />
+            </label>
+            <label className="text-xs font-medium text-gray-500">
+              Team type
+              <input
+                className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900"
+                placeholder="PPM, Daily, Limo…"
+                value={teamForm.team_type}
+                onChange={(e) => setTeamForm((f) => ({ ...f, team_type: e.target.value }))}
+              />
+            </label>
+            <div className="text-xs font-medium text-gray-500">
+              Colour
+              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                {COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setTeamForm((f) => ({ ...f, color: c.key }))}
+                    className={`w-7 h-7 rounded-full ${c.dot} transition ${
+                      teamForm.color === c.key ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-105'
+                    }`}
+                    aria-label={c.key}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-          <div className="flex gap-2 mt-3">
-            <button type="submit" disabled={busy} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+          <div className="flex gap-2 mt-4">
+            <button type="submit" disabled={busy} className="px-4 py-2 bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 disabled:opacity-50">
               {busy ? 'Saving…' : editingTeamId ? 'Save changes' : 'Create team'}
             </button>
             <button
@@ -645,7 +818,7 @@ const OperationTeamAllocation = () => {
                 setShowTeamForm(false);
                 setEditingTeamId(null);
               }}
-              className="px-4 py-2 text-sm text-gray-600"
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl"
             >
               Cancel
             </button>
@@ -655,11 +828,10 @@ const OperationTeamAllocation = () => {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent" />
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-teal-600 border-t-transparent" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {/* Unassigned pool */}
+        <div className={`grid grid-cols-1 lg:grid-cols-4 gap-5 ${busy ? 'opacity-80 pointer-events-none' : ''}`}>
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -667,56 +839,68 @@ const OperationTeamAllocation = () => {
             }}
             onDragLeave={() => setDragOverPool(false)}
             onDrop={dropOnPool}
-            className={`lg:col-span-1 bg-white border rounded-xl p-3 self-start sticky top-4 transition-colors ${
-              dragOverPool ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'
+            className={`lg:col-span-1 bg-white border rounded-2xl self-start sticky top-4 overflow-hidden shadow-sm transition-all ${
+              dragOverPool ? 'border-teal-400 ring-2 ring-teal-100 scale-[1.01]' : 'border-gray-200'
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-gray-500" />
-                Unassigned ({pool.length})
-              </h3>
+            <div className="bg-gradient-to-r from-slate-800 to-slate-600 text-white px-4 py-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Users className="w-4 h-4 text-white/80" />
+                  Unassigned
+                </h3>
+                <span className="text-xs font-semibold bg-white/20 px-2 py-0.5 rounded-full">{pool.length}</span>
+              </div>
+              <p className="text-[11px] text-white/70 mt-1">Drop here to return a driver to the pool</p>
             </div>
-            <div className="relative mb-2">
-              <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search drivers…"
-                className="w-full border border-gray-200 rounded-lg pl-8 pr-2 py-1.5 text-sm"
-              />
+            <div className="p-3">
+              <div className="relative mb-3">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search drivers…"
+                  className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-0.5">
+                {pool.length === 0 ? (
+                  <div className="text-center py-10 px-3">
+                    <UserCheck className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">
+                      {drivers.length === 0 ? 'No drivers found.' : 'All drivers allocated.'}
+                    </p>
+                  </div>
+                ) : (
+                  pool.map((d) => (
+                    <DriverChip
+                      key={d.id}
+                      name={d.full_name}
+                      subtitle={d.designation || d.team_type || ''}
+                      avatarClass="bg-slate-100 text-slate-600"
+                      isDragging={draggingKey === d.id}
+                      onDragStart={(e) => {
+                        handleDragStart(e, { driverId: d.id, fromMemberId: null, fromTeamId: null });
+                      }}
+                      onDragEnd={handleDragEnd}
+                    />
+                  ))
+                )}
+              </div>
             </div>
-            <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
-              {pool.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-6">
-                  {drivers.length === 0 ? 'No drivers found.' : 'All drivers allocated.'}
-                </p>
-              ) : (
-                pool.map((d) => (
-                  <DriverChip
-                    key={d.id}
-                    name={d.full_name}
-                    subtitle={d.designation || d.team_type || ''}
-                    draggablePayload={{ driverId: d.id, fromMemberId: null, fromTeamId: null }}
-                  />
-                ))
-              )}
-            </div>
-            <p className="text-[11px] text-gray-400 mt-2">Drag a name onto a team to allocate. Drop here to unassign.</p>
           </div>
 
-          {/* Team columns */}
           <div className="lg:col-span-3">
             {teams.length === 0 ? (
               <OperationEmptyState
-                icon={Users}
+                icon={LayoutGrid}
                 title="No teams yet"
                 description="Create your first team, then drag drivers from the pool to build the allocation."
                 action={
                   <button
                     type="button"
                     onClick={openCreateTeam}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm inline-flex items-center gap-2"
+                    className="px-4 py-2 bg-teal-600 text-white rounded-xl text-sm inline-flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Create team
@@ -724,12 +908,18 @@ const OperationTeamAllocation = () => {
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {teams.map((team) => {
                   const c = colorOf(team.color);
                   const members = [...(team.operation_team_members || [])]
                     .filter((m) => m.is_active !== false)
-                    .sort((a, b) => (a.role === 'team_lead' ? -1 : 1) - (b.role === 'team_lead' ? -1 : 1));
+                    .sort((a, b) => {
+                      const lead = (a.role === 'team_lead' ? 0 : 1) - (b.role === 'team_lead' ? 0 : 1);
+                      if (lead !== 0) return lead;
+                      return (a.display_order ?? 0) - (b.display_order ?? 0);
+                    });
+                  const leaveOnTeam = members.filter((m) => m.member_status && m.member_status !== 'active').length;
+                  const isOver = dragOverTeamId === team.id;
                   return (
                     <div
                       key={team.id}
@@ -739,125 +929,103 @@ const OperationTeamAllocation = () => {
                       }}
                       onDragLeave={() => setDragOverTeamId((id) => (id === team.id ? null : id))}
                       onDrop={(e) => dropOnTeam(e, team.id)}
-                      className={`bg-white border rounded-xl overflow-hidden transition-colors ${
-                        dragOverTeamId === team.id ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'
+                      className={`bg-white border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all ${
+                        isOver ? `${c.border} ring-2 ${c.ring} scale-[1.01]` : 'border-gray-200'
                       }`}
                     >
-                      <div className={`${c.header} text-white px-4 py-2.5 flex items-start justify-between gap-2`}>
-                        <div className="min-w-0">
-                          <h3 className="font-semibold truncate">{team.name}</h3>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-white/85 mt-0.5">
-                            {team.shift_label && <span>🕗 {team.shift_label}</span>}
-                            {team.week_off && <span>Off: {team.week_off}</span>}
-                            {team.area && <span className="truncate">{team.area}</span>}
+                      <div className={`bg-gradient-to-r ${c.header} text-white px-4 py-3`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold truncate">{team.name}</h3>
+                              <span className="shrink-0 text-[11px] font-semibold bg-white/20 px-1.5 py-0.5 rounded-full">
+                                {members.length}
+                              </span>
+                            </div>
+                            {team.team_type && (
+                              <p className="text-[11px] text-white/80 mt-0.5 truncate">{team.team_type}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => openEditTeam(team)}
+                              className="p-1.5 rounded-lg hover:bg-white/20"
+                              title="Edit team"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteTeam(team)}
+                              className="p-1.5 rounded-lg hover:bg-white/20"
+                              title="Delete team"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => openEditTeam(team)}
-                            className="p-1 rounded hover:bg-white/20"
-                            title="Edit team"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteTeam(team)}
-                            className="p-1 rounded hover:bg-white/20"
-                            title="Delete team"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/90 mt-2">
+                          {team.shift_label && (
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {team.shift_label}
+                            </span>
+                          )}
+                          {team.week_off && (
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarOff className="w-3 h-3" />
+                              Off {team.week_off}
+                            </span>
+                          )}
+                          {team.area && (
+                            <span className="inline-flex items-center gap-1 min-w-0">
+                              <MapPin className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{team.area}</span>
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div className={`p-3 space-y-1.5 min-h-[90px] ${c.soft} border-t`}>
+                      <div className={`p-3 space-y-2 min-h-[120px] ${c.soft} ${isOver ? 'bg-white' : ''}`}>
                         {members.length === 0 ? (
-                          <p className="text-xs text-gray-400 text-center py-4">Drop drivers here</p>
+                          <div className={`border-2 border-dashed rounded-xl py-8 text-center ${isOver ? 'border-teal-400 bg-white' : 'border-white/80'}`}>
+                            <Users className="w-6 h-6 mx-auto mb-1 text-gray-300" />
+                            <p className="text-xs text-gray-400">{isOver ? 'Release to add' : 'Drop drivers here'}</p>
+                          </div>
                         ) : (
-                          members.map((m, idx) => {
-                            const isLead = m.role === 'team_lead';
-                            const statusLabel = STATUS_LABEL[m.member_status];
-                            return (
-                              <div
-                                key={m.id}
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                }}
-                                onDrop={(e) => dropOnTeam(e, team.id, idx)}
-                              >
+                          members.map((m, idx) => (
+                            <div
+                              key={m.id}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              onDrop={(e) => dropOnTeam(e, team.id, idx)}
+                            >
                               <DriverChip
                                 name={m.drivers?.full_name || 'Driver'}
                                 subtitle={m.drivers?.designation || ''}
-                                draggablePayload={{ driverId: m.driver_id, fromMemberId: m.id, fromTeamId: team.id }}
-                                badges={
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    {isLead && (
-                                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 font-medium">
-                                        <Crown className="w-3 h-3" />
-                                        Lead
-                                      </span>
-                                    )}
-                                    {statusLabel && (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-medium whitespace-nowrap">
-                                        {statusLabel}
-                                      </span>
-                                    )}
-                                  </div>
+                                avatarClass={c.avatar}
+                                status={m.member_status}
+                                isLead={m.role === 'team_lead'}
+                                isDragging={draggingKey === m.id}
+                                onDragStart={(e) =>
+                                  handleDragStart(e, { driverId: m.driver_id, fromMemberId: m.id, fromTeamId: team.id })
                                 }
-                                menu={
-                                  <div className="relative shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() => setOpenMenuMemberId(openMenuMemberId === m.id ? null : m.id)}
-                                      className="p-1 rounded hover:bg-gray-100 text-gray-400"
-                                      title="Member actions"
-                                    >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                    </button>
-                                    {openMenuMemberId === m.id && (
-                                      <>
-                                        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuMemberId(null)} />
-                                        <div className="absolute right-0 top-7 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 text-sm">
-                                          <button
-                                            type="button"
-                                            onClick={() => setLead(team.id, m.id)}
-                                            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2"
-                                          >
-                                            <Crown className="w-3.5 h-3.5 text-yellow-600" />
-                                            {isLead ? 'Is team lead' : 'Make team lead'}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleStatus(m, 'annual_leave')}
-                                            className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center gap-2"
-                                          >
-                                            <Plane className="w-3.5 h-3.5 text-amber-600" />
-                                            {m.member_status === 'annual_leave' ? 'Clear leave' : 'Annual leave'}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => removeMember(m.id)}
-                                            className="w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600 flex items-center gap-2"
-                                          >
-                                            <UserMinus className="w-3.5 h-3.5" />
-                                            Remove from team
-                                          </button>
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                }
+                                onDragEnd={handleDragEnd}
+                                badges={renderMemberBadges(m)}
+                                menu={renderMemberMenu(team, m)}
                               />
-                              </div>
-                            );
-                          })
+                            </div>
+                          ))
                         )}
                       </div>
-                      <div className="px-3 py-1.5 bg-white border-t border-gray-100 text-[11px] text-gray-400">
-                        {members.length} member{members.length === 1 ? '' : 's'}
+                      <div className="px-4 py-2 bg-white border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                        <span>{members.length} member{members.length === 1 ? '' : 's'}</span>
+                        {leaveOnTeam > 0 && (
+                          <span className="text-amber-700 font-medium">{leaveOnTeam} on leave / off</span>
+                        )}
                       </div>
                     </div>
                   );
@@ -873,7 +1041,7 @@ const OperationTeamAllocation = () => {
         <span>·</span>
         <span>{pool.length} unassigned</span>
         <span>·</span>
-        <Link to="/operation/roster" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+        <Link to="/operation/roster" className="text-teal-700 hover:underline inline-flex items-center gap-1 font-medium">
           <Calendar className="w-4 h-4" />
           Weekly roster
         </Link>
