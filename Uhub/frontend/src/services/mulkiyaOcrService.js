@@ -1,7 +1,3 @@
-import { supabase } from '../supabaseClient';
-
-const SCAN_MAX_EDGE = 3.8 * 1024 * 1024;
-
 export const MULKIYA_SCAN_FIELDS = [
   'license_plate',
   'make',
@@ -14,6 +10,20 @@ export const MULKIYA_SCAN_FIELDS = [
   'chassis_number',
   'mulkiya_number',
 ];
+
+const MAKES = [
+  'MERCEDES-BENZ', 'MERCEDES BENZ', 'ROLLS-ROYCE', 'ROLLS ROYCE', 'LAND ROVER',
+  'RANGE ROVER', 'ASTON MARTIN', 'GREAT WALL', 'ALFA ROMEO',
+  'TOYOTA', 'NISSAN', 'MITSUBISHI', 'HYUNDAI', 'KIA', 'HONDA', 'MAZDA',
+  'CHEVROLET', 'FORD', 'BMW', 'MERCEDES', 'LEXUS', 'GMC', 'ISUZU', 'SUZUKI',
+  'VOLKSWAGEN', 'VW', 'JEEP', 'AUDI', 'PORSCHE', 'VOLVO', 'MG', 'GEELY',
+  'CHANGAN', 'HAVAL', 'BYD', 'TESLA', 'INFINITI', 'CADILLAC', 'DODGE',
+  'MINI', 'PEUGEOT', 'RENAULT', 'FIAT', 'SKODA', 'SEAT', 'GENESIS', 'JAC',
+  'FOTON', 'MAXUS', 'CHERY', 'CITROEN', 'OPEL', 'JAGUAR', 'BENTLEY',
+  'LAMBORGHINI', 'FERRARI', 'MASERATI', 'SUBARU', 'DAIHATSU',
+].sort((a, b) => b.length - a.length);
+
+let workerPromise = null;
 
 function readAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -33,54 +43,207 @@ function loadImage(url) {
   });
 }
 
-async function compressImage(file) {
+function toIsoDate(raw) {
+  if (!raw) return null;
+  const text = String(raw).trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (!dmy) return null;
+  const day = dmy[1].padStart(2, '0');
+  const month = dmy[2].padStart(2, '0');
+  let year = dmy[3];
+  if (year.length === 2) year = Number(year) > 50 ? `19${year}` : `20${year}`;
+  const monthNum = Number(month);
+  const dayNum = Number(day);
+  if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) return null;
+  return `${year}-${month}-${day}`;
+}
+
+function lineValue(line, labels) {
+  const cleaned = line.replace(/[:：]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const label of labels) {
+    const match = cleaned.match(new RegExp(`(?:^|\\b)${label}\\b\\s*(.+)`, 'i'));
+    if (match) {
+      return match[1].replace(/^[-–—.|]+/, '').trim();
+    }
+  }
+  return '';
+}
+
+function firstLabeledValue(lines, labels) {
+  for (const line of lines) {
+    const value = lineValue(line, labels);
+    if (value) return value;
+  }
+  return '';
+}
+
+function collectDates(text) {
+  const found = [];
+  const re = /(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/g;
+  let match;
+  while ((match = re.exec(text))) {
+    const iso = toIsoDate(match[1]);
+    if (iso) found.push({ iso, index: match.index, raw: match[1] });
+  }
+  return found;
+}
+
+function contextAround(text, index, span = 40) {
+  return text.slice(Math.max(0, index - span), Math.min(text.length, index + span)).toLowerCase();
+}
+
+export function parseMulkiyaText(rawText) {
+  const fields = Object.fromEntries(MULKIYA_SCAN_FIELDS.map((k) => [k, null]));
+  const warnings = [];
+  const text = String(rawText || '').replace(/\u0000/g, ' ');
+  const upper = text.toUpperCase();
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  const vinMatch = upper.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
+  if (vinMatch) fields.chassis_number = vinMatch[0];
+  const labeledChassis = firstLabeledValue(lines, [
+    'chassis no', 'chassis number', 'chassis', 'chs no', 'vin',
+  ]);
+  if (!fields.chassis_number && labeledChassis) {
+    const compact = labeledChassis.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (compact.length >= 11) fields.chassis_number = compact.slice(0, 17);
+  }
+
+  const labeledEngine = firstLabeledValue(lines, [
+    'engine no', 'engine number', 'eng no', 'engine',
+  ]);
+  if (labeledEngine) {
+    const compact = labeledEngine.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (compact.length >= 5 && compact.length <= 20) fields.engine_number = compact;
+  }
+
+  const labeledPlate = firstLabeledValue(lines, [
+    'plate no', 'plate number', 'traffic no', 'traffic number', 'plate',
+  ]);
+  if (labeledPlate) {
+    const plate = labeledPlate.toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (plate && plate.length <= 12) fields.license_plate = plate;
+  }
+  if (!fields.license_plate) {
+    const plateMatch = upper.match(/\b([A-Z]{1,3})\s*-?\s*(\d{2,6})\b/);
+    if (plateMatch && plateMatch[0].replace(/\s/g, '').length <= 8) {
+      fields.license_plate = `${plateMatch[1]} ${plateMatch[2]}`;
+    }
+  }
+
+  const makeHit = MAKES.find((make) => upper.includes(make));
+  if (makeHit) {
+    const pretty = {
+      VW: 'Volkswagen',
+      BMW: 'BMW',
+      GMC: 'GMC',
+      MG: 'MG',
+      BYD: 'BYD',
+      JAC: 'JAC',
+      'MERCEDES-BENZ': 'Mercedes-Benz',
+      'MERCEDES BENZ': 'Mercedes-Benz',
+      MERCEDES: 'Mercedes-Benz',
+    };
+    fields.make = pretty[makeHit] || makeHit.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    const idx = upper.indexOf(makeHit);
+    const after = text.slice(idx + makeHit.length, idx + makeHit.length + 40).trim();
+    const modelToken = after.split(/[\n,]/)[0].trim().split(/\s{2,}|\s(?=\d{4}\b)/)[0];
+    const model = modelToken.replace(/[^A-Za-z0-9 \-]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (model && model.length >= 2 && model.length <= 30 && !/^(NO|YEAR|MODEL|COLOR|COLOUR)$/i.test(model)) {
+      fields.model = model;
+    }
+  }
+  const labeledMake = firstLabeledValue(lines, ['make', 'manufacturer', 'trade mark']);
+  if (!fields.make && labeledMake) fields.make = labeledMake.split(/\s{2,}/)[0].trim();
+  const labeledModel = firstLabeledValue(lines, ['model', 'type']);
+  if (!fields.model && labeledModel) fields.model = labeledModel.split(/\s{2,}/)[0].trim();
+
+  const labeledYear = firstLabeledValue(lines, ['model year', 'year of make', 'year']);
+  const yearFromLabel = labeledYear && labeledYear.match(/(19|20)\d{2}/);
+  if (yearFromLabel) fields.year = yearFromLabel[0];
+  if (!fields.year) {
+    const years = [...upper.matchAll(/\b((?:19|20)\d{2})\b/g)].map((m) => m[1]);
+    const now = new Date().getFullYear() + 1;
+    const modelYears = years.filter((y) => Number(y) >= 1990 && Number(y) <= now);
+    if (modelYears.length) fields.year = modelYears[0];
+  }
+
+  const owner = firstLabeledValue(lines, [
+    'owner', 'owner name', 'registered owner', 'name of owner', 'name',
+  ]);
+  if (owner && owner.length >= 3 && owner.length <= 80 && !/^(UAE|DUBAI|SHARJAH)$/i.test(owner)) {
+    fields.owned_by = owner.replace(/\s+/g, ' ').trim();
+  }
+
+  const tc = firstLabeledValue(lines, [
+    'tc no', 't.c. no', 'traffic code', 'registration no', 'reg no', 'certificate no',
+  ]);
+  if (tc) {
+    const compact = tc.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (compact.length >= 4) fields.mulkiya_number = compact.slice(0, 20);
+  }
+
+  const dates = collectDates(text);
+  dates.forEach((d) => {
+    const ctx = contextAround(text, d.index);
+    if (!fields.insurance_expiry && /insur|takaful|تأمين/.test(ctx)) {
+      fields.insurance_expiry = d.iso;
+    } else if (!fields.registration_expiry && /expir|valid|renew|صالح|انتهاء/.test(ctx)) {
+      fields.registration_expiry = d.iso;
+    }
+  });
+  if (!fields.registration_expiry && dates.length) {
+    const unique = [...new Set(dates.map((d) => d.iso))].sort();
+    fields.registration_expiry = unique[unique.length - 1];
+  }
+
+  if (!fields.insurance_expiry) {
+    warnings.push('Insurance expiry is usually on the insurance certificate, not the Mulkiya. Enter it if needed.');
+  }
+  const filled = MULKIYA_SCAN_FIELDS.filter((k) => k !== 'insurance_expiry' && fields[k]);
+  if (filled.length < 2) {
+    warnings.push('Could not read much from this photo. Use a straight, well-lit picture of the English side of the card.');
+  } else {
+    warnings.push('Free on-device scan — please check every field before saving.');
+  }
+
+  return { fields, warnings };
+}
+
+async function preprocessForOcr(file) {
   const dataUrl = await readAsDataUrl(file);
   const img = await loadImage(dataUrl);
-  const maxEdge = 1600;
-  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+  const longest = Math.max(img.width, img.height);
+  const scale = longest < 1100 ? Math.min(2.2, 1600 / longest) : Math.min(1, 1800 / longest);
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(img.width * scale));
   canvas.height = Math.max(1, Math.round(img.height * scale));
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Could not prepare the image for scanning.');
+  ctx.filter = 'grayscale(100%) contrast(135%) brightness(108%)';
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  const jpeg = canvas.toDataURL('image/jpeg', 0.82);
-  const base64 = jpeg.replace(/^data:[^;]+;base64,/, '');
-  const bytes = Math.ceil((base64.length * 3) / 4);
-  if (bytes > SCAN_MAX_EDGE) {
-    const smaller = canvas.toDataURL('image/jpeg', 0.65);
-    return { mimeType: 'image/jpeg', base64: smaller.replace(/^data:[^;]+;base64,/, '') };
-  }
-  return { mimeType: 'image/jpeg', base64 };
+  ctx.filter = 'none';
+  return canvas;
 }
 
-export async function prepareMulkiyaScanPayload(file) {
-  if (!file) throw new Error('Attach a Mulkiya file first.');
-  if (file.type === 'application/pdf') {
-    if (file.size > SCAN_MAX_EDGE) {
-      throw new Error('PDF is too large to scan. Attach a photo of the card (under 4 MB).');
-    }
-    const dataUrl = await readAsDataUrl(file);
-    return {
-      mimeType: 'application/pdf',
-      base64: dataUrl.replace(/^data:[^;]+;base64,/, ''),
-    };
+async function getWorker() {
+  if (!workerPromise) {
+    workerPromise = (async () => {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      await worker.setParameters({
+        tessedit_pageseg_mode: '6',
+        preserve_interword_spaces: '1',
+      });
+      return worker;
+    })().catch((error) => {
+      workerPromise = null;
+      throw error;
+    });
   }
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Scan needs a Mulkiya photo or PDF.');
-  }
-  try {
-    return await compressImage(file);
-  } catch {
-    if (file.size > SCAN_MAX_EDGE) {
-      throw new Error('Image is too large to scan. Try a clearer, smaller photo.');
-    }
-    const dataUrl = await readAsDataUrl(file);
-    return {
-      mimeType: file.type || 'image/jpeg',
-      base64: dataUrl.replace(/^data:[^;]+;base64,/, ''),
-    };
-  }
+  return workerPromise;
 }
 
 export function applyMulkiyaScan(form, fields, { overwrite = false } = {}) {
@@ -97,20 +260,32 @@ export function applyMulkiyaScan(form, fields, { overwrite = false } = {}) {
   return { form: next, filled };
 }
 
+/**
+ * Free on-device OCR (Tesseract). No API key, no Edge Function, no paid service.
+ */
 export async function extractMulkiyaFromFile(file) {
-  const payload = await prepareMulkiyaScanPayload(file);
-  const { data, error } = await supabase.functions.invoke('extract-mulkiya', {
-    body: payload,
-  });
-  if (data?.ok && data.fields) return data;
-  const fromBody = data?.error;
-  if (fromBody) throw new Error(fromBody);
-  if (error) {
-    const detail = error.message || 'Scan request failed.';
-    if (/not found|404/i.test(detail)) {
-      throw new Error('Mulkiya scan function is not deployed yet (extract-mulkiya).');
-    }
-    throw new Error(detail);
+  if (!file) throw new Error('Attach a Mulkiya file first.');
+  if (file.type === 'application/pdf') {
+    throw new Error('Free scan works with a photo of the card (JPG or PNG), not PDF. Snap the English side and attach that.');
   }
-  throw new Error('Could not read that Mulkiya.');
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Scan needs a Mulkiya photo (JPG or PNG).');
+  }
+
+  const canvas = await preprocessForOcr(file);
+  let text = '';
+  try {
+    const worker = await getWorker();
+    const result = await worker.recognize(canvas);
+    text = result?.data?.text || '';
+  } catch (error) {
+    const detail = error?.message || '';
+    if (/Failed to fetch|NetworkError|Load failed/i.test(detail)) {
+      throw new Error('First scan needs a one-time download of the free OCR engine. Check your internet and try once more.');
+    }
+    throw new Error(detail || 'Could not read that Mulkiya photo.');
+  }
+
+  const { fields, warnings } = parseMulkiyaText(text);
+  return { ok: true, provider: 'tesseract', fields, warnings, rawText: text };
 }

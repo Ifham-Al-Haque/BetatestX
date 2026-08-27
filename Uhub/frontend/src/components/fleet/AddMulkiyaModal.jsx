@@ -184,8 +184,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
     const next = {};
     if (mode === 'existing' && !existingId) next.existing = 'Select a fleet vehicle.';
     if (mode === 'new') {
-      if (!form.vehicle_number.trim()) next.vehicle_number = 'Vehicle number is required';
-      else if (form.vehicle_number.trim().length > 20) next.vehicle_number = 'Max 20 characters';
+      if (form.vehicle_number.trim().length > 20) next.vehicle_number = 'Max 20 characters';
       if (!form.license_plate.trim()) next.license_plate = 'License plate is required';
       else if (form.license_plate.trim().length > 20) next.license_plate = 'Max 20 characters';
       if (!form.make.trim()) next.make = 'Make is required';
@@ -315,7 +314,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
               {!(isEdit && vehicle?.mulkiya_document_url) && <span className="text-red-500"> *</span>}
             </label>
             <p className="text-xs text-gray-500 mb-2">
-              Attach a clear photo of the card. We read the print and fill plate, make, model, year, owner, expiry, engine and chassis — you still confirm before save.
+              Attach a clear photo of the English side of the card. Scan is free and runs in your browser — no paid OCR. Check the filled fields before saving.
             </p>
             {file ? (
               <div className="space-y-2">
@@ -351,13 +350,13 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                   className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 disabled:opacity-60"
                 >
                   {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
-                  {scanning ? 'Reading card…' : scannedKeys.length ? 'Scan again and replace fields' : 'Scan Mulkiya'}
+                  {scanning ? 'Reading card…' : scannedKeys.length ? 'Scan again and replace fields' : 'Scan Mulkiya (free)'}
                 </button>
               </div>
             ) : (
               <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40">
                 <Paperclip className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Click to attach PDF or image (max 10 MB)</span>
+                <span className="text-sm text-gray-600">Click to attach a Mulkiya photo (JPG or PNG, max 10 MB)</span>
                 <input type="file" accept={MULKIYA_ACCEPT} onChange={handleFile} className="hidden" />
               </label>
             )}
@@ -382,7 +381,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Vehicle number {mode === 'new' && <span className="text-red-500">*</span>}
+                Vehicle number <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input
                 name="vehicle_number"
@@ -391,7 +390,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                 disabled={mode === 'existing'}
                 maxLength={20}
                 className={`${inputBase} ${errors.vehicle_number ? 'border-red-300' : 'border-gray-300'} disabled:bg-gray-50`}
-                placeholder="e.g. UD-1042"
+                placeholder="Leave blank if you don’t use one"
               />
               {errors.vehicle_number && <p className="text-red-600 text-xs mt-1">{errors.vehicle_number}</p>}
             </div>

@@ -50,6 +50,7 @@ const OrgChartPro = ({
   externalSearch = '',
   canEditHierarchy = false,
   embedded = true,
+  hierarchy,
 }) => {
   const [displayMode, setDisplayMode] = useState('chart');
   const [presentationMode, setPresentationMode] = useState(true);
@@ -255,7 +256,7 @@ const OrgChartPro = ({
     const PositionIcon = getPositionIcon(node.position || node.designation);
     const roleLabel = node.position || node.designation || 'No position';
     const levelClass = getLevelClass(node.level, isActualRoot);
-    const placement = resolveEmployeePlacement(node);
+    const placement = resolveEmployeePlacement(node, hierarchy);
     const deptGradient = getDepartmentGradient(node.department);
 
     return (
@@ -750,6 +751,7 @@ const OrgChartPro = ({
           loading={loading}
           externalSearch={externalSearch}
           onEmployeeClick={onEmployeeClick}
+          hierarchy={hierarchy}
         />
       )}
     </div>

@@ -24,13 +24,13 @@ const BRANCH_STYLES = {
   DEFAULT: { gradient: 'from-gray-500 to-slate-600', border: 'border-gray-200 dark:border-gray-700' },
 };
 
-const DepartmentHierarchyView = ({ employees = [], loading = false, externalSearch = '', onEmployeeClick }) => {
+const DepartmentHierarchyView = ({ employees = [], loading = false, externalSearch = '', onEmployeeClick, hierarchy }) => {
   const [expandedParents, setExpandedParents] = useState(() => new Set(['TECHNOLOGY']));
   const [expandedBranches, setExpandedBranches] = useState(() => new Set());
   const [localSearch, setLocalSearch] = useState('');
 
   const searchTerm = (externalSearch || localSearch).trim().toLowerCase();
-  const { parents, stats } = useMemo(() => buildDepartmentHierarchy(employees), [employees]);
+  const { parents, stats } = useMemo(() => buildDepartmentHierarchy(employees, hierarchy), [employees, hierarchy]);
 
   const toggleParent = (key) => {
     setExpandedParents((prev) => {

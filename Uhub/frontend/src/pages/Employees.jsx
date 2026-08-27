@@ -10,7 +10,6 @@ import {
 } from "../hooks/useApi";
 import { apiService } from "../services/api";
 import { exportToCSV } from "../services/enhancedEmployeeApi";
-import { DEPARTMENTS } from "../config/departments";
 import {
   Plus,
   Search,
@@ -35,10 +34,12 @@ import {
   Mail,
   MapPin,
   Hash,
+  Building2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { isBlobUrlUnsafeForCurrentPage } from "../utils/imageUtils";
 import { hasFeatureAccess } from "../components/RoleBasedRoute";
+import { useDepartmentCatalog } from "../hooks/useDepartmentCatalog";
 
 const PERFORMANCE_LABELS = {
   excellent: "Excellent (4.5+)",
@@ -202,6 +203,7 @@ function Employees() {
     queryFilters
   );
   const { data: summaryStats, isLoading: statsLoading } = useEmployeeSummaryStats();
+  const { data: catalog } = useDepartmentCatalog();
   const deleteEmployeeMutation = useDeleteEmployee();
   const archiveEmployeeMutation = useArchiveEmployee();
 
@@ -278,22 +280,22 @@ function Employees() {
           apiService.employees.getDistinctFieldValues("department"),
           apiService.employees.getDistinctFieldValues("location"),
         ]);
-        const configDepartments = DEPARTMENTS.flatMap((dept) => [dept.value, dept.label]);
+        const catalogNames = (catalog?.departments || []).map((dept) => dept.name);
         setDepartmentOptions(
-          [...new Set([...departmentsFromDb, ...configDepartments])].sort((a, b) =>
+          [...new Set([...departmentsFromDb, ...catalogNames].filter(Boolean))].sort((a, b) =>
             String(a).localeCompare(String(b))
           )
         );
         setLocationOptions(locationsFromDb);
       } catch (err) {
         console.error("Failed to load employee filter options:", err);
-        setDepartmentOptions(DEPARTMENTS.map((dept) => dept.label));
+        setDepartmentOptions((catalog?.departments || []).map((dept) => dept.name));
         setLocationOptions([]);
       }
     };
 
     loadFilterOptions();
-  }, []);
+  }, [catalog?.departments]);
 
   const handleExport = useCallback(async () => {
     try {
@@ -394,6 +396,7 @@ function Employees() {
   }, [userProfile?.role]);
 
   const canViewOrgChart = hasFeatureAccess(userProfile?.role, "organizational_hierarchy");
+  const canManageDepartments = ["admin", "hr_manager", "super_admin"].includes(userProfile?.role);
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -582,6 +585,16 @@ function Employees() {
                   >
                     <Network className="w-4 h-4" />
                     <span className="hidden sm:inline">Org Chart</span>
+                  </button>
+                )}
+                {canManageDepartments && (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/departments")}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white transition-all"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Departments</span>
                   </button>
                 )}
                 <button

@@ -169,36 +169,46 @@ export const DEPARTMENT_PARENT_MAP = {
   MANAGEMENT: 'MANAGEMENT',
 };
 
-const findParent = (deptNorm) => {
+const findParent = (deptNorm, hierarchy = DEPARTMENT_HIERARCHY) => {
   if (DEPARTMENT_PARENT_MAP[deptNorm]) {
-    return DEPARTMENT_HIERARCHY.find((p) => p.key === DEPARTMENT_PARENT_MAP[deptNorm]);
+    const mapped = hierarchy.find((p) => p.key === DEPARTMENT_PARENT_MAP[deptNorm]);
+    if (mapped) return mapped;
   }
-  return DEPARTMENT_HIERARCHY.find(
-    (p) => p.key === deptNorm || p.branches.some((b) => b.aliases.map(norm).includes(deptNorm))
+  return hierarchy.find(
+    (p) =>
+      p.key === deptNorm ||
+      norm(p.label) === deptNorm ||
+      (p.aliases || []).map(norm).includes(deptNorm) ||
+      p.branches.some((b) => (b.aliases || []).map(norm).includes(deptNorm))
   );
 };
 
 /** All branch options for employee form dropdowns */
-export const getAllBranchOptions = () => {
+export const getAllBranchOptions = (hierarchy = DEPARTMENT_HIERARCHY) => {
   const options = [];
-  DEPARTMENT_HIERARCHY.forEach((parent) => {
+  hierarchy.forEach((parent) => {
     parent.branches.forEach((branch) => {
       options.push({
         value: branch.key,
         label: `${parent.label} → ${branch.label}`,
         parentKey: parent.key,
+        parentLabel: parent.label,
       });
     });
   });
   return options;
 };
 
-const findBranchByKey = (branchKey) => {
+const findBranchByKey = (branchKey, hierarchy = DEPARTMENT_HIERARCHY) => {
   if (!branchKey) return null;
   const keyNorm = norm(branchKey).replace(/\s+/g, '_');
-  for (const parent of DEPARTMENT_HIERARCHY) {
+  for (const parent of hierarchy) {
     const branch = parent.branches.find(
-      (b) => b.key === branchKey || b.key === keyNorm || norm(b.label) === norm(branchKey)
+      (b) =>
+        b.key === branchKey ||
+        b.key === keyNorm ||
+        norm(b.label) === norm(branchKey) ||
+        (b.aliases || []).map(norm).includes(norm(branchKey))
     );
     if (branch) return { parent, branch };
   }
@@ -209,7 +219,7 @@ const matchBranch = (parent, deptNorm, roleText) => {
   if (!parent) return null;
 
   for (const branch of parent.branches) {
-    if (branch.aliases.map(norm).includes(deptNorm)) return branch;
+    if ((branch.aliases || []).map(norm).includes(deptNorm)) return branch;
   }
 
   if (roleText) {
@@ -223,9 +233,11 @@ const matchBranch = (parent, deptNorm, roleText) => {
 };
 
 /** Map one employee record to parent department + sub-branch */
-export const resolveEmployeePlacement = (employee) => {
+export const resolveEmployeePlacement = (employee, hierarchy = DEPARTMENT_HIERARCHY) => {
+  const tree = hierarchy?.length ? hierarchy : DEPARTMENT_HIERARCHY;
+
   if (employee?.sub_department) {
-    const byKey = findBranchByKey(employee.sub_department);
+    const byKey = findBranchByKey(employee.sub_department, tree);
     if (byKey) {
       const { parent, branch } = byKey;
       return {
@@ -242,7 +254,7 @@ export const resolveEmployeePlacement = (employee) => {
   const deptNorm = norm(employee?.department);
   const roleText = norm(`${employee?.position || ''} ${employee?.designation || ''}`).toLowerCase();
 
-  let parent = findParent(deptNorm);
+  let parent = findParent(deptNorm, tree);
 
   if (!parent && deptNorm) {
     parent = {
@@ -278,4 +290,55 @@ export const resolveEmployeePlacement = (employee) => {
   };
 };
 
-export const getHierarchyParent = (key) => DEPARTMENT_HIERARCHY.find((p) => p.key === key);
+export const getHierarchyParent = (key, hierarchy = DEPARTMENT_HIERARCHY) =>
+  (hierarchy?.length ? hierarchy : DEPARTMENT_HIERARCHY).find((p) => p.key === key);
+
+export const toOrgCode = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+export const matchCatalogItem = (value, items = []) => {
+  const n = norm(value);
+  if (!n) return null;
+  return (
+    items.find(
+      (item) =>
+        norm(item.code) === n ||
+        norm(item.name) === n ||
+        norm(item.key) === n ||
+        norm(item.label) === n ||
+        (item.aliases || []).map(norm).includes(n)
+    ) || null
+  );
+};
+
+export const catalogToHierarchy = (departments = [], branches = []) => {
+  if (!departments.length) return DEPARTMENT_HIERARCHY;
+
+  return [...departments]
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || String(a.name).localeCompare(String(b.name)))
+    .map((dept) => ({
+      id: dept.id,
+      key: dept.code,
+      label: dept.name,
+      aliases: dept.aliases || [],
+      description: '',
+      gradient: 'from-blue-600 via-indigo-600 to-violet-700',
+      accent: dept.color || 'gray',
+      is_active: dept.is_active !== false,
+      branches: branches
+        .filter((branch) => branch.department_id === dept.id)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || String(a.name).localeCompare(String(b.name)))
+        .map((branch) => ({
+          id: branch.id,
+          key: branch.code,
+          label: branch.name,
+          aliases: Array.from(new Set([branch.name, branch.code, ...(branch.aliases || [])])),
+          keywords: [],
+          is_active: branch.is_active !== false,
+        })),
+    }));
+};

@@ -15,7 +15,8 @@ import { clearImageCache, forceRefreshEmployeeImages } from "../utils/imageUtils
 import { accessListToFormString, accessListFromForm } from "../utils/accessList";
 import { useAuth } from "../context/AuthContext";
 import { canEditEmployees, getPermissionDeniedMessage } from "../utils/permissions";
-import { getAllBranchOptions } from "../config/departmentHierarchy";
+import { DEPARTMENT_HIERARCHY, matchCatalogItem } from "../config/departmentHierarchy";
+import { useDepartmentCatalog } from "../hooks/useDepartmentCatalog";
 
 export default function EmployeeForm() {
   const { userProfile } = useAuth();
@@ -84,6 +85,31 @@ export default function EmployeeForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { data: catalog } = useDepartmentCatalog();
+  const catalogDepartments = catalog?.departments || [];
+  const catalogBranches = catalog?.branches || [];
+  const departmentSelectOptions = (catalogDepartments.length
+    ? catalogDepartments
+    : DEPARTMENT_HIERARCHY.map((parent) => ({
+        id: parent.key,
+        name: parent.label,
+        code: parent.key,
+        aliases: parent.aliases || [],
+        is_active: true,
+      }))
+  ).filter((dept) => dept.is_active !== false);
+  const sourceBranches = catalogBranches.length
+    ? catalogBranches
+    : DEPARTMENT_HIERARCHY.flatMap((parent) =>
+        parent.branches.map((branch) => ({
+          id: `${parent.key}:${branch.key}`,
+          department_id: parent.key,
+          name: branch.label,
+          code: branch.key,
+          aliases: branch.aliases || [],
+          is_active: true,
+        }))
+      );
 
   // Helper function to validate if an image URL can be loaded
   const isValidImageUrl = useCallback((url) => {
@@ -274,6 +300,26 @@ export default function EmployeeForm() {
           value = '+971' + value;
         }
       }
+    }
+
+    if (e.target.name === 'department') {
+      const selectedDept = matchCatalogItem(value, departmentSelectOptions);
+      const allowedBranches = sourceBranches.filter((branch) => branch.department_id === selectedDept?.id);
+      setFormData((prev) => {
+        const currentBranch = prev.sub_department;
+        const stillValid = allowedBranches.some(
+          (branch) =>
+            branch.code === currentBranch ||
+            branch.name === currentBranch ||
+            (branch.aliases || []).includes(currentBranch)
+        );
+        return {
+          ...prev,
+          department: value,
+          sub_department: stillValid ? currentBranch : "",
+        };
+      });
+      return;
     }
     
     setFormData({ ...formData, [e.target.name]: value });
@@ -518,6 +564,26 @@ export default function EmployeeForm() {
     }
     setLoading(false);
   };
+
+  const selectedCatalogDepartment = matchCatalogItem(formData.department, departmentSelectOptions);
+  const departmentHasCurrentValue = Boolean(
+    formData.department &&
+    !departmentSelectOptions.some((dept) => dept.name === formData.department)
+  );
+  const branchSelectOptions = sourceBranches.filter(
+    (branch) =>
+      branch.is_active !== false &&
+      (!selectedCatalogDepartment || branch.department_id === selectedCatalogDepartment.id)
+  );
+  const branchHasCurrentValue = Boolean(
+    formData.sub_department &&
+    !branchSelectOptions.some(
+      (branch) =>
+        branch.name === formData.sub_department ||
+        branch.code === formData.sub_department ||
+        (branch.aliases || []).includes(formData.sub_department)
+    )
+  );
 
   // Permission check - HR Managers cannot edit employees
   if (id && !canEdit) {
@@ -890,18 +956,16 @@ export default function EmployeeForm() {
                               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                             >
                               <option value="">Select Department</option>
-                              <option value="IT">IT</option>
-                              <option value="HR">HR</option>
-                              <option value="FINANCE">FINANCE</option>
-                              <option value="MARKETING">MARKETING</option>
-                              <option value="SALES">SALES</option>
-                              <option value="OPERATIONS">OPERATIONS</option>
-                              <option value="Customer Service">Customer Service</option>
-                              <option value="Driver Management">Driver Management</option>
-                              <option value="SUBSCRIBE NOW SALES">SUBSCRIBE NOW SALES</option>
-                              <option value="TECHNOLOGY">TECHNOLOGY</option>
-                              <option value="IOT">IOT</option>
-                              <option value="COLLECTION">COLLECTION</option>
+                              {departmentSelectOptions.map((dept) => (
+                                <option key={dept.id} value={dept.name}>
+                                  {dept.name}
+                                </option>
+                              ))}
+                              {departmentHasCurrentValue && (
+                                <option value={formData.department}>
+                                  {formData.department} (current)
+                                </option>
+                              )}
                             </select>
                             <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           </div>
@@ -919,14 +983,21 @@ export default function EmployeeForm() {
                               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                             >
                               <option value="">Auto-detect from department & role</option>
-                              {getAllBranchOptions().map((opt) => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              {branchSelectOptions.map((opt) => (
+                                <option key={opt.id || opt.code} value={opt.code}>
+                                  {opt.name}
+                                </option>
                               ))}
+                              {branchHasCurrentValue && (
+                                <option value={formData.sub_department}>
+                                  {formData.sub_department} (current)
+                                </option>
+                              )}
                             </select>
                             <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                           </div>
                           <p className="text-xs text-gray-500">
-                            Used for org chart branch labels (e.g. Technology → Product, IT, IoT). Run add_sub_department_column.sql if this field does not save yet.
+                            Team under the selected department. Add or rename teams in Departments.
                           </p>
                         </div>
 

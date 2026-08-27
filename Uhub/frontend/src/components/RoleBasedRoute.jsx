@@ -199,6 +199,7 @@ export const FEATURE_ACCESS = {
   
   // HR Panel - Subscribe Now has access to Employees, Complaints, and Suggestions
   employees: ['admin', 'hr_manager', 'manager', 'collections', 'subscribe_now'], // Collections can access employee section
+  department_management: ['admin', 'hr_manager', 'super_admin'],
   employees_view_only: ['data_operator', 'finance', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only for others
   employee_records: ['data_operator', 'finance', 'finance_viewer', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'marketing_manager', 'marketing_specialist', 'marketing_management'], // View only employee records
   complaints: ['admin', 'data_operator', 'finance', 'finance_viewer', 'it_management', 'employee', 'cs_manager', 'driver_management', 'operation_management', 'hr_manager', 'manager', 'collections', 'subscribe_now', 'marketing_manager', 'marketing_specialist', 'marketing_management', 'iot_management'],
@@ -344,7 +345,7 @@ export const getRoleNavigationAccess = (userRole) => {
         main: ['home', 'dashboard', 'calendar_view'],
         admin: ['admin_dashboard', 'user_management'],
         user_profile: ['profile', 'settings'],
-        hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'leave', 'payroll', 'payroll_calculator', 'epr'],
+        hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'department_management', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'leave', 'payroll', 'payroll_calculator', 'epr'],
         customer_service: ['cspa'],
         it_services: ['it_requests', 'it_assets', 'it_tickets', 'request_inbox', 'it_tools'],
         operation: ['fleet_records', 'fleet_lifecycle', 'udrive_fleetio', 'driver_records', 'driver_documents', 'breakdowns', 'operation_roster', 'delivery_management', 'delivery_tracking', 'delivery_routes'],
@@ -479,7 +480,7 @@ export const getRoleNavigationAccess = (userRole) => {
     items: {
       main: ['home', 'dashboard', 'calendar_view', 'organizational_hierarchy'],
       user_profile: ['profile', 'settings'],
-      hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'leave', 'payroll', 'payroll_calculator', 'epr'],
+      hr_panel: ['employees', 'employee_records', 'employee_onboarding', 'employee_offboarding', 'department_management', 'complaints', 'complaints_inbox', 'suggestions', 'suggestions_inbox', 'attendance', 'leave', 'payroll', 'payroll_calculator', 'epr'],
       it_services: ['it_requests'],
       todo_list: ['todo_list', 'task_management', 'my_tasks'],
       slice_of_life: ['events', 'memories'],

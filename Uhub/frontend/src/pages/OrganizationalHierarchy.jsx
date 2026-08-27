@@ -15,6 +15,7 @@ import { useEmployees } from '../hooks/useEmployees';
 import { useAuth } from '../context/AuthContext';
 import { resolveEmployeePlacement } from '../config/departmentHierarchy';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useDepartmentCatalog } from '../hooks/useDepartmentCatalog';
 
 const ORG_EDIT_ROLES = new Set(['admin', 'hr_manager']);
 
@@ -24,6 +25,8 @@ const OrganizationalHierarchy = () => {
   const canEditHierarchy = ORG_EDIT_ROLES.has(userProfile?.role);
 
   const { data: employees, isLoading: employeesLoading, isFetching: employeesFetching, refetch } = useEmployees();
+  const { data: catalog } = useDepartmentCatalog();
+  const hierarchy = catalog?.hierarchy;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [viewMode, setViewMode] = useState('chart');
@@ -252,6 +255,7 @@ const OrganizationalHierarchy = () => {
                 externalSearch={searchTerm}
                 onEmployeeClick={openEmployee}
                 canEditHierarchy={canEditHierarchy}
+                hierarchy={hierarchy}
               />
             </motion.div>
           )}
@@ -270,7 +274,7 @@ const OrganizationalHierarchy = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredEmployees.map((employee) => {
-                    const placement = resolveEmployeePlacement(employee);
+                    const placement = resolveEmployeePlacement(employee, hierarchy);
                     return (
                       <button
                         key={employee.id}
@@ -446,9 +450,9 @@ const OrganizationalHierarchy = () => {
                   <div className="flex items-center gap-3">
                     <Building className="w-4 h-4 text-gray-400" />
                     <span>{selectedEmployee.department || 'Unassigned'}</span>
-                    {resolveEmployeePlacement(selectedEmployee).branchLabel && (
+                    {resolveEmployeePlacement(selectedEmployee, hierarchy).branchLabel && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
-                        {resolveEmployeePlacement(selectedEmployee).branchLabel}
+                        {resolveEmployeePlacement(selectedEmployee, hierarchy).branchLabel}
                       </span>
                     )}
                   </div>

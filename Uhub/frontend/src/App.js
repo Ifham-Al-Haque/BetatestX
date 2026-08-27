@@ -66,6 +66,7 @@ const Employees = safeLazy(() => import('./pages/Employees'), 'Employees');
 const EmployeeHistory = safeLazy(() => import('./pages/EmployeeHistory'), 'EmployeeHistory');
 const EmployeeProfile = safeLazy(() => import('./pages/EmployeeProfile'), 'EmployeeProfile');
 const EmployeeForm = safeLazy(() => import('./pages/EmployeeForm'), 'EmployeeForm');
+const DepartmentManagement = safeLazy(() => import('./pages/DepartmentManagement'), 'DepartmentManagement');
 const EmployeeOnboarding = safeLazy(() => import('./pages/EmployeeOnboarding'), 'EmployeeOnboarding');
 const EmployeeOffboarding = safeLazy(() => import('./pages/EmployeeOffboarding'), 'EmployeeOffboarding');
 const Drivers = safeLazy(() => import('./pages/Driver'), 'Driver');
@@ -304,6 +305,14 @@ function App() {
                           <ProtectedRoute requiredFeature="employees">
                             <Layout>
                               <EmployeeHistory />
+                            </Layout>
+                          </ProtectedRoute>
+                        } />
+
+                        <Route path="/departments" element={
+                          <ProtectedRoute requiredFeature="department_management">
+                            <Layout>
+                              <DepartmentManagement />
                             </Layout>
                           </ProtectedRoute>
                         } />

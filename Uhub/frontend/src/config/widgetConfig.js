@@ -79,6 +79,7 @@ export const widgetConfig = [
     color: 'from-indigo-500 to-purple-600',
     items: [
       { label: 'Employees', path: '/employees', icon: Users, feature: 'employees', description: 'Manage employees' },
+      { label: 'Departments', path: '/departments', icon: Building, feature: 'department_management', description: 'Create and edit departments' },
       { label: 'Payroll', path: '/payroll', icon: Calculator, feature: 'payroll', description: 'Calculate & manage payroll' },
       { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding', description: 'Onboard staff' },
       { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding', description: 'Offboard staff' },

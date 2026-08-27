@@ -1,0 +1,16 @@
+# Uhub Edge Functions. Deploy from this folder:
+#   supabase login
+#   supabase link --project-ref qtugowosurgecytgswuo
+#   supabase secrets set GEMINI_API_KEY=your_google_ai_studio_key
+#   supabase functions deploy extract-mulkiya
+
+project_id = "qtugowosurgecytgswuo"
+
+[functions.extract-mulkiya]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.send-push]
+verify_jwt = true

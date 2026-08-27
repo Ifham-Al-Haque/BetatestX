@@ -95,6 +95,7 @@ const NAVIGATION_PANELS = [
     icon: UserCheck,
     items: [
       { label: 'Employees', path: '/employees', icon: Users, feature: 'employees', altFeatures: ['employee_records'] },
+      { label: 'Departments', path: '/departments', icon: Building, feature: 'department_management' },
       { label: 'Payroll', path: '/payroll', icon: Calculator, feature: 'payroll' },
       { label: 'Employee Onboarding', path: '/employee-onboarding', icon: UserCheck, feature: 'employee_onboarding' },
       { label: 'Employee Offboarding', path: '/employee-offboarding', icon: UserCheck, feature: 'employee_offboarding' },

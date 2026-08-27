@@ -4,8 +4,9 @@ import { buildOrgTree } from './buildOrgTree';
 /**
  * Group employees by parent department → sub-branch, with optional reporting tree per branch.
  */
-export const buildDepartmentHierarchy = (employees = []) => {
+export const buildDepartmentHierarchy = (employees = [], hierarchy = DEPARTMENT_HIERARCHY) => {
   const parentMap = new Map();
+  const tree = hierarchy?.length ? hierarchy : DEPARTMENT_HIERARCHY;
 
   const ensureParent = (placement) => {
     if (!parentMap.has(placement.parentKey)) {
@@ -31,7 +32,7 @@ export const buildDepartmentHierarchy = (employees = []) => {
   };
 
   employees.forEach((emp) => {
-    const placement = resolveEmployeePlacement(emp);
+    const placement = resolveEmployeePlacement(emp, tree);
     const parentNode = ensureParent(placement);
     const branchNode = ensureBranch(parentNode, placement);
     branchNode.employees.push({ ...emp, placement });
@@ -39,7 +40,7 @@ export const buildDepartmentHierarchy = (employees = []) => {
   });
 
   // Attach configured parents with zero employees (so HR sees full structure)
-  DEPARTMENT_HIERARCHY.forEach((parent) => {
+  tree.forEach((parent) => {
     if (!parentMap.has(parent.key)) {
       parentMap.set(parent.key, {
         ...parent,

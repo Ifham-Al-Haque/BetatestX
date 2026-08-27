@@ -2,7 +2,15 @@ import { supabase } from '../supabaseClient';
 import fleetService from './fleetService';
 import fleetVehicleMediaService from './fleetVehicleMediaService';
 
-function blankToNull(value) {
+function fallbackVehicleNumber(plate) {
+  const compact = String(plate || '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 12);
+  const stamp = Date.now().toString(36).slice(-5).toUpperCase();
+  const value = compact ? `M-${compact}` : `M-${stamp}`;
+  return value.slice(0, 20);
+}
   if (value == null) return null;
   const trimmed = String(value).trim();
   return trimmed === '' ? null : trimmed;
@@ -110,7 +118,12 @@ export async function saveManualMulkiya({ existingVehicleId, vehicle, file }) {
           `A fleet vehicle already uses plate ${duplicatePlate.license_plate}. Choose “Existing vehicle” and select it.`
         );
       }
-      const duplicateNumber = await findVehicleByNumber(vehicle.vehicle_number);
+      let vehicleNumber = blankToNull(vehicle.vehicle_number) || fallbackVehicleNumber(vehicle.license_plate);
+      let duplicateNumber = await findVehicleByNumber(vehicleNumber);
+      if (duplicateNumber && !blankToNull(vehicle.vehicle_number)) {
+        vehicleNumber = fallbackVehicleNumber(`${vehicle.license_plate || 'V'}${Date.now().toString(36)}`);
+        duplicateNumber = await findVehicleByNumber(vehicleNumber);
+      }
       if (duplicateNumber) {
         throw new Error(
           `Vehicle number ${duplicateNumber.vehicle_number} is already in the fleet. Choose “Existing vehicle” or use a different number.`
@@ -118,7 +131,7 @@ export async function saveManualMulkiya({ existingVehicleId, vehicle, file }) {
       }
 
       saved = await createVehicleWithOptionalEngine({
-        vehicle_number: vehicle.vehicle_number.trim(),
+        vehicle_number: vehicleNumber,
         license_plate: vehicle.license_plate.trim(),
         make: vehicle.make.trim(),
         model: vehicle.model.trim(),
