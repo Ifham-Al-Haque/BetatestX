@@ -11,6 +11,8 @@ function fallbackVehicleNumber(plate) {
   const value = compact ? `M-${compact}` : `M-${stamp}`;
   return value.slice(0, 20);
 }
+
+function blankToNull(value) {
   if (value == null) return null;
   const trimmed = String(value).trim();
   return trimmed === '' ? null : trimmed;
