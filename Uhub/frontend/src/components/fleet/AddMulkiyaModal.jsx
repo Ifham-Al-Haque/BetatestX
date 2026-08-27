@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Save, FileText, Paperclip, Trash2, Search, Car, ScanLine, Loader2 } from 'lucide-react';
 import { getCarDisplayName } from '../../utils/fleetRecordUtils';
 import { saveManualMulkiya } from '../../services/mulkiyaService';
-import { applyMulkiyaScan, extractMulkiyaFromFile } from '../../services/mulkiyaOcrService';
+import { applyMulkiyaScan, extractMulkiyaFromFile, isPdfFile } from '../../services/mulkiyaOcrService';
 
 const MULKIYA_MAX_BYTES = 10 * 1024 * 1024;
 const MULKIYA_ACCEPT = 'application/pdf,image/*';
@@ -314,7 +314,7 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
               {!(isEdit && vehicle?.mulkiya_document_url) && <span className="text-red-500"> *</span>}
             </label>
             <p className="text-xs text-gray-500 mb-2">
-              Attach a clear photo of the English side of the card. Scan is free and runs in your browser — no paid OCR. Check the filled fields before saving.
+              Attach a PDF or a clear photo of the English side. Scan is free and runs in your browser — no paid OCR. Check the filled fields before saving.
             </p>
             {file ? (
               <div className="space-y-2">
@@ -350,13 +350,17 @@ const AddMulkiyaModal = ({ isOpen, onClose, vehicles = [], vehicle = null, onSuc
                   className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-50 disabled:opacity-60"
                 >
                   {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
-                  {scanning ? 'Reading card…' : scannedKeys.length ? 'Scan again and replace fields' : 'Scan Mulkiya (free)'}
+                  {scanning
+                    ? (isPdfFile(file) ? 'Reading PDF…' : 'Reading card…')
+                    : scannedKeys.length
+                      ? 'Scan again and replace fields'
+                      : 'Scan Mulkiya (free)'}
                 </button>
               </div>
             ) : (
               <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40">
                 <Paperclip className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Click to attach a Mulkiya photo (JPG or PNG, max 10 MB)</span>
+                <span className="text-sm text-gray-600">Click to attach a Mulkiya PDF or photo (max 10 MB)</span>
                 <input type="file" accept={MULKIYA_ACCEPT} onChange={handleFile} className="hidden" />
               </label>
             )}

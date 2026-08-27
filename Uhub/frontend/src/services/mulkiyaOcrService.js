@@ -94,7 +94,7 @@ function contextAround(text, index, span = 40) {
   return text.slice(Math.max(0, index - span), Math.min(text.length, index + span)).toLowerCase();
 }
 
-export function parseMulkiyaText(rawText) {
+export function parseMulkiyaText(rawText, { kind = 'photo' } = {}) {
   const fields = Object.fromEntries(MULKIYA_SCAN_FIELDS.map((k) => [k, null]));
   const warnings = [];
   const text = String(rawText || '').replace(/\u0000/g, ' ');
@@ -204,12 +204,52 @@ export function parseMulkiyaText(rawText) {
   }
   const filled = MULKIYA_SCAN_FIELDS.filter((k) => k !== 'insurance_expiry' && fields[k]);
   if (filled.length < 2) {
-    warnings.push('Could not read much from this photo. Use a straight, well-lit picture of the English side of the card.');
+    warnings.push(
+      kind === 'pdf'
+        ? 'Could not read much from this PDF. Try a clearer file, or a straight photo of the English side of the card.'
+        : 'Could not read much from this photo. Use a straight, well-lit picture of the English side of the card.'
+    );
   } else {
     warnings.push('Free on-device scan — please check every field before saving.');
   }
 
   return { fields, warnings };
+}
+
+const MAX_PDF_PAGES = 3;
+const MIN_EMBEDDED_FIELDS = 2;
+
+export function isPdfFile(file) {
+  if (!file) return false;
+  if (file.type === 'application/pdf') return true;
+  return /\.pdf$/i.test(file.name || '');
+}
+
+function filledScanCount(fields) {
+  return MULKIYA_SCAN_FIELDS.filter((key) => key !== 'insurance_expiry' && fields?.[key]).length;
+}
+
+async function renderPdfPageToCanvas(page) {
+  const base = page.getViewport({ scale: 1 });
+  const longest = Math.max(base.width, base.height) || 1;
+  const scale = longest < 1100 ? Math.min(2.2, 1600 / longest) : Math.min(2, 1800 / longest);
+  const viewport = page.getViewport({ scale });
+  const rendered = document.createElement('canvas');
+  rendered.width = Math.max(1, Math.round(viewport.width));
+  rendered.height = Math.max(1, Math.round(viewport.height));
+  const renderCtx = rendered.getContext('2d', { willReadFrequently: true });
+  if (!renderCtx) throw new Error('Could not render that PDF page.');
+  await page.render({ canvasContext: renderCtx, viewport }).promise;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = rendered.width;
+  canvas.height = rendered.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return rendered;
+  ctx.filter = 'grayscale(100%) contrast(135%) brightness(108%)';
+  ctx.drawImage(rendered, 0, 0);
+  ctx.filter = 'none';
+  return canvas;
 }
 
 async function preprocessForOcr(file) {
@@ -226,6 +266,111 @@ async function preprocessForOcr(file) {
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   ctx.filter = 'none';
   return canvas;
+}
+
+function isPasswordPdfError(error) {
+  return error?.name === 'PasswordException' || /password/i.test(error?.message || '');
+}
+
+async function loadPdfjs() {
+  const pdfjs = await import('pdfjs-dist/build/pdf.js');
+  const lib = typeof pdfjs.getDocument === 'function' ? pdfjs : pdfjs.default;
+  lib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${lib.version}/build/pdf.worker.min.js`;
+  return lib;
+}
+
+async function openPdfDocument(pdfjs, bytes) {
+  try {
+    return await pdfjs.getDocument({ data: bytes, disableWorker: true }).promise;
+  } catch (error) {
+    if (isPasswordPdfError(error)) {
+      throw new Error('This PDF is password-protected. Unlock it, or attach a photo of the English side instead.');
+    }
+    if (error?.name === 'InvalidPDFException' || /invalid pdf/i.test(error?.message || '')) {
+      throw new Error('That file does not look like a readable PDF. Try another export, or attach a photo of the English side.');
+    }
+    throw error;
+  }
+}
+
+async function extractPdfPageText(page) {
+  const content = await page.getTextContent();
+  const items = Array.isArray(content?.items) ? content.items : [];
+  return items
+    .map((item) => (typeof item?.str === 'string' ? item.str : ''))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function recognizeCanvas(canvas) {
+  const worker = await getWorker();
+  const result = await worker.recognize(canvas);
+  return result?.data?.text || '';
+}
+
+async function extractMulkiyaFromPdf(file) {
+  const pdfjs = await loadPdfjs();
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let pdf = null;
+  try {
+    pdf = await openPdfDocument(pdfjs, bytes);
+    const pageCount = Math.min(pdf.numPages || 0, MAX_PDF_PAGES);
+    if (!pageCount) throw new Error('That PDF has no pages to scan.');
+    const extraPagesNote =
+      pdf.numPages > MAX_PDF_PAGES
+        ? `Only the first ${MAX_PDF_PAGES} pages were scanned.`
+        : '';
+
+    const embeddedParts = [];
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      embeddedParts.push(await extractPdfPageText(page));
+    }
+    const embeddedText = embeddedParts.filter(Boolean).join('\n');
+    const fromEmbedded = parseMulkiyaText(embeddedText, { kind: 'pdf' });
+    if (filledScanCount(fromEmbedded.fields) >= MIN_EMBEDDED_FIELDS) {
+      return {
+        ok: true,
+        provider: 'pdfjs',
+        fields: fromEmbedded.fields,
+        warnings: extraPagesNote ? [extraPagesNote, ...fromEmbedded.warnings] : fromEmbedded.warnings,
+        rawText: embeddedText,
+      };
+    }
+
+    const ocrParts = [];
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const canvas = await renderPdfPageToCanvas(page);
+      ocrParts.push(await recognizeCanvas(canvas));
+    }
+    const ocrText = ocrParts.filter(Boolean).join('\n');
+    const parsed = parseMulkiyaText(ocrText, { kind: 'pdf' });
+    return {
+      ok: true,
+      provider: 'tesseract-pdf',
+      fields: parsed.fields,
+      warnings: extraPagesNote ? [extraPagesNote, ...parsed.warnings] : parsed.warnings,
+      rawText: ocrText,
+    };
+  } catch (error) {
+    if (error?.message && /password-protected|no pages/i.test(error.message)) throw error;
+    const detail = error?.message || '';
+    if (isPasswordPdfError(error)) {
+      throw new Error('This PDF is password-protected. Unlock it, or attach a photo of the English side instead.');
+    }
+    if (/Failed to fetch|NetworkError|Load failed/i.test(detail)) {
+      throw new Error('First PDF scan needs a one-time download of the free PDF reader. Check your internet and try once more.');
+    }
+    throw new Error(detail || 'Could not read that Mulkiya PDF.');
+  } finally {
+    try {
+      await pdf?.destroy?.();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 async function getWorker() {
@@ -261,23 +406,21 @@ export function applyMulkiyaScan(form, fields, { overwrite = false } = {}) {
 }
 
 /**
- * Free on-device OCR (Tesseract). No API key, no Edge Function, no paid service.
+ * Free on-device read: PDF.js for digital PDFs, Tesseract OCR for photos and scanned PDFs.
  */
 export async function extractMulkiyaFromFile(file) {
   if (!file) throw new Error('Attach a Mulkiya file first.');
-  if (file.type === 'application/pdf') {
-    throw new Error('Free scan works with a photo of the card (JPG or PNG), not PDF. Snap the English side and attach that.');
+  if (isPdfFile(file)) {
+    return extractMulkiyaFromPdf(file);
   }
   if (!file.type.startsWith('image/')) {
-    throw new Error('Scan needs a Mulkiya photo (JPG or PNG).');
+    throw new Error('Scan needs a Mulkiya PDF or photo (JPG or PNG).');
   }
 
   const canvas = await preprocessForOcr(file);
   let text = '';
   try {
-    const worker = await getWorker();
-    const result = await worker.recognize(canvas);
-    text = result?.data?.text || '';
+    text = await recognizeCanvas(canvas);
   } catch (error) {
     const detail = error?.message || '';
     if (/Failed to fetch|NetworkError|Load failed/i.test(detail)) {
