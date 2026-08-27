@@ -171,6 +171,7 @@ const ClockInOutWidget = ({ variant = 'light', onChanged }) => {
   const activeLng = clockedIn ? day?.clock_in_lng : day?.clock_out_lng ?? day?.clock_in_lng;
 
   return (
+    <>
     <div className={`rounded-2xl border p-5 ${shell}`}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
@@ -303,19 +304,20 @@ const ClockInOutWidget = ({ variant = 'light', onChanged }) => {
           </p>
         </>
       )}
-      <RegularizeAttendanceModal
-        open={regularizeOpen}
-        onClose={() => setRegularizeOpen(false)}
-        defaultDate={regularizeDate}
-        defaultDay={regularizeDay}
-        missedDays={missedDays}
-        onSubmitted={() => {
-          setRegularizeOpen(false);
-          load();
-          onChanged?.();
-        }}
-      />
     </div>
+    <RegularizeAttendanceModal
+      open={regularizeOpen}
+      onClose={() => setRegularizeOpen(false)}
+      defaultDate={regularizeDate}
+      defaultDay={regularizeDay}
+      missedDays={missedDays}
+      onSubmitted={() => {
+        setRegularizeOpen(false);
+        load();
+        onChanged?.();
+      }}
+    />
+    </>
   );
 };
 

@@ -54,6 +54,7 @@ const LeaveWidget = ({ variant = 'light', onChanged }) => {
   }
 
   return (
+    <>
     <div className={`rounded-2xl border p-5 ${shell}`}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
@@ -92,16 +93,18 @@ const LeaveWidget = ({ variant = 'light', onChanged }) => {
         <CalendarDays className="w-3 h-3 inline mr-1" />
         Short leave, half day, festive, and unpaid are in Request. HR must approve.
       </p>
-      <LeaveRequestModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onSubmitted={() => {
-          setOpen(false);
-          load();
-          onChanged?.();
-        }}
       />
     </div>
+    <LeaveRequestModal
+      open={open}
+      onClose={() => setOpen(false)}
+      onSubmitted={() => {
+        setOpen(false);
+        load();
+        onChanged?.();
+      }}
+    />
+    </>
   );
 };
 

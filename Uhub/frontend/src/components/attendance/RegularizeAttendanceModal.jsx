@@ -28,6 +28,9 @@ function ymd(value) {
   return value ? String(value).slice(0, 10) : '';
 }
 
+const fieldClass =
+  'mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]';
+
 const RegularizeAttendanceModal = ({
   open,
   onClose,
@@ -123,8 +126,8 @@ const RegularizeAttendanceModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 text-gray-900">
+      <div className="w-full max-w-lg bg-white text-gray-900 rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto [&_input]:text-gray-900 [&_select]:text-gray-900 [&_textarea]:text-gray-900">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <ClipboardEdit className="w-5 h-5 text-indigo-600" />
@@ -170,7 +173,7 @@ const RegularizeAttendanceModal = ({
               max={today}
               value={workDate}
               onChange={(e) => setWorkDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+              className={fieldClass}
             />
           </label>
           <label className="block text-sm">
@@ -178,7 +181,7 @@ const RegularizeAttendanceModal = ({
             <select
               value={requestType}
               onChange={(e) => setRequestType(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+              className={fieldClass}
             >
               {REGULARIZATION_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -193,7 +196,7 @@ const RegularizeAttendanceModal = ({
                 required={requestType === 'forgot_punch' || requestType === 'missed_clock_in'}
                 value={clockIn}
                 onChange={(e) => setClockIn(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                className={fieldClass}
               />
             </label>
             <label className="block text-sm">
@@ -202,7 +205,7 @@ const RegularizeAttendanceModal = ({
                 type="time"
                 value={clockOut}
                 onChange={(e) => setClockOut(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                className={fieldClass}
               />
             </label>
           </div>
@@ -218,7 +221,7 @@ const RegularizeAttendanceModal = ({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Forgot to punch in yesterday, worked 9am to 6pm from the office"
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+              className={`${fieldClass} placeholder:text-gray-400`}
             />
           </label>
           <button

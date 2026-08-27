@@ -93,8 +93,8 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 text-gray-900">
+      <div className="w-full max-w-lg bg-white text-gray-900 rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto [&_input]:text-gray-900 [&_select]:text-gray-900 [&_textarea]:text-gray-900">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <CalendarDays className="w-5 h-5 text-teal-600" />
@@ -111,7 +111,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
             <select
               value={leaveType}
               onChange={(e) => setLeaveType(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+              className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
             >
               {types.map((t) => (
                 <option key={t.code} value={t.code}>{t.label}</option>
@@ -128,7 +128,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
                 />
               </label>
               <label className="block text-sm">
@@ -136,7 +136,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
                 <select
                   value={session}
                   onChange={(e) => setSession(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
                 >
                   <option value="morning">Morning</option>
                   <option value="afternoon">Afternoon</option>
@@ -152,7 +152,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
                 />
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -163,7 +163,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
                     required
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                    className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
                   />
                 </label>
                 <label className="block text-sm">
@@ -173,7 +173,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
                     required
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                    className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
                   />
                 </label>
               </div>
@@ -187,7 +187,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
                 />
               </label>
               <label className="block text-sm">
@@ -197,7 +197,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
                   required
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
                 />
               </label>
             </div>
@@ -216,7 +216,7 @@ const LeaveRequestModal = ({ open, onClose, onSubmitted }) => {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Why do you need this leave?"
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+              className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 [color-scheme:light]"
             />
           </label>
 
